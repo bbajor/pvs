@@ -1,17 +1,18 @@
 package de.bbajor.pvs.base.domain;
 
+import jakarta.persistence.Entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class PatientAddress extends AbstractEntity<Integer>{
+@Entity
+public class PatientAddress extends BasicEntity<Integer>{
 
-    private int id;
-
-    @Override
-    public Integer getId() {
-        return id;
-    }
+    private String street;
+    private String houseNumber;
+    private String postalCode;
+    private String city;
+    private String country;
 
 }
