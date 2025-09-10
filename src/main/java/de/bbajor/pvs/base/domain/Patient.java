@@ -1,30 +1,33 @@
 package de.bbajor.pvs.base.domain;
 
-import java.sql.Date;
-
-import org.jspecify.annotations.Nullable;
-
-import com.helger.commons.email.EmailAddress;
+import java.util.Date;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.criteria.CriteriaBuilder.In;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.validation.constraints.Email;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Entity
-public class Patient{
+public class Patient extends BasicEntity<Integer> {
 
-    private int id;
+    @ManyToOne
     private Salutation salutation;
     private Title title;
     private String firstName;
     private String lastName;
     private Date birth;
+    @ManyToOne
     private PatientAddress PatientAddress;
     private String phone;
-    private EmailAddress email;
+    @Email
+    private String email;
+    @ManyToOne
     private HealthInsuranceCard healthInsuranceCard;
+    @OneToOne
     private PatientHistory patientHistory;
 
 }

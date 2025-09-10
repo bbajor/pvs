@@ -128,6 +128,12 @@
             <version>${archunit.version}</version>
             <scope>test</scope>
         </dependency>
+    
+      <dependency>
+        <groupId>org.apache.ant</groupId>
+        <artifactId>ant</artifactId>
+        <version>1.10.6</version>
+      </dependency>
     </dependencies>
 
     <build>

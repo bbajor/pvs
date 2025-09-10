@@ -1,7 +1,7 @@
 package de.bbajor.pvs.base.domain;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.MappedSuperclass;
-import org.jspecify.annotations.Nullable;
 import org.springframework.data.util.ProxyUtils;
 
 @MappedSuperclass

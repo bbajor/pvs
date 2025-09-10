@@ -1,15 +1,17 @@
 package de.bbajor.pvs.base.domain;
 
 import java.util.List;
-
-import de.bbajor.pvs.icd10.domain.IcdEntry;
 import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Entity
-public class Anamnesis {
-    private int id;
-    private List<IcdEntry> knownDiseases;
+public class Anamnesis extends BasicEntity<Integer> {
+
+    @OneToMany
+    private List<Disease> knownDiseases;
     private String additionalInformation;
 }

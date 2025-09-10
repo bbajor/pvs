@@ -1,20 +1,16 @@
-package com.example.icd10gm.model;
+package de.bbajor.pvs.icd10.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.HashSet;
 import java.util.Set;
 
-@Entity
-@Table(name = "icd_entry")
-@Data
-@ToString(exclude = {"icdPrimaryKeys1", "icdStarKeys", "icdAdditionalKeys", "icdPrimaryKeys2"}) // Updated exclude names
-@EqualsAndHashCode(of = "id")
-public class IcdEntry {
+import de.bbajor.pvs.base.domain.BasicEntity;
 
-    @Id
-    @Column(name = "id")
-    private Integer id; // BfArM internal sequential number (Field 2)
+@Entity
+@EqualsAndHashCode(callSuper = true)
+@Data
+public class IcdEntry extends BasicEntity<Integer> {
 
     @Column(name = "coding_type", nullable = false)
     private Integer codingType; // Field 1
