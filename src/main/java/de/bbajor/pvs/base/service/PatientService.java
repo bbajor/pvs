@@ -1,7 +1,9 @@
 package de.bbajor.pvs.base.service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -41,5 +43,20 @@ public class PatientService {
 
     return patientRepository.findAll(spec);
 }
+
+    public Patient save(Patient patient) {
+        Patient saved = patientRepository.save(patient);
+        return saved;
+    }
+
+    public Collection<Patient> findAll() {
+        return patientRepository.findAll()
+                .stream()
+                .toList();
+    }
+
+    public Optional<Patient> findById(Integer id) {
+        return id == null ? Optional.empty() : patientRepository.findById(id);
+    }
 
 }
