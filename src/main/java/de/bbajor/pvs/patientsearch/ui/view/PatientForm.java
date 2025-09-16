@@ -1,6 +1,5 @@
 package de.bbajor.pvs.patientsearch.ui.view;
 
-import java.util.Collection;
 import java.util.List;
 
 import org.springframework.util.CollectionUtils;
