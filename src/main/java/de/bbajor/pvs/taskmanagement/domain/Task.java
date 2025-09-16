@@ -4,6 +4,7 @@ import de.bbajor.pvs.base.domain.AbstractEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import org.jspecify.annotations.Nullable;
 
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 
 @Entity
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Table(name = "task")
 public class Task extends AbstractEntity<Long> {
 
