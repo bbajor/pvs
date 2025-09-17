@@ -1,4 +1,4 @@
-package de.bbajor.pvs.config;
+package de.bbajor.pvs.egk.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

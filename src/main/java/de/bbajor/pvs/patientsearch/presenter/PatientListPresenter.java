@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 
 @Component

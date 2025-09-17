@@ -11,15 +11,17 @@ public class PatientDto {
 
     private Integer patientId;
     private String salutation;
-    private String title;
+    private TitleDto title;
+    private String gender;
     private String firstName;
     private String lastName;
     private LocalDate birth;
     private PatientAddressDto PatientAddress;
     private String phone;
     private String email;
-    private String healthInsurance;
-    private String healthInsuranceNumber;
+    private HealthInsuranceDto healthInsurance;
+    private String insuranceId;
+    private String description;
     private PatientHistoryDto patientHistory;
 
     public PatientAddressDto gPatientAddressDto() {

@@ -1,6 +1,6 @@
 package de.bbajor.pvs.base.domain;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 @Table(name = "reason_for_visit")
 public class ReasonForVisit extends BasicEntity<Integer> {
     
-    private Date dateOfVisit;
+    private LocalDate dateOfVisit;
     private String reason;
     private String description;
     private String additionalInformation;

@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
-public class PatientAddress extends BasicEntity<Integer>{
+public class Address extends BasicEntity<Integer> {
 
     private String street;
     private String houseNumber;

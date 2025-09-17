@@ -16,20 +16,19 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class Patient extends BasicEntity<Integer> {
 
-    @ManyToOne
-    private Salutation salutation;
-    private Title title;
+    private String salutation;
+    private String title;
     private String firstName;
     private String lastName;
     private LocalDate birth;
     @ManyToOne
-    private PatientAddress PatientAddress;
+    private Address address;
     private String phone;
     @Email
     private String email;
     @ManyToOne
     private HealthInsurance healthInsurance;
-    private String healthInsuranceNumber;
+    private String insuranceId;
     @OneToOne
     private PatientHistory patientHistory;
 
