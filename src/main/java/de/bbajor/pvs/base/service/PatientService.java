@@ -22,27 +22,28 @@ public class PatientService {
     }
 
     public List<Patient> findPatients(String filter) {
-    Specification<Patient> spec = (root, query, cb) -> {
-        String likeFilter = "%" + filter.toLowerCase() + "%";
-        List<Predicate> predicates = new ArrayList<>();
+        Specification<Patient> spec = (root, query, cb) -> {
+            String likeFilter = "%" + filter.toLowerCase() + "%";
+            List<Predicate> predicates = new ArrayList<>();
 
-        predicates.add(cb.or(
-            cb.like(cb.lower(root.get("firstName")), likeFilter),
-            cb.like(cb.lower(root.get("lastName")), likeFilter)
-           // cb.like(cb.lower(root.get("healthInsuranceCard")), likeFilter)
-        ));
+            predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("firstName")), likeFilter),
+                    cb.like(cb.lower(root.get("lastName")), likeFilter)
+            // cb.like(cb.lower(root.get("healthInsuranceCard")), likeFilter)
+            ));
 
-        // Beispiel für Integer-Feld birth
-        try {
-            Integer birthFilter = Integer.parseInt(filter);
-            predicates.add(cb.equal(root.get("birth"), birthFilter));
-        } catch (NumberFormatException ignored) {}
+            // Beispiel für Integer-Feld birth
+            try {
+                Integer birthFilter = Integer.parseInt(filter);
+                predicates.add(cb.equal(root.get("birth"), birthFilter));
+            } catch (NumberFormatException ignored) {
+            }
 
-        return cb.or(predicates.toArray(new Predicate[0]));
-    };
+            return cb.or(predicates.toArray(new Predicate[0]));
+        };
 
-    return patientRepository.findAll(spec);
-}
+        return patientRepository.findAll(spec);
+    }
 
     public Patient save(Patient patient) {
         Patient saved = patientRepository.save(patient);

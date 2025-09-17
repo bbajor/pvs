@@ -4,6 +4,8 @@ import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.egk.reader.EgkReader;
+import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 
 @Component
@@ -61,22 +63,23 @@ public class PatientDialogPresenter {
         return dto;
     }
 
-    private Patient mapToEntity(Patient e, PatientDto dto) {
+    private Patient mapToEntity(Patient entity, PatientDto dto) {
 
         if (dto == null) {
             return null;
         }
 
-        if (e == null) {
-            e = new Patient();
+        if (entity == null) {
+            entity = new Patient();
         }
-        e.setFirstName(dto.getFirstName())
+        entity
+                .setFirstName(dto.getFirstName())
                 .setLastName(dto.getLastName())
                 .setBirth(dto.getBirth())
                 .setEmail(dto.getEmail())
                 .setPhone(dto.getPhone());
         // TODO: map other fields
-        return e;
+        return entity;
     }
 
     public void readDataFromEgk() {
@@ -85,9 +88,12 @@ public class PatientDialogPresenter {
             getWorkingCopy().setBirth(patientData.getBirth())
                     .setEmail(patientData.getEmail())
                     .setFirstName(patientData.getFirstName())
-                    .setLastName(patientData.getLastName()).setPhone(patientData.getPhone())
+                    .setLastName(patientData.getLastName())
+                    .setPhone(patientData.getPhone())
                     .setPatientAddress(patientData.getPatientAddress())
-                    .setHealthInsuranceNumber(patientData.getHealthInsuranceNumber());
+                    .setInsuranceId(patientData.getInsuranceId());
+            HealthInsuranceDto healthInsurance = egkReader.readHealthInsuranceFromCard();
+            getWorkingCopy().setHealthInsurance(healthInsurance);
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Lesen der eGK: " + e.getMessage(), e);
         }

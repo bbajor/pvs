@@ -15,8 +15,8 @@ public class PatientSearchService {
     private PatientSearchRepository patientSearchRepository;
 
     public List<Patient> findPatients(String filter) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findPatients'");
+        return patientSearchRepository.findAll();
+        // TODO implement filtering
     }
-    
+
 }

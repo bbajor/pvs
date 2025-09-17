@@ -1,4 +1,4 @@
-package de.bbajor.pvs.config;
+package de.bbajor.pvs.egk.config;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -35,8 +35,6 @@ public class EgkToolValidator {
             throw new RuntimeException("EGK tool is not executable: " + toolPath);
         }
 
-        // Add tool directory to system PATH
-        String systemPath = System.getenv("PATH");
         String toolDir = path.getParent().toString();
         System.setProperty("java.library.path", toolDir + File.pathSeparator + System.getProperty("java.library.path"));
     }

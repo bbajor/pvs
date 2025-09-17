@@ -1,6 +1,6 @@
 package de.bbajor.pvs.base.domain;
 
-import java.sql.Date;
+import java.time.LocalDate;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 @Entity
 public class PatientRecord extends BasicEntity<Integer> {
 
-    private Date dateOfRecord;
+    private LocalDate dateOfRecord;
     private String description;
     private boolean isActive;
     @ManyToOne

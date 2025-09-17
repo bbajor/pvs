@@ -8,6 +8,7 @@ import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 
@@ -28,7 +29,7 @@ public class PatientForm extends Composite<FormLayout> {
     ComboBox<HealthInsuranceDto> healthInsuranceField = new ComboBox<HealthInsuranceDto>("Krankenversicherung");
     TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
-    TextField descriptionField = new TextField("Beschreibung");
+    TextArea descriptionField = new TextArea("Zusätzliche Informationen");
     TextField streetField = new TextField("Straße");
     TextField houseNumberField = new TextField("Hausnummer");
     TextField postalCodeField = new TextField("Postleitzahl");
@@ -41,6 +42,9 @@ public class PatientForm extends Composite<FormLayout> {
         titleField.setItems(CollectionUtils.isEmpty(titles) ? List.of() : titles);
         healthInsuranceField.setItems(CollectionUtils.isEmpty(healthInsurances) ? List.of() : healthInsurances);
 
+        descriptionField.setWidthFull();
+        descriptionField.setHeight("150px");
+
         // Configure the form
         var formLayout = getContent();
         formLayout.add(salutationField);
@@ -48,7 +52,6 @@ public class PatientForm extends Composite<FormLayout> {
         formLayout.add(firstNameField);
         formLayout.add(lastNameField);
         formLayout.add(birthDateField);
-        formLayout.add(descriptionField, 2);
         formLayout.add(streetField);
         formLayout.add(houseNumberField);
         formLayout.add(postalCodeField);
@@ -57,23 +60,31 @@ public class PatientForm extends Composite<FormLayout> {
         formLayout.add(emailField);
         formLayout.add(healthInsuranceField);
         formLayout.add(healthInsuranceNumberField);
+        formLayout.add(descriptionField, 2);
 
         binder.bind(firstNameField, PatientDto::getFirstName, PatientDto::setFirstName);
         binder.bind(lastNameField, PatientDto::getLastName, PatientDto::setLastName);
         binder.bind(birthDateField, PatientDto::getBirth, PatientDto::setBirth);
         binder.bind(phoneField, PatientDto::getPhone, PatientDto::setPhone);
         binder.bind(emailField, PatientDto::getEmail, PatientDto::setEmail);
-        binder.bind(streetField, dto -> dto.gPatientAddressDto().getStreet(), (dto, value) -> dto.gPatientAddressDto().setStreet(value));
-        binder.bind(houseNumberField, dto -> dto.gPatientAddressDto().getHouseNumber(), (dto, value) -> dto.gPatientAddressDto().setHouseNumber(value));
-        binder.bind(postalCodeField, dto -> dto.gPatientAddressDto().getPostalCode(), (dto, value) -> dto.gPatientAddressDto().setPostalCode(value));
-        binder.bind(cityField, dto -> dto.gPatientAddressDto().getCity(), (dto , value) -> dto.gPatientAddressDto().setCity(value));
+        binder.bind(streetField, dto -> dto.gPatientAddressDto().getStreet(),
+                (dto, value) -> dto.gPatientAddressDto().setStreet(value));
+        binder.bind(houseNumberField, dto -> dto.gPatientAddressDto().getHouseNumber(),
+                (dto, value) -> dto.gPatientAddressDto().setHouseNumber(value));
+        binder.bind(postalCodeField, dto -> dto.gPatientAddressDto().getPostalCode(),
+                (dto, value) -> dto.gPatientAddressDto().setPostalCode(value));
+        binder.bind(cityField, dto -> dto.gPatientAddressDto().getCity(),
+                (dto, value) -> dto.gPatientAddressDto().setCity(value));
         binder.bind(salutationField, PatientDto::getSalutation, PatientDto::setSalutation);
-        binder.bind(healthInsuranceNumberField, PatientDto::getHealthInsuranceNumber, PatientDto::setHealthInsuranceNumber);
+        binder.bind(healthInsuranceNumberField, PatientDto::getInsuranceId,
+                PatientDto::setInsuranceId);
+        binder.bind(healthInsuranceField, PatientDto::getHealthInsurance, PatientDto::setHealthInsurance);
+        binder.bind(titleField, PatientDto::getTitle, PatientDto::setTitle);
+        binder.bind(descriptionField, PatientDto::getDescription, PatientDto::setDescription);
         // TODO: bind other fields
 
     }
 
-    
     public void setPatient(PatientDto dto) {
         binder.setBean(dto);
     }

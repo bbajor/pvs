@@ -46,8 +46,8 @@ public class PatientSearchView extends Main implements PatientChangeListener {
     }
 
     private void configureGrid() {
-        patientGrid.addColumn(PatientDto::getFirstName).setHeader("Vorname");
         patientGrid.addColumn(PatientDto::getLastName).setHeader("Nachname");
+        patientGrid.addColumn(PatientDto::getFirstName).setHeader("Vorname");
         patientGrid.addColumn(PatientDto::getBirth).setHeader("Geburtsdatum");
         patientGrid.addColumn(PatientDto::getHealthInsurance).setHeader("Krankenkasse");
         patientGrid.setSizeFull();

@@ -10,6 +10,8 @@ import lombok.EqualsAndHashCode;
 public class HealthInsurance extends BasicEntity<Integer> {
 
     private String name;
-    private long healthInsuranceNumber;
+    private String healthInsuranceNumber;
+    private String countryCode;
+    private String insuranceType;
     
 }
