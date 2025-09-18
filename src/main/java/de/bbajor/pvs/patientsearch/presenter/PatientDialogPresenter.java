@@ -1,5 +1,7 @@
 package de.bbajor.pvs.patientsearch.presenter;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
@@ -52,7 +54,7 @@ public class PatientDialogPresenter {
         return workingCopy;
     }
 
-    private PatientDto copyFromEntity(Patient e) {
+    public static PatientDto copyFromEntity(Patient e) {
         PatientDto dto = new PatientDto();
         dto.setBirth(e.getBirth())
                 .setEmail(e.getEmail())
@@ -97,6 +99,10 @@ public class PatientDialogPresenter {
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Lesen der eGK: " + e.getMessage(), e);
         }
+    }
+
+    public List<PatientDto> getPatients() {
+        return patientService.findAll().stream().map(PatientDialogPresenter::copyFromEntity).toList();
     }
 
 }

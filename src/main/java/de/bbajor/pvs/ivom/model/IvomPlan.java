@@ -15,7 +15,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class Ivom extends BasicEntity<Long> {
+public class IvomPlan extends BasicEntity<Long> {
 
     private LocalDate creationDate;
     private String description;

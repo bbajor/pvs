@@ -20,7 +20,7 @@ public class PatientDialog extends Dialog {
         this.presenter = presenter;
 
         // Create the components
-        form = new PatientForm(null, null);
+        form = new PatientForm(null);
 
         var readBtn = new Button("Patientendaten einlesen", event -> {
             presenter.readDataFromEgk();

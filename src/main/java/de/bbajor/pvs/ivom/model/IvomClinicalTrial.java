@@ -22,6 +22,6 @@ public class IvomClinicalTrial extends BasicEntity<Long> {
     private String contactPhone;
 
     @ManyToOne
-    private Ivom ivom;
+    private IvomPlan ivom;
 
 }

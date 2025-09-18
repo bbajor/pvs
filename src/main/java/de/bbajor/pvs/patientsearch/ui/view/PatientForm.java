@@ -37,9 +37,9 @@ public class PatientForm extends Composite<FormLayout> {
     TextField phoneField = new TextField("Telefonnummer");
     TextField emailField = new TextField("E-Mail");
 
-    public PatientForm(List<TitleDto> titles, List<HealthInsuranceDto> healthInsurances) {
+    public PatientForm(List<HealthInsuranceDto> healthInsurances) {
 
-        titleField.setItems(CollectionUtils.isEmpty(titles) ? List.of() : titles);
+        titleField.setItems(TitleDto.values());
         healthInsuranceField.setItems(CollectionUtils.isEmpty(healthInsurances) ? List.of() : healthInsurances);
 
         descriptionField.setWidthFull();
@@ -67,14 +67,14 @@ public class PatientForm extends Composite<FormLayout> {
         binder.bind(birthDateField, PatientDto::getBirth, PatientDto::setBirth);
         binder.bind(phoneField, PatientDto::getPhone, PatientDto::setPhone);
         binder.bind(emailField, PatientDto::getEmail, PatientDto::setEmail);
-        binder.bind(streetField, dto -> dto.gPatientAddressDto().getStreet(),
-                (dto, value) -> dto.gPatientAddressDto().setStreet(value));
-        binder.bind(houseNumberField, dto -> dto.gPatientAddressDto().getHouseNumber(),
-                (dto, value) -> dto.gPatientAddressDto().setHouseNumber(value));
-        binder.bind(postalCodeField, dto -> dto.gPatientAddressDto().getPostalCode(),
-                (dto, value) -> dto.gPatientAddressDto().setPostalCode(value));
-        binder.bind(cityField, dto -> dto.gPatientAddressDto().getCity(),
-                (dto, value) -> dto.gPatientAddressDto().setCity(value));
+        binder.bind(streetField, dto -> dto.getPatientAddressDto().getStreet(),
+                (dto, value) -> dto.getPatientAddressDto().setStreet(value));
+        binder.bind(houseNumberField, dto -> dto.getPatientAddressDto().getHouseNumber(),
+                (dto, value) -> dto.getPatientAddressDto().setHouseNumber(value));
+        binder.bind(postalCodeField, dto -> dto.getPatientAddressDto().getPostalCode(),
+                (dto, value) -> dto.getPatientAddressDto().setPostalCode(value));
+        binder.bind(cityField, dto -> dto.getPatientAddressDto().getCity(),
+                (dto, value) -> dto.getPatientAddressDto().setCity(value));
         binder.bind(salutationField, PatientDto::getSalutation, PatientDto::setSalutation);
         binder.bind(healthInsuranceNumberField, PatientDto::getInsuranceId,
                 PatientDto::setInsuranceId);

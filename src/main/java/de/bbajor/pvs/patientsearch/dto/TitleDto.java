@@ -1,15 +1,22 @@
 package de.bbajor.pvs.patientsearch.dto;
 
-public class TitleDto {
+public enum TitleDto {
+    
+    DR("Dr."),
+    PROF_DR("Prof. Dr."),
+    PROF("Prof."),
+    NONE("");
 
-    private String title;
-
-    public TitleDto(String title) {
-        this.title = title;
+    private final String displayName;
+    
+    TitleDto(String displayName) {
+        this.displayName = displayName;
     }
 
-    public String getTitle() {
-        return title;
+    @Override
+    public String toString() {
+        return displayName;
     }
+
 
 }
