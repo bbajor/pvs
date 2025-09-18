@@ -42,4 +42,9 @@ public class TaskService {
         return taskRepository.findAllBy(pageable).toList();
     }
 
+    @Transactional
+    public void deleteTask(Long id) {
+        taskRepository.deleteById(id);
+    }
+
 }

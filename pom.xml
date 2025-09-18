@@ -49,7 +49,12 @@
     <artifactId>lombok</artifactId>
     <scope>provided</scope>
 </dependency>
-
+<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-csv -->
+    <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>1.14.1</version>
+    </dependency>
         <!-- Vaadin -->
         <dependency>
             <groupId>com.vaadin</groupId>

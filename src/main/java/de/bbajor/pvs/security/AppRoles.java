@@ -62,4 +62,13 @@ public final class AppRoles {
      * </p>
      */
     public static final String USER = "USER";
+
+    /**
+     * Role for technical users with elevated privileges.
+     * <p>
+     * This is the default role for technical users of the application. Users with this role have access to standard
+     * application features as well as migration/update jobs for external data but not full administrative functions.
+     * </p>
+     */
+    public static final String TECH_USER = "TECH_USER";
 }

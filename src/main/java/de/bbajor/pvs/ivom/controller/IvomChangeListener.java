@@ -1,4 +1,4 @@
-package de.bbajor.pvs.ivom.ui;
+package de.bbajor.pvs.ivom.controller;
 
 public interface IvomChangeListener {
     void onIvomChanged();

@@ -16,7 +16,7 @@ public class PatientDto {
     private String firstName;
     private String lastName;
     private LocalDate birth;
-    private PatientAddressDto PatientAddress;
+    private PatientAddressDto patientAddress;
     private String phone;
     private String email;
     private HealthInsuranceDto healthInsurance;
@@ -24,10 +24,14 @@ public class PatientDto {
     private String description;
     private PatientHistoryDto patientHistory;
 
-    public PatientAddressDto gPatientAddressDto() {
-        if (PatientAddress == null) {
-            PatientAddress = new PatientAddressDto();
+    public PatientAddressDto getPatientAddressDto() {
+        if (patientAddress == null) {
+            patientAddress = new PatientAddressDto();
         }
-        return PatientAddress;
+        return patientAddress;
+    }
+
+    public String toString() {
+        return lastName + ", " + firstName + ", " + birth + ", " + patientAddress.toString();
     }
 }

@@ -10,7 +10,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import de.bbajor.pvs.ivom.model.Ivom;
+import de.bbajor.pvs.ivom.model.IvomPlan;
 import de.bbajor.pvs.ivom.repository.IvomRepository;
 import jakarta.persistence.criteria.Predicate;
 
@@ -23,17 +23,17 @@ public class IvomService {
         this.ivomRepository = ivomRepository;
     }
 
-    public Optional<Ivom> findById(Long id) {
+    public Optional<IvomPlan> findById(Long id) {
         return ivomRepository.findById(id);
     }
 
-    public Collection<Ivom> findByPatient(Integer patientId) {
+    public Collection<IvomPlan> findByPatient(Integer patientId) {
         // TODO implement
         return Collections.emptyList();
     }
 
-    public List<Ivom> findIvoms(String filter) {
-        Specification<Ivom> spec = (root, query, cb) -> {
+    public List<IvomPlan> findIvoms(String filter) {
+        Specification<IvomPlan> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
 
@@ -53,12 +53,12 @@ public class IvomService {
         return ivomRepository.findAll(spec);
     }
 
-    public void save(Ivom newEntity) {
+    public void save(IvomPlan newEntity) {
         // TODO validate and check relating entities
         ivomRepository.save(newEntity);
     }
 
-    public Collection<Ivom> generateDailyList(LocalDate date) {
+    public Collection<IvomPlan> generateDailyList(LocalDate date) {
         // TODO implement
         return Collections.emptyList();
     }

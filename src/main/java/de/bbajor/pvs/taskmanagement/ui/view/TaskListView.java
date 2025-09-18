@@ -27,14 +27,14 @@ import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRe
 @Route("aufgabenliste")
 @PageTitle("Aufgabenliste")
 @Menu(order = 0, icon = "vaadin:clipboard-check", title = "Aufgabenliste")
-@PermitAll // When security is enabled, allow all authenticated users
+@PermitAll
 public class TaskListView extends Main {
 
     private final TaskService taskService;
-
     final TextField description;
     final DatePicker dueDate;
     final Button createBtn;
+    final Button deleteBtn;
     final Grid<Task> taskGrid;
 
     public TaskListView(TaskService taskService, Clock clock) {
@@ -63,15 +63,34 @@ public class TaskListView extends Main {
         taskGrid.addColumn(task -> Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie"))
                 .setHeader("Fälligkeitsdatum");
         taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
+        taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
         taskGrid.setSizeFull();
+
+        deleteBtn = new Button("Löschen", event -> deleteTask());
+        deleteBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+         taskGrid.addSelectionListener(e -> {
+            var selected = e.getFirstSelectedItem();
+            deleteBtn.setEnabled(selected.isPresent());
+        });
+        taskGrid.getStyle().set("min-height", "10em");
+        deleteBtn.setEnabled(false);
 
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
-        add(new ViewToolbar("Aufgabenliste", ViewToolbar.group(description, dueDate, createBtn)));
+        add(new ViewToolbar("Aufgabenliste", ViewToolbar.group(description, dueDate, createBtn, deleteBtn)));
         add(taskGrid);
     }
+
+    private void deleteTask() {
+        taskGrid.getSelectionModel().getFirstSelectedItem().ifPresent(task -> {
+            taskService.deleteTask(task.getId());
+            taskGrid.getDataProvider().refreshAll();
+            Notification.show("Aufgabe gelöscht", 3000, Notification.Position.BOTTOM_END)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        });
+}
 
     private void createTask() {
         taskService.createTask(description.getValue(), dueDate.getValue());

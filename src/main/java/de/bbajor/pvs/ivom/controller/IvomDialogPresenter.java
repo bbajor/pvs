@@ -1,20 +1,26 @@
-package de.bbajor.pvs.ivom.ui;
+package de.bbajor.pvs.ivom.controller;
 
+import java.util.List;
+import de.bbajor.pvs.patientsearch.presenter.PatientDialogPresenter;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.ivom.dto.IvomDto;
-import de.bbajor.pvs.ivom.model.Ivom;
+import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.ivom.dto.IvomPlanDto;
+import de.bbajor.pvs.ivom.model.IvomPlan;
 import de.bbajor.pvs.ivom.service.IvomService;
+import de.bbajor.pvs.patientsearch.dto.PatientDto;
 
 @Component
 public class IvomDialogPresenter {
 
+    private final PatientDialogPresenter patientDialogPresenter;
     private final IvomService ivomService;
-    private IvomDto workingCopy;
-    private Ivom original;
+    private IvomPlanDto workingCopy;
+    private IvomPlan original;
 
-    public IvomDialogPresenter(IvomService ivomService) {
+    public IvomDialogPresenter(IvomService ivomService, PatientDialogPresenter patientDialogPresenter) {
         this.ivomService = ivomService;
+        this.patientDialogPresenter = patientDialogPresenter;
     }
 
     public void loadIvomById(Long id) {
@@ -24,7 +30,7 @@ public class IvomDialogPresenter {
             this.workingCopy = copyFromEntity(original);
         } else {
             this.original = null;
-            this.workingCopy = new IvomDto(); // leere WorkingCopy für Neuanlage
+            this.workingCopy = new IvomPlanDto(); // leere WorkingCopy für Neuanlage
         }
     }
 
@@ -33,7 +39,7 @@ public class IvomDialogPresenter {
             throw new IllegalStateException("No data loaded into dialog");
         }
         if (original == null) {
-            Ivom newEntity = mapToIvomEntity(new Ivom(), workingCopy);
+            IvomPlan newEntity = mapToIvomEntity(new IvomPlan(), workingCopy);
             ivomService.save(newEntity);
         } else {
             mapToIvomEntity(original, workingCopy);
@@ -41,34 +47,38 @@ public class IvomDialogPresenter {
         }
     }
 
-    public IvomDto getWorkingCopy() {
+    public IvomPlanDto getWorkingCopy() {
         if (workingCopy == null) {
-            workingCopy = new IvomDto();
+            workingCopy = new IvomPlanDto();
         }
         return workingCopy;
     }
 
-    private IvomDto copyFromEntity(Ivom e) {
-        IvomDto dto = new IvomDto();
+    private IvomPlanDto copyFromEntity(IvomPlan e) {
+        IvomPlanDto dto = new IvomPlanDto();
         dto.setId(e.getId())
-        .setCreationDate(e.getCreationDate());
+                .setCreationDate(e.getCreationDate());
         // TODO: map other fields
         return dto;
     }
 
-    private Ivom mapToIvomEntity(Ivom entity, IvomDto dto) {
+    private IvomPlan mapToIvomEntity(IvomPlan entity, IvomPlanDto dto) {
 
         if (dto == null) {
             return null;
         }
 
         if (entity == null) {
-            entity = new Ivom();
+            entity = new IvomPlan();
         }
         entity
                 .setCreationDate(dto.getCreationDate())
                 .setDescription(dto.getAdditionalInformation());
         // TODO: map other fields
         return entity;
+    }
+
+    public List<PatientDto> getPatients() {
+        return patientDialogPresenter.getPatients();
     }
 }

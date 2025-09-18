@@ -1,21 +1,39 @@
 package de.bbajor.pvs.ivom.ui;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.vaadin.flow.component.dialog.Dialog;
 
-public class IvomDialog extends Dialog{
+import de.bbajor.pvs.ivom.controller.IvomChangeListener;
+import de.bbajor.pvs.ivom.controller.IvomDialogPresenter;
+
+public class IvomDialog extends Dialog {
+
+    private final IvomDialogPresenter dialogPresenter;
+    private List<IvomChangeListener> listeners;
 
     public IvomDialog(IvomDialogPresenter dialogPresenter) {
-        //TODO Auto-generated constructor stub
+        this.dialogPresenter = dialogPresenter;
+        setCloseOnEsc(true);
+        setCloseOnOutsideClick(true);
+
+        IvomForm ivomForm = new IvomForm(dialogPresenter.getPatients());
+        add(ivomForm);
     }
 
     public void addChangeListener(IvomView ivomView) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'addChangeListener'");
+        if (listeners == null) {
+            listeners = new ArrayList<>();
+        }
+        if (listeners.contains(ivomView)) {
+            return;
+        }
+        listeners.add(ivomView);
     }
 
-    public void loadIvomById(Long long1) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'loadIvomById'");
+    public void loadIvomById(Long id) {
+        dialogPresenter.loadIvomById(id);
     }
 
 }

@@ -9,20 +9,16 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class IvomDto {
+public class IvomPlanDto {
 
     private Long id;
     private LocalDate creationDate;
     private LocalDateTime plannedDateOfProcedure;
-    private SideOfEye sideOfEye;
     private PatientDto patient;
-    private DiseaseDto diseases;
     private String additionalInformation;
-    private String drugBillId;
     private String billId;
-    private String diagnoseIvom;
     private String currentSideOfEye;
-    private String currentDrug;
+    private TreatmentDto treatment;
 
     public String getFirstName() {
         return patient != null ? patient.getFirstName() : "";
@@ -37,6 +33,19 @@ public class IvomDto {
     }
 
     public String getHealthInsurance() {
-        return patient != null && patient.getHealthInsurance() != null ? patient.getHealthInsurance().getCostCarrierName() : "Name n.a.";
+        return patient != null && patient.getHealthInsurance() != null
+                ? patient.getHealthInsurance().getCostCarrierName()
+                : "Name n.a.";
+    }
+
+    public String getDiagnose() {
+        return treatment != null && treatment.getDisease() != null ? treatment.getDisease().getDisease()
+                : "Diagnose n.a.";
+    }
+
+    public String getCurrentDrug() {
+        return treatment != null && treatment.getIvomDrug() != null
+                ? treatment.getIvomDrug().getArzneimittelbezeichnung()
+                : "Medikament n.b.";
     }
 }
