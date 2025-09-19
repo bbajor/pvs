@@ -26,7 +26,7 @@ import jakarta.annotation.security.PermitAll;
 
 @Route("ivom-drugs")
 @PageTitle("Medikamente")
-@Menu(order = 3, icon = "vaadin:clipboard-check", title = "Medikamentendatenbank")
+@Menu(order = 3, icon = "vaadin:drop", title = "Medikamentendatenbank")
 @PermitAll
 public class IvomDrugView extends Main {
 
