@@ -8,10 +8,10 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.ivom.dto.IvomDrugDto;
-import de.bbajor.pvs.ivom.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugImportService;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
+import de.bbajor.pvs.ivomplan.dto.IvomDrugDto;
+import de.bbajor.pvs.ivomplan.model.IvomDrug;
 
 @Component
 public class IvomDrugViewPresenter {

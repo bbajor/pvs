@@ -11,7 +11,7 @@ public class Address extends BasicEntity<Integer> {
 
     private String street;
     private String houseNumber;
-    private String postalCode;
+    private Double postalCode;
     private String city;
     private String country;
 

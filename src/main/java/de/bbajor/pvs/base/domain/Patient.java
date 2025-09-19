@@ -2,6 +2,7 @@ package de.bbajor.pvs.base.domain;
 
 import java.time.LocalDate;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
@@ -21,7 +22,7 @@ public class Patient extends BasicEntity<Integer> {
     private String firstName;
     private String lastName;
     private LocalDate birth;
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     private Address address;
     private String phone;
     @Email
