@@ -18,7 +18,7 @@ import jakarta.annotation.security.PermitAll;
 
 @Route("patient-search")
 @PageTitle("Patientensuche")
-@Menu(order = 1, icon = "vaadin:clipboard-check", title = "Patientensuche")
+@Menu(order = 1, icon = "vaadin:male", title = "Patientensuche")
 @PermitAll
 public class PatientSearchView extends Main implements PatientChangeListener {
 

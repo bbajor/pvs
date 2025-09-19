@@ -20,7 +20,7 @@ import jakarta.annotation.security.PermitAll;
 
 @Route("ivom")
 @PageTitle("IVOM-Verwaltung")
-@Menu(order = 2, icon = "vaadin:clipboard-check", title = "IVOM-Verwaltung")
+@Menu(order = 2, icon = "vaadin:calendar-user", title = "IVOM-Verwaltung")
 @PermitAll
 public class IvomPlanView extends Main implements IvomChangeListener {
 
@@ -36,7 +36,7 @@ public class IvomPlanView extends Main implements IvomChangeListener {
 
         setSizeFull();
 
-        newIvomButton = new Button("Neue Ivom planen", event -> {
+        newIvomButton = new Button("Neuer IVOM-Plan", event -> {
             Optional<IvomPlanDto> ivom = ivomGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
                 openIvomDialog(ivom.get());
@@ -44,7 +44,7 @@ public class IvomPlanView extends Main implements IvomChangeListener {
                 openIvomDialog(new IvomPlanDto());
             }
         });
-        
+
         newIvomButton.getElement().setAttribute("theme", "primary");
 
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
@@ -52,6 +52,10 @@ public class IvomPlanView extends Main implements IvomChangeListener {
 
         generateDailyListButton = new Button("Tagesliste generieren",
                 event -> ivomListPresenter.generateDailyList(LocalDate.now()));
+        generateDailyListButton
+                .setTooltipText("Erzeugt eine Tagesliste für den nächsten anstehenden OP-Slot. " +
+                        "Dabei werden die wesentlichen Patientendaten, sowie die jeweiligen Einrichtungen aufgelistet, " +
+                        "an denen der Patient behandelt wird.");
         generateDailyListButton.getElement().setAttribute("theme", "primary");
 
         HorizontalLayout controls = new HorizontalLayout(newIvomButton, searchField, searchButton,

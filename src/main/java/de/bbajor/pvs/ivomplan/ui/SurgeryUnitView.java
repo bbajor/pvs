@@ -1,9 +1,6 @@
 package de.bbajor.pvs.ivomplan.ui;
 
-import java.util.Optional;
-
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
@@ -19,7 +16,7 @@ import jakarta.annotation.security.PermitAll;
 
 @Route("surgeryunit")
 @PageTitle("Operationszentren")
-@Menu(order = 4, icon = "vaadin:clipboard-check", title = "Operationszentren")
+@Menu(order = 4, icon = "vaadin:hospital", title = "Operationszentren")
 @PermitAll
 public class SurgeryUnitView extends Main {
 
