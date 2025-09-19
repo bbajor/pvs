@@ -5,12 +5,13 @@ import java.util.List;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Main;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 
+import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.patientsearch.presenter.PatientListPresenter;
 import jakarta.annotation.security.PermitAll;
@@ -29,20 +30,19 @@ public class PatientSearchView extends Main implements PatientChangeListener {
     public PatientSearchView(PatientListPresenter patientListPresenter) {
         this.patientListPresenter = patientListPresenter;
 
-        setSizeFull();
-
-        Button newPatientButton = new Button("Neuen Patienten anlegen", event -> openPatientDialog(null));
+        Button newPatientButton = new Button("Neuer Patient", event -> openPatientDialog(null));
         newPatientButton.getElement().setAttribute("theme", "primary");
 
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
         searchField.setWidthFull();
-        HorizontalLayout controls = new HorizontalLayout(newPatientButton, searchField, searchButton);
-        controls.setWidthFull();
-
-        add(controls, patientGrid);
 
         configureGrid();
         configureSearch();
+        add(new ViewToolbar("Patientensuche", ViewToolbar.group(newPatientButton, searchField, searchButton)));
+        setSizeFull();
+        addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
+                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+        add(patientGrid);
     }
 
     private void configureGrid() {

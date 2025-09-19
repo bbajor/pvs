@@ -5,7 +5,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-import de.bbajor.pvs.ivom.model.IvomDrug;
+import de.bbajor.pvs.ivomplan.model.IvomDrug;
 
 public interface IvomDrugRepository extends JpaRepository<IvomDrug, Long>, JpaSpecificationExecutor<IvomDrug> {
 

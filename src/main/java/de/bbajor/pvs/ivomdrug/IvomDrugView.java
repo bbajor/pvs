@@ -20,8 +20,8 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-import de.bbajor.pvs.ivom.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomdrug.controller.IvomDrugViewPresenter;
+import de.bbajor.pvs.ivomplan.dto.IvomDrugDto;
 import jakarta.annotation.security.PermitAll;
 
 @Route("ivom-drugs")

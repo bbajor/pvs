@@ -25,7 +25,7 @@ public class Person {
     private String geschlecht;
 
     @XmlElement(name = "StrassenAdresse", namespace = "http://ws.gematik.de/fa/vsdm/vsd/v5.2")
-    private StrassenAdresse strassenAdresse;
+    private Adresse strassenAdresse;
 
     public LocalDate getGeburtsdatum() {
         return geburtsdatum;
@@ -59,11 +59,11 @@ public class Person {
         this.geschlecht = geschlecht;
     }
 
-    public StrassenAdresse getStrassenAdresse() {
+    public Adresse getStrassenAdresse() {
         return strassenAdresse;
     }
 
-    public void setStrassenAdresse(StrassenAdresse strassenAdresse) {
+    public void setStrassenAdresse(Adresse strassenAdresse) {
         this.strassenAdresse = strassenAdresse;
     }
 }

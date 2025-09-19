@@ -2,9 +2,13 @@ package de.bbajor.pvs.egk.reader;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.Locale;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
+import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.egk.config.EgkToolProperties;
 import de.bbajor.pvs.egk.model.AbrechnenderKostentraeger;
 import de.bbajor.pvs.egk.model.Kostentraeger;
@@ -13,16 +17,17 @@ import de.bbajor.pvs.egk.model.Versicherter;
 import de.bbajor.pvs.egk.model.Versicherungsschutz;
 import de.bbajor.pvs.egk.model.ZusatzInfos;
 import de.bbajor.pvs.egk.model.ZusatzInfosAbrechnungGKV;
+import de.bbajor.pvs.egk.model.personal.Adresse;
 import de.bbajor.pvs.egk.model.personal.Person;
-import de.bbajor.pvs.egk.model.personal.StrassenAdresse;
 import de.bbajor.pvs.egk.model.personal.UcPersoenlicheVersichertenDatenXml;
 import de.bbajor.pvs.egk.model.personal.VersicherterPersoenlich;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
-import de.bbajor.pvs.patientsearch.dto.PatientAddressDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 
 @Component
 public class EgkReader {
+
+    private static final Logger LOGGER = LogManager.getLogger();
 
     private final EgkToolProperties properties;
 
@@ -64,10 +69,11 @@ public class EgkReader {
         return mapToDto(persoenlicheVersichertenDatenXml);
     }
 
+    @SuppressWarnings("null")
     private static PatientDto mapToDto(UcPersoenlicheVersichertenDatenXml data) {
         VersicherterPersoenlich v = data.getVersicherter();
         Person p = v.getPerson();
-        StrassenAdresse adr = p.getStrassenAdresse();
+        Adresse adr = p.getStrassenAdresse();
 
         PatientDto dto = new PatientDto();
         dto.setInsuranceId(v.getVersichertenId());
@@ -76,12 +82,17 @@ public class EgkReader {
         dto.setBirth(p.getGeburtsdatum());
         dto.setGender(p.getGeschlecht());
 
-        PatientAddressDto addressDto = new PatientAddressDto();
+        AddressDto addressDto = new AddressDto();
         addressDto.setStreet(adr == null ? "" : adr.getStrasse())
                 .setHouseNumber(adr == null ? "" : adr.getHausnummer())
-                .setPostalCode(adr == null ? "" : adr.getPostleitzahl())
+                .setPostalCode(adr == null ? Double.NaN : Double.parseDouble(adr.getPostleitzahl()))
                 .setCity(adr == null ? "" : adr.getOrt())
-                .setCountryCode(adr == null || adr.getLand() == null ? "" : adr.getLand().getWohnsitzlaendercode());
+                ;
+                try {
+                    addressDto.setCountryCode(Locale.of(adr.getLand().getWohnsitzlaendercode()));
+                } catch (NullPointerException e) {
+                    LOGGER.debug("Land in Adresse nicht gesetzt");
+                }
         dto.setPatientAddress(addressDto);
         return dto;
     }

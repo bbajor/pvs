@@ -2,6 +2,7 @@ package de.bbajor.pvs.patientsearch.dto;
 
 import java.time.LocalDate;
 
+import de.bbajor.pvs.base.dto.AddressDto;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -10,13 +11,13 @@ import lombok.experimental.Accessors;
 public class PatientDto {
 
     private Integer patientId;
-    private String salutation;
+    private SalutationDto salutation;
     private TitleDto title;
     private String gender;
     private String firstName;
     private String lastName;
     private LocalDate birth;
-    private PatientAddressDto patientAddress;
+    private AddressDto patientAddress;
     private String phone;
     private String email;
     private HealthInsuranceDto healthInsurance;
@@ -24,9 +25,9 @@ public class PatientDto {
     private String description;
     private PatientHistoryDto patientHistory;
 
-    public PatientAddressDto getPatientAddressDto() {
+    public AddressDto getPatientAddressDto() {
         if (patientAddress == null) {
-            patientAddress = new PatientAddressDto();
+            patientAddress = new AddressDto();
         }
         return patientAddress;
     }
