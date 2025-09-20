@@ -2,7 +2,7 @@ package de.bbajor.pvs.egk.model;
 
 import java.time.LocalDate;
 
-import de.bbajor.pvs.egk.misc.LocalDateAdapter;
+import de.bbajor.pvs.base.misc.LocalDateAdapter;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;

@@ -16,8 +16,8 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 
 import de.bbajor.pvs.ivomplan.dto.TimeSlotDto;
+import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
-import de.bbajor.pvs.ivomplan.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
 import de.bbajor.pvs.ivomplan.dto.SideOfEye;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;

@@ -2,26 +2,32 @@ package de.bbajor.pvs.ivomplan.dto;
 
 public enum TimeSlotRepetition {
 
-    EVERY_WORKING_DAY("An jedem Werktag"),
-    WEEKLY("Wöchentlich"),
-    EVERY_TWO_WEEKS("Alle 2 Wochen"),
-    EVERY_THREE_WEEKS("Alle 3 Wochen"),
-    EVERY_FOUR_WEEKS("Alle 4 Wochen"),
-    EVERY_FIVE_WEEKS("Alle 5 Wochen"),
-    EVERY_SIX_WEEKS("Alle 6 Wochen"),
-    EVERY_EIGHT_WEEKS("Alle 8 Wochen"),
-    EVERY_TEN_WEEKS("Alle 10 Wochen"),
-    EVERY_TWELVE_WEEKS("Alle 12 Wochen"),
-    EVERY_SIXTEEN_WEEKS("Alle 16 Wochen");
+    NO_REPETITION("Keine Wiederholung", 0),
+    WEEKLY("Wöchentlich", 1),
+    EVERY_TWO_WEEKS("Alle 2 Wochen", 2),
+    EVERY_THREE_WEEKS("Alle 3 Wochen", 3),
+    EVERY_FOUR_WEEKS("Alle 4 Wochen", 4),
+    EVERY_FIVE_WEEKS("Alle 5 Wochen", 5),
+    EVERY_SIX_WEEKS("Alle 6 Wochen", 6),
+    EVERY_EIGHT_WEEKS("Alle 8 Wochen", 8),
+    EVERY_TEN_WEEKS("Alle 10 Wochen", 10),
+    EVERY_TWELVE_WEEKS("Alle 12 Wochen", 12),
+    EVERY_SIXTEEN_WEEKS("Alle 16 Wochen", 16);
 
     private final String value;
+    private final int repeteEveryWeeks;
 
-    TimeSlotRepetition(String value) {
+    TimeSlotRepetition(String value, int repeteEveryWeeks) {
         this.value = value;
+        this.repeteEveryWeeks = repeteEveryWeeks;
     }
 
     @Override
     public String toString() {
         return value;
+    }
+
+    public int getRepeatEveryWeeks() {
+        return repeteEveryWeeks;
     }
 }

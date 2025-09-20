@@ -32,7 +32,7 @@ public class PatientForm extends Composite<FormLayout> {
         TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
         TextArea descriptionField = new TextArea("Zusätzliche Informationen");
-        private final AddressField addressForm = new AddressField();
+        private final AddressField addressField = new AddressField();
         TextField phoneField = new TextField("Telefonnummer");
         TextField emailField = new TextField("E-Mail");
 
@@ -52,7 +52,7 @@ public class PatientForm extends Composite<FormLayout> {
                 formLayout.add(firstNameField);
                 formLayout.add(lastNameField);
                 formLayout.add(birthDateField);
-                formLayout.add(addressForm);
+                formLayout.add(addressField);
                 formLayout.add(phoneField);
                 formLayout.add(emailField);
                 formLayout.add(healthInsuranceField);
@@ -70,12 +70,15 @@ public class PatientForm extends Composite<FormLayout> {
                 binder.bind(healthInsuranceField, PatientDto::getHealthInsurance, PatientDto::setHealthInsurance);
                 binder.bind(titleComboBox, PatientDto::getTitle, PatientDto::setTitle);
                 binder.bind(descriptionField, PatientDto::getDescription, PatientDto::setDescription);
+                binder.bind(addressField, PatientDto::getAddress, PatientDto::setAddress);
                 // TODO: bind other fields
 
         }
 
         public void setPatient(PatientDto dto) {
-                dto.setPatientAddress(addressForm.getValue());
+                if (dto == null) {
+                        dto = new PatientDto();
+                }
                 binder.setBean(dto);
         }
 

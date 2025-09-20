@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
+import de.bbajor.pvs.base.misc.ModelToDtoMapper;
 import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
@@ -15,19 +16,22 @@ public class PatientDialogPresenter {
 
     private final PatientService patientService;
     private final EgkReader egkReader;
+    private final ModelToDtoMapper modelToDtoMapper;
     private PatientDto workingCopy;
     private Patient original;
 
-    public PatientDialogPresenter(PatientService patientService, EgkReader egkReader) {
+
+    public PatientDialogPresenter(PatientService patientService, EgkReader egkReader, ModelToDtoMapper modelToDtoMapper) {
         this.patientService = patientService;
         this.egkReader = egkReader;
+        this.modelToDtoMapper = modelToDtoMapper;
     }
 
     public void loadPatientById(Integer id) {
         if (id != null) {
             this.original = patientService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Patient not found: " + id));
-            this.workingCopy = copyFromEntity(original);
+            this.workingCopy = modelToDtoMapper.toDto(original);
         } else {
             this.original = null;
             this.workingCopy = new PatientDto(); // leere WorkingCopy für Neuanlage
@@ -39,10 +43,10 @@ public class PatientDialogPresenter {
             throw new IllegalStateException("No data loaded into dialog");
         }
         if (original == null) { // new patient
-            Patient newEntity = mapToEntity(new Patient(), workingCopy);
+            Patient newEntity = modelToDtoMapper.toEntity(workingCopy);
             patientService.save(newEntity);
         } else { // existing patient
-            mapToEntity(original, workingCopy);
+            modelToDtoMapper.updateDtoFromEntity(original, workingCopy);
             patientService.save(original);
         }
     }
@@ -54,36 +58,6 @@ public class PatientDialogPresenter {
         return workingCopy;
     }
 
-    public static PatientDto copyFromEntity(Patient e) {
-        PatientDto dto = new PatientDto();
-        dto.setBirth(e.getBirth())
-                .setEmail(e.getEmail())
-                .setFirstName(e.getFirstName())
-                .setLastName(e.getLastName())
-                .setPhone(e.getPhone());
-        // TODO: map other fields
-        return dto;
-    }
-
-    private Patient mapToEntity(Patient entity, PatientDto dto) {
-
-        if (dto == null) {
-            return null;
-        }
-
-        if (entity == null) {
-            entity = new Patient();
-        }
-        entity
-                .setFirstName(dto.getFirstName())
-                .setLastName(dto.getLastName())
-                .setBirth(dto.getBirth())
-                .setEmail(dto.getEmail())
-                .setPhone(dto.getPhone());
-        // TODO: map other fields
-        return entity;
-    }
-
     public void readDataFromEgk() {
         try {
             PatientDto patientData = egkReader.readPatientFromCard();
@@ -92,7 +66,7 @@ public class PatientDialogPresenter {
                     .setFirstName(patientData.getFirstName())
                     .setLastName(patientData.getLastName())
                     .setPhone(patientData.getPhone())
-                    .setPatientAddress(patientData.getPatientAddress())
+                    .setAddress(patientData.getAddress())
                     .setInsuranceId(patientData.getInsuranceId());
             HealthInsuranceDto healthInsurance = egkReader.readHealthInsuranceFromCard();
             getWorkingCopy().setHealthInsurance(healthInsurance);
@@ -102,7 +76,11 @@ public class PatientDialogPresenter {
     }
 
     public List<PatientDto> getPatients() {
-        return patientService.findAll().stream().map(PatientDialogPresenter::copyFromEntity).toList();
+        return patientService.findAll().stream().map(this::copyFromEntity).toList();
+    }
+
+    public PatientDto copyFromEntity(Patient patient) {
+        return modelToDtoMapper.toDto(patient);
     }
 
 }

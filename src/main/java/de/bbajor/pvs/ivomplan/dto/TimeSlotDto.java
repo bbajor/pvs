@@ -13,7 +13,7 @@ public class TimeSlotDto {
 
     private Long id;
     private String description;
-    private LocalDate date;
+    private LocalDate startDate;
     private LocalTime startTime;
     private LocalTime endTime;
     private SurgeryUnitDto surgeryUnit;

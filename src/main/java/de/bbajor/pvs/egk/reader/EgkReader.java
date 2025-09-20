@@ -6,9 +6,11 @@ import java.util.Locale;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.dto.AddressDto;
+import de.bbajor.pvs.base.misc.ModelToDtoMapper;
 import de.bbajor.pvs.egk.config.EgkToolProperties;
 import de.bbajor.pvs.egk.model.AbrechnenderKostentraeger;
 import de.bbajor.pvs.egk.model.Kostentraeger;
@@ -86,14 +88,13 @@ public class EgkReader {
         addressDto.setStreet(adr == null ? "" : adr.getStrasse())
                 .setHouseNumber(adr == null ? "" : adr.getHausnummer())
                 .setPostalCode(adr == null ? Double.NaN : Double.parseDouble(adr.getPostleitzahl()))
-                .setCity(adr == null ? "" : adr.getOrt())
-                ;
-                try {
-                    addressDto.setCountryCode(Locale.of(adr.getLand().getWohnsitzlaendercode()));
-                } catch (NullPointerException e) {
-                    LOGGER.debug("Land in Adresse nicht gesetzt");
-                }
-        dto.setPatientAddress(addressDto);
+                .setCity(adr == null ? "" : adr.getOrt());
+        try {
+            addressDto.setCountryCode(Locale.of(adr.getLand().getWohnsitzlaendercode()));
+        } catch (NullPointerException e) {
+            LOGGER.debug("Land in Adresse nicht gesetzt");
+        }
+        dto.setAddress(addressDto);
         return dto;
     }
 

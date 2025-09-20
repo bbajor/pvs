@@ -7,8 +7,8 @@ import java.util.Optional;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.repository.IvomDrugRepository;
-import de.bbajor.pvs.ivomplan.model.IvomDrug;
 import jakarta.persistence.criteria.Predicate;
 
 @Service

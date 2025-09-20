@@ -1,4 +1,4 @@
-package de.bbajor.pvs.ivomplan.model;
+package de.bbajor.pvs.ivomdrug.model;
 
 import java.time.LocalDate;
 

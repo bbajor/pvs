@@ -1,4 +1,4 @@
-package de.bbajor.pvs.ivomplan.dto;
+package de.bbajor.pvs.ivomdrug.dto;
 
 import java.time.LocalDate;
 
