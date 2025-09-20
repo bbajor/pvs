@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
 import de.bbajor.pvs.ivomplan.repository.IvomPlanRepository;
@@ -27,6 +28,7 @@ public class IvomPlanService {
         return ivomRepository.findById(id);
     }
 
+    @Transactional
     public Collection<IvomPlan> findByPatient(Integer patientId) {
         return ivomRepository.findByPatientId(patientId);
     }

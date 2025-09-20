@@ -8,10 +8,10 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Component;
 
+import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
+import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugImportService;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
-import de.bbajor.pvs.ivomplan.dto.IvomDrugDto;
-import de.bbajor.pvs.ivomplan.model.IvomDrug;
 
 @Component
 public class IvomDrugViewPresenter {
@@ -90,19 +90,19 @@ public class IvomDrugViewPresenter {
     public int importCsv(Reader in) throws RuntimeException {
 
         try {
-            CSVFormat csvFormat = CSVFormat.DEFAULT
-                    .withFirstRecordAsHeader()
-                    .withDelimiter(';')
-                    .withTrim() // Whitespace entfernen
-                    .withIgnoreEmptyLines() // Leere Zeilen überspringen
-                    .withSkipHeaderRecord()
-                    .withHeader("EmptyColumn", "Nr", "Eingangsnummer", "Arzneimittelbezeichnung", "Darreichungsform",
+            CSVFormat csvFormat = CSVFormat.Builder.create()
+                    .setDelimiter(';')
+                    .setTrim(true)
+                    .setIgnoreEmptyLines(true)
+                    .setSkipHeaderRecord(true)
+                    .setHeader("EmptyColumn", "Nr", "Eingangsnummer", "Arzneimittelbezeichnung", "Darreichungsform",
                             "Zielgruppe", "Anwendungsart", "Anwendungsgebiete", "Indikation/ATC",
                             "Bescheiddatum der Zulassung", "Zulassungsstatus",
                             "Zulassungs-/Reg.-Nr. (AMG 1976), Register-Nr. (AMG 1961) oder Kennziffer",
                             "Verkehrsfähigkeit", "Parallelimportinformationen", "EU-Verfahrensnummer",
                             "Zulassungsinhaber", "Hersteller/Endfreigabe", "Vertreiber", "Örtlicher Vertreter",
-                            "Wirkstoffe", "Packungsgrößen-Gruppe/Verkaufsabgrenzung", "AM-Klassifikationen");
+                            "Wirkstoffe", "Packungsgrößen-Gruppe/Verkaufsabgrenzung", "AM-Klassifikationen")
+                    .get();
 
             // Debug: Headers und erste Zeile ausgeben
             Iterable<CSVRecord> records = csvFormat.parse(in);

@@ -42,7 +42,7 @@ public final class MainLayout extends AppLayout {
         var appLogo = VaadinIcon.CUBES.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
 
-        var appName = new Span("PVS Demo");
+        var appName = new Span("Praxis Tool-Suite");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
 
         var header = new Div(appLogo, appName);
@@ -80,11 +80,11 @@ public final class MainLayout extends AppLayout {
         var userMenuItem = userMenu.addItem(avatar);
         userMenuItem.add(user.getFullName());
         if (user.getProfileUrl() != null) {
-            userMenuItem.getSubMenu().addItem("View Profile",
+            userMenuItem.getSubMenu().addItem("Profil anzeigen",
                     event -> UI.getCurrent().getPage().open(user.getProfileUrl()));
         }
         // TODO Add additional items to the user menu if needed
-        userMenuItem.getSubMenu().addItem("Logout", event -> authenticationContext.logout());
+        userMenuItem.getSubMenu().addItem("Ausloggen", event -> authenticationContext.logout());
 
         return userMenu;
     }

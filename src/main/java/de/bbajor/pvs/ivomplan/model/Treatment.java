@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;

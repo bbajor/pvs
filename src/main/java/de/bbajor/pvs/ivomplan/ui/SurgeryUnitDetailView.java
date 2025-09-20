@@ -29,12 +29,9 @@ public class SurgeryUnitDetailView extends VerticalLayout implements BeforeEnter
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
-        HorizontalLayout dummyLayout2 = new HorizontalLayout();
-        dummyLayout2.setWidthFull();
-        buttonBar.add(dummyLayout2);
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-
+            
         });
         buttonBar.add(createButton);
         Button cancelButton = new Button("Zurück");
@@ -42,11 +39,10 @@ public class SurgeryUnitDetailView extends VerticalLayout implements BeforeEnter
             UI.getCurrent().navigate("surgeryunit");
         });
         buttonBar.add(cancelButton);
+        HorizontalLayout dummyLayout2 = new HorizontalLayout();
+        dummyLayout2.setWidthFull();
+        buttonBar.add(dummyLayout2);
         add(buttonBar);
-
-        // VerticalLayout dummyLayout = new VerticalLayout();
-        // dummyLayout.setSizeFull();
-        // add(dummyLayout);
 
         add(surgeryUnitForm);
     }

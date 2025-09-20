@@ -7,6 +7,8 @@ import com.vaadin.flow.component.accordion.AccordionPanel;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.details.DetailsVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.NativeLabel;
@@ -38,6 +40,7 @@ public class SurgeryUnitForm extends VerticalLayout {
     private final ComboBox<TimeSlotRepetition> timeSlotRepetition = new ComboBox<>(
             "Wie oft? (z.B. \"An jedem Werktag\", \"wöchentlich\",\"Alle 2 Wochen\", etc.)");
     private final ComboBox<DayOfWeek> dayOfWeek = new ComboBox<>("Wochentag");
+    private final DatePicker startOfTimeSlots = new DatePicker("Termine erstellen ab");
     private final TimePicker timeSlotStartPicker = new TimePicker("Beginn");
     private final TimePicker timeSlotEndPicker = new TimePicker("Ende");
     private final Button addTimeSlotSeriesButton = new Button("+ hinzufügen");
@@ -60,13 +63,25 @@ public class SurgeryUnitForm extends VerticalLayout {
         FormLayout form = new FormLayout();
         form.setSizeFull();
         form.setMinColumns(4);
-        form.add(unitNameField, addressForm, phoneField, emailField, contactField, phoneContactField);
+        form.add(unitNameField, phoneField, emailField, contactField, phoneContactField);
         AccordionPanel accordion = new AccordionPanel("Allgemeine Informationen", form);
+        accordion.addThemeVariants(DetailsVariant.SMALL);
+        accordion.setOpened(true);
         add(accordion);
+
+        FormLayout addressFormLayout = new FormLayout();
+        addressFormLayout.setSizeFull();
+        addressFormLayout.add(addressForm);
+        addressFormLayout.setColspan(addressForm, 2);
+        AccordionPanel addressAccordion = new AccordionPanel("Adresse", addressFormLayout);
+        addressAccordion.addThemeVariants(DetailsVariant.SMALL);
+        addressAccordion.setOpened(true);
+        add(addressAccordion);
+        
 
         FormLayout timeSlotCreation = new FormLayout();
         timeSlotCreation.setSizeFull();
-        timeSlotCreation.add(timePeriodComboBox, timeSlotRepetition, dayOfWeek, timeSlotStartPicker, timeSlotEndPicker,
+        timeSlotCreation.add(timePeriodComboBox, timeSlotRepetition, dayOfWeek, startOfTimeSlots, timeSlotStartPicker, timeSlotEndPicker,
                 addTimeSlotSeriesButton);
         add(new NativeLabel("OP-Slot hinzufügen"));
         add(timeSlotCreation);

@@ -1,4 +1,4 @@
-package de.bbajor.pvs.egk.misc;
+package de.bbajor.pvs.base.misc;
 
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import java.time.LocalDate;

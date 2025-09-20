@@ -6,6 +6,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
+import de.bbajor.pvs.base.misc.ModelToDtoMapper;
+import de.bbajor.pvs.base.misc.ModelToDtoMapperImpl;
 import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
@@ -13,12 +15,15 @@ import de.bbajor.pvs.patientsearch.dto.PatientDto;
 @Component
 public class PatientListPresenter {
 
+    private final ModelToDtoMapper modelToDtoMapper;
     private final PatientService patientService;
     private final EgkReader egkReader;
 
-    public PatientListPresenter(PatientService patientService, EgkReader egkReader) {
+    public PatientListPresenter(PatientService patientService, EgkReader egkReader, ModelToDtoMapper modelToDtoMapper,
+            ModelToDtoMapperImpl modelToDtoMapperImpl) {
         this.patientService = patientService;
         this.egkReader = egkReader;
+        this.modelToDtoMapper = modelToDtoMapper;
     }
 
     public List<PatientDto> findAll() {
@@ -29,7 +34,7 @@ public class PatientListPresenter {
     }
 
     public PatientDialogPresenter getDialogPresenter() {
-        return new PatientDialogPresenter(patientService, egkReader);
+        return new PatientDialogPresenter(patientService, egkReader, modelToDtoMapper);
     }
 
     private PatientDto mapToDto(Patient entity) {

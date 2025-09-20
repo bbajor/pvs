@@ -15,6 +15,10 @@ public class AddressDto {
     private String city;
     private Locale countryCode;
 
+    public Locale getCountryCode() {
+        return countryCode;
+    }
+
     @Override
     public String toString() {
         return String.valueOf(street) + " " + String.valueOf(houseNumber) + ", " + String.valueOf(postalCode) + " "

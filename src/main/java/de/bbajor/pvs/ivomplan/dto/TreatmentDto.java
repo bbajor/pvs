@@ -1,5 +1,6 @@
 package de.bbajor.pvs.ivomplan.dto;
 
+import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import lombok.Data;
 import lombok.experimental.Accessors;
 

@@ -3,10 +3,12 @@ package de.bbajor.pvs.base.domain;
 import jakarta.persistence.Entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.experimental.Accessors;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
+@Accessors(chain = true)
 public class Address extends BasicEntity<Integer> {
 
     private String street;

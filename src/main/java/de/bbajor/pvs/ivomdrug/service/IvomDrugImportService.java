@@ -9,8 +9,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.repository.IvomDrugRepository;
-import de.bbajor.pvs.ivomplan.model.IvomDrug;
 import lombok.RequiredArgsConstructor;
 
 @Service
