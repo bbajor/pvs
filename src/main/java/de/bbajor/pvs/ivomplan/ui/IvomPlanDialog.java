@@ -18,7 +18,8 @@ public class IvomPlanDialog extends Dialog {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(true);
 
-        IvomPlanForm ivomForm = new IvomPlanForm(dialogPresenter.getPatients());
+        IvomPlanForm ivomForm = new IvomPlanForm(dialogPresenter.getPatients(), dialogPresenter.getDrugs(),
+                dialogPresenter.getSurgeryUnits());
         add(ivomForm);
     }
 

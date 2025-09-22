@@ -20,11 +20,11 @@ public class PatientDialog extends Dialog {
         this.presenter = presenter;
 
         // Create the components
-        form = new PatientForm(null);
+        form = new PatientForm(presenter.getHealthInsurances());
 
         var readBtn = new Button("Patientendaten einlesen", event -> {
             presenter.readDataFromEgk();
-            form.setPatient(presenter.getWorkingCopy());
+            form.writeValuesToPatient(presenter.getWorkingCopy());
         });
         readBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
         var saveBtn = new Button("Patienten anlegen", event -> save());
@@ -47,13 +47,13 @@ public class PatientDialog extends Dialog {
     }
 
     private void save() {
-        presenter.saveChanges();
+        presenter.saveChanges(form);
         notifyListeners();
         close();
     }
 
     public void loadPatientById(Integer id) {
         presenter.loadPatientById(id);
-        form.setPatient(presenter.getWorkingCopy());
+        form.writeValuesToPatient(presenter.getWorkingCopy());
     }
 }

@@ -11,6 +11,7 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
+import de.bbajor.pvs.ivomplan.controller.SurgeryUnitListPresenter;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import jakarta.annotation.security.PermitAll;
 
@@ -20,19 +21,21 @@ import jakarta.annotation.security.PermitAll;
 @PermitAll
 public class SurgeryUnitView extends Main {
 
-    // private final SurgeryUnitListPresenter surgeryUnitListPresenter;
+    private final SurgeryUnitListPresenter presenter;
     private final Grid<SurgeryUnitDto> grid = new Grid<>(SurgeryUnitDto.class, false);
     private final TextField searchField = new TextField();
     private final Button searchButton = new Button("Suchen");
     private final Button newSurgeryUnitButton;
 
-    public SurgeryUnitView() {
+    public SurgeryUnitView(SurgeryUnitListPresenter presenter) {
+
+        this.presenter = presenter;
 
         setSizeFull();
 
         newSurgeryUnitButton = new Button("Neue Ambulanz anlegen", event -> {
             SurgeryUnitDto dto = new SurgeryUnitDto();
-            dto.setId(-1);
+            dto.setId(Integer.valueOf(-1));
             navigateToDetailView(dto);
         });
 
@@ -53,7 +56,7 @@ public class SurgeryUnitView extends Main {
         // TODO Achtung, hier sollte nicht mit der ID-Spalte aus der Datenbank
         // gearbeitet werden, sondern mit einer internen UUID, die nicht zu erraten
         // ist!!!!
-        UI.getCurrent().navigate("surgeryunit/" + String.valueOf(surgeryUnitDto.getId()));
+        UI.getCurrent().navigate("surgeryunit/" + surgeryUnitDto.getId());
     }
 
     private void configureGrid() {
@@ -67,6 +70,7 @@ public class SurgeryUnitView extends Main {
         grid.setSizeFull();
 
         // refresh("");
+        grid.setItems(presenter.getAll());
 
         grid.asSingleSelect().addValueChangeListener(event -> {
             SurgeryUnitDto surgeryUnitDto = event.getValue();

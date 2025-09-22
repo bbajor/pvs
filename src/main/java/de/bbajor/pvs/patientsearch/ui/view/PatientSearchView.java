@@ -71,8 +71,8 @@ public class PatientSearchView extends Main implements PatientChangeListener {
     private void openPatientDialog(PatientDto dto) {
         PatientDialog dialog = new PatientDialog(patientListPresenter.getDialogPresenter());
         dialog.addChangeListener(this);
-        if (dto != null && dto.getPatientId() != null) {
-            dialog.loadPatientById(dto.getPatientId());
+        if (dto != null && dto.getId() != null) {
+            dialog.loadPatientById(dto.getId());
         }
         dialog.open();
     }

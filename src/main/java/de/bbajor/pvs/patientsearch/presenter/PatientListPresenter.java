@@ -7,23 +7,36 @@ import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.misc.ModelToDtoMapper;
-import de.bbajor.pvs.base.misc.ModelToDtoMapperImpl;
+import de.bbajor.pvs.base.service.HealthInsuranceService;
 import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.egk.reader.EgkReader;
+import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
+import de.bbajor.pvs.ivomplan.service.IvomPlanService;
+import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 
 @Component
 public class PatientListPresenter {
 
-    private final ModelToDtoMapper modelToDtoMapper;
+    private final IvomDrugService ivomDrugService;
+    private final IvomPlanService ivomPlanService;
+    private final SurgeryUnitService surgeryUnitService;
     private final PatientService patientService;
+    private final HealthInsuranceService healthInsuranceService;
+
+    private final ModelToDtoMapper modelToDtoMapper;
     private final EgkReader egkReader;
 
-    public PatientListPresenter(PatientService patientService, EgkReader egkReader, ModelToDtoMapper modelToDtoMapper,
-            ModelToDtoMapperImpl modelToDtoMapperImpl) {
+    public PatientListPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
+            EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgeryUnitService surgeryUnitService,
+            IvomPlanService ivomPlanService, IvomDrugService ivomDrugService) {
         this.patientService = patientService;
+        this.healthInsuranceService = healthInsuranceService;
         this.egkReader = egkReader;
         this.modelToDtoMapper = modelToDtoMapper;
+        this.surgeryUnitService = surgeryUnitService;
+        this.ivomPlanService = ivomPlanService;
+        this.ivomDrugService = ivomDrugService;
     }
 
     public List<PatientDto> findAll() {
@@ -34,17 +47,12 @@ public class PatientListPresenter {
     }
 
     public PatientDialogPresenter getDialogPresenter() {
-        return new PatientDialogPresenter(patientService, egkReader, modelToDtoMapper);
+        return new PatientDialogPresenter(patientService, healthInsuranceService, egkReader, modelToDtoMapper,
+                surgeryUnitService, ivomPlanService, ivomDrugService);
     }
 
     private PatientDto mapToDto(Patient entity) {
-        PatientDto dto = new PatientDto();
-        dto.setPatientId(entity.getId())
-                .setFirstName(entity.getFirstName())
-                .setLastName(entity.getLastName())
-                .setBirth(entity.getBirth());
-        // TODO: map other fields
-        return dto;
+        return modelToDtoMapper.toDto(entity);
     }
 
     public List<PatientDto> findAllBy(String searchString) {

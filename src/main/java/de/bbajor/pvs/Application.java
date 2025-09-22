@@ -2,6 +2,9 @@ package de.bbajor.pvs;
 
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
+
+import de.bbajor.pvs.base.misc.ModelToDtoMapper;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -16,7 +19,7 @@ public class Application implements AppShellConfigurator {
     public Clock clock() {
         return Clock.systemDefaultZone();
     }
-
+    
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
     }

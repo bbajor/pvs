@@ -2,7 +2,9 @@ package de.bbajor.pvs.ivomplan.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
+import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -17,8 +19,12 @@ public class IvomPlanDto {
     private PatientDto patient;
     private String additionalInformation;
     private String billId;
-    private String currentSideOfEye;
-    private TreatmentDto treatment;
+    private SideOfEye sideOfEye;
+    private IvomDiagnosisDto diagnosis;
+    private IvomDrugDto drug;
+    private String frequency;
+    private String dosage;
+    private List<IvomPlanTimeSlotDto> timeSlot;
 
     public String getFirstName() {
         return patient != null ? patient.getFirstName() : "";
@@ -38,14 +44,4 @@ public class IvomPlanDto {
                 : "Name n.a.";
     }
 
-    public String getDiagnose() {
-        return treatment != null && treatment.getDisease() != null ? treatment.getDisease().getName()
-                : "Diagnose n.a.";
-    }
-
-    public String getCurrentDrug() {
-        return treatment != null && treatment.getIvomDrug() != null
-                ? treatment.getIvomDrug().getArzneimittelbezeichnung()
-                : "Medikament n.b.";
-    }
 }

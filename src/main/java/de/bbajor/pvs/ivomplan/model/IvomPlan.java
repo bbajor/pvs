@@ -4,6 +4,8 @@ import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.domain.Patient;
+import de.bbajor.pvs.ivomdrug.model.IvomDrug;
+import de.bbajor.pvs.ivomplan.dto.SideOfEye;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
@@ -22,12 +24,18 @@ public class IvomPlan extends BasicEntity<Long> {
     @ManyToOne
     private Patient patient;
     @ManyToOne
-    private IvomDiagnosis diagnose;
-    @ManyToOne
-    private Treatment treatment;
+    private IvomDiagnosis diagnosis;
     @OneToOne
     private IvomClinicalTrial clinicalTrial;
-
+    private String additionalInformation;
+    private String billId;
+    private SideOfEye sideOfEye;
+    @ManyToOne
+    private IvomDrug drug;
+    private String frequency;
+    private String dosage;
+    @ManyToOne
+    private IvomPlanTimeSlot timeSlotsPatient;
 
 
 

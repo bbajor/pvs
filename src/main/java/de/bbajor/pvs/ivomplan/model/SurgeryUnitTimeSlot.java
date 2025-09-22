@@ -14,7 +14,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class TimeSlot extends BasicEntity<Long> {
+public class SurgeryUnitTimeSlot extends BasicEntity<Long> {
 
     private String description;
     private LocalDate date;

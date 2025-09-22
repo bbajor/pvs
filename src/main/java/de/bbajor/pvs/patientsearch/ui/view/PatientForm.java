@@ -21,6 +21,7 @@ import de.bbajor.pvs.patientsearch.dto.TitleDto;
 public class PatientForm extends Composite<FormLayout> {
 
         private Binder<PatientDto> binder = new Binder<>(PatientDto.class);
+        private PatientDto patient = new PatientDto();
 
         ComboBox<SalutationDto> salutationComboBox = new ComboBox<>("Anrede");
         ComboBox<TitleDto> titleComboBox = new ComboBox<TitleDto>("Titel");
@@ -71,19 +72,15 @@ public class PatientForm extends Composite<FormLayout> {
                 binder.bind(titleComboBox, PatientDto::getTitle, PatientDto::setTitle);
                 binder.bind(descriptionField, PatientDto::getDescription, PatientDto::setDescription);
                 binder.bind(addressField, PatientDto::getAddress, PatientDto::setAddress);
-                // TODO: bind other fields
-
-        }
-
-        public void setPatient(PatientDto dto) {
-                if (dto == null) {
-                        dto = new PatientDto();
-                }
-                binder.setBean(dto);
+                binder.setBean(patient);
         }
 
         public PatientDto getPatient() {
                 return binder.getBean();
         }
 
+        public void writeValuesToPatient(PatientDto patient) {
+                this.patient = patient;
+                binder.setBean(patient);
+        }
 }

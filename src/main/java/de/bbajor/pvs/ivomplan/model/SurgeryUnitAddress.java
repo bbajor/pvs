@@ -1,7 +1,8 @@
-package de.bbajor.pvs.base.domain;
+package de.bbajor.pvs.ivomplan.model;
 
 import java.util.Locale;
 
+import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
@@ -15,7 +16,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class Address extends BasicEntity<Long> {
+public class SurgeryUnitAddress extends BasicEntity<Long> {
 
     private String street;
     private String houseNumber;

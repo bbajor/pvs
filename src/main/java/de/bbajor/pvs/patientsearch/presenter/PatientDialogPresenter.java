@@ -1,30 +1,51 @@
 package de.bbajor.pvs.patientsearch.presenter;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.misc.ModelToDtoMapper;
+import de.bbajor.pvs.base.service.HealthInsuranceService;
 import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.egk.reader.EgkReader;
+import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
+import de.bbajor.pvs.ivomdrug.model.IvomDrug;
+import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
+import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
+import de.bbajor.pvs.ivomplan.model.IvomPlan;
+import de.bbajor.pvs.ivomplan.service.IvomPlanService;
+import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
+import de.bbajor.pvs.patientsearch.ui.view.PatientForm;
 
 @Component
 public class PatientDialogPresenter {
 
+    private final IvomDrugService ivomDrugService;
+
+    private final IvomPlanService ivomPlanService;
+    private final SurgeryUnitService surgeryUnitService;
     private final PatientService patientService;
+    private final HealthInsuranceService healthInsuranceService;
     private final EgkReader egkReader;
     private final ModelToDtoMapper modelToDtoMapper;
     private PatientDto workingCopy;
     private Patient original;
 
-
-    public PatientDialogPresenter(PatientService patientService, EgkReader egkReader, ModelToDtoMapper modelToDtoMapper) {
+    public PatientDialogPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
+            EgkReader egkReader,
+            ModelToDtoMapper modelToDtoMapper, SurgeryUnitService surgeryUnitService, IvomPlanService ivomPlanService,
+            IvomDrugService ivomDrugService) {
         this.patientService = patientService;
+        this.healthInsuranceService = healthInsuranceService;
+        this.surgeryUnitService = surgeryUnitService;
+        this.ivomPlanService = ivomPlanService;
         this.egkReader = egkReader;
         this.modelToDtoMapper = modelToDtoMapper;
+        this.ivomDrugService = ivomDrugService;
     }
 
     public void loadPatientById(Integer id) {
@@ -38,15 +59,17 @@ public class PatientDialogPresenter {
         }
     }
 
-    public void saveChanges() {
-        if (workingCopy == null) {
-            throw new IllegalStateException("No data loaded into dialog");
-        }
+    public void saveChanges(PatientForm form) {
         if (original == null) { // new patient
-            Patient newEntity = modelToDtoMapper.toEntity(workingCopy);
+            PatientDto newPatient = form.getPatient();
+            modelToDtoMapper.updateDto(newPatient, getWorkingCopy());
+            Patient newEntity = modelToDtoMapper.toEntity(getWorkingCopy());
+            if (newEntity.getAddress() != null) {
+                newEntity.getAddress().setId(null);
+            }
             patientService.save(newEntity);
         } else { // existing patient
-            modelToDtoMapper.updateDtoFromEntity(original, workingCopy);
+            modelToDtoMapper.updateDtoFromEntity(original, getWorkingCopy());
             patientService.save(original);
         }
     }
@@ -61,14 +84,9 @@ public class PatientDialogPresenter {
     public void readDataFromEgk() {
         try {
             PatientDto patientData = egkReader.readPatientFromCard();
-            getWorkingCopy().setBirth(patientData.getBirth())
-                    .setEmail(patientData.getEmail())
-                    .setFirstName(patientData.getFirstName())
-                    .setLastName(patientData.getLastName())
-                    .setPhone(patientData.getPhone())
-                    .setAddress(patientData.getAddress())
-                    .setInsuranceId(patientData.getInsuranceId());
             HealthInsuranceDto healthInsurance = egkReader.readHealthInsuranceFromCard();
+            modelToDtoMapper.updateDto(patientData, getWorkingCopy());
+            getWorkingCopy().setInsuranceId(patientData.getInsuranceId());
             getWorkingCopy().setHealthInsurance(healthInsurance);
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Lesen der eGK: " + e.getMessage(), e);
@@ -81,6 +99,34 @@ public class PatientDialogPresenter {
 
     public PatientDto copyFromEntity(Patient patient) {
         return modelToDtoMapper.toDto(patient);
+    }
+
+    public List<HealthInsuranceDto> getHealthInsurances() {
+        return healthInsuranceService.findAll();
+    }
+
+    public ModelToDtoMapper getModelToDtoMapper() {
+        return modelToDtoMapper;
+    }
+
+    public List<IvomDrugDto> getDrugs() {
+        return ivomDrugService.findAll().stream().map(this::toDto).toList();
+    }
+
+    private IvomDrugDto toDto(IvomDrug ivomDrug) {
+        return modelToDtoMapper.toDto(ivomDrug);
+    }
+
+    public Optional<IvomPlan> findById(Long id) {
+        return ivomPlanService.findById(id);
+    }
+
+    public void save(IvomPlan entity) {
+        ivomPlanService.save(entity);
+    }
+
+    public List<SurgeryUnitDto> getSurgeryUnits() {
+        return surgeryUnitService.findAll();
     }
 
 }
