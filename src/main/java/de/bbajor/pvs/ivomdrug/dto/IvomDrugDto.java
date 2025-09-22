@@ -33,4 +33,10 @@ public class IvomDrugDto {
     private String description;
     private LocalDate validFrom;
     private LocalDate validUntil;
+
+    @Override
+    public String toString() {
+        return "Bezeichnung: " + arzneimittelbezeichnung + ", Wirkstoffe: " + wirkstoffe + ", " + "Indikation/ATC: "
+                + indikationAtc;
+    }
 }

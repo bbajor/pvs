@@ -8,6 +8,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Component;
 
+import de.bbajor.pvs.base.misc.ModelToDtoMapper;
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugImportService;
@@ -18,10 +19,13 @@ public class IvomDrugViewPresenter {
 
     private final IvomDrugService ivomDrugService;
     private final IvomDrugImportService ivomDrugImportService;
+    private final ModelToDtoMapper modelToDtoMapper;
 
-    public IvomDrugViewPresenter(IvomDrugService ivomDrugService, IvomDrugImportService ivomDrugImportService) {
+    public IvomDrugViewPresenter(IvomDrugService ivomDrugService, IvomDrugImportService ivomDrugImportService,
+            ModelToDtoMapper modelToDtoMapper) {
         this.ivomDrugService = ivomDrugService;
         this.ivomDrugImportService = ivomDrugImportService;
+        this.modelToDtoMapper = modelToDtoMapper;
     }
 
     public List<IvomDrugDto> findAllBy(String searchString) {
@@ -29,62 +33,6 @@ public class IvomDrugViewPresenter {
         return ivoms.stream()
                 .map(this::mapToDto)
                 .toList();
-    }
-
-    private IvomDrugDto mapToDto(IvomDrug entity) {
-        IvomDrugDto dto = new IvomDrugDto();
-        dto.setId(entity.getId())
-                .setEingangsnummer(entity.getEingangsnummer())
-                .setArzneimittelbezeichnung(entity.getArzneimittelbezeichnung())
-                .setDarreichungsform(entity.getDarreichungsform())
-                .setZielgruppe(entity.getZielgruppe())
-                .setAnwendungsart(entity.getAnwendungsart())
-                .setAnwendungsgebiete(entity.getAnwendungsgebiete())
-                .setIndikationAtc(entity.getIndikationAtc())
-                .setBescheiddatumZulassung(entity.getBescheiddatumZulassung())
-                .setZulassungsstatus(entity.getZulassungsstatus())
-                .setZulassungsNr(entity.getZulassungsNr())
-                .setVerkehrsfaehigkeit(entity.getVerkehrsfaehigkeit())
-                .setParallelimportinformationen(entity.getParallelimportinformationen())
-                .setEuVerfahrensnummer(entity.getEuVerfahrensnummer())
-                .setZulassungsinhaber(entity.getZulassungsinhaber())
-                .setHerstellerEndfreigabe(entity.getHerstellerEndfreigabe())
-                .setVertreiber(entity.getVertreiber())
-                .setOertlicherVertreter(entity.getOertlicherVertreter())
-                .setWirkstoffe(entity.getWirkstoffe())
-                .setPackungsgroessenGruppe(entity.getPackungsgroessenGruppe())
-                .setAmKlassifikationen(entity.getAmKlassifikationen())
-                .setValidFrom(entity.getValidFrom())
-                .setValidUntil(entity.getValidUntil());
-        return dto;
-    }
-
-    private IvomDrug mapToEntity(IvomDrugDto dto) {
-        IvomDrug entity = new IvomDrug();
-        entity
-                .setEingangsnummer(dto.getEingangsnummer())
-                .setArzneimittelbezeichnung(dto.getArzneimittelbezeichnung())
-                .setDarreichungsform(dto.getDarreichungsform())
-                .setZielgruppe(dto.getZielgruppe())
-                .setAnwendungsart(dto.getAnwendungsart())
-                .setAnwendungsgebiete(dto.getAnwendungsgebiete())
-                .setIndikationAtc(dto.getIndikationAtc())
-                .setBescheiddatumZulassung(dto.getBescheiddatumZulassung())
-                .setZulassungsstatus(dto.getZulassungsstatus())
-                .setZulassungsNr(dto.getZulassungsNr())
-                .setVerkehrsfaehigkeit(dto.getVerkehrsfaehigkeit())
-                .setParallelimportinformationen(dto.getParallelimportinformationen())
-                .setEuVerfahrensnummer(dto.getEuVerfahrensnummer())
-                .setZulassungsinhaber(dto.getZulassungsinhaber())
-                .setHerstellerEndfreigabe(dto.getHerstellerEndfreigabe())
-                .setVertreiber(dto.getVertreiber())
-                .setOertlicherVertreter(dto.getOertlicherVertreter())
-                .setWirkstoffe(dto.getWirkstoffe())
-                .setPackungsgroessenGruppe(dto.getPackungsgroessenGruppe())
-                .setAmKlassifikationen(dto.getAmKlassifikationen())
-                .setValidFrom(dto.getValidFrom())
-                .setValidUntil(dto.getValidUntil());
-        return entity;
     }
 
     public int importCsv(Reader in) throws RuntimeException {
@@ -167,6 +115,10 @@ public class IvomDrugViewPresenter {
 
     public List<IvomDrugDto> getAll() {
         return ivomDrugService.findAll().stream().map(this::mapToDto).toList();
+    }
+
+    private IvomDrugDto mapToDto(IvomDrug ivomDrug) {
+        return modelToDtoMapper.toDto(ivomDrug);
     }
 
 }

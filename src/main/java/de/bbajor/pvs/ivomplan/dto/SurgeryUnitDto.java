@@ -2,7 +2,6 @@ package de.bbajor.pvs.ivomplan.dto;
 
 import java.util.List;
 
-import de.bbajor.pvs.base.dto.AddressDto;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -10,14 +9,14 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class SurgeryUnitDto {
 
-    private int id;
+    private Integer id;
     private String name;
     private String phone;
     private String email;
-    private AddressDto address;
+    private SurgeryUnitAddressDto address;
     private String contact;
     private String phoneContact;
-    private List<TimeSlotDto> bookedTimeSlots;
+    private List<SurgeryUnitTimeSlotDto> availableTimeSlots;
 
     @Override
     public String toString() {

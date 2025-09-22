@@ -9,20 +9,17 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class AddressDto {
 
+    private long id;
     private String street;
     private String houseNumber;
     private Double postalCode;
     private String city;
-    private Locale countryCode;
-
-    public Locale getCountryCode() {
-        return countryCode;
-    }
+    private Locale locale;
 
     @Override
     public String toString() {
         return String.valueOf(street) + " " + String.valueOf(houseNumber) + ", " + String.valueOf(postalCode) + " "
-                + String.valueOf(city) + " " + String.valueOf(countryCode != null ? countryCode.getCountry() : "-");
+                + String.valueOf(city) + " " + String.valueOf(locale != null ? locale : "-");
 
     }
 

@@ -73,9 +73,9 @@ public class IvomPlanView extends Main implements IvomChangeListener {
         ivomGrid.addColumn(IvomPlanDto::getFirstName).setHeader("Vorname");
         ivomGrid.addColumn(IvomPlanDto::getBirth).setHeader("Geburtsdatum");
         ivomGrid.addColumn(IvomPlanDto::getHealthInsurance).setHeader("Krankenkasse");
-        ivomGrid.addColumn(IvomPlanDto::getDiagnose).setHeader("Grund der Behandlung");
-        ivomGrid.addColumn(IvomPlanDto::getCurrentSideOfEye).setHeader("Betroffenes Auge");
-        ivomGrid.addColumn(IvomPlanDto::getCurrentDrug).setHeader("Aktuelles Medikament");
+        ivomGrid.addColumn(IvomPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
+        ivomGrid.addColumn(IvomPlanDto::getSideOfEye).setHeader("Betroffenes Auge");
+        ivomGrid.addColumn(IvomPlanDto::getDrug).setHeader("Medikament");
         ivomGrid.addColumn(IvomPlanDto::getPlannedDateOfProcedure).setHeader("Nächster Termin");
         ivomGrid.addColumn(IvomPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
         ivomGrid.setSizeFull();

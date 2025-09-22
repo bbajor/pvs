@@ -12,10 +12,9 @@ import com.vaadin.flow.data.value.ValueChangeMode;
 import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.base.ui.component.CountrySelectionComboBox;
 
-public class AddressField extends AbstractCompositeField<FormLayout, AddressField, AddressDto> {
+public class AddressField<T extends AddressDto> extends AbstractCompositeField<FormLayout, AddressField<T>, T> {
 
-    private final Binder<AddressDto> binder = new Binder<>(AddressDto.class);
-
+    private final Binder<T> binder = new Binder<>();
     private final TextField streetField = new TextField("Straße");
     private final TextField houseNoField = new TextField("Hausnummer");
     private final NumberField zipCodeField = new NumberField("Postleitzahl");
@@ -62,7 +61,7 @@ public class AddressField extends AbstractCompositeField<FormLayout, AddressFiel
 
         binder.forField(countryCodeBox)
                 .asRequired("Land auswählen")
-                .bind(AddressDto::getCountryCode, AddressDto::setCountryCode);
+                .bind(AddressDto::getLocale, AddressDto::setLocale);
 
         // Änderungen weiterleiten
         binder.addValueChangeListener(e -> {
@@ -86,24 +85,18 @@ public class AddressField extends AbstractCompositeField<FormLayout, AddressFiel
     }
 
     @Override
-    public void setValue(AddressDto value) {
-        if (value == null) {
-            value = new AddressDto();
-        }
+    public void setValue(T value) {
         binder.setBean(value);
         super.setValue(value); // wichtig für AbstractCompositeField
     }
 
     @Override
-    public AddressDto getValue() {
+    public T getValue() {
         return binder.getBean();
     }
 
     @Override
-    protected void setPresentationValue(AddressDto newPresentationValue) {
-        if (newPresentationValue == null) {
-            newPresentationValue = new AddressDto();
-        }
+    protected void setPresentationValue(T newPresentationValue) {
         binder.setBean(newPresentationValue);
     }
 

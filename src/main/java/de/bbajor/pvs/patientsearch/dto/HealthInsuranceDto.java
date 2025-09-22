@@ -8,6 +8,8 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class HealthInsuranceDto {
+
+    private Integer id;
     private LocalDate insuranceStart; // Beginn der Versicherung
     private String insuranceType; // Versichertenart
     private String status; // Status der Versichertenkarte

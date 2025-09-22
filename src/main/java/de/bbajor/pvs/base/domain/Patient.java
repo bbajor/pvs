@@ -24,6 +24,7 @@ public class Patient extends BasicEntity<Integer> {
     private LocalDate birth;
     @ManyToOne(cascade = CascadeType.ALL)
     private Address address;
+    private String gender;
     private String phone;
     @Email
     private String email;
@@ -32,5 +33,6 @@ public class Patient extends BasicEntity<Integer> {
     private String insuranceId;
     @OneToOne
     private PatientHistory patientHistory;
+    private String description;
 
 }

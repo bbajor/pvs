@@ -22,7 +22,7 @@ public class IvomListPresenter {
     }
 
     public IvomDialogPresenter getDialogPresenter() {
-        return new IvomDialogPresenter(ivomService, patientDialogPresenter);
+        return new IvomDialogPresenter(patientDialogPresenter);
     }
 
     public List<IvomPlanDto> generateDailyList(LocalDate date) {

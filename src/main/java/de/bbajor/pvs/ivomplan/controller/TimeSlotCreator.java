@@ -5,17 +5,18 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import de.bbajor.pvs.ivomplan.dto.Bundesland;
 import de.bbajor.pvs.ivomplan.dto.TimePeriod;
-import de.bbajor.pvs.ivomplan.dto.TimeSlotDto;
+import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
 
 public class TimeSlotCreator {
 
-    public static List<TimeSlotDto> createTimeSlots(TimeSlotConfig timeSlotConfig) {
+    public static List<SurgeryUnitTimeSlotDto> createTimeSlots(TimeSlotConfig timeSlotConfig) {
 
-        List<TimeSlotDto> resultList = new ArrayList<>();
+        List<SurgeryUnitTimeSlotDto> resultList = new ArrayList<>();
         if (timeSlotConfig == null) {
             return resultList;
         }
@@ -39,9 +40,9 @@ public class TimeSlotCreator {
         while (!currentDate.isAfter(periodEnd)) {
 
             if (!HolidayUtils.isHoliday(currentDate, bundesland) && !HolidayUtils.isWeekend(currentDate)) {
-                TimeSlotDto timeSlotDto = new TimeSlotDto()
+                SurgeryUnitTimeSlotDto timeSlotDto = new SurgeryUnitTimeSlotDto()
                         .setDescription(timeSlotConfig.getDescription())
-                        .setStartDate(currentDate)
+                        .setDate(currentDate)
                         .setStartTime(startTime)
                         .setEndTime(endTime);
                 resultList.add(timeSlotDto);
@@ -51,5 +52,46 @@ public class TimeSlotCreator {
         }
 
         return resultList;
+    }
+
+    public static Collection<SurgeryUnitTimeSlotDto> getNewInvalidTimeSlots(
+            List<SurgeryUnitTimeSlotDto> availableTimeSlots,
+            List<SurgeryUnitTimeSlotDto> newTimeSlots) {
+        Collection<SurgeryUnitTimeSlotDto> invalidSlots = new ArrayList<>();
+        if (availableTimeSlots == null || availableTimeSlots.isEmpty() || newTimeSlots == null
+                || newTimeSlots.isEmpty()) {
+            return invalidSlots;
+        }
+
+        for (SurgeryUnitTimeSlotDto availableTimeSlot : availableTimeSlots) {
+            for (SurgeryUnitTimeSlotDto newTimeSlot : newTimeSlots) {
+                if (availableTimeSlot.getDate().isEqual(newTimeSlot.getDate())
+                        && isTimeCollision(availableTimeSlot, newTimeSlot)) {
+                    invalidSlots.add(newTimeSlot);
+                }
+            }
+        }
+        return invalidSlots;
+    }
+
+    private static boolean isTimeCollision(SurgeryUnitTimeSlotDto availableTimeSlot,
+            SurgeryUnitTimeSlotDto newTimeSlot) {
+        return isHasSameHourAndMinute(availableTimeSlot, newTimeSlot)
+                || isLocalTimeInAvailableSlot(availableTimeSlot, newTimeSlot.getStartTime())
+                || isLocalTimeInAvailableSlot(availableTimeSlot, newTimeSlot.getEndTime());
+    }
+
+    private static boolean isLocalTimeInAvailableSlot(SurgeryUnitTimeSlotDto availableTimeSlot,
+            LocalTime newSlotStart) {
+        return newSlotStart.isAfter(availableTimeSlot.getStartTime())
+                && newSlotStart.isBefore(availableTimeSlot.getEndTime());
+    }
+
+    private static boolean isHasSameHourAndMinute(SurgeryUnitTimeSlotDto availableTimeSlot,
+            SurgeryUnitTimeSlotDto newTimeSlot) {
+        return availableTimeSlot.getStartTime().getHour() == newTimeSlot.getStartTime().getHour()
+                && availableTimeSlot.getEndTime().getHour() == newTimeSlot.getEndTime().getHour()
+                && availableTimeSlot.getStartTime().getMinute() == newTimeSlot.getStartTime().getMinute()
+                && availableTimeSlot.getEndTime().getMinute() == newTimeSlot.getEndTime().getMinute();
     }
 }

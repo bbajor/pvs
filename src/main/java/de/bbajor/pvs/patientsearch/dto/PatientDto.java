@@ -10,7 +10,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class PatientDto {
 
-    private Integer patientId;
+    private Integer id;
     private SalutationDto salutation;
     private TitleDto title;
     private String gender;
