@@ -1,14 +1,18 @@
 package de.bbajor.pvs.ivomplan.dto;
 
-import de.bbajor.pvs.ivomplan.model.IvomPlan;
-import jakarta.persistence.ManyToOne;
+import java.time.LocalDate;
 
+import lombok.Data;
+import lombok.experimental.Accessors;
+
+@Data
+@Accessors(chain = true)
 public class IvomPlanTimeSlotDto {
 
     private Long id;
-    @ManyToOne
-    private IvomPlan ivomPlan;
-    @ManyToOne
-    private SurgeryUnitTimeSlotDto timeSlot;
+    private IvomPlanDto ivomPlan;
+    private SurgeryUnitTimeSlotDto timeSlotSurgeryUnit;
+    private LocalDate approvalDate;
+    private String remarks;
 
 }

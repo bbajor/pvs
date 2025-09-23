@@ -1,15 +1,13 @@
 package de.bbajor.pvs;
 
-import com.vaadin.flow.component.page.AppShellConfigurator;
-import com.vaadin.flow.theme.Theme;
-
-import de.bbajor.pvs.base.misc.ModelToDtoMapper;
+import java.time.Clock;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
-import java.time.Clock;
+import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.theme.Theme;
 
 @SpringBootApplication
 @Theme("default")

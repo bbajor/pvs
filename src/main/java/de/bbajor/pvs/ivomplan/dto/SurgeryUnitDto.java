@@ -13,7 +13,7 @@ public class SurgeryUnitDto {
     private String name;
     private String phone;
     private String email;
-    private SurgeryUnitAddressDto address;
+    private SurgeryUnitAddressDto surgeryUnitAddress;
     private String contact;
     private String phoneContact;
     private List<SurgeryUnitTimeSlotDto> availableTimeSlots;
@@ -21,7 +21,7 @@ public class SurgeryUnitDto {
     @Override
     public String toString() {
         return (name != null ? name.trim() : "Name n.b.") + " (Adresse: " +
-                (address != null ? address.toString() : "-, ") + "Telefon: " +
+                (surgeryUnitAddress != null ? surgeryUnitAddress.toString() : "-, ") + "Telefon: " +
                 (phone != null ? phone.trim() : "-)");
     }
 }

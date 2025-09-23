@@ -3,8 +3,6 @@ package de.bbajor.pvs.base.misc;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.Named;
-import org.springframework.boot.context.properties.bind.Name;
 
 import de.bbajor.pvs.base.domain.Address;
 import de.bbajor.pvs.base.domain.HealthInsurance;
@@ -13,10 +11,12 @@ import de.bbajor.pvs.base.domain.PatientHistory;
 import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomdrug.model.IvomDrug;
+import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitAddressDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
+import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
 import de.bbajor.pvs.ivomplan.model.SurgeryUnit;
 import de.bbajor.pvs.ivomplan.model.SurgeryUnitAddress;
@@ -60,12 +60,10 @@ public interface ModelToDtoMapper {
 
     IvomPlanDto toDto(IvomPlan e);
 
-    // @Mapping(target = "availableTimeSlots", ignore = true)
+    @Mapping(target = "availableTimeSlots", ignore = true)
     SurgeryUnitDto toDto(SurgeryUnit surgeryUnit);
 
-    @Named("fullMapping")
-    SurgeryUnitDto toDtoWithTimeSlots(SurgeryUnit surgeryUnit);
-
+    @Mapping(target = "availableTimeSlots", ignore = true)
     SurgeryUnit toEntity(SurgeryUnitDto dto);
 
     @Mapping(target = "locale", source = "locale")
@@ -76,6 +74,11 @@ public interface ModelToDtoMapper {
 
     SurgeryUnitTimeSlot toEntity(SurgeryUnitTimeSlotDto dto);
 
+    @Mapping(target = "surgeryUnit", ignore = true)
     SurgeryUnitTimeSlotDto toDto(SurgeryUnitTimeSlot entity);
+
+    IvomDrug toEntity(IvomDrugDto bean);
+
+    IvomDiagnosis toEntity(IvomDiagnosisDto dto);
 
 }

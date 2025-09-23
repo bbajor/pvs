@@ -27,6 +27,7 @@ import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.renderer.TextRenderer;
 
+import de.bbajor.pvs.base.misc.DayOfWeekItemLabelGenerator;
 import de.bbajor.pvs.base.ui.view.AddressField;
 import de.bbajor.pvs.ivomplan.controller.TimeSlotConfig;
 import de.bbajor.pvs.ivomplan.dto.Bundesland;
@@ -64,9 +65,10 @@ public class SurgeryUnitForm extends HorizontalLayout {
         timeSlotRepetition.setItems(TimeSlotRepetition.values());
         timePeriodComboBox.setItems(TimePeriod.values());
         dayOfWeek.setItems(DayOfWeek.values());
+        dayOfWeek.setItemLabelGenerator(new DayOfWeekItemLabelGenerator(Locale.GERMAN));
 
         binder.forField(unitNameField).bind(SurgeryUnitDto::getName, SurgeryUnitDto::setName);
-        binder.forField(addressForm).bind(SurgeryUnitDto::getAddress, SurgeryUnitDto::setAddress);
+        binder.forField(addressForm).bind(SurgeryUnitDto::getSurgeryUnitAddress, SurgeryUnitDto::setSurgeryUnitAddress);
         binder.forField(phoneField).bind(SurgeryUnitDto::getPhone, SurgeryUnitDto::setPhone);
         binder.forField(emailField).bind(SurgeryUnitDto::getEmail, SurgeryUnitDto::setEmail);
         binder.forField(contactField).bind(SurgeryUnitDto::getContact, SurgeryUnitDto::setContact);
