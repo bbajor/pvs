@@ -9,12 +9,16 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class AddressDto {
 
-    private long id;
+    private Long id;
+    private Long version;
     private String street;
     private String houseNumber;
     private Double postalCode;
     private String city;
     private Locale locale;
+
+    private String country;
+    private String language;
 
     @Override
     public String toString() {

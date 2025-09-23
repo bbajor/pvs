@@ -10,7 +10,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class IvomDiagnosis extends BasicEntity<Integer> {
+public class IvomDiagnosis extends BasicEntity<Long> {
 
     private String name;
     private String icdCode;

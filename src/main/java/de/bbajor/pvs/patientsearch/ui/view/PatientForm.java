@@ -11,6 +11,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.binder.BinderValidationStatus;
 
 import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.base.ui.view.AddressField;
@@ -83,5 +84,9 @@ public class PatientForm extends Composite<FormLayout> {
         public void writeValuesToPatient(PatientDto patient) {
                 this.patient = patient;
                 binder.setBean(patient);
+        }
+
+        public BinderValidationStatus<PatientDto> validate() {
+                return binder.validate();
         }
 }

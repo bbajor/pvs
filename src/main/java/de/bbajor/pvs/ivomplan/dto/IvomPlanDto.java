@@ -14,8 +14,9 @@ import lombok.experimental.Accessors;
 public class IvomPlanDto {
 
     private Long id;
+    private Long version;
     private LocalDate creationDate;
-    private LocalDateTime plannedDateOfProcedure;
+    private String description;
     private PatientDto patient;
     private String additionalInformation;
     private String billId;
@@ -24,6 +25,7 @@ public class IvomPlanDto {
     private IvomDrugDto drug;
     private String frequency;
     private String dosage;
+    private LocalDateTime plannedDateOfNextTreatment;
     private List<IvomPlanTimeSlotDto> timeSlot;
 
     public String getFirstName() {

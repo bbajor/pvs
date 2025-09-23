@@ -92,4 +92,6 @@ public class IvomDrug extends BasicEntity<Long> {
     
     private LocalDate validFrom;
     private LocalDate validUntil;
+
+    private String additionalNotes;
 }

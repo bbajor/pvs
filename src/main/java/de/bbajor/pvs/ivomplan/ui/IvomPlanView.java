@@ -25,7 +25,7 @@ import jakarta.annotation.security.PermitAll;
 public class IvomPlanView extends Main implements IvomChangeListener {
 
     private final IvomListPresenter ivomListPresenter;
-    private final Grid<IvomPlanDto> ivomGrid = new Grid<>(IvomPlanDto.class, false);
+    private final Grid<IvomPlanDto> ivomPlanGrid = new Grid<>(IvomPlanDto.class, false);
     private final TextField searchField = new TextField();
     private final Button searchButton = new Button("Suchen");
     private final Button newIvomButton;
@@ -37,7 +37,7 @@ public class IvomPlanView extends Main implements IvomChangeListener {
         setSizeFull();
 
         newIvomButton = new Button("Neuer IVOM-Plan", event -> {
-            Optional<IvomPlanDto> ivom = ivomGrid.getSelectionModel().getFirstSelectedItem();
+            Optional<IvomPlanDto> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
                 openIvomDialog(ivom.get());
             } else {
@@ -62,27 +62,26 @@ public class IvomPlanView extends Main implements IvomChangeListener {
                 generateDailyListButton);
         controls.setWidthFull();
 
-        add(controls, ivomGrid);
+        add(controls, ivomPlanGrid);
 
         configureGrid();
         configureSearch();
     }
 
     private void configureGrid() {
-        ivomGrid.addColumn(IvomPlanDto::getLastName).setHeader("Nachname");
-        ivomGrid.addColumn(IvomPlanDto::getFirstName).setHeader("Vorname");
-        ivomGrid.addColumn(IvomPlanDto::getBirth).setHeader("Geburtsdatum");
-        ivomGrid.addColumn(IvomPlanDto::getHealthInsurance).setHeader("Krankenkasse");
-        ivomGrid.addColumn(IvomPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
-        ivomGrid.addColumn(IvomPlanDto::getSideOfEye).setHeader("Betroffenes Auge");
-        ivomGrid.addColumn(IvomPlanDto::getDrug).setHeader("Medikament");
-        ivomGrid.addColumn(IvomPlanDto::getPlannedDateOfProcedure).setHeader("Nächster Termin");
-        ivomGrid.addColumn(IvomPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
-        ivomGrid.setSizeFull();
+        ivomPlanGrid.addColumn(IvomPlanDto::getLastName).setHeader("Nachname");
+        ivomPlanGrid.addColumn(IvomPlanDto::getFirstName).setHeader("Vorname");
+        ivomPlanGrid.addColumn(IvomPlanDto::getBirth).setHeader("Geburtsdatum");
+        ivomPlanGrid.addColumn(IvomPlanDto::getHealthInsurance).setHeader("Krankenkasse");
+        ivomPlanGrid.addColumn(IvomPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
+        ivomPlanGrid.addColumn(IvomPlanDto::getSideOfEye).setHeader("Betroffenes Auge");
+        ivomPlanGrid.addColumn(IvomPlanDto::getDrug).setHeader("Medikament");
+        ivomPlanGrid.addColumn(IvomPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
+        ivomPlanGrid.setSizeFull();
 
         refresh("");
 
-        ivomGrid.asSingleSelect().addValueChangeListener(event -> {
+        ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {
             IvomPlanDto ivomDto = event.getValue();
             if (ivomDto != null) {
                 openIvomDialog(ivomDto);
@@ -105,7 +104,7 @@ public class IvomPlanView extends Main implements IvomChangeListener {
 
     public void refresh(String searchString) {
         List<IvomPlanDto> ivomList = ivomListPresenter.findAllBy(searchString);
-        ivomGrid.setItems(ivomList);
+        ivomPlanGrid.setItems(ivomList);
     }
 
     @Override

@@ -1,17 +1,21 @@
 package de.bbajor.pvs.ivomplan.ui;
 
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomplan.controller.IvomDialogPresenter;
@@ -20,7 +24,6 @@ import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
 import de.bbajor.pvs.ivomplan.dto.SideOfEye;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
-import de.bbajor.pvs.ivomplan.model.SurgeryUnitTimeSlot;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 
 public class IvomPlanForm extends Composite<FormLayout> {
@@ -34,13 +37,13 @@ public class IvomPlanForm extends Composite<FormLayout> {
     final ComboBox<IvomDrugDto> ivomDrugsComboBox = new ComboBox<>("Medikament");
     final ComboBox<SurgeryUnitDto> surgeryUnitComboBox = new ComboBox<>("Behandlungsort");
     final HorizontalLayout timeSlotFilter = new HorizontalLayout();
-    final Grid<SurgeryUnitTimeSlotDto> timeSlotGrid = new Grid<>(SurgeryUnitTimeSlotDto.class);
+    final Grid<SurgeryUnitTimeSlotDto> timeSlotGrid = new Grid<>();
     final TextArea additionalInformation = new TextArea("Notizen");
 
-    private final IvomDialogPresenter presenter;
+    // private final IvomDialogPresenter presenter;
 
     public IvomPlanForm(IvomDialogPresenter presenter) {
-        this.presenter = presenter;
+        // this.presenter = presenter;
 
         sideOfEye.setItems(SideOfEye.values());
         patientSelectComboBox.setItems(presenter.getPatients());
@@ -56,6 +59,10 @@ public class IvomPlanForm extends Composite<FormLayout> {
 
         timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getSurgeryUnit).setHeader("Einrichtung");
         timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getDate).setHeader("Datum");
+        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getDate)
+                .setRenderer(new ComponentRenderer<NativeLabel, SurgeryUnitTimeSlotDto>(dto -> {
+                    return new NativeLabel(dto.getDate().getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.GERMAN));
+                })).setHeader("Wochentag");
         timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getStartTime).setHeader("Von");
         timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getEndTime).setHeader("Bis");
         timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getDescription).setHeader("Beschreibung");
@@ -72,7 +79,7 @@ public class IvomPlanForm extends Composite<FormLayout> {
         additionalInformation.setHeight("150px");
         creationDate.setReadOnly(true);
 
-        diseaseComboBox.setItemLabelGenerator(IvomDiagnosisDto::getDescription);
+        diseaseComboBox.setItemLabelGenerator(IvomDiagnosisDto::getName);
         diseaseComboBox.setAllowCustomValue(true);
         diseaseComboBox.setClearButtonVisible(true);
         diseaseComboBox.addCustomValueSetListener(event -> {
@@ -84,18 +91,19 @@ public class IvomPlanForm extends Composite<FormLayout> {
                 newDto.setName(newValue.trim());
 
                 // In DB speichern, falls nötig
-                presenter.saveDiagnosis(newDto);
+                IvomDiagnosisDto saved = presenter.saveDiagnosis(newDto);
 
                 // ComboBox aktualisieren
                 List<IvomDiagnosisDto> items = new ArrayList<>(
                         diseaseComboBox.getDataProvider().fetch(new Query<>()).toList());
-                items.add(newDto);
+                items.add(saved);
                 diseaseComboBox.setItems(items);
 
                 // Setze das neue Entity als ausgewählt
                 diseaseComboBox.setValue(newDto);
             }
         });
+        diseaseComboBox.setItems(presenter.getDiseases());
 
         var formLayout = getContent();
         formLayout.add(creationDate);

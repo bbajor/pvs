@@ -7,7 +7,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class IvomDiagnosisDto {
 
-    private long id;
+    private Long id;
+    private Long version;
     private String name;
     private String icdCode;
     private String description;

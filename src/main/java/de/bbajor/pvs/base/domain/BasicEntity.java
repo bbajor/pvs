@@ -7,8 +7,12 @@ import jakarta.persistence.*;
 public class BasicEntity<ID> extends AbstractEntity<ID> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private ID id;
+
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
 
     @Override
     public @Nullable ID getId() {
@@ -18,5 +22,5 @@ public class BasicEntity<ID> extends AbstractEntity<ID> {
     public void setId(ID id) {
         this.id = id;
     }
-    
+
 }

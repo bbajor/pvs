@@ -54,10 +54,16 @@ public interface ModelToDtoMapper {
 
     IvomDrugDto toDto(IvomDrug entity);
 
+    @Mapping(target = "clinicalTrial", ignore = true)
+    @Mapping(target = "timeSlotsPatient", ignore = true)
     IvomPlan toEntity(IvomPlanDto dto);
 
+    @Mapping(target = "clinicalTrial", ignore = true)
+    @Mapping(target = "timeSlotsPatient", ignore = true)
     void updateEntityFromDto(IvomPlanDto workingCopy, @MappingTarget IvomPlan original);
 
+    @Mapping(target = "plannedDateOfNextTreatment", ignore = true)
+    @Mapping(target = "timeSlot", ignore = true)
     IvomPlanDto toDto(IvomPlan e);
 
     @Mapping(target = "availableTimeSlots", ignore = true)
@@ -72,6 +78,7 @@ public interface ModelToDtoMapper {
     @Mapping(target = "locale", source = "locale")
     SurgeryUnitAddress toEntity(SurgeryUnitAddressDto dto);
 
+    @Mapping(target = "ivomPlanTimeSlots", ignore = true)
     SurgeryUnitTimeSlot toEntity(SurgeryUnitTimeSlotDto dto);
 
     @Mapping(target = "surgeryUnit", ignore = true)
@@ -80,5 +87,7 @@ public interface ModelToDtoMapper {
     IvomDrug toEntity(IvomDrugDto bean);
 
     IvomDiagnosis toEntity(IvomDiagnosisDto dto);
+
+    IvomDiagnosisDto toDto(IvomDiagnosis entity);
 
 }

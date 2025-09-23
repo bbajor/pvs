@@ -11,6 +11,7 @@ import lombok.experimental.Accessors;
 public class PatientDto {
 
     private Integer id;
+    private Long version;
     private SalutationDto salutation;
     private TitleDto title;
     private String gender;

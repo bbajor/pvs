@@ -10,6 +10,7 @@ import lombok.experimental.Accessors;
 public class HealthInsuranceDto {
 
     private Integer id;
+    private Long version;
     private LocalDate insuranceStart; // Beginn der Versicherung
     private String insuranceType; // Versichertenart
     private String status; // Status der Versichertenkarte

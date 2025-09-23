@@ -3,13 +3,17 @@ package de.bbajor.pvs.ivomplan.dto;
 import java.util.List;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
+@EqualsAndHashCode(callSuper = false)
 public class SurgeryUnitDto {
 
+    
     private Integer id;
+    private Long version;
     private String name;
     private String phone;
     private String email;

@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
-import de.bbajor.pvs.ivomplan.model.SurgeryUnit;
 import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 
 @Component

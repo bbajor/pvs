@@ -21,7 +21,6 @@ public class Address extends BasicEntity<Long> {
     private String houseNumber;
     private Double postalCode;
     private String city;
-
     private String language;
     private String country;
 
@@ -30,7 +29,9 @@ public class Address extends BasicEntity<Long> {
 
     @PostLoad
     void loadLocale() {
-        this.locale = Locale.of(language, country);
+        if (language != null && country != null) {
+            this.locale = Locale.of(language, country);
+        }
     }
 
     @PrePersist
