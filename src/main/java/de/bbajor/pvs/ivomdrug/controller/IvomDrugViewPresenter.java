@@ -82,7 +82,7 @@ public class IvomDrugViewPresenter {
                         .setIndikationAtc(record.get("Indikation/ATC"))
                         .setBescheiddatumZulassung(record.get("Bescheiddatum der Zulassung"))
                         .setZulassungsstatus(record.get("Zulassungsstatus"))
-                        .setZulassungsNr(
+                        .setZulassungsRegNrOderKennziffer(
                                 record.get("Zulassungs-/Reg.-Nr. (AMG 1976), Register-Nr. (AMG 1961) oder Kennziffer"))
                         .setVerkehrsfaehigkeit(record.get("Verkehrsfähigkeit"))
                         .setParallelimportinformationen(record.get("Parallelimportinformationen"))
@@ -119,6 +119,11 @@ public class IvomDrugViewPresenter {
 
     private IvomDrugDto mapToDto(IvomDrug ivomDrug) {
         return modelToDtoMapper.toDto(ivomDrug);
+    }
+
+    public void save(IvomDrugDto bean) {
+        IvomDrug ivomDrug = modelToDtoMapper.toEntity(bean);
+        ivomDrugService.save(ivomDrug);
     }
 
 }

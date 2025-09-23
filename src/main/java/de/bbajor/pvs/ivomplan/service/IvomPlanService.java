@@ -55,7 +55,6 @@ public class IvomPlanService {
     }
 
     public void save(IvomPlan newEntity) {
-        // TODO validate and check relating entities
         ivomRepository.save(newEntity);
     }
 

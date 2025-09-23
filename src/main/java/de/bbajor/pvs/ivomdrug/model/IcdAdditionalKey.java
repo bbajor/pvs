@@ -1,4 +1,4 @@
-package de.bbajor.pvs.icd10.domain;
+package de.bbajor.pvs.ivomdrug.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -6,24 +6,24 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "icd_star_key") // Updated table name
+@Table(name = "icd_additional_key") // Updated table name
 @Data
 @ToString(exclude = "icdEntries")
 @EqualsAndHashCode(of = "keyNumber")
-public class IcdStarKey { // Renamed class
+public class IcdAdditionalKey { // Renamed class
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "icd_star_key_id") // Updated column name
+    @Column(name = "icd_additional_key_id") // Updated column name
     private Long id;
 
     @Column(name = "key_number", unique = true, nullable = false, length = 20)
-    private String keyNumber; // Field 5 (with star)
+    private String keyNumber; // Field 6 (with exclamation mark)
 
-    @ManyToMany(mappedBy = "icdStarKeys") // Updated mappedBy name
+    @ManyToMany(mappedBy = "icdAdditionalKeys") // Updated mappedBy name
     private Set<IcdEntry> icdEntries = new HashSet<>();
 
-    public IcdStarKey(String keyNumber) {
+    public IcdAdditionalKey(String keyNumber) {
         this.keyNumber = keyNumber;
     }
 }

@@ -11,6 +11,7 @@ import de.bbajor.pvs.base.service.HealthInsuranceService;
 import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
+import de.bbajor.pvs.ivomplan.service.IvomDiagnosisService;
 import de.bbajor.pvs.ivomplan.service.IvomPlanService;
 import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
@@ -23,13 +24,15 @@ public class PatientListPresenter {
     private final SurgeryUnitService surgeryUnitService;
     private final PatientService patientService;
     private final HealthInsuranceService healthInsuranceService;
+    private final IvomDiagnosisService ivomDiagnosisService;
 
     private final ModelToDtoMapper modelToDtoMapper;
     private final EgkReader egkReader;
 
     public PatientListPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
             EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgeryUnitService surgeryUnitService,
-            IvomPlanService ivomPlanService, IvomDrugService ivomDrugService) {
+            IvomPlanService ivomPlanService, IvomDrugService ivomDrugService,
+            IvomDiagnosisService ivomDiagnosisService) {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;
         this.egkReader = egkReader;
@@ -37,6 +40,7 @@ public class PatientListPresenter {
         this.surgeryUnitService = surgeryUnitService;
         this.ivomPlanService = ivomPlanService;
         this.ivomDrugService = ivomDrugService;
+        this.ivomDiagnosisService = ivomDiagnosisService;
     }
 
     public List<PatientDto> findAll() {
@@ -48,7 +52,7 @@ public class PatientListPresenter {
 
     public PatientDialogPresenter getDialogPresenter() {
         return new PatientDialogPresenter(patientService, healthInsuranceService, egkReader, modelToDtoMapper,
-                surgeryUnitService, ivomPlanService, ivomDrugService);
+                surgeryUnitService, ivomPlanService, ivomDrugService, ivomDiagnosisService);
     }
 
     private PatientDto mapToDto(Patient entity) {

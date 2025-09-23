@@ -9,7 +9,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class IvomDrugDto {
 
-    private long id;
+    private Long id;
     private String eingangsnummer;
     private String arzneimittelbezeichnung;
     private String darreichungsform;
@@ -21,6 +21,7 @@ public class IvomDrugDto {
     private String zulassungsstatus;
     private String zulassungsNr;
     private String verkehrsfaehigkeit;
+    private String zulassungsRegNrOderKennziffer;
     private String parallelimportinformationen;
     private String euVerfahrensnummer;
     private String zulassungsinhaber;
@@ -30,9 +31,11 @@ public class IvomDrugDto {
     private String wirkstoffe;
     private String packungsgroessenGruppe;
     private String amKlassifikationen;
-    private String description;
+    private String additionalNotes;
     private LocalDate validFrom;
     private LocalDate validUntil;
+    private boolean isFavourite;
+    private String description;
 
     @Override
     public String toString() {

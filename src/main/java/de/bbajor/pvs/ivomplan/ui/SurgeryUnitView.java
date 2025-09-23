@@ -62,7 +62,7 @@ public class SurgeryUnitView extends Main {
     private void configureGrid() {
         grid.setSelectionMode(SelectionMode.SINGLE);
         grid.addColumn(SurgeryUnitDto::getName).setHeader("Operationszentrum");
-        grid.addColumn(SurgeryUnitDto::getAddress).setHeader("Adresse");
+        grid.addColumn(SurgeryUnitDto::getSurgeryUnitAddress).setHeader("Adresse");
         grid.addColumn(SurgeryUnitDto::getPhone).setHeader("Telefonnummer");
         grid.addColumn(SurgeryUnitDto::getEmail).setHeader("E-Mail");
         grid.addColumn(SurgeryUnitDto::getContact).setHeader("Kontakt");

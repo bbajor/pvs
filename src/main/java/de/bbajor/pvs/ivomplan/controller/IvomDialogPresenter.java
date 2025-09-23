@@ -1,15 +1,19 @@
 package de.bbajor.pvs.ivomplan.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import de.bbajor.pvs.base.misc.CycleAvoidingMappingContext;
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
+import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
+import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
-import de.bbajor.pvs.ivomplan.service.IvomPlanService;
+import de.bbajor.pvs.ivomplan.model.SurgeryUnitTimeSlot;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.patientsearch.presenter.PatientDialogPresenter;
 
@@ -19,6 +23,7 @@ public class IvomDialogPresenter {
     private final PatientDialogPresenter patientDialogPresenter;
     private IvomPlanDto workingCopy;
     private IvomPlan original;
+
 
     public IvomDialogPresenter(PatientDialogPresenter patientDialogPresenter) {
         this.patientDialogPresenter = patientDialogPresenter;
@@ -73,5 +78,36 @@ public class IvomDialogPresenter {
 
     public List<SurgeryUnitDto> getSurgeryUnits() {
         return patientDialogPresenter.getSurgeryUnits();
+    }
+
+    public void saveDiagnosis(IvomDiagnosisDto newDto) {
+        IvomDiagnosis newEntity = toEntity(newDto);
+        patientDialogPresenter.save(newEntity);
+    }
+
+    private IvomDiagnosis toEntity(IvomDiagnosisDto dto) {
+        return patientDialogPresenter.getModelToDtoMapper().toEntity(dto);
+    }
+
+    public List<SurgeryUnitTimeSlotDto> loadAvailableSurgeryUnitTimeSlots(SurgeryUnitDto selectedSurgeryUnit) {
+        List<SurgeryUnitDto> surgeryUnits = new ArrayList<>();
+        if (selectedSurgeryUnit == null) { // if no specific surgeryunit has been selected, choose all
+            surgeryUnits.addAll(patientDialogPresenter.getSurgeryUnits());
+        } else  {
+            surgeryUnits.add(selectedSurgeryUnit);
+        }
+        List<SurgeryUnitTimeSlotDto> resultList = new ArrayList<>();
+        for (SurgeryUnitDto surgeryUnit : surgeryUnits) {
+            List<SurgeryUnitTimeSlot> availableTimeSlotsSurgeryUnit = patientDialogPresenter
+                    .getAvailableSurgeryUnitTimeSlots(surgeryUnit.getId());
+            if (availableTimeSlotsSurgeryUnit != null && !availableTimeSlotsSurgeryUnit.isEmpty()) {
+                resultList.addAll(availableTimeSlotsSurgeryUnit.stream().map(this::toDto).toList());
+            }
+        }
+        return resultList;
+    }
+
+    private SurgeryUnitTimeSlotDto toDto(SurgeryUnitTimeSlot entity) {
+        return patientDialogPresenter.getModelToDtoMapper().toDto(entity);
     }
 }

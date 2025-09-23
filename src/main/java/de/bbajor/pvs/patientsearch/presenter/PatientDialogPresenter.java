@@ -14,7 +14,10 @@ import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
+import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
+import de.bbajor.pvs.ivomplan.model.SurgeryUnitTimeSlot;
+import de.bbajor.pvs.ivomplan.service.IvomDiagnosisService;
 import de.bbajor.pvs.ivomplan.service.IvomPlanService;
 import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
@@ -27,6 +30,7 @@ public class PatientDialogPresenter {
     private final IvomDrugService ivomDrugService;
 
     private final IvomPlanService ivomPlanService;
+    private final IvomDiagnosisService ivomDiagnosisService;
     private final SurgeryUnitService surgeryUnitService;
     private final PatientService patientService;
     private final HealthInsuranceService healthInsuranceService;
@@ -38,7 +42,7 @@ public class PatientDialogPresenter {
     public PatientDialogPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
             EgkReader egkReader,
             ModelToDtoMapper modelToDtoMapper, SurgeryUnitService surgeryUnitService, IvomPlanService ivomPlanService,
-            IvomDrugService ivomDrugService) {
+            IvomDrugService ivomDrugService, IvomDiagnosisService ivomDiagnosisService) {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;
         this.surgeryUnitService = surgeryUnitService;
@@ -46,6 +50,7 @@ public class PatientDialogPresenter {
         this.egkReader = egkReader;
         this.modelToDtoMapper = modelToDtoMapper;
         this.ivomDrugService = ivomDrugService;
+        this.ivomDiagnosisService = ivomDiagnosisService;
     }
 
     public void loadPatientById(Integer id) {
@@ -127,6 +132,14 @@ public class PatientDialogPresenter {
 
     public List<SurgeryUnitDto> getSurgeryUnits() {
         return surgeryUnitService.findAll();
+    }
+
+    public void save(IvomDiagnosis newEntity) {
+        ivomDiagnosisService.save(newEntity);
+    }
+
+    public List<SurgeryUnitTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
+        return surgeryUnitService.findSurgeryUnitTimeSlots(id);
     }
 
 }

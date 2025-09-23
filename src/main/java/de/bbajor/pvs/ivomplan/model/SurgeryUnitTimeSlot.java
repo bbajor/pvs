@@ -2,10 +2,13 @@ package de.bbajor.pvs.ivomplan.model;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -22,5 +25,7 @@ public class SurgeryUnitTimeSlot extends BasicEntity<Long> {
     private LocalTime endTime;
     @ManyToOne
     private SurgeryUnit surgeryUnit;
+    @OneToMany(mappedBy = "timeSlotSurgeryUnit", fetch = FetchType.LAZY)
+    private List<IvomPlanTimeSlot> ivomPlanTimeSlots;
 
 }

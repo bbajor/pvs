@@ -1,7 +1,9 @@
 package de.bbajor.pvs.ivomplan.service;
 
+import java.time.LocalDate;
 import java.util.List;
-import de.bbajor.pvs.ivomplan.repository.SurgeryUnitTimeSlotRepository;
+import java.util.Optional;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,14 +13,13 @@ import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
 import de.bbajor.pvs.ivomplan.model.SurgeryUnit;
 import de.bbajor.pvs.ivomplan.model.SurgeryUnitTimeSlot;
 import de.bbajor.pvs.ivomplan.repository.SurgeryUnitRepository;
+import de.bbajor.pvs.ivomplan.repository.SurgeryUnitTimeSlotRepository;
 
 @Service
 public class SurgeryUnitService {
 
     private final SurgeryUnitTimeSlotRepository surgeryUnitTimeSlotRepository;
-
     private final SurgeryUnitRepository surgeryUnitRepository;
-
     private final ModelToDtoMapper modelToDtoMapper;
 
     public SurgeryUnitService(SurgeryUnitRepository surgeryUnitRepository, ModelToDtoMapper modelToDtoMapper,
@@ -49,7 +50,7 @@ public class SurgeryUnitService {
     }
 
     @Transactional
-    public void save(SurgeryUnitDto surgeryUnitDto) {
+    public SurgeryUnit save(SurgeryUnitDto surgeryUnitDto) {
         SurgeryUnit entityToSave = modelToDtoMapper.toEntity(surgeryUnitDto);
         if (entityToSave.getId() != null && entityToSave.getId() == 0L) {
             entityToSave.setId(null);
@@ -59,22 +60,15 @@ public class SurgeryUnitService {
                         || entityToSave.getSurgeryUnitAddress().getId() == 0L)) {
             entityToSave.getSurgeryUnitAddress().setId(null);
         }
-        surgeryUnitRepository.save(entityToSave);
+        return surgeryUnitRepository.save(entityToSave);
     }
 
     @Transactional
-    public void saveTimeSlots(List<SurgeryUnitTimeSlotDto> newTimeSlots, SurgeryUnitDto surgeryUnitDto) {
-        if (newTimeSlots == null || newTimeSlots.isEmpty() || surgeryUnitDto == null) {
+    private void saveTimeSlots(List<SurgeryUnitTimeSlotDto> newTimeSlots, SurgeryUnit surgeryUnit) {
+        if (newTimeSlots == null || newTimeSlots.isEmpty() || surgeryUnit == null) {
             return;
         }
 
-        SurgeryUnit surgeryUnit;
-        if (surgeryUnitDto.getId() != null) {
-            surgeryUnit = findById(surgeryUnitDto.getId());
-        } else {
-            surgeryUnit = modelToDtoMapper.toEntity(surgeryUnitDto);
-            surgeryUnitRepository.save(surgeryUnit);
-        }
         List<SurgeryUnitTimeSlot> newTimeSlotsToSave = newTimeSlots.stream()
                 .map(e -> {
                     SurgeryUnitTimeSlot entity = toEntity(e);
@@ -83,7 +77,6 @@ public class SurgeryUnitService {
                 })
                 .toList();
         surgeryUnitTimeSlotRepository.saveAll(newTimeSlotsToSave);
-
     }
 
     private SurgeryUnit findById(Integer id) {
@@ -92,6 +85,23 @@ public class SurgeryUnitService {
 
     private SurgeryUnitTimeSlot toEntity(SurgeryUnitTimeSlotDto dto) {
         return modelToDtoMapper.toEntity(dto);
+    }
+
+    public List<SurgeryUnitTimeSlot> findSurgeryUnitTimeSlots(Integer id) {
+        // TODO schöner per Query
+        Optional<SurgeryUnit> surgeryUnit = surgeryUnitRepository.findById(id);
+        List<SurgeryUnitTimeSlot> timeSlots = surgeryUnitTimeSlotRepository.findBySurgeryUnit(surgeryUnit.get());
+        return timeSlots.stream().filter(
+                element -> element.getDate().isAfter(LocalDate.now()) || element.getDate().isEqual(LocalDate.now()))
+                .toList();
+}
+
+    @Transactional
+    public void saveTimeSlotsAndSurgeryUnit(List<SurgeryUnitTimeSlotDto> newTimeSlots, SurgeryUnitDto surgeryUnitDto) {
+        if(surgeryUnitDto == null || surgeryUnitDto.getId() == null) {
+            SurgeryUnit savedEntity = surgeryUnitRepository.save(modelToDtoMapper.toEntity(surgeryUnitDto));
+            saveTimeSlots(newTimeSlots, savedEntity);
+        }
     }
 
 }

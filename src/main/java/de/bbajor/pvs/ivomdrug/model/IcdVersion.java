@@ -1,4 +1,4 @@
-package de.bbajor.pvs.icd10.domain;
+package de.bbajor.pvs.ivomdrug.model;
 
 import java.sql.Date;
 

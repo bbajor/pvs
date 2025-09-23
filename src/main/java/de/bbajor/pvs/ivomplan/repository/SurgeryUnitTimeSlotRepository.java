@@ -16,5 +16,4 @@ public interface SurgeryUnitTimeSlotRepository
     Slice<SurgeryUnit> findAllBy(Pageable pageable);
 
     List<SurgeryUnitTimeSlot> findBySurgeryUnit(SurgeryUnit surgeryUnit);
-
 }

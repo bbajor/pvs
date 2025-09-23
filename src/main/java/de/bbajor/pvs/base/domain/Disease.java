@@ -1,6 +1,6 @@
 package de.bbajor.pvs.base.domain;
 
-import de.bbajor.pvs.icd10.domain.IcdEntry;
+import de.bbajor.pvs.ivomdrug.model.IcdEntry;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import lombok.Data;

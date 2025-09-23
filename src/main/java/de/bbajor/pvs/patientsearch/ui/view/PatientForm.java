@@ -12,6 +12,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 
+import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.base.ui.view.AddressField;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
@@ -29,11 +30,11 @@ public class PatientForm extends Composite<FormLayout> {
         TextField firstNameField = new TextField("Vorname");
         TextField lastNameField = new TextField("Nachname");
         DatePicker birthDateField = new DatePicker("Geburtsdatum");
-        ComboBox<HealthInsuranceDto> healthInsuranceField = new ComboBox<HealthInsuranceDto>("Krankenversicherung");
+        ComboBox<HealthInsuranceDto> healthInsuranceField = new ComboBox<>("Krankenversicherung");
         TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
         TextArea descriptionField = new TextArea("Zusätzliche Informationen");
-        private final AddressField addressField = new AddressField();
+        private final AddressField<AddressDto> addressField = new AddressField<>();
         TextField phoneField = new TextField("Telefonnummer");
         TextField emailField = new TextField("E-Mail");
 

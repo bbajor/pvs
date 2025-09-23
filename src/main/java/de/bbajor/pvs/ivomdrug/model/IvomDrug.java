@@ -14,7 +14,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class IvomDrug extends BasicEntity<Integer> {
+public class IvomDrug extends BasicEntity<Long> {
 
     @Column(length = 50)
     private String eingangsnummer;
@@ -50,6 +50,9 @@ public class IvomDrug extends BasicEntity<Integer> {
     
     @Column(length = 50)
     private String verkehrsfaehigkeit;
+
+    @Column(length = 500)
+    private String zulassungsRegNrOderKennziffer;
     
     @Lob
     @Column(columnDefinition = "TEXT")
@@ -84,6 +87,8 @@ public class IvomDrug extends BasicEntity<Integer> {
     
     @Column(length = 1000)
     private String description;
+
+    private boolean isFavourite;
     
     private LocalDate validFrom;
     private LocalDate validUntil;
