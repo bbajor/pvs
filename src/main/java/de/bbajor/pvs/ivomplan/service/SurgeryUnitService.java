@@ -1,6 +1,7 @@
 package de.bbajor.pvs.ivomplan.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,9 +45,24 @@ public class SurgeryUnitService {
         if (id == null || id <= 0) {
             return null;
         }
-        return surgeryUnitRepository.findByIdWithDetails(id)
-                .map(this::toDto)
-                .orElse(null);
+        Optional<SurgeryUnit> surgeryUnit = surgeryUnitRepository.findByIdWithDetails(id);
+        if (surgeryUnit.isPresent()) {
+            SurgeryUnitDto surgeryUnitDto = toDto(surgeryUnit.get());
+            List<SurgeryUnitTimeSlotDto> availableTimeSlotDtos = new ArrayList<>();
+            for (SurgeryUnitTimeSlot timeSlot : surgeryUnit.get().getAvailableTimeSlots()) {
+                SurgeryUnitTimeSlotDto timeSlotDto = toDto(timeSlot);
+                // timeSlotDto.setSurgeryUnit(surgeryUnitDto); TODO hashcode-methode so anpassen, dass surgeryunit und surgeryunittimeslot dann andere werte haben
+                availableTimeSlotDtos.add(timeSlotDto);
+            }
+            surgeryUnitDto.setAvailableTimeSlots(availableTimeSlotDtos);
+            return surgeryUnitDto;
+        } else {
+            return null;
+        }
+    }
+
+    private SurgeryUnitTimeSlotDto toDto(SurgeryUnitTimeSlot timeSlot) {
+        return modelToDtoMapper.toDto(timeSlot);
     }
 
     @Transactional
@@ -79,9 +95,9 @@ public class SurgeryUnitService {
         surgeryUnitTimeSlotRepository.saveAll(newTimeSlotsToSave);
     }
 
-    private SurgeryUnit findById(Integer id) {
-        return surgeryUnitRepository.getReferenceById(id);
-    }
+    // private SurgeryUnit findById(Integer id) {
+    // return surgeryUnitRepository.getReferenceById(id);
+    // }
 
     private SurgeryUnitTimeSlot toEntity(SurgeryUnitTimeSlotDto dto) {
         return modelToDtoMapper.toEntity(dto);
@@ -94,11 +110,11 @@ public class SurgeryUnitService {
         return timeSlots.stream().filter(
                 element -> element.getDate().isAfter(LocalDate.now()) || element.getDate().isEqual(LocalDate.now()))
                 .toList();
-}
+    }
 
     @Transactional
     public void saveTimeSlotsAndSurgeryUnit(List<SurgeryUnitTimeSlotDto> newTimeSlots, SurgeryUnitDto surgeryUnitDto) {
-        if(surgeryUnitDto == null || surgeryUnitDto.getId() == null) {
+        if (surgeryUnitDto == null || surgeryUnitDto.getId() == null) {
             SurgeryUnit savedEntity = surgeryUnitRepository.save(modelToDtoMapper.toEntity(surgeryUnitDto));
             saveTimeSlots(newTimeSlots, savedEntity);
         }

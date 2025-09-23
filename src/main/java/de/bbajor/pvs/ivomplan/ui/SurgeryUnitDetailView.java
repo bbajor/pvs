@@ -24,7 +24,7 @@ import jakarta.annotation.security.PermitAll;
 @PermitAll
 public class SurgeryUnitDetailView extends VerticalLayout implements BeforeEnterObserver {
 
-    @Value("domain.bundesland")
+    @Value("${domain.bundesland}")
     private String bundesland;
     private final SurgeryUnitListPresenter surgeryUnitListPresenter;
     private final SurgeryUnitForm surgeryUnitForm;

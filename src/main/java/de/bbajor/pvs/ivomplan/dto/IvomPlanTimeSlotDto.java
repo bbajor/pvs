@@ -10,6 +10,7 @@ import lombok.experimental.Accessors;
 public class IvomPlanTimeSlotDto {
 
     private Long id;
+    private Long version;
     private IvomPlanDto ivomPlan;
     private SurgeryUnitTimeSlotDto timeSlotSurgeryUnit;
     private LocalDate approvalDate;

@@ -10,6 +10,7 @@ import lombok.experimental.Accessors;
 public class IvomDrugDto {
 
     private Long id;
+    private Long version;
     private String eingangsnummer;
     private String arzneimittelbezeichnung;
     private String darreichungsform;

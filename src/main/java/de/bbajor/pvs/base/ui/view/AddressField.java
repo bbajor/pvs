@@ -76,12 +76,12 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
     @Override
     public void setEnabled(boolean enabled) {
         super.setEnabled(enabled);
-        binder.setReadOnly(!enabled);
         streetField.setEnabled(enabled);
         houseNoField.setEnabled(enabled);
         zipCodeField.setEnabled(enabled);
         cityField.setEnabled(enabled);
         countryCodeBox.setEnabled(enabled);
+        binder.setReadOnly(!enabled);
     }
 
     @Override

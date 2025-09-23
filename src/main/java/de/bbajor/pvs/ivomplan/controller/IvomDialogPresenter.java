@@ -1,11 +1,11 @@
 package de.bbajor.pvs.ivomplan.controller;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.base.misc.CycleAvoidingMappingContext;
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
@@ -64,9 +64,9 @@ public class IvomDialogPresenter {
         return patientDialogPresenter.getModelToDtoMapper().toDto(e);
     }
 
-    private IvomPlan mapToEntity(IvomPlanDto dto) {
-        return patientDialogPresenter.getModelToDtoMapper().toEntity(dto);
-    }
+    // private IvomPlan mapToEntity(IvomPlanDto dto) {
+    //     return patientDialogPresenter.getModelToDtoMapper().toEntity(dto);
+    // }
 
     public List<PatientDto> getPatients() {
         return patientDialogPresenter.getPatients();
@@ -80,9 +80,9 @@ public class IvomDialogPresenter {
         return patientDialogPresenter.getSurgeryUnits();
     }
 
-    public void saveDiagnosis(IvomDiagnosisDto newDto) {
+    public IvomDiagnosisDto saveDiagnosis(IvomDiagnosisDto newDto) {
         IvomDiagnosis newEntity = toEntity(newDto);
-        patientDialogPresenter.save(newEntity);
+        return patientDialogPresenter.save(newEntity);
     }
 
     private IvomDiagnosis toEntity(IvomDiagnosisDto dto) {
@@ -109,5 +109,9 @@ public class IvomDialogPresenter {
 
     private SurgeryUnitTimeSlotDto toDto(SurgeryUnitTimeSlot entity) {
         return patientDialogPresenter.getModelToDtoMapper().toDto(entity);
+    }
+
+    public Collection<IvomDiagnosisDto> getDiseases() {
+        return patientDialogPresenter.getDiagnoses();
     }
 }

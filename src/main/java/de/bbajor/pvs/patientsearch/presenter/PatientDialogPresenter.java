@@ -1,9 +1,13 @@
 package de.bbajor.pvs.patientsearch.presenter;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
+
+import com.vaadin.flow.data.binder.BinderValidationStatus;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.misc.ModelToDtoMapper;
@@ -13,6 +17,7 @@ import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomdrug.model.IvomDrug;
 import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
+import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
@@ -64,19 +69,23 @@ public class PatientDialogPresenter {
         }
     }
 
-    public void saveChanges(PatientForm form) {
-        if (original == null) { // new patient
-            PatientDto newPatient = form.getPatient();
-            modelToDtoMapper.updateDto(newPatient, getWorkingCopy());
-            Patient newEntity = modelToDtoMapper.toEntity(getWorkingCopy());
-            if (newEntity.getAddress() != null) {
-                newEntity.getAddress().setId(null);
+    public BinderValidationStatus<PatientDto> saveChanges(PatientForm form) {
+        BinderValidationStatus<PatientDto> validationStatus = form.validate();
+        if (validationStatus.isOk()) {
+            if (original == null) { // new patient
+                PatientDto newPatient = form.getPatient();
+                modelToDtoMapper.updateDto(newPatient, getWorkingCopy());
+                Patient newEntity = modelToDtoMapper.toEntity(getWorkingCopy());
+                if (newEntity.getAddress() != null) {
+                    newEntity.getAddress().setId(null);
+                }
+                patientService.save(newEntity);
+            } else { // existing patient
+                modelToDtoMapper.updateDtoFromEntity(original, getWorkingCopy());
+                patientService.save(original);
             }
-            patientService.save(newEntity);
-        } else { // existing patient
-            modelToDtoMapper.updateDtoFromEntity(original, getWorkingCopy());
-            patientService.save(original);
         }
+        return validationStatus;
     }
 
     public PatientDto getWorkingCopy() {
@@ -134,12 +143,25 @@ public class PatientDialogPresenter {
         return surgeryUnitService.findAll();
     }
 
-    public void save(IvomDiagnosis newEntity) {
-        ivomDiagnosisService.save(newEntity);
+    public IvomDiagnosisDto save(IvomDiagnosis newEntity) {
+        IvomDiagnosis ivomDiagnosis = ivomDiagnosisService.save(newEntity);
+        return toDto(ivomDiagnosis);
     }
 
     public List<SurgeryUnitTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
         return surgeryUnitService.findSurgeryUnitTimeSlots(id);
+    }
+
+    public Collection<IvomDiagnosisDto> getDiagnoses() {
+        Collection<IvomDiagnosis> diagnoses = ivomDiagnosisService.findAll();
+        if (diagnoses == null || diagnoses.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return diagnoses.stream().map(this::toDto).toList();
+    }
+
+    private IvomDiagnosisDto toDto(IvomDiagnosis entity) {
+        return modelToDtoMapper.toDto(entity);
     }
 
 }

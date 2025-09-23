@@ -51,9 +51,7 @@ public class PatientService {
     }
 
     public Collection<Patient> findAll() {
-        return patientRepository.findAll()
-                .stream()
-                .toList();
+        return patientRepository.findAll();
     }
 
     public Optional<Patient> findById(Integer id) {

@@ -6,7 +6,9 @@ import java.util.List;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.data.binder.BinderValidationStatus;
 
+import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.patientsearch.presenter.PatientDialogPresenter;
 
 public class PatientDialog extends Dialog {
@@ -41,15 +43,17 @@ public class PatientDialog extends Dialog {
     public void addChangeListener(PatientChangeListener listener) {
         listeners.add(listener);
     }
-    
+
     protected void notifyListeners() {
         listeners.forEach(PatientChangeListener::onPatientChanged);
     }
 
     private void save() {
-        presenter.saveChanges(form);
-        notifyListeners();
-        close();
+        BinderValidationStatus<PatientDto> validationStatus = presenter.saveChanges(form);
+        if (validationStatus.isOk()) {
+            notifyListeners();
+            close();
+        }
     }
 
     public void loadPatientById(Integer id) {

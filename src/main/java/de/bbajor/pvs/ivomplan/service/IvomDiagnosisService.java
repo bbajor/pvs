@@ -1,9 +1,12 @@
 package de.bbajor.pvs.ivomplan.service;
 
+import java.util.Collection;
+
 import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
 import de.bbajor.pvs.ivomplan.repository.IvomDiagnosisRepository;
+import jakarta.transaction.Transactional;
 
 @Service
 public class IvomDiagnosisService {
@@ -14,8 +17,13 @@ public class IvomDiagnosisService {
         this.repository = repository;
     }
 
-    public void save(IvomDiagnosis newEntity) {
-        repository.save(newEntity);
+    @Transactional
+    public IvomDiagnosis save(IvomDiagnosis newEntity) {
+        return repository.save(newEntity);
+    }
+
+    public Collection<IvomDiagnosis> findAll() {
+        return repository.findAll();
     }
 
 }

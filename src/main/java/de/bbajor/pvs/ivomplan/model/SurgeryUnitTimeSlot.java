@@ -27,5 +27,6 @@ public class SurgeryUnitTimeSlot extends BasicEntity<Long> {
     private SurgeryUnit surgeryUnit;
     @OneToMany(mappedBy = "timeSlotSurgeryUnit", fetch = FetchType.LAZY)
     private List<IvomPlanTimeSlot> ivomPlanTimeSlots;
+    private boolean isAvailable;
 
 }

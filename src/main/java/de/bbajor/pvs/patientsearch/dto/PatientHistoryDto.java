@@ -11,6 +11,6 @@ import lombok.experimental.Accessors;
 public class PatientHistoryDto {
 
     private Long id;
-
+    private Long version;
     private List<PatientRecord> patientRecords;
 }

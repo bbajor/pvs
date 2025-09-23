@@ -48,7 +48,11 @@ public class TimeSlotCreator {
                 resultList.add(timeSlotDto);
             }
 
-            currentDate = currentDate.plusWeeks(repeatEveryWeeks);
+            if (repeatEveryWeeks == 0) {
+                currentDate = periodEnd.plusDays(1);
+            } else {
+                currentDate = currentDate.plusWeeks(repeatEveryWeeks);
+            }
         }
 
         return resultList;
