@@ -13,7 +13,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.component.upload.Upload;
@@ -25,6 +24,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.streams.UploadHandler;
 
+import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.ivomdrug.controller.IvomDrugViewPresenter;
 import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import jakarta.annotation.security.PermitAll;
@@ -58,7 +58,6 @@ public class IvomDrugView extends Main {
         link.setTarget("_blank");
         Div infoBox = new Div(info, link);
         infoBox.getStyle().set("margin-bottom", "20px");
-        add(infoBox);
 
         // Spalten
         grid.addHierarchyColumn(IvomDrugNode::getLabel)
@@ -89,19 +88,15 @@ public class IvomDrugView extends Main {
                     : true;
         }));
 
-        VerticalLayout layout = new VerticalLayout();
+        add(new ViewToolbar("Medikamentenkatalog", ViewToolbar.group(infoBox, filterField)));
         if (isTechUser()) {
-            initUpload();
+            add(initUpload());
         }
-        layout.add(filterField);
-        layout.add(grid);
-        layout.setSizeFull();
-
-        add(layout);
+        add(grid);
         setSizeFull();
     }
 
-    private void initUpload() {
+    private Upload initUpload() {
         // InMemory handler — liefert byte[] mit den Daten
         UploadHandler inMemory = UploadHandler.inMemory((metadata, bytes) -> {
             // Läuft im Request/Handler-Thread — UI.getCurrent() kann hier null sein.
@@ -141,7 +136,7 @@ public class IvomDrugView extends Main {
         upload.addFileRejectedListener(
                 ev -> Notification.show(ev.getErrorMessage(), 4000, Notification.Position.MIDDLE));
         // add upload to UI
-        add(upload);
+        return upload;
     }
 
     private boolean isTechUser() {

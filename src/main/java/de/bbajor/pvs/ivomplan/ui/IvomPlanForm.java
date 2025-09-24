@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.Locale;
 
 import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.NativeLabel;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
@@ -21,6 +21,7 @@ import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
 import de.bbajor.pvs.ivomplan.controller.IvomDialogPresenter;
 import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
+import de.bbajor.pvs.ivomplan.dto.IvomPlanTimeSlotDto;
 import de.bbajor.pvs.ivomplan.dto.SideOfEye;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
@@ -36,8 +37,9 @@ public class IvomPlanForm extends Composite<FormLayout> {
     final ComboBox<SideOfEye> sideOfEye = new ComboBox<>("Welches Auge?");
     final ComboBox<IvomDrugDto> ivomDrugsComboBox = new ComboBox<>("Medikament");
     final ComboBox<SurgeryUnitDto> surgeryUnitComboBox = new ComboBox<>("Behandlungsort");
-    final HorizontalLayout timeSlotFilter = new HorizontalLayout();
-    final Grid<SurgeryUnitTimeSlotDto> timeSlotGrid = new Grid<>();
+    final TimeSlotConfigForm timeSlotConfigForm = new TimeSlotConfigForm();
+    final Button filterTimeSlotsButton = new Button("Verfügbare Slots filtern");
+    final Grid<IvomPlanTimeSlotDto> timeSlotGrid = new Grid<>();
     final TextArea additionalInformation = new TextArea("Notizen");
 
     // private final IvomDialogPresenter presenter;
@@ -57,27 +59,19 @@ public class IvomPlanForm extends Composite<FormLayout> {
         });
         ivomDrugsComboBox.setItems(presenter.getDrugs());
 
-        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getSurgeryUnit).setHeader("Einrichtung");
-        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getDate).setHeader("Datum");
-        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getDate)
-                .setRenderer(new ComponentRenderer<NativeLabel, SurgeryUnitTimeSlotDto>(dto -> {
+        timeSlotGrid.addColumn(IvomPlanTimeSlotDto::getTimeSlotSurgeryUnit).setHeader("Einrichtung");
+        timeSlotGrid.addColumn(IvomPlanTimeSlotDto::getDate).setHeader("Datum");
+        timeSlotGrid.addColumn(IvomPlanTimeSlotDto::getDate)
+                .setRenderer(new ComponentRenderer<NativeLabel, IvomPlanTimeSlotDto>(dto -> {
                     return new NativeLabel(dto.getDate().getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.GERMAN));
                 })).setHeader("Wochentag");
-        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getStartTime).setHeader("Von");
-        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getEndTime).setHeader("Bis");
-        timeSlotGrid.addColumn(SurgeryUnitTimeSlotDto::getDescription).setHeader("Beschreibung");
 
         surgeryUnitComboBox.setItems(presenter.getSurgeryUnits());
-        surgeryUnitComboBox.addValueChangeListener(event -> {
-            SurgeryUnitDto selectedSurgeryUnit = event.getValue();
-            List<SurgeryUnitTimeSlotDto> availableTimeSlots = presenter
-                    .loadAvailableSurgeryUnitTimeSlots(selectedSurgeryUnit);
-            timeSlotGrid.setItems(availableTimeSlots);
-        });
+        surgeryUnitComboBox.setClearButtonVisible(true);
 
         additionalInformation.setWidthFull();
         additionalInformation.setHeight("150px");
-        creationDate.setReadOnly(true);
+        creationDate.setEnabled(false);
 
         diseaseComboBox.setItemLabelGenerator(IvomDiagnosisDto::getName);
         diseaseComboBox.setAllowCustomValue(true);
@@ -105,6 +99,20 @@ public class IvomPlanForm extends Composite<FormLayout> {
         });
         diseaseComboBox.setItems(presenter.getDiseases());
 
+        filterTimeSlotsButton.addClickListener(click -> {
+            List<SurgeryUnitTimeSlotDto> filteredTimeSlots = new ArrayList<>(
+                    presenter.getAllTimeSlotsFilteredBy(timeSlotConfigForm.getCurrentConfig(),
+                            surgeryUnitComboBox.getValue()));
+            List<IvomPlanTimeSlotDto> bookedTimeSlots = new ArrayList<>();
+            for (SurgeryUnitTimeSlotDto availableSlot : filteredTimeSlots) {
+                IvomPlanTimeSlotDto bookedTimeSlot = new IvomPlanTimeSlotDto();
+                bookedTimeSlot.setIvomPlan(geIvomDto());
+                bookedTimeSlot.setTimeSlotSurgeryUnit(availableSlot);
+                bookedTimeSlots.add(bookedTimeSlot);
+            }
+            timeSlotGrid.setItems(bookedTimeSlots);
+        });
+
         var formLayout = getContent();
         formLayout.add(creationDate);
         formLayout.add(patientSelectComboBox);
@@ -112,7 +120,8 @@ public class IvomPlanForm extends Composite<FormLayout> {
         formLayout.add(sideOfEye);
         formLayout.add(ivomDrugsComboBox);
         formLayout.add(surgeryUnitComboBox);
-        formLayout.add(timeSlotFilter);
+        formLayout.add(timeSlotConfigForm);
+        formLayout.add(filterTimeSlotsButton);
         formLayout.add(timeSlotGrid, 2);
         formLayout.add(additionalInformation, 2);
 

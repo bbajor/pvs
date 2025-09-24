@@ -16,4 +16,8 @@ public class IvomPlanTimeSlotDto {
     private LocalDate approvalDate;
     private String remarks;
 
+    public LocalDate getDate() {
+        return timeSlotSurgeryUnit == null ? null : timeSlotSurgeryUnit.getDate();
+    }
+
 }

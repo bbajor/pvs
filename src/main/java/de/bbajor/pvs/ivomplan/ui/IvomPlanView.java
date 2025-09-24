@@ -7,12 +7,12 @@ import java.util.Optional;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Main;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
+import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.ivomplan.controller.IvomChangeListener;
 import de.bbajor.pvs.ivomplan.controller.IvomListPresenter;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
@@ -25,11 +25,11 @@ import jakarta.annotation.security.PermitAll;
 public class IvomPlanView extends Main implements IvomChangeListener {
 
     private final IvomListPresenter ivomListPresenter;
-    private final Grid<IvomPlanDto> ivomPlanGrid = new Grid<>(IvomPlanDto.class, false);
     private final TextField searchField = new TextField();
     private final Button searchButton = new Button("Suchen");
     private final Button newIvomButton;
     private final Button generateDailyListButton;
+    private final Grid<IvomPlanDto> ivomPlanGrid = new Grid<>(IvomPlanDto.class, false);
 
     public IvomPlanView(IvomListPresenter ivomListPresenter) {
         this.ivomListPresenter = ivomListPresenter;
@@ -54,15 +54,14 @@ public class IvomPlanView extends Main implements IvomChangeListener {
                 event -> ivomListPresenter.generateDailyList(LocalDate.now()));
         generateDailyListButton
                 .setTooltipText("Erzeugt eine Tagesliste für den nächsten anstehenden OP-Slot. " +
-                        "Dabei werden die wesentlichen Patientendaten, sowie die jeweiligen Einrichtungen aufgelistet, " +
+                        "Dabei werden die wesentlichen Patientendaten, sowie die jeweiligen Einrichtungen aufgelistet, "
+                        +
                         "an denen der Patient behandelt wird.");
         generateDailyListButton.getElement().setAttribute("theme", "primary");
-
-        HorizontalLayout controls = new HorizontalLayout(newIvomButton, searchField, searchButton,
-                generateDailyListButton);
-        controls.setWidthFull();
-
-        add(controls, ivomPlanGrid);
+        
+        add(new ViewToolbar("IVOM-Planer",
+                ViewToolbar.group(newIvomButton, searchField, searchButton, generateDailyListButton)));
+        add(ivomPlanGrid);
 
         configureGrid();
         configureSearch();

@@ -1,14 +1,19 @@
 package de.bbajor.pvs.ivomplan.service;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.base.misc.ModelToDtoMapper;
+import de.bbajor.pvs.ivomplan.controller.TimeSlotConfig;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
 import de.bbajor.pvs.ivomplan.model.SurgeryUnit;
@@ -51,7 +56,6 @@ public class SurgeryUnitService {
             List<SurgeryUnitTimeSlotDto> availableTimeSlotDtos = new ArrayList<>();
             for (SurgeryUnitTimeSlot timeSlot : surgeryUnit.get().getAvailableTimeSlots()) {
                 SurgeryUnitTimeSlotDto timeSlotDto = toDto(timeSlot);
-                // timeSlotDto.setSurgeryUnit(surgeryUnitDto); TODO hashcode-methode so anpassen, dass surgeryunit und surgeryunittimeslot dann andere werte haben
                 availableTimeSlotDtos.add(timeSlotDto);
             }
             surgeryUnitDto.setAvailableTimeSlots(availableTimeSlotDtos);
@@ -95,10 +99,6 @@ public class SurgeryUnitService {
         surgeryUnitTimeSlotRepository.saveAll(newTimeSlotsToSave);
     }
 
-    // private SurgeryUnit findById(Integer id) {
-    // return surgeryUnitRepository.getReferenceById(id);
-    // }
-
     private SurgeryUnitTimeSlot toEntity(SurgeryUnitTimeSlotDto dto) {
         return modelToDtoMapper.toEntity(dto);
     }
@@ -118,6 +118,59 @@ public class SurgeryUnitService {
             SurgeryUnit savedEntity = surgeryUnitRepository.save(modelToDtoMapper.toEntity(surgeryUnitDto));
             saveTimeSlots(newTimeSlots, savedEntity);
         }
+    }
+
+    public Collection<SurgeryUnitTimeSlotDto> findTimeSlotsFilteredBy(TimeSlotConfig currentConfig,
+            SurgeryUnitDto surgeryUnitDto) {
+        // TODO hier muss eine Filterung nur nach dem Startdatum und dem Zeitraum
+        // stattfinden. Die TimeSlotConfig hat hier nichts zu suchen!!!
+        if (currentConfig == null || currentConfig.getPeriodStart() == null || currentConfig.getTimePeriod() == null) {
+            return Collections.emptyList();
+        }
+        LocalDate start = currentConfig.getPeriodStart().isAfter(LocalDate.now()) ? currentConfig.getPeriodStart()
+                : LocalDate.now();
+        LocalDate end = currentConfig.getTimePeriod().calculateEndDate(start);
+        List<SurgeryUnitTimeSlot> availableTimeSlots = new ArrayList<>();
+        Sort sort = Sort.by("date").ascending().and(Sort.by("startTime").ascending());
+        if (surgeryUnitDto == null) {
+            availableTimeSlots.addAll(surgeryUnitTimeSlotRepository.findByDateBetween(start, end, sort));
+        } else {
+            SurgeryUnit surgeryUnit = surgeryUnitRepository.getReferenceById(surgeryUnitDto.getId());
+            if (surgeryUnit != null) {
+                availableTimeSlots.addAll(
+                        surgeryUnitTimeSlotRepository.findByDateBetweenAndSurgeryUnit(start, end, surgeryUnit, sort));
+            }
+        }
+
+        List<SurgeryUnitTimeSlot> fullyFiltered = new ArrayList<>();
+        LocalDate startDate = currentConfig.getPeriodStart();
+        LocalDate endDate = currentConfig.getTimePeriod().calculateEndDate(startDate);
+
+        int repeatEveryWeeks = currentConfig.getTimeSlotRepetition().getRepeatEveryWeeks();
+
+        for (SurgeryUnitTimeSlot slot : availableTimeSlots) {
+            LocalDate slotDate = slot.getDate();
+
+            // nur Slots innerhalb des Zeitraums beachten
+            if (!slotDate.isBefore(startDate) && !slotDate.isAfter(endDate)) {
+
+                // Abstands-Berechnung in Wochen (inkl. Jahrwechsel)
+                long weeksBetween = ChronoUnit.WEEKS.between(startDate, slotDate);
+
+                // nur Slots im Wiederholungsrhythmus aufnehmen
+                if (weeksBetween % repeatEveryWeeks == 0) {
+                    fullyFiltered.add(slot);
+                }
+            }
+        }
+
+        List<SurgeryUnitTimeSlotDto> filteredDtos = new ArrayList<>();
+        for (SurgeryUnitTimeSlot surgeryUnitTimeSlot : fullyFiltered) {
+            SurgeryUnitTimeSlotDto dto = toDto(surgeryUnitTimeSlot);
+            filteredDtos.add(dto);
+        }
+
+        return filteredDtos;
     }
 
 }

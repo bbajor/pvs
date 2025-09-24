@@ -14,19 +14,22 @@ import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
 import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
 import de.bbajor.pvs.ivomplan.model.SurgeryUnitTimeSlot;
+import de.bbajor.pvs.ivomplan.repository.SurgeryUnitTimeSlotRepository;
+import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.patientsearch.presenter.PatientDialogPresenter;
 
 @Component
 public class IvomDialogPresenter {
 
+    private final SurgeryUnitService surgeryUnitService;
     private final PatientDialogPresenter patientDialogPresenter;
     private IvomPlanDto workingCopy;
     private IvomPlan original;
 
-
-    public IvomDialogPresenter(PatientDialogPresenter patientDialogPresenter) {
+    public IvomDialogPresenter(PatientDialogPresenter patientDialogPresenter, SurgeryUnitService surgeryUnitService) {
         this.patientDialogPresenter = patientDialogPresenter;
+        this.surgeryUnitService = surgeryUnitService;
     }
 
     public void loadIvomById(Long id) {
@@ -65,7 +68,7 @@ public class IvomDialogPresenter {
     }
 
     // private IvomPlan mapToEntity(IvomPlanDto dto) {
-    //     return patientDialogPresenter.getModelToDtoMapper().toEntity(dto);
+    // return patientDialogPresenter.getModelToDtoMapper().toEntity(dto);
     // }
 
     public List<PatientDto> getPatients() {
@@ -93,7 +96,7 @@ public class IvomDialogPresenter {
         List<SurgeryUnitDto> surgeryUnits = new ArrayList<>();
         if (selectedSurgeryUnit == null) { // if no specific surgeryunit has been selected, choose all
             surgeryUnits.addAll(patientDialogPresenter.getSurgeryUnits());
-        } else  {
+        } else {
             surgeryUnits.add(selectedSurgeryUnit);
         }
         List<SurgeryUnitTimeSlotDto> resultList = new ArrayList<>();
@@ -113,5 +116,9 @@ public class IvomDialogPresenter {
 
     public Collection<IvomDiagnosisDto> getDiseases() {
         return patientDialogPresenter.getDiagnoses();
+    }
+
+    public Collection<SurgeryUnitTimeSlotDto> getAllTimeSlotsFilteredBy(TimeSlotConfig currentConfig, SurgeryUnitDto surgeryUnitDto) {
+        return surgeryUnitService.findTimeSlotsFilteredBy(currentConfig, surgeryUnitDto);
     }
 }

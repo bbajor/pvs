@@ -24,5 +24,6 @@ public class TimeSlotConfig {
     private TimePeriod timePeriod;
     private SurgeryUnitDto surgeryUnit;
     private Bundesland bundesland;
+    public boolean isSingleAppointment;
 
 }

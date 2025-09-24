@@ -15,7 +15,6 @@ import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.ivomplan.controller.SurgeryUnitListPresenter;
-import de.bbajor.pvs.ivomplan.dto.Bundesland;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import jakarta.annotation.security.PermitAll;
 
@@ -27,11 +26,10 @@ public class SurgeryUnitDetailView extends VerticalLayout implements BeforeEnter
     @Value("${domain.bundesland}")
     private String bundesland;
     private final SurgeryUnitListPresenter surgeryUnitListPresenter;
-    private final SurgeryUnitForm surgeryUnitForm;
+    private final SurgeryUnitForm surgeryUnitForm = new SurgeryUnitForm();
 
     public SurgeryUnitDetailView(SurgeryUnitListPresenter surgeryUnitListPresenter) {
         this.surgeryUnitListPresenter = surgeryUnitListPresenter;
-        surgeryUnitForm = new SurgeryUnitForm(Bundesland.byString(bundesland));
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
