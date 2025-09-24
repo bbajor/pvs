@@ -5,6 +5,7 @@ import java.time.Month;
 
 public enum TimePeriod {
 
+    NONE("Einzeltermin", 0),
     ONE_MONTH("1 Monat", 1),
     TWO_MONTHS("2 Monate", 2),
     THREE_MONTHS("3 Monate", 3),

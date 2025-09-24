@@ -8,21 +8,25 @@ import org.springframework.stereotype.Component;
 import de.bbajor.pvs.ivomplan.dto.IvomPlanDto;
 import de.bbajor.pvs.ivomplan.model.IvomPlan;
 import de.bbajor.pvs.ivomplan.service.IvomPlanService;
+import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
 import de.bbajor.pvs.patientsearch.presenter.PatientDialogPresenter;
 
 @Component
 public class IvomListPresenter {
 
+    private final SurgeryUnitService surgeryUnitService;
+
     private final IvomPlanService ivomService;
     private final PatientDialogPresenter patientDialogPresenter;
 
-    public IvomListPresenter(IvomPlanService ivomService, PatientDialogPresenter patientDialogPresenter) {
+    public IvomListPresenter(IvomPlanService ivomService, PatientDialogPresenter patientDialogPresenter, SurgeryUnitService surgeryUnitService) {
         this.ivomService = ivomService;
         this.patientDialogPresenter = patientDialogPresenter;
+        this.surgeryUnitService = surgeryUnitService;
     }
 
     public IvomDialogPresenter getDialogPresenter() {
-        return new IvomDialogPresenter(patientDialogPresenter);
+        return new IvomDialogPresenter(patientDialogPresenter, surgeryUnitService);
     }
 
     public List<IvomPlanDto> generateDailyList(LocalDate date) {

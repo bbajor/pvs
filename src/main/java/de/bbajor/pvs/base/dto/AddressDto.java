@@ -27,4 +27,11 @@ public class AddressDto {
 
     }
 
+    public Locale getLocale() {
+        if (language != null && country != null) {
+            return Locale.of(language, country);
+        }
+        return null;
+    }
+
 }

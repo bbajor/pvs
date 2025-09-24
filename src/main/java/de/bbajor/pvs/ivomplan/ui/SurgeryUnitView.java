@@ -5,12 +5,12 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
 import com.vaadin.flow.component.html.Main;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
+import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.ivomplan.controller.SurgeryUnitListPresenter;
 import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
 import jakarta.annotation.security.PermitAll;
@@ -33,7 +33,7 @@ public class SurgeryUnitView extends Main {
 
         setSizeFull();
 
-        newSurgeryUnitButton = new Button("Neue Ambulanz anlegen", event -> {
+        newSurgeryUnitButton = new Button("Neues Operationszentrum anlegen", event -> {
             SurgeryUnitDto dto = new SurgeryUnitDto();
             dto.setId(Integer.valueOf(-1));
             navigateToDetailView(dto);
@@ -44,12 +44,11 @@ public class SurgeryUnitView extends Main {
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
         searchField.setWidthFull();
 
-        HorizontalLayout controls = new HorizontalLayout(newSurgeryUnitButton, searchField, searchButton);
-        controls.setWidthFull();
-
-        add(controls, grid);
         configureGrid();
         configureSearch();
+
+        add(new ViewToolbar("Operationszentren", ViewToolbar.group(newSurgeryUnitButton, searchField, searchButton)));
+        add(grid);
     }
 
     private void navigateToDetailView(SurgeryUnitDto surgeryUnitDto) {
