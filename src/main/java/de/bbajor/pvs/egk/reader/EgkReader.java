@@ -2,7 +2,9 @@ package de.bbajor.pvs.egk.reader;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,6 +32,17 @@ public class EgkReader {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final EgkToolProperties properties;
+    private static final Map<String, String> EGK_TO_ISO = new HashMap<>();
+
+    static {
+        EGK_TO_ISO.put("D", "DE");
+        EGK_TO_ISO.put("A", "AT");
+        EGK_TO_ISO.put("CH", "CH");
+        EGK_TO_ISO.put("F", "FR");
+        EGK_TO_ISO.put("I", "IT");
+        EGK_TO_ISO.put("USA", "US");
+        // weitere Codes nach eGK-Spezifikation ergänzen
+    }
 
     public EgkReader(EgkToolProperties properties) {
         this.properties = properties;
@@ -84,16 +97,24 @@ public class EgkReader {
 
         AddressDto addressDto = new AddressDto();
         addressDto.setStreet(adr == null ? "" : adr.getStrasse())
-                .setHouseNumber(adr == null ? "" : adr.getHausnummer())
+                .setHouseNo(adr == null ? "" : adr.getHausnummer())
                 .setPostalCode(adr == null ? Double.NaN : Double.parseDouble(adr.getPostleitzahl()))
                 .setCity(adr == null ? "" : adr.getOrt());
         try {
-            addressDto.setLocale(Locale.of(adr.getLand().getWohnsitzlaendercode()));
+            addressDto.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()).getCountry());
         } catch (NullPointerException e) {
             LOGGER.debug("Land in Adresse nicht gesetzt");
         }
         dto.setAddress(addressDto);
         return dto;
+    }
+
+    public static Locale toLocale(String egkCode) {
+        if (egkCode == null) {
+            return null;
+        }
+        String iso = EGK_TO_ISO.getOrDefault(egkCode.toUpperCase(), "ZZ");
+        return Locale.of("", iso);
     }
 
     public HealthInsuranceDto readHealthInsuranceFromCard() throws Exception {

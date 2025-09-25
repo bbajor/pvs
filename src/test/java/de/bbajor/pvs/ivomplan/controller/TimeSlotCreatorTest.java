@@ -7,14 +7,16 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import de.bbajor.pvs.ivomplan.dto.SurgeryUnitTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotConfig;
+import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotCreator;
 
 public class TimeSlotCreatorTest {
 
     @Test
     void testCreateTimeSlots() {
 
-        List<SurgeryUnitTimeSlotDto> resultList = TimeSlotCreator.createTimeSlots(null);
+        List<SurgicalCenterTimeSlotDto> resultList = TimeSlotCreator.createTimeSlots(null);
         assertNotNull(resultList);
         assertEquals(0, resultList.size());
 

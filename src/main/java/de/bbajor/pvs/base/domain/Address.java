@@ -1,12 +1,6 @@
 package de.bbajor.pvs.base.domain;
 
-import java.util.Locale;
-
 import jakarta.persistence.Entity;
-import jakarta.persistence.PostLoad;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Transient;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -21,25 +15,6 @@ public class Address extends BasicEntity<Long> {
     private String houseNumber;
     private Double postalCode;
     private String city;
-    private String language;
     private String country;
 
-    @Transient
-    private Locale locale;
-
-    @PostLoad
-    void loadLocale() {
-        if (language != null && country != null) {
-            this.locale = Locale.of(language, country);
-        }
-    }
-
-    @PrePersist
-    @PreUpdate
-    void saveLocale() {
-        if (locale != null) {
-            this.language = locale.getLanguage();
-            this.country = locale.getCountry();
-        }
-    }
 }
