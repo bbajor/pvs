@@ -1,5 +1,7 @@
 package de.bbajor.pvs.base.ui.view;
 
+import java.util.Locale;
+
 import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -21,12 +23,12 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
     private final TextField cityField = new TextField("Stadt");
     private final CountrySelectionComboBox countryCodeBox = new CountrySelectionComboBox();
 
-    public AddressField() {
-        this("");
+    public AddressField(T value) {
+        this("", value);
     }
 
-    public AddressField(String label) {
-        super(null);
+    public AddressField(String label, T value) {
+        super(value);
 
         streetField.setWidthFull();
         houseNoField.setWidthFull();
@@ -47,7 +49,7 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
 
         binder.forField(houseNoField)
                 .asRequired("Hausnummer darf nicht leer sein")
-                .bind(AddressDto::getHouseNumber, AddressDto::setHouseNumber);
+                .bind(AddressDto::getHouseNo, AddressDto::setHouseNo);
 
         binder.forField(zipCodeField)
                 .asRequired("PLZ darf nicht leer sein")
@@ -60,8 +62,9 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
                 .bind(AddressDto::getCity, AddressDto::setCity);
 
         binder.forField(countryCodeBox)
-                .asRequired("Land auswählen")
-                .bind(AddressDto::getLocale, AddressDto::setLocale);
+                .asRequired("Land auswählen").bind(
+                        dto -> dto.getCountry() == null ? null : Locale.of("", dto.getCountry()), // String → Locale
+                        (dto, locale) -> dto.setCountry(locale == null ? null : locale.getCountry()));
 
         // Änderungen weiterleiten
         binder.addValueChangeListener(e -> {

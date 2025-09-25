@@ -5,8 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.base.domain.HealthInsurance;
-import de.bbajor.pvs.base.misc.ModelToDtoMapper;
 import de.bbajor.pvs.base.repository.HealthInsuranceRepository;
+import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
 
 @Service

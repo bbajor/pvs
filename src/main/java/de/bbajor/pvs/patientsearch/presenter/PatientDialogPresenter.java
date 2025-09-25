@@ -10,33 +10,33 @@ import org.springframework.stereotype.Component;
 import com.vaadin.flow.data.binder.BinderValidationStatus;
 
 import de.bbajor.pvs.base.domain.Patient;
-import de.bbajor.pvs.base.misc.ModelToDtoMapper;
 import de.bbajor.pvs.base.service.HealthInsuranceService;
 import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.egk.reader.EgkReader;
-import de.bbajor.pvs.ivomdrug.dto.IvomDrugDto;
-import de.bbajor.pvs.ivomdrug.model.IvomDrug;
-import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
-import de.bbajor.pvs.ivomplan.dto.IvomDiagnosisDto;
-import de.bbajor.pvs.ivomplan.dto.SurgeryUnitDto;
-import de.bbajor.pvs.ivomplan.model.IvomDiagnosis;
-import de.bbajor.pvs.ivomplan.model.IvomPlan;
-import de.bbajor.pvs.ivomplan.model.SurgeryUnitTimeSlot;
-import de.bbajor.pvs.ivomplan.service.IvomDiagnosisService;
-import de.bbajor.pvs.ivomplan.service.IvomPlanService;
-import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
+import de.bbajor.pvs.intravitreal.treatment.dto.IvomDiagnosisDto;
+import de.bbajor.pvs.intravitreal.treatment.model.IvomDiagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.IvomPlan;
+import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
+import de.bbajor.pvs.intravitreal.treatment.service.IvomPlanService;
+import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
+import de.bbajor.pvs.medication.model.IntravitrealMedication;
+import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.patientsearch.ui.view.PatientForm;
+import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 
 @Component
 public class PatientDialogPresenter {
 
-    private final IvomDrugService ivomDrugService;
-
+    private final IntravitrealMedicationService ivomDrugService;
     private final IvomPlanService ivomPlanService;
     private final IvomDiagnosisService ivomDiagnosisService;
-    private final SurgeryUnitService surgeryUnitService;
+    private final SurgicalCenterService surgeryUnitService;
     private final PatientService patientService;
     private final HealthInsuranceService healthInsuranceService;
     private final EgkReader egkReader;
@@ -45,9 +45,9 @@ public class PatientDialogPresenter {
     private Patient original;
 
     public PatientDialogPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
-            EgkReader egkReader,
-            ModelToDtoMapper modelToDtoMapper, SurgeryUnitService surgeryUnitService, IvomPlanService ivomPlanService,
-            IvomDrugService ivomDrugService, IvomDiagnosisService ivomDiagnosisService) {
+            EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgicalCenterService surgeryUnitService,
+            IvomPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
+            IvomDiagnosisService ivomDiagnosisService) {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;
         this.surgeryUnitService = surgeryUnitService;
@@ -70,6 +70,7 @@ public class PatientDialogPresenter {
     }
 
     public BinderValidationStatus<PatientDto> saveChanges(PatientForm form) {
+        // TODO BinderValidationStatus in View auslagern
         BinderValidationStatus<PatientDto> validationStatus = form.validate();
         if (validationStatus.isOk()) {
             if (original == null) { // new patient
@@ -119,15 +120,11 @@ public class PatientDialogPresenter {
         return healthInsuranceService.findAll();
     }
 
-    public ModelToDtoMapper getModelToDtoMapper() {
-        return modelToDtoMapper;
-    }
-
-    public List<IvomDrugDto> getDrugs() {
+    public List<IntravitrealMedicationDto> getDrugs() {
         return ivomDrugService.findAll().stream().map(this::toDto).toList();
     }
 
-    private IvomDrugDto toDto(IvomDrug ivomDrug) {
+    private IntravitrealMedicationDto toDto(IntravitrealMedication ivomDrug) {
         return modelToDtoMapper.toDto(ivomDrug);
     }
 
@@ -139,8 +136,11 @@ public class PatientDialogPresenter {
         ivomPlanService.save(entity);
     }
 
-    public List<SurgeryUnitDto> getSurgeryUnits() {
-        return surgeryUnitService.findAll();
+    public List<SurgicalCenterDto> getSurgeryUnits() {
+        Collection<SurgicalCenter> surgeryUnits = surgeryUnitService.findAll();
+        return surgeryUnits.stream()
+                .map(modelToDtoMapper::toDto)
+                .toList();
     }
 
     public IvomDiagnosisDto save(IvomDiagnosis newEntity) {
@@ -148,7 +148,7 @@ public class PatientDialogPresenter {
         return toDto(ivomDiagnosis);
     }
 
-    public List<SurgeryUnitTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
+    public List<SurgicalCenterTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
         return surgeryUnitService.findSurgeryUnitTimeSlots(id);
     }
 

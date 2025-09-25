@@ -22,20 +22,19 @@ import de.bbajor.pvs.patientsearch.dto.TitleDto;
 
 public class PatientForm extends Composite<FormLayout> {
 
-        private Binder<PatientDto> binder = new Binder<>(PatientDto.class);
-        private PatientDto patient = new PatientDto();
+        private final Binder<PatientDto> binder = new Binder<>(PatientDto.class);
 
-        ComboBox<SalutationDto> salutationComboBox = new ComboBox<>("Anrede");
-        ComboBox<TitleDto> titleComboBox = new ComboBox<TitleDto>("Titel");
+        private final ComboBox<SalutationDto> salutationComboBox = new ComboBox<>("Anrede");
+        private final ComboBox<TitleDto> titleComboBox = new ComboBox<TitleDto>("Titel");
 
-        TextField firstNameField = new TextField("Vorname");
-        TextField lastNameField = new TextField("Nachname");
-        DatePicker birthDateField = new DatePicker("Geburtsdatum");
-        ComboBox<HealthInsuranceDto> healthInsuranceField = new ComboBox<>("Krankenversicherung");
-        TextField healthInsuranceNumberField = new TextField("Versichertennummer");
+        private final TextField firstNameField = new TextField("Vorname");
+        private final TextField lastNameField = new TextField("Nachname");
+        private final DatePicker birthDateField = new DatePicker("Geburtsdatum");
+        private final ComboBox<HealthInsuranceDto> healthInsuranceField = new ComboBox<>("Krankenversicherung");
+        private final TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
-        TextArea descriptionField = new TextArea("Zusätzliche Informationen");
-        private final AddressField<AddressDto> addressField = new AddressField<>();
+        private final TextArea descriptionField = new TextArea("Zusätzliche Informationen");
+        private final AddressField<AddressDto> addressField = new AddressField<>(new AddressDto());
         TextField phoneField = new TextField("Telefonnummer");
         TextField emailField = new TextField("E-Mail");
 
@@ -74,7 +73,7 @@ public class PatientForm extends Composite<FormLayout> {
                 binder.bind(titleComboBox, PatientDto::getTitle, PatientDto::setTitle);
                 binder.bind(descriptionField, PatientDto::getDescription, PatientDto::setDescription);
                 binder.bind(addressField, PatientDto::getAddress, PatientDto::setAddress);
-                binder.setBean(patient);
+                binder.setBean(new PatientDto());
         }
 
         public PatientDto getPatient() {
@@ -82,7 +81,6 @@ public class PatientForm extends Composite<FormLayout> {
         }
 
         public void writeValuesToPatient(PatientDto patient) {
-                this.patient = patient;
                 binder.setBean(patient);
         }
 

@@ -6,22 +6,22 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.domain.Patient;
-import de.bbajor.pvs.base.misc.ModelToDtoMapper;
 import de.bbajor.pvs.base.service.HealthInsuranceService;
 import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.egk.reader.EgkReader;
-import de.bbajor.pvs.ivomdrug.service.IvomDrugService;
-import de.bbajor.pvs.ivomplan.service.IvomDiagnosisService;
-import de.bbajor.pvs.ivomplan.service.IvomPlanService;
-import de.bbajor.pvs.ivomplan.service.SurgeryUnitService;
+import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
+import de.bbajor.pvs.intravitreal.treatment.service.IvomPlanService;
+import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
+import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 
 @Component
 public class PatientListPresenter {
 
-    private final IvomDrugService ivomDrugService;
+    private final IntravitrealMedicationService ivomDrugService;
     private final IvomPlanService ivomPlanService;
-    private final SurgeryUnitService surgeryUnitService;
+    private final SurgicalCenterService surgeryUnitService;
     private final PatientService patientService;
     private final HealthInsuranceService healthInsuranceService;
     private final IvomDiagnosisService ivomDiagnosisService;
@@ -30,8 +30,8 @@ public class PatientListPresenter {
     private final EgkReader egkReader;
 
     public PatientListPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
-            EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgeryUnitService surgeryUnitService,
-            IvomPlanService ivomPlanService, IvomDrugService ivomDrugService,
+            EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgicalCenterService surgeryUnitService,
+            IvomPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
             IvomDiagnosisService ivomDiagnosisService) {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;
