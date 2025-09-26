@@ -4,7 +4,7 @@ import java.util.Collection;
 
 import org.springframework.stereotype.Service;
 
-import de.bbajor.pvs.intravitreal.treatment.model.IvomDiagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.repository.IvomDiagnosisRepository;
 import jakarta.transaction.Transactional;
 
@@ -18,11 +18,11 @@ public class IvomDiagnosisService {
     }
 
     @Transactional
-    public IvomDiagnosis save(IvomDiagnosis newEntity) {
+    public Diagnosis save(Diagnosis newEntity) {
         return repository.save(newEntity);
     }
 
-    public Collection<IvomDiagnosis> findAll() {
+    public Collection<Diagnosis> findAll() {
         return repository.findAll();
     }
 

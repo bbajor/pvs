@@ -6,14 +6,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import de.bbajor.pvs.base.domain.Patient;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlan;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 
 import java.util.List;
 
 
-public interface IvomPlanRepository extends JpaRepository<IvomPlan, Long>, JpaSpecificationExecutor<IvomPlan> {
+public interface IvomPlanRepository extends JpaRepository<TreatmentPlan, Long>, JpaSpecificationExecutor<TreatmentPlan> {
 
     Slice<Patient> findAllBy(Pageable pageable);
 
-    List<IvomPlan> findByPatientId(Integer patientId);
+    List<TreatmentPlan> findByPatientId(Integer patientId);
 }

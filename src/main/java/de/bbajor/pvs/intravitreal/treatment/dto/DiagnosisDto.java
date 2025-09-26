@@ -5,7 +5,7 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class IvomDiagnosisDto {
+public class DiagnosisDto {
 
     private Long id;
     private Long version;

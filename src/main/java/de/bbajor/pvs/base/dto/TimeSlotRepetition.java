@@ -2,7 +2,7 @@ package de.bbajor.pvs.base.dto;
 
 public enum TimeSlotRepetition {
 
-    NO_REPETITION("Einzeltermin", 0),
+    NO_REPETITION("Keine Wiederholung", 0),
     WEEKLY("Wöchentlich", 1),
     EVERY_TWO_WEEKS("Alle 2 Wochen", 2),
     EVERY_THREE_WEEKS("Alle 3 Wochen", 3),

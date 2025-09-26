@@ -19,25 +19,25 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class IvomPlan extends BasicEntity<Long> {
+public class TreatmentPlan extends BasicEntity<Long> {
 
     private LocalDate creationDate;
     private String description;
     @ManyToOne
     private Patient patient;
     @ManyToOne
-    private IvomDiagnosis diagnosis;
+    private Diagnosis diagnosis;
     @OneToOne
-    private IvomClinicalTrial clinicalTrial;
+    private ClinicalTrial clinicalTrial;
     private String additionalInformation;
     private String billId;
-    private SideOfEye sideOfEye;
+    private String sideOfEye;
     @ManyToOne
     private IntravitrealMedication drug;
     private String frequency;
     private String dosage;
     @OneToMany
-    private List<IvomPlanTimeSlot> timeSlotsPatient;
+    private List<TreatmentSlot> treatmentSlots;
 
 
 

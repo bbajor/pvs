@@ -11,7 +11,7 @@ import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
-import de.bbajor.pvs.intravitreal.treatment.service.IvomPlanService;
+import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
@@ -20,7 +20,7 @@ import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 public class PatientListPresenter {
 
     private final IntravitrealMedicationService ivomDrugService;
-    private final IvomPlanService ivomPlanService;
+    private final TreatmentPlanService ivomPlanService;
     private final SurgicalCenterService surgeryUnitService;
     private final PatientService patientService;
     private final HealthInsuranceService healthInsuranceService;
@@ -31,7 +31,7 @@ public class PatientListPresenter {
 
     public PatientListPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
             EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgicalCenterService surgeryUnitService,
-            IvomPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
+            TreatmentPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
             IvomDiagnosisService ivomDiagnosisService) {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;

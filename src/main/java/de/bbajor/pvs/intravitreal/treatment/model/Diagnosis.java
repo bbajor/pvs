@@ -2,7 +2,6 @@ package de.bbajor.pvs.intravitreal.treatment.model;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
-import jakarta.persistence.ManyToOne;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -11,17 +10,10 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class IvomClinicalTrial extends BasicEntity<Long> {
+public class Diagnosis extends BasicEntity<Long> {
 
     private String name;
+    private String icdCode;
     private String description;
-    private String code;
-    private String sponsor;
-    private String contactPerson;
-    private String contactEmail;
-    private String contactPhone;
-
-    @ManyToOne
-    private IvomPlan ivom;
 
 }

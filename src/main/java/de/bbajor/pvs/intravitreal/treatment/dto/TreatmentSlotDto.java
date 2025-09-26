@@ -14,7 +14,8 @@ public class TreatmentSlotDto {
 
     private Long id;
     private Long version;
-    private IvomPlanDto ivomPlan;
+    private String sideOfEye;
+    private IntravitrealTreatmentDto treatmentPlan;
     private SurgicalCenterTimeSlotDto surgicalCenterTimeSlot;
     private LocalDate approvalDate;
     private String remarks;

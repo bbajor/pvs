@@ -14,25 +14,25 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
-import de.bbajor.pvs.intravitreal.treatment.controller.IvomPlanPresenter;
-import de.bbajor.pvs.intravitreal.treatment.dto.IvomPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
+import de.bbajor.pvs.intravitreal.treatment.dto.IntravitrealTreatmentDto;
 import jakarta.annotation.security.PermitAll;
 
 @Route(value = "ivom/:id", layout = MainLayout.class)
 @PageTitle("IVOM-Behandlungsplan")
 @PermitAll
-public class IvomPlanDetailView extends VerticalLayout implements BeforeEnterObserver {
+public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnterObserver {
 
     @Value("${domain.bundesland}")
     private String bundesland;
 
-    private final IvomPlanPresenter ivomPlanPresenter;
-    private final IvomPlanLayout ivomPlanLayout;
+    private final TreatmentPlanPresenter treatmentPlanPresenter;
+    private final TreatmentPlanLayout treatmentPlanLayout;
 
-    public IvomPlanDetailView(IvomPlanPresenter ivomDialogPresenter) {
-        this.ivomPlanPresenter = ivomDialogPresenter;
+    public TreatmentPlanDetailView(TreatmentPlanPresenter ivomDialogPresenter) {
+        this.treatmentPlanPresenter = ivomDialogPresenter;
 
-        ivomPlanLayout = new IvomPlanLayout(ivomDialogPresenter);
+        treatmentPlanLayout = new TreatmentPlanLayout(ivomDialogPresenter);
         setSizeFull();
 
         HorizontalLayout buttonBar = new HorizontalLayout();
@@ -40,11 +40,11 @@ public class IvomPlanDetailView extends VerticalLayout implements BeforeEnterObs
 
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-            IvomPlanDto ivomPlan = ivomPlanLayout.geIvomDto();
-            if (ivomPlan.getId() == -1) {
-                ivomPlan.setId(null);
+            IntravitrealTreatmentDto treatmentPlan = treatmentPlanLayout.geIvomDto();
+            if (treatmentPlan.getId() == -1) {
+                treatmentPlan.setId(null);
             }
-            ivomDialogPresenter.save(ivomPlan, ivomPlanLayout.getTimeSlotsToCreate());
+            ivomDialogPresenter.save(treatmentPlan, treatmentPlanLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("ivom");
 
         });
@@ -60,7 +60,7 @@ public class IvomPlanDetailView extends VerticalLayout implements BeforeEnterObs
         buttonBar.add(dummy);
         add(buttonBar);
 
-        add(ivomPlanLayout);
+        add(treatmentPlanLayout);
     }
 
     @Override
@@ -68,26 +68,26 @@ public class IvomPlanDetailView extends VerticalLayout implements BeforeEnterObs
 
         Optional<String> idParameter = event.getRouteParameters().get("id");
         if (idParameter.isEmpty()) {
-            event.forwardTo(IvomPlanMainView.class);
+            event.forwardTo(TreatmentPlanMainView.class);
             return;
         }
 
         try {
             Long id = Long.valueOf(idParameter.get());
             if (-1 == id) {
-                IvomPlanDto newDto = new IvomPlanDto();
+                IntravitrealTreatmentDto newDto = new IntravitrealTreatmentDto();
                 newDto.setId(id);
-                ivomPlanLayout.setBean(newDto);
+                treatmentPlanLayout.setBean(newDto);
             } else {
-                IvomPlanDto dto = ivomPlanPresenter.getById(id);
+                IntravitrealTreatmentDto dto = treatmentPlanPresenter.getById(id);
                 if (dto == null) {
-                    event.forwardTo(IvomPlanMainView.class);
+                    event.forwardTo(TreatmentPlanMainView.class);
                     return;
                 }
-                ivomPlanLayout.setBean(dto);
+                treatmentPlanLayout.setBean(dto);
             }
         } catch (NumberFormatException nfe) {
-            event.forwardTo(IvomPlanMainView.class);
+            event.forwardTo(TreatmentPlanMainView.class);
         }
     }
 
