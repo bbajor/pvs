@@ -9,12 +9,12 @@ import de.bbajor.pvs.base.domain.HealthInsurance;
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.domain.PatientHistory;
 import de.bbajor.pvs.base.dto.AddressDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.IvomDiagnosisDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.IvomPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.IntravitrealTreatmentDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentSlotDto;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomDiagnosis;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlan;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlanTimeSlot;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentSlot;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
 import de.bbajor.pvs.medication.model.IntravitrealMedication;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
@@ -57,16 +57,15 @@ public interface ModelToDtoMapper {
     IntravitrealMedicationDto toDto(IntravitrealMedication entity);
 
     @Mapping(target = "clinicalTrial", ignore = true)
-    @Mapping(target = "timeSlotsPatient", ignore = true)
-    IvomPlan toEntity(IvomPlanDto dto);
+    @Mapping(target = "treatmentSlots", ignore = true)
+    TreatmentPlan toEntity(IntravitrealTreatmentDto dto);
 
     @Mapping(target = "clinicalTrial", ignore = true)
-    @Mapping(target = "timeSlotsPatient", ignore = true)
-    void updateEntityFromDto(IvomPlanDto workingCopy, @MappingTarget IvomPlan original);
+    @Mapping(target = "treatmentSlots", ignore = true)
+    void updateEntityFromDto(IntravitrealTreatmentDto workingCopy, @MappingTarget TreatmentPlan original);
 
-    @Mapping(target = "plannedDateOfNextTreatment", ignore = true)
-    @Mapping(target = "timeSlot", ignore = true)
-    IvomPlanDto toDto(IvomPlan e);
+    @Mapping(target = "treatmentSlots", ignore = true)
+    IntravitrealTreatmentDto toDto(TreatmentPlan e);
 
     @Mapping(target = "availableTimeSlots", ignore = true)
     SurgicalCenterDto toDto(SurgicalCenter surgeryUnit);
@@ -86,14 +85,14 @@ public interface ModelToDtoMapper {
 
     IntravitrealMedication toEntity(IntravitrealMedicationDto bean);
 
-    IvomDiagnosis toEntity(IvomDiagnosisDto dto);
+    Diagnosis toEntity(DiagnosisDto dto);
 
-    IvomDiagnosisDto toDto(IvomDiagnosis entity);
+    DiagnosisDto toDto(Diagnosis entity);
 
     @Mapping(target = "surgicalCenterTimeSlot", ignore = true)
-    IvomPlanTimeSlot toEntity(TreatmentSlotDto dto);
+    TreatmentSlot toEntity(TreatmentSlotDto dto);
 
-    @Mapping(target = "ivomPlan", ignore = true)
-    TreatmentSlotDto toDto(IvomPlanTimeSlot entity);
+    @Mapping(target = "treatmentPlan", ignore = true)
+    TreatmentSlotDto toDto(TreatmentSlot entity);
 
 }

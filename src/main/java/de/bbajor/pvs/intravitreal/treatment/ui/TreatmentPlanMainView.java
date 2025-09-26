@@ -15,37 +15,36 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
-import de.bbajor.pvs.intravitreal.treatment.controller.IvomChangeListener;
-import de.bbajor.pvs.intravitreal.treatment.controller.IvomListPresenter;
-import de.bbajor.pvs.intravitreal.treatment.dto.IvomPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
+import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
+import de.bbajor.pvs.intravitreal.treatment.dto.IntravitrealTreatmentDto;
 import jakarta.annotation.security.PermitAll;
 
 @Route("ivom")
 @PageTitle("IVOM-Verwaltung")
 @Menu(order = 2, icon = "vaadin:calendar-user", title = "IVOM-Verwaltung")
 @PermitAll
-public class IvomPlanMainView extends Main implements IvomChangeListener {
+public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeListener {
 
-    private final IvomListPresenter ivomListPresenter;
+    private final TreatmentPlanListPresenter ivomListPresenter;
     private final TextField searchField = new TextField();
     private final Button searchButton = new Button("Suchen");
-    private final Button newIvomButton;
+    private final Button createButton;
     private final Button generateDailyListButton;
-    private final Grid<IvomPlanDto> ivomPlanGrid = new Grid<>(IvomPlanDto.class, false);
+    private final Grid<IntravitrealTreatmentDto> ivomPlanGrid = new Grid<>(IntravitrealTreatmentDto.class, false);
 
-    public IvomPlanMainView(IvomListPresenter ivomListPresenter) {
+    public TreatmentPlanMainView(TreatmentPlanListPresenter ivomListPresenter) {
         this.ivomListPresenter = ivomListPresenter;
 
-        newIvomButton = new Button("Neuer IVOM-Plan", event -> {
-            Optional<IvomPlanDto> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
+        createButton = new Button("Neuer IVOM-Plan", event -> {
+            Optional<IntravitrealTreatmentDto> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
                 navigateToDetailView(ivom.get());
             } else {
-                navigateToDetailView(new IvomPlanDto().setId(-1L));
+                navigateToDetailView(new IntravitrealTreatmentDto().setId(-1L));
             }
         });
-
-        newIvomButton.getElement().setAttribute("theme", "primary");
+        createButton.getElement().setAttribute("theme", "primary");
 
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
         searchField.setWidthFull();
@@ -60,7 +59,7 @@ public class IvomPlanMainView extends Main implements IvomChangeListener {
         generateDailyListButton.getElement().setAttribute("theme", "primary");
 
         add(new ViewToolbar("IVOM-Planer",
-                ViewToolbar.group(newIvomButton, searchField, searchButton, generateDailyListButton)));
+                ViewToolbar.group(createButton, searchField, searchButton, generateDailyListButton)));
         add(ivomPlanGrid);
 
         configureGrid();
@@ -71,7 +70,7 @@ public class IvomPlanMainView extends Main implements IvomChangeListener {
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
     }
 
-    private void navigateToDetailView(IvomPlanDto ivomPlanDto) {
+    private void navigateToDetailView(IntravitrealTreatmentDto ivomPlanDto) {
         // TODO Achtung, hier sollte nicht mit der ID-Spalte aus der Datenbank
         // gearbeitet werden, sondern mit einer internen UUID, die nicht zu erraten
         // ist!!!!
@@ -79,20 +78,20 @@ public class IvomPlanMainView extends Main implements IvomChangeListener {
     }
 
     private void configureGrid() {
-        ivomPlanGrid.addColumn(IvomPlanDto::getLastName).setHeader("Nachname");
-        ivomPlanGrid.addColumn(IvomPlanDto::getFirstName).setHeader("Vorname");
-        ivomPlanGrid.addColumn(IvomPlanDto::getBirth).setHeader("Geburtsdatum");
-        ivomPlanGrid.addColumn(IvomPlanDto::getHealthInsurance).setHeader("Krankenkasse");
-        ivomPlanGrid.addColumn(IvomPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
-        ivomPlanGrid.addColumn(IvomPlanDto::getSideOfEye).setHeader("Betroffenes Auge");
-        ivomPlanGrid.addColumn(IvomPlanDto::getDrug).setHeader("Medikament");
-        ivomPlanGrid.addColumn(IvomPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getLastName).setHeader("Nachname");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getFirstName).setHeader("Vorname");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getBirth).setHeader("Geburtsdatum");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getHealthInsurance).setHeader("Krankenkasse");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getDiagnosis).setHeader("Grund der Behandlung");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getSideOfEye).setHeader("Betroffenes Auge");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getDrug).setHeader("Medikament");
+        ivomPlanGrid.addColumn(IntravitrealTreatmentDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
         ivomPlanGrid.setSizeFull();
 
         refresh("");
 
         ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {
-            IvomPlanDto ivomDto = event.getValue();
+            IntravitrealTreatmentDto ivomDto = event.getValue();
             if (ivomDto != null) {
                 navigateToDetailView(ivomDto);
             }
@@ -106,12 +105,12 @@ public class IvomPlanMainView extends Main implements IvomChangeListener {
     }
 
     public void refresh(String searchString) {
-        List<IvomPlanDto> ivomList = ivomListPresenter.findAllBy(searchString);
+        List<IntravitrealTreatmentDto> ivomList = ivomListPresenter.findAllBy(searchString);
         ivomPlanGrid.setItems(ivomList);
     }
 
     @Override
-    public void onIvomChanged() {
+    public void onTreatmentPlanChanged() {
         refresh("");
     }
 }

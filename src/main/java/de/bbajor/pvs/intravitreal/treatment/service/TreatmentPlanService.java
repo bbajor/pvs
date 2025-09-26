@@ -11,34 +11,35 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlan;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlanTimeSlot;
+import de.bbajor.pvs.base.dto.SideOfEye;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentSlot;
 import de.bbajor.pvs.intravitreal.treatment.repository.IvomPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.IvomPlanTimeSlotRepository;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
-public class IvomPlanService {
+public class TreatmentPlanService {
 
     private IvomPlanRepository ivomRepository;
     private IvomPlanTimeSlotRepository treatmentSlotRepository;
 
-    public IvomPlanService(IvomPlanRepository ivomRepository, IvomPlanTimeSlotRepository treatmentSlotRepository) {
+    public TreatmentPlanService(IvomPlanRepository ivomRepository, IvomPlanTimeSlotRepository treatmentSlotRepository) {
         this.ivomRepository = ivomRepository;
         this.treatmentSlotRepository = treatmentSlotRepository;
     }
 
-    public Optional<IvomPlan> findById(Long id) {
+    public Optional<TreatmentPlan> findById(Long id) {
         return ivomRepository.findById(id);
     }
 
     @Transactional
-    public Collection<IvomPlan> findByPatient(Integer patientId) {
+    public Collection<TreatmentPlan> findByPatient(Integer patientId) {
         return ivomRepository.findByPatientId(patientId);
     }
 
-    public List<IvomPlan> findIvoms(String filter) {
-        Specification<IvomPlan> spec = (root, query, cb) -> {
+    public List<TreatmentPlan> findIvoms(String filter) {
+        Specification<TreatmentPlan> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
 
@@ -58,17 +59,21 @@ public class IvomPlanService {
         return ivomRepository.findAll(spec);
     }
 
-    public IvomPlan save(IvomPlan newEntity) {
+    public TreatmentPlan save(TreatmentPlan newEntity) {
         return ivomRepository.save(newEntity);
     }
 
-    public Collection<IvomPlan> generateDailyList(LocalDate date) {
+    public Collection<TreatmentPlan> generateDailyList(LocalDate date) {
         // TODO implement
         return Collections.emptyList();
     }
 
-    public List<IvomPlanTimeSlot> saveTimeSlots(List<IvomPlanTimeSlot> ivomPlanTimeSlotsToCreate) {
+    public List<TreatmentSlot> saveTimeSlots(List<TreatmentSlot> ivomPlanTimeSlotsToCreate) {
         return treatmentSlotRepository.saveAll(ivomPlanTimeSlotsToCreate);
+    }
+
+    public List<TreatmentSlot> getTreatmentSlots(Long treatmentPlanId, String sideOfEye) {
+        return treatmentSlotRepository.findAllByTreatmentPlanIdAndSideOfEye(treatmentPlanId, sideOfEye);
     }
 
 }

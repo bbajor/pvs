@@ -14,11 +14,11 @@ import de.bbajor.pvs.base.service.HealthInsuranceService;
 import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.egk.reader.EgkReader;
-import de.bbajor.pvs.intravitreal.treatment.dto.IvomDiagnosisDto;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomDiagnosis;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlan;
+import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
-import de.bbajor.pvs.intravitreal.treatment.service.IvomPlanService;
+import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
 import de.bbajor.pvs.medication.model.IntravitrealMedication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
@@ -34,7 +34,7 @@ import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 public class PatientDialogPresenter {
 
     private final IntravitrealMedicationService ivomDrugService;
-    private final IvomPlanService ivomPlanService;
+    private final TreatmentPlanService ivomPlanService;
     private final IvomDiagnosisService ivomDiagnosisService;
     private final SurgicalCenterService surgeryUnitService;
     private final PatientService patientService;
@@ -46,7 +46,7 @@ public class PatientDialogPresenter {
 
     public PatientDialogPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
             EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgicalCenterService surgeryUnitService,
-            IvomPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
+            TreatmentPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
             IvomDiagnosisService ivomDiagnosisService) {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;
@@ -128,23 +128,23 @@ public class PatientDialogPresenter {
         return modelToDtoMapper.toDto(ivomDrug);
     }
 
-    public Optional<IvomPlan> findById(Long id) {
+    public Optional<TreatmentPlan> findById(Long id) {
         return ivomPlanService.findById(id);
     }
 
-    public void save(IvomPlan entity) {
+    public void save(TreatmentPlan entity) {
         ivomPlanService.save(entity);
     }
 
-    public List<SurgicalCenterDto> getSurgeryUnits() {
+    public List<SurgicalCenterDto> getSurgicalCenterList() {
         Collection<SurgicalCenter> surgeryUnits = surgeryUnitService.findAll();
         return surgeryUnits.stream()
                 .map(modelToDtoMapper::toDto)
                 .toList();
     }
 
-    public IvomDiagnosisDto save(IvomDiagnosis newEntity) {
-        IvomDiagnosis ivomDiagnosis = ivomDiagnosisService.save(newEntity);
+    public DiagnosisDto save(Diagnosis newEntity) {
+        Diagnosis ivomDiagnosis = ivomDiagnosisService.save(newEntity);
         return toDto(ivomDiagnosis);
     }
 
@@ -152,15 +152,15 @@ public class PatientDialogPresenter {
         return surgeryUnitService.findSurgeryUnitTimeSlots(id);
     }
 
-    public Collection<IvomDiagnosisDto> getDiagnoses() {
-        Collection<IvomDiagnosis> diagnoses = ivomDiagnosisService.findAll();
+    public Collection<DiagnosisDto> getDiagnoses() {
+        Collection<Diagnosis> diagnoses = ivomDiagnosisService.findAll();
         if (diagnoses == null || diagnoses.isEmpty()) {
             return Collections.emptyList();
         }
         return diagnoses.stream().map(this::toDto).toList();
     }
 
-    private IvomDiagnosisDto toDto(IvomDiagnosis entity) {
+    private DiagnosisDto toDto(Diagnosis entity) {
         return modelToDtoMapper.toDto(entity);
     }
 

@@ -5,7 +5,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
-import de.bbajor.pvs.intravitreal.treatment.model.IvomPlanTimeSlot;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentSlot;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
@@ -27,7 +27,8 @@ public class SurgicalCenterTimeSlot extends BasicEntity<Long> {
     @ManyToOne
     private SurgicalCenter surgicalCenter;
     @OneToMany(mappedBy = "surgicalCenterTimeSlot", fetch = FetchType.LAZY)
-    private List<IvomPlanTimeSlot> ivomPlanTimeSlots;
+    private List<TreatmentSlot> ivomPlanTimeSlots;
     private boolean isAvailable;
+    private boolean isApproved;
 
 }

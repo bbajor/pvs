@@ -1,7 +1,6 @@
 package de.bbajor.pvs.intravitreal.treatment.dto;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import de.bbajor.pvs.base.dto.SideOfEye;
@@ -12,7 +11,7 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class IvomPlanDto {
+public class IntravitrealTreatmentDto {
 
     private Long id;
     private Long version;
@@ -22,12 +21,11 @@ public class IvomPlanDto {
     private String additionalInformation;
     private String billId;
     private SideOfEye sideOfEye;
-    private IvomDiagnosisDto diagnosis;
+    private DiagnosisDto diagnosis;
     private IntravitrealMedicationDto drug;
     private String frequency;
     private String dosage;
-    private LocalDateTime plannedDateOfNextTreatment;
-    private List<TreatmentSlotDto> timeSlot;
+    private List<TreatmentSlotDto> treatmentSlots;
 
     public String getFirstName() {
         return patient != null ? patient.getFirstName() : "";

@@ -2,6 +2,7 @@ package de.bbajor.pvs.base.ui.component;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.vaadin.flow.component.card.Card;
@@ -15,19 +16,27 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 public class TimelineView extends VerticalLayout {
 
     // TODO: anpassen auf die eigenen TimeSlots und Cards!!!
+    private final Scroller scroller = new Scroller(ScrollDirection.HORIZONTAL);
+    private final HorizontalLayout timelineLayout = new HorizontalLayout();
+    private final List<TimeLineCardConfig> itemList = new ArrayList<>();
+    private boolean isOnlyShowFutureAndPresentCards = false;
 
-    public TimelineView(List<LocalDate> dates) {
-        Scroller scroller = new Scroller();
-        scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
-
-        HorizontalLayout timelineLayout = new HorizontalLayout();
+    public TimelineView() {
         timelineLayout.setAlignItems(Alignment.CENTER);
+        scroller.setContent(timelineLayout);
+        add(scroller);
+    }
 
-        LocalDate prev = null;
-        for (LocalDate current : dates) {
+    public void setItems(List<TimeLineCardConfig> items) {
+        this.itemList.clear();
+        this.itemList.addAll(items);
+        timelineLayout.removeAll();
+
+        TimeLineCardConfig prev = null;
+        for (TimeLineCardConfig current : itemList) {
             if (prev != null) {
-                long days = ChronoUnit.DAYS.between(prev, current);
-                long weeks = ChronoUnit.WEEKS.between(prev, current);
+                long days = ChronoUnit.DAYS.between(prev.getTreatmenDate(), current.getTreatmenDate());
+                long weeks = ChronoUnit.WEEKS.between(prev.getTreatmenDate(), current.getTreatmenDate());
 
                 // Berechne Pixelbreite proportional
                 int maxWidth = 400; // maximale Linienstrecke
@@ -51,14 +60,15 @@ public class TimelineView extends VerticalLayout {
             }
 
             // Card simulieren (kann Vaadin Card-Component oder eigener Container sein)
-            Card card = createCard(current);
+            Card card = createCard(current.getTreatmenDate());
             timelineLayout.add(card);
 
             prev = current;
         }
+    }
 
-        scroller.setContent(timelineLayout);
-        add(scroller);
+    public void setOnlyShowFutureAndPresentCards(boolean isOnlyShowFutureAndPresentCards) {
+        this.isOnlyShowFutureAndPresentCards = isOnlyShowFutureAndPresentCards;
     }
 
     private Card createCard(LocalDate date) {
