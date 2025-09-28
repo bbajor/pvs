@@ -10,12 +10,12 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class TreatmentSlotDto {
+public class TreatmentDto {
 
     private Long id;
     private Long version;
     private String sideOfEye;
-    private IntravitrealTreatmentDto treatmentPlan;
+    private TreatmentPlanDto treatmentPlan;
     private SurgicalCenterTimeSlotDto surgicalCenterTimeSlot;
     private LocalDate approvalDate;
     private String remarks;

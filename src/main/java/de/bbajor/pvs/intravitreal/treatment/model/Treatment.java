@@ -16,12 +16,12 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Accessors(chain = true)
-public class TreatmentSlot extends BasicEntity<Long> {
+public class Treatment extends BasicEntity<Long> {
 
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private TreatmentPlan treatmentPlan;
     private String sideOfEye;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private SurgicalCenterTimeSlot surgicalCenterTimeSlot;
     private LocalDate approvalDate;
     private String remarks;

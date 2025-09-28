@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.Random;
 import java.util.Set;
 
 import com.vaadin.flow.component.accordion.Accordion;
@@ -31,8 +30,8 @@ import de.bbajor.pvs.base.ui.component.TimeLineCardConfig;
 import de.bbajor.pvs.base.ui.component.TimelineView;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.IntravitrealTreatmentDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentSlotDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
@@ -40,10 +39,10 @@ import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
 
 public class TreatmentPlanLayout extends VerticalLayout {
 
-    private Binder<IntravitrealTreatmentDto> binder = new Binder<>(IntravitrealTreatmentDto.class);
+    private Binder<TreatmentPlanDto> binder = new Binder<>(TreatmentPlanDto.class);
 
     // Allgemeines
-    private final DatePicker creationDate = new DatePicker("Erstellt am");
+    private final DatePicker creationDatePicker = new DatePicker("Erstellt am");
     private final ComboBox<PatientDto> patientSelectComboBox = new ComboBox<>("Patient");
     private final ComboBox<DiagnosisDto> reasonForTreatmentComboBox = new ComboBox<>("Behandlungsgrund");
 
@@ -76,7 +75,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         patientSelectComboBox.addValueChangeListener(event -> {
             if (event.getValue() != null) {
                 if (binder.getBean() == null) {
-                    binder.setBean(new IntravitrealTreatmentDto());
+                    binder.setBean(new TreatmentPlanDto());
                 }
                 binder.getBean().setPatient(event.getValue());
             }
@@ -91,12 +90,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 .setHeader("Datum");
         timeSlotGrid.setSelectionMode(SelectionMode.MULTI);
 
-        surgicalCenterComboBox.setItems(presenter.getSurgicalCenterList());
+        surgicalCenterComboBox.setItems(presenter.getSurgicalCenters());
         surgicalCenterComboBox.setClearButtonVisible(true);
 
         additionalInformation.setWidthFull();
         additionalInformation.setHeight("150px");
-        creationDate.setEnabled(false);
+        creationDatePicker.setEnabled(false);
 
         reasonForTreatmentComboBox.setItemLabelGenerator(DiagnosisDto::getName);
         reasonForTreatmentComboBox.setAllowCustomValue(true);
@@ -119,10 +118,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 reasonForTreatmentComboBox.setItems(items);
 
                 // Setze das neue Entity als ausgewählt
-                reasonForTreatmentComboBox.setValue(newDto);
+                reasonForTreatmentComboBox.setValue(saved);
             }
         });
-        reasonForTreatmentComboBox.setItems(presenter.getDiseases());
+        reasonForTreatmentComboBox.setItems(presenter.getResaonsForTreatment());
 
         initializeGeneralDetails();
 
@@ -136,6 +135,19 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
         // direkt hier einfügen
         add(additionalInformation);
+
+        initializeBinder();
+    }
+
+    private void initializeBinder() {
+        binder.bind(creationDatePicker, TreatmentPlanDto::getCreationDate,
+                TreatmentPlanDto::setCreationDate);
+        binder.bind(additionalInformation, TreatmentPlanDto::getAdditionalInformation,
+                TreatmentPlanDto::setAdditionalInformation);
+        binder.bind(sideOfEye, TreatmentPlanDto::getSideOfEye, TreatmentPlanDto::setSideOfEye);
+        binder.bind(reasonForTreatmentComboBox, TreatmentPlanDto::getDiagnosis,
+                TreatmentPlanDto::setDiagnosis);
+        binder.bind(medicationComboBox, TreatmentPlanDto::getDrug, TreatmentPlanDto::setDrug);
     }
 
     private void initializeTimeSlotFilter() {
@@ -145,7 +157,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
         formLayout.add(surgicalCenterComboBox);
         startDatePicker.setValue(LocalDate.now());
         formLayout.add(startDatePicker);
+        timePeriodComboBox.setItems(TimePeriod.values());
+        timePeriodComboBox.setValue(TimePeriod.THREE_MONTHS);
         formLayout.add(timePeriodComboBox);
+        repetitionComboBox.setItems(TimeSlotRepetition.values());
+        repetitionComboBox.setValue(TimeSlotRepetition.EVERY_FOUR_WEEKS);
         formLayout.add(repetitionComboBox);
         formLayout.add(filterTimeSlotsButton);
 
@@ -180,8 +196,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private void setRightEyeTreatmentHistory() {
         List<TimeLineCardConfig> rightEyeTreatments = new ArrayList<>();
         if (presenter.getCurrentPatient() != null) {
-            List<TreatmentSlotDto> treatments = presenter.getTreatments(SideOfEye.RIGHT);
-            for (TreatmentSlotDto treatmentSlotDto : treatments) {
+            List<TreatmentDto> treatments = presenter.getTreatmentDtosOriginal(SideOfEye.RIGHT);
+            for (TreatmentDto treatmentSlotDto : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig();
                 config.setTreatmenDate(treatmentSlotDto.getSurgicalCenterTimeSlot().getDate());
                 config.setDescription(treatmentSlotDto.getRemarks());
@@ -193,7 +209,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeGeneralDetails() {
         FormLayout formLayout = new FormLayout();
-        formLayout.add(creationDate);
+        formLayout.add(creationDatePicker);
         formLayout.add(patientSelectComboBox);
         formLayout.add(reasonForTreatmentComboBox);
         AccordionPanel generalDetailsPanel = new AccordionPanel();
@@ -222,8 +238,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private void setLeftEyeTreatmentHistory() {
         List<TimeLineCardConfig> leftEyeTreatments = new ArrayList<>();
         if (presenter.getCurrentPatient() != null) {
-            List<TreatmentSlotDto> treatments = presenter.getTreatments(SideOfEye.LEFT);
-            for (TreatmentSlotDto treatmentSlotDto : treatments) {
+            List<TreatmentDto> treatments = presenter.getTreatmentDtosOriginal(SideOfEye.LEFT);
+            for (TreatmentDto treatmentSlotDto : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig();
                 config.setTreatmenDate(treatmentSlotDto.getSurgicalCenterTimeSlot().getDate());
                 config.setDescription(treatmentSlotDto.getRemarks());
@@ -233,25 +249,38 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineViewRightEye.setItems(leftEyeTreatments);
     }
 
-    public void setIvom(IntravitrealTreatmentDto ivom) {
+    public void setIvom(TreatmentPlanDto ivom) {
         binder.setBean(ivom);
+
     }
 
-    public IntravitrealTreatmentDto geIvomDto() {
-        return binder.getBean();
+    public TreatmentPlanDto geIntravitrealTreatmentDto() {
+        TreatmentPlanDto dto = binder.getBean();
+        // private String frequency;
+        // private String dosage;
+        dto.setTreatments(getTimeSlotsToCreate());
+        dto.setPatient(patientSelectComboBox.getValue());
+        // private PatientDto patient;
+        // private String additionalInformation;
+        // private String billId;
+        return dto;
     }
 
-    public List<TreatmentSlotDto> getTimeSlotsToCreate() {
-        List<TreatmentSlotDto> timeSlotsToCreate = new ArrayList<>();
+    public List<TreatmentDto> getTimeSlotsToCreate() {
+        List<TreatmentDto> timeSlotsToCreate = new ArrayList<>();
         Set<SurgicalCenterTimeSlotDto> selectedSlots = timeSlotGrid.getSelectedItems();
         for (SurgicalCenterTimeSlotDto surgicalCenterTimeSlotDto : selectedSlots) {
-            TreatmentSlotDto timeSlotToCreate = new TreatmentSlotDto().setSideOfEye(sideOfEye.getValue().asDbString())
-                    .setSurgicalCenterTimeSlot(surgicalCenterTimeSlotDto).setTreatmentPlan(presenter.getWorkingCopy());
+            TreatmentDto timeSlotToCreate = new TreatmentDto()
+                    .setSideOfEye(sideOfEye.getValue().asDbString())
+                    .setSurgicalCenterTimeSlot(surgicalCenterTimeSlotDto)
+                    .setTreatmentPlan(presenter.getWorkingCopy());
+                    // TODO
+            timeSlotsToCreate.add(timeSlotToCreate);
         }
-        return new ArrayList<>();
+        return timeSlotsToCreate;
     }
 
-    public void setBean(IntravitrealTreatmentDto newDto) {
+    public void setBean(TreatmentPlanDto newDto) {
         binder.setBean(newDto);
     }
 

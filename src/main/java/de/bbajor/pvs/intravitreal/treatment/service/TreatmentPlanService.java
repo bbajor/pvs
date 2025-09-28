@@ -11,34 +11,51 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.base.dto.SideOfEye;
+import de.bbajor.pvs.base.util.ModelToDtoMapper;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
-import de.bbajor.pvs.intravitreal.treatment.model.TreatmentSlot;
-import de.bbajor.pvs.intravitreal.treatment.repository.IvomPlanRepository;
-import de.bbajor.pvs.intravitreal.treatment.repository.IvomPlanTimeSlotRepository;
+import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
+import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanTimeSlotRepository;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class TreatmentPlanService {
 
-    private IvomPlanRepository ivomRepository;
-    private IvomPlanTimeSlotRepository treatmentSlotRepository;
+    private TreatmentPlanRepository treatmentPlanRepository;
+    private TreatmentPlanTimeSlotRepository treatmentSlotRepository;
+    private ModelToDtoMapper modelToDtoMapper;
 
-    public TreatmentPlanService(IvomPlanRepository ivomRepository, IvomPlanTimeSlotRepository treatmentSlotRepository) {
-        this.ivomRepository = ivomRepository;
+    public TreatmentPlanService(TreatmentPlanRepository treatmentPlanRepository,
+            TreatmentPlanTimeSlotRepository treatmentSlotRepository, ModelToDtoMapper modelToDtoMapper) {
+        this.treatmentPlanRepository = treatmentPlanRepository;
         this.treatmentSlotRepository = treatmentSlotRepository;
+        this.modelToDtoMapper = modelToDtoMapper;
     }
 
-    public Optional<TreatmentPlan> findById(Long id) {
-        return ivomRepository.findById(id);
+    private Optional<TreatmentPlan> findById(Long id) {
+        return treatmentPlanRepository.findById(id);
+    }
+
+    private List<TreatmentPlan> findAll() {
+        return treatmentPlanRepository.findAll();
+    }
+
+    public List<TreatmentPlanDto> getTreatmentPlans() {
+        return findAll().stream().map(modelToDtoMapper::toDto).toList();
     }
 
     @Transactional
-    public Collection<TreatmentPlan> findByPatient(Integer patientId) {
-        return ivomRepository.findByPatientId(patientId);
+    private Collection<TreatmentPlan> findByPatient(Integer patientId) {
+        return treatmentPlanRepository.findByPatientId(patientId);
     }
 
-    public List<TreatmentPlan> findIvoms(String filter) {
+    public List<TreatmentPlanDto> getTreatmentPlans(String filter) {
+        return findTreatmentPlans(filter).stream().map(modelToDtoMapper::toDto).toList();
+    }
+
+    private List<TreatmentPlan> findTreatmentPlans(String filter) {
         Specification<TreatmentPlan> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
@@ -56,24 +73,79 @@ public class TreatmentPlanService {
             return cb.or(predicates.toArray(new Predicate[0]));
         };
 
-        return ivomRepository.findAll(spec);
+        return treatmentPlanRepository.findAll(spec);
     }
 
-    public TreatmentPlan save(TreatmentPlan newEntity) {
-        return ivomRepository.save(newEntity);
+    private TreatmentPlan save(TreatmentPlan newEntity) {
+        TreatmentPlan saved = treatmentPlanRepository.save(newEntity);
+        return saved;
     }
 
-    public Collection<TreatmentPlan> generateDailyList(LocalDate date) {
+    private Collection<TreatmentPlan> generateDailyList(LocalDate date) {
         // TODO implement
         return Collections.emptyList();
     }
 
-    public List<TreatmentSlot> saveTimeSlots(List<TreatmentSlot> ivomPlanTimeSlotsToCreate) {
-        return treatmentSlotRepository.saveAll(ivomPlanTimeSlotsToCreate);
+    public List<TreatmentPlanDto> generateDailyList() {
+        return generateDailyList(LocalDate.now()).stream().map(modelToDtoMapper::toDto).toList();
     }
 
-    public List<TreatmentSlot> getTreatmentSlots(Long treatmentPlanId, String sideOfEye) {
-        return treatmentSlotRepository.findAllByTreatmentPlanIdAndSideOfEye(treatmentPlanId, sideOfEye);
+    private List<Treatment> saveTreatmentSlots(List<Treatment> treatmentSlots) {
+        return treatmentSlotRepository.saveAll(treatmentSlots);
+    }
+
+    @Transactional
+    private List<Treatment> getTreatmentSlots(Long treatmentPlanId) {
+        return treatmentSlotRepository.findAllByTreatmentPlanId(treatmentPlanId);
+    }
+
+    public List<TreatmentDto> getTreatmentSlotsByTreatmentPlanId(Long treatmentPlanId) {
+        return getTreatmentSlots(treatmentPlanId).stream().map(modelToDtoMapper::toDto).toList();
+    }
+
+    public TreatmentPlanDto loadTreatmentPlanDto(Long id) {
+        Optional<TreatmentPlan> treatmentPlan = findById(id);
+        if (treatmentPlan.isPresent()) {
+            TreatmentPlanDto treatmentPlanDto = modelToDtoMapper.toDto(treatmentPlan.get());
+            List<TreatmentDto> treatments = getTreatmentSlots(id).stream().map(modelToDtoMapper::toDto).toList();
+            treatmentPlanDto.setTreatments(treatments);
+            return treatmentPlanDto;
+        }
+        return null;
+    }
+
+    public TreatmentPlanDto saveTreatmentPlan(TreatmentPlanDto treatmentPlanDto) {
+        // 1. save treatmentplan
+        TreatmentPlan treatmentPlan = modelToDtoMapper.toEntity(treatmentPlanDto);
+        treatmentPlanRepository.save(treatmentPlan);
+
+        // 2. apply treatmentplan to all treatments
+        List<Treatment> treatmentDtos = treatmentPlanDto.getTreatments().stream().map(modelToDtoMapper::toEntity)
+                .toList();
+        treatmentDtos.forEach(t -> t.setTreatmentPlan(treatmentPlan));
+        List<Treatment> saved = treatmentSlotRepository.saveAll(treatmentDtos);
+
+        TreatmentPlanDto savedTreatmentPlanDto = modelToDtoMapper.toDto(treatmentPlan);
+        List<TreatmentDto> savedTreatmentDtos = saved.stream().map(modelToDtoMapper::toDto).toList();
+        savedTreatmentPlanDto.setTreatments(savedTreatmentDtos);
+        return savedTreatmentPlanDto;
+    }
+
+    public TreatmentPlanDto getTreatmentPlanById(Long id) {
+        Optional<TreatmentPlan> treatmentPlan = treatmentPlanRepository.findById(id);
+        if (treatmentPlan.isPresent()) {
+            List<TreatmentDto> treatmentDtos = treatmentSlotRepository.findAllByTreatmentPlanId(id).stream()
+                    .map(modelToDtoMapper::toDto).toList();
+            TreatmentPlanDto treatmentPlanDto = modelToDtoMapper.toDto(treatmentPlan.get());
+            treatmentPlanDto.setTreatments(treatmentDtos);
+            return treatmentPlanDto;
+        }
+        return null;
+    }
+
+    public List<TreatmentDto> saveTreatments(List<TreatmentDto> treatmentsToCreate) {
+        return treatmentSlotRepository.saveAll(treatmentsToCreate.stream().map(modelToDtoMapper::toEntity).toList())
+                .stream().map(modelToDtoMapper::toDto).toList();
     }
 
 }

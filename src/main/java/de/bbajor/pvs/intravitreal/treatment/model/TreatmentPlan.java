@@ -5,9 +5,10 @@ import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.domain.Patient;
-import de.bbajor.pvs.base.dto.SideOfEye;
 import de.bbajor.pvs.medication.model.IntravitrealMedication;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
@@ -23,21 +24,21 @@ public class TreatmentPlan extends BasicEntity<Long> {
 
     private LocalDate creationDate;
     private String description;
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Patient patient;
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Diagnosis diagnosis;
     @OneToOne
     private ClinicalTrial clinicalTrial;
     private String additionalInformation;
     private String billId;
     private String sideOfEye;
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private IntravitrealMedication drug;
     private String frequency;
     private String dosage;
-    @OneToMany
-    private List<TreatmentSlot> treatmentSlots;
+    @OneToMany(cascade = CascadeType.ALL)
+    private List<Treatment> treatments;
 
 
 

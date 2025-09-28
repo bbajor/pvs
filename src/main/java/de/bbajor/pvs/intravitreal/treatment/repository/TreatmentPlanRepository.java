@@ -11,7 +11,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import java.util.List;
 
 
-public interface IvomPlanRepository extends JpaRepository<TreatmentPlan, Long>, JpaSpecificationExecutor<TreatmentPlan> {
+public interface TreatmentPlanRepository extends JpaRepository<TreatmentPlan, Long>, JpaSpecificationExecutor<TreatmentPlan> {
 
     Slice<Patient> findAllBy(Pageable pageable);
 

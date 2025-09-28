@@ -17,20 +17,22 @@ public class TimelineView extends VerticalLayout {
 
     // TODO: anpassen auf die eigenen TimeSlots und Cards!!!
     private final Scroller scroller = new Scroller(ScrollDirection.HORIZONTAL);
-    private final HorizontalLayout timelineLayout = new HorizontalLayout();
-    private final List<TimeLineCardConfig> itemList = new ArrayList<>();
+    private HorizontalLayout timelineLayout = new HorizontalLayout();
+    private List<TimeLineCardConfig> itemList = new ArrayList<>();
     private boolean isOnlyShowFutureAndPresentCards = false;
 
     public TimelineView() {
+        timelineLayout = new HorizontalLayout();
         timelineLayout.setAlignItems(Alignment.CENTER);
         scroller.setContent(timelineLayout);
         add(scroller);
     }
 
     public void setItems(List<TimeLineCardConfig> items) {
-        this.itemList.clear();
-        this.itemList.addAll(items);
-        timelineLayout.removeAll();
+        timelineLayout = new HorizontalLayout();
+        timelineLayout.setAlignItems(Alignment.CENTER);
+        scroller.setContent(timelineLayout);
+        this.itemList = items;
 
         TimeLineCardConfig prev = null;
         for (TimeLineCardConfig current : itemList) {

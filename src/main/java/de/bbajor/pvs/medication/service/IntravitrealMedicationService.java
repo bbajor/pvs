@@ -4,9 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import de.bbajor.pvs.base.util.ModelToDtoMapper;
+import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
 import de.bbajor.pvs.medication.model.IntravitrealMedication;
 import de.bbajor.pvs.medication.repository.IntravitrealMedicationRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -14,11 +17,10 @@ import jakarta.persistence.criteria.Predicate;
 @Service
 public class IntravitrealMedicationService {
 
+    @Autowired
+    private ModelToDtoMapper modelToDtoMapper;
+    @Autowired
     private IntravitrealMedicationRepository intravitrealMedicationRepository;
-
-    public IntravitrealMedicationService(IntravitrealMedicationRepository ivomDrugRepository) {
-        this.intravitrealMedicationRepository = ivomDrugRepository;
-    }
 
     public Optional<IntravitrealMedication> findById(Long id) {
         return intravitrealMedicationRepository.findById(id);
@@ -44,6 +46,10 @@ public class IntravitrealMedicationService {
 
     public void save(IntravitrealMedication newEntity) {
         intravitrealMedicationRepository.save(newEntity);
+    }
+
+    public List<IntravitrealMedicationDto> getMedicationListFavorites() {
+         return intravitrealMedicationRepository.findAllByIsFavouriteTrue().stream().map(modelToDtoMapper::toDto).toList();
     }
 
 }

@@ -11,7 +11,7 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class IntravitrealTreatmentDto {
+public class TreatmentPlanDto {
 
     private Long id;
     private Long version;
@@ -25,7 +25,7 @@ public class IntravitrealTreatmentDto {
     private IntravitrealMedicationDto drug;
     private String frequency;
     private String dosage;
-    private List<TreatmentSlotDto> treatmentSlots;
+    private List<TreatmentDto> treatments;
 
     public String getFirstName() {
         return patient != null ? patient.getFirstName() : "";
