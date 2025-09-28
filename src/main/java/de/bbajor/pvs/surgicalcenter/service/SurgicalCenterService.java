@@ -112,7 +112,7 @@ public class SurgicalCenterService {
         saveTimeSlots(newTimeSlots, savedEntity);
     }
 
-    public Collection<SurgicalCenterTimeSlot> findAvailableTimeSlotsFilteredBy(LocalDate periodStart,
+    public Collection<SurgicalCenterTimeSlotDto> findAvailableTimeSlotsFilteredBy(LocalDate periodStart,
             TimePeriod timePeriod,
             Integer surgicalCenterId) {
 
@@ -123,16 +123,17 @@ public class SurgicalCenterService {
         LocalDate start = periodStart.isAfter(LocalDate.now()) ? periodStart : LocalDate.now();
         LocalDate end = timePeriod.calculateEndDate(start);
 
-        List<SurgicalCenterTimeSlot> availableTimeSlots = new ArrayList<>();
+        List<SurgicalCenterTimeSlotDto> availableTimeSlots = new ArrayList<>();
         Sort sort = Sort.by("date").ascending().and(Sort.by("startTime").ascending());
         if (surgicalCenterId == null) {
-            availableTimeSlots.addAll(surgicalCenterTimeSlotRepository.findByDateBetween(start, end, sort));
+            availableTimeSlots.addAll(surgicalCenterTimeSlotRepository.findByDateBetween(start, end, sort).stream()
+                    .map(modelToDtoMapper::toDto).toList());
         } else {
             SurgicalCenter surgicalCenter = surgicalCenterRepository.getReferenceById(surgicalCenterId);
             if (surgicalCenter != null) {
                 availableTimeSlots.addAll(
                         surgicalCenterTimeSlotRepository.findByDateBetweenAndSurgicalCenter(start, end, surgicalCenter,
-                                sort));
+                                sort).stream().map(modelToDtoMapper::toDto).toList());
             }
         }
 
@@ -141,6 +142,19 @@ public class SurgicalCenterService {
 
     public Optional<SurgicalCenterTimeSlot> findSurgicalCenterTimeSlotById(Long id) {
         return surgicalCenterTimeSlotRepository.findById(id);
+    }
+
+    public List<SurgicalCenterDto> getSurgicalCenters() {
+        List<SurgicalCenterDto> surgicalCenterDtos = new ArrayList<>();
+        List<SurgicalCenter> surgicalCenters = surgicalCenterRepository.findAll();
+        for (SurgicalCenter surgicalCenter : surgicalCenters) {
+            SurgicalCenterDto surgicalCenterDto = modelToDtoMapper.toDto(surgicalCenter);
+            List<SurgicalCenterTimeSlot> timeSlots = surgicalCenterTimeSlotRepository
+                    .findBySurgicalCenter(surgicalCenter);
+            surgicalCenterDto.setAvailableTimeSlots(timeSlots.stream().map(modelToDtoMapper::toDto).toList());
+            surgicalCenterDtos.add(surgicalCenterDto);
+        }
+        return surgicalCenterDtos;
     }
 
 }

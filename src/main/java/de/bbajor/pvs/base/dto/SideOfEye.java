@@ -2,9 +2,7 @@ package de.bbajor.pvs.base.dto;
 
 public enum SideOfEye {
     LEFT("Linkes Auge", "l"),
-    RIGHT("Rechtes Auge", "r"),
-    BOTH("Beide Augen", "b"),
-    UNKNOWN("Nicht angegeben", "n");
+    RIGHT("Rechtes Auge", "r");
 
     private final String displayName;
     private final String dbString;
@@ -16,14 +14,14 @@ public enum SideOfEye {
 
     public static SideOfEye byDbString(String dbString) {
         if (dbString == null) {
-            return UNKNOWN;
+            return null;
         }
         for (SideOfEye sideOfEye : SideOfEye.values()) {
             if (sideOfEye.dbString.equals(dbString.trim())) {
                 return sideOfEye;
             }
         }
-        return UNKNOWN;
+        return null;
     }
 
     public String asDbString() {

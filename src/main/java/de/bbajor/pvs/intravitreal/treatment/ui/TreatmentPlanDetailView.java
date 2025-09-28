@@ -15,7 +15,7 @@ import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
-import de.bbajor.pvs.intravitreal.treatment.dto.IntravitrealTreatmentDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
 import jakarta.annotation.security.PermitAll;
 
 @Route(value = "ivom/:id", layout = MainLayout.class)
@@ -40,12 +40,13 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
 
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-            IntravitrealTreatmentDto treatmentPlan = treatmentPlanLayout.geIvomDto();
+            TreatmentPlanDto treatmentPlan = treatmentPlanLayout.geIntravitrealTreatmentDto();
             if (treatmentPlan.getId() == -1) {
                 treatmentPlan.setId(null);
             }
-            ivomDialogPresenter.save(treatmentPlan, treatmentPlanLayout.getTimeSlotsToCreate());
-            UI.getCurrent().navigate("ivom");
+            ivomDialogPresenter.setWorkingCopy(treatmentPlan);
+            TreatmentPlanDto savedTreatmentPlanDto = ivomDialogPresenter.saveNewTreatments(treatmentPlanLayout.getTimeSlotsToCreate());
+            UI.getCurrent().navigate("ivom/" + savedTreatmentPlanDto.getId());
 
         });
         buttonBar.add(createButton);
@@ -75,11 +76,12 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         try {
             Long id = Long.valueOf(idParameter.get());
             if (-1 == id) {
-                IntravitrealTreatmentDto newDto = new IntravitrealTreatmentDto();
+                TreatmentPlanDto newDto = new TreatmentPlanDto();
                 newDto.setId(id);
                 treatmentPlanLayout.setBean(newDto);
             } else {
-                IntravitrealTreatmentDto dto = treatmentPlanPresenter.getById(id);
+                TreatmentPlanDto dto = treatmentPlanPresenter.getById(id);
+                treatmentPlanPresenter.setWorkingCopy(dto);
                 if (dto == null) {
                     event.forwardTo(TreatmentPlanMainView.class);
                     return;

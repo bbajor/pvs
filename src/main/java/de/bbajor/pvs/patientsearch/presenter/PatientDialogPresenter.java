@@ -3,7 +3,6 @@ package de.bbajor.pvs.patientsearch.presenter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -15,12 +14,12 @@ import de.bbajor.pvs.base.service.PatientService;
 import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
 import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
@@ -34,7 +33,7 @@ import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 public class PatientDialogPresenter {
 
     private final IntravitrealMedicationService ivomDrugService;
-    private final TreatmentPlanService ivomPlanService;
+    private final TreatmentPlanService treatmentPlanService;
     private final IvomDiagnosisService ivomDiagnosisService;
     private final SurgicalCenterService surgeryUnitService;
     private final PatientService patientService;
@@ -51,7 +50,7 @@ public class PatientDialogPresenter {
         this.patientService = patientService;
         this.healthInsuranceService = healthInsuranceService;
         this.surgeryUnitService = surgeryUnitService;
-        this.ivomPlanService = ivomPlanService;
+        this.treatmentPlanService = ivomPlanService;
         this.egkReader = egkReader;
         this.modelToDtoMapper = modelToDtoMapper;
         this.ivomDrugService = ivomDrugService;
@@ -109,11 +108,7 @@ public class PatientDialogPresenter {
     }
 
     public List<PatientDto> getPatients() {
-        return patientService.findAll().stream().map(this::copyFromEntity).toList();
-    }
-
-    public PatientDto copyFromEntity(Patient patient) {
-        return modelToDtoMapper.toDto(patient);
+        return patientService.findAll().stream().map(modelToDtoMapper::toDto).toList();
     }
 
     public List<HealthInsuranceDto> getHealthInsurances() {
@@ -121,19 +116,15 @@ public class PatientDialogPresenter {
     }
 
     public List<IntravitrealMedicationDto> getDrugs() {
-        return ivomDrugService.findAll().stream().map(this::toDto).toList();
+        return ivomDrugService.findAll().stream().map(modelToDtoMapper::toDto).toList();
     }
 
-    private IntravitrealMedicationDto toDto(IntravitrealMedication ivomDrug) {
-        return modelToDtoMapper.toDto(ivomDrug);
+    public TreatmentPlanDto findById(Long id) {
+        return treatmentPlanService.loadTreatmentPlanDto(id);
     }
 
-    public Optional<TreatmentPlan> findById(Long id) {
-        return ivomPlanService.findById(id);
-    }
-
-    public void save(TreatmentPlan entity) {
-        ivomPlanService.save(entity);
+    public void save(TreatmentPlanDto treatmentPlan) {
+        treatmentPlanService.saveTreatmentPlan(treatmentPlan);
     }
 
     public List<SurgicalCenterDto> getSurgicalCenterList() {
@@ -143,9 +134,8 @@ public class PatientDialogPresenter {
                 .toList();
     }
 
-    public DiagnosisDto save(Diagnosis newEntity) {
-        Diagnosis ivomDiagnosis = ivomDiagnosisService.save(newEntity);
-        return toDto(ivomDiagnosis);
+    public DiagnosisDto save(DiagnosisDto dto) {
+        return ivomDiagnosisService.save(dto);
     }
 
     public List<SurgicalCenterTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
@@ -157,11 +147,7 @@ public class PatientDialogPresenter {
         if (diagnoses == null || diagnoses.isEmpty()) {
             return Collections.emptyList();
         }
-        return diagnoses.stream().map(this::toDto).toList();
-    }
-
-    private DiagnosisDto toDto(Diagnosis entity) {
-        return modelToDtoMapper.toDto(entity);
+        return diagnoses.stream().map(modelToDtoMapper::toDto).toList();
     }
 
 }

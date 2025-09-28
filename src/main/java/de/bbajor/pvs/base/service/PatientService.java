@@ -5,21 +5,23 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.repository.PatientRepository;
+import de.bbajor.pvs.base.util.ModelToDtoMapper;
+import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class PatientService {
 
-    private final PatientRepository patientRepository;
-
-    public PatientService(PatientRepository patientRepository) {
-        this.patientRepository = patientRepository;
-    }
+    @Autowired
+    private PatientRepository patientRepository;
+    @Autowired
+    private ModelToDtoMapper modelToDtoMapper;
 
     public List<Patient> findPatients(String filter) {
         Specification<Patient> spec = (root, query, cb) -> {
@@ -56,6 +58,10 @@ public class PatientService {
 
     public Optional<Patient> findById(Integer id) {
         return id == null ? Optional.empty() : patientRepository.findById(id);
+    }
+
+    public List<PatientDto> getAll() {
+        return findAll().stream().map(modelToDtoMapper::toDto).toList();
     }
 
 }
