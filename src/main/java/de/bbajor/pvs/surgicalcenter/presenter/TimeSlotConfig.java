@@ -4,8 +4,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-import de.bbajor.pvs.base.dto.TimePeriod;
-import de.bbajor.pvs.base.dto.TimeSlotRepetition;
+import de.bbajor.pvs.base.util.TimePeriod;
+import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.intravitreal.treatment.dto.State;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import lombok.Data;

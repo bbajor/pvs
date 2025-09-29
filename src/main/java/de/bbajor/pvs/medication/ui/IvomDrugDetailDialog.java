@@ -98,7 +98,8 @@ public class IvomDrugDetailDialog extends Dialog {
         buttonBar.add(dummyLayout);
         Button saveButton = new Button("Ok");
         saveButton.addClickListener(event -> {
-            presenter.save(binder.getBean());
+            IntravitrealMedicationDto saved = presenter.save(binder.getBean());
+            binder.setBean(saved);
             close();
         });
         Button cancelButton = new Button("Abbrechen");

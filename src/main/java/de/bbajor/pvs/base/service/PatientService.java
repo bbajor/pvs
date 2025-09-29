@@ -5,13 +5,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.repository.PatientRepository;
-import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.patientsearch.dto.PatientDto;
 import jakarta.persistence.criteria.Predicate;
 
@@ -21,9 +21,14 @@ public class PatientService {
     @Autowired
     private PatientRepository patientRepository;
     @Autowired
-    private ModelToDtoMapper modelToDtoMapper;
+    private PatientMapper mapper;
 
-    public List<Patient> findPatients(String filter) {
+    public List<PatientDto> findPatients(String filter) {
+
+        if (StringUtils.isEmpty(filter)) {
+            return getAll();
+        }
+
         Specification<Patient> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
@@ -44,24 +49,28 @@ public class PatientService {
             return cb.or(predicates.toArray(new Predicate[0]));
         };
 
-        return patientRepository.findAll(spec);
+        return mapper.toPatientDtoList(patientRepository.findAll(spec));
     }
 
-    public Patient save(Patient patient) {
+    public PatientDto save(Patient patient) {
         Patient saved = patientRepository.save(patient);
-        return saved;
+        return mapper.toDto(saved);
     }
 
-    public Collection<Patient> findAll() {
-        return patientRepository.findAll();
+    public List<PatientDto> findAll() {
+        return mapper.toPatientDtoList(patientRepository.findAll());
     }
 
-    public Optional<Patient> findById(Integer id) {
-        return id == null ? Optional.empty() : patientRepository.findById(id);
+    public PatientDto findById(Integer id) {
+        return id == null ? null : mapper.toDto(patientRepository.findById(id).get());
     }
 
     public List<PatientDto> getAll() {
-        return findAll().stream().map(modelToDtoMapper::toDto).toList();
+        return mapper.toPatientDtoList(patientRepository.findAll());
+    }
+
+    public Optional<Patient> findEntityById(Integer id) {
+        return patientRepository.findById(id);
     }
 
 }

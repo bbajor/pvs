@@ -19,6 +19,7 @@ public class SurgicalCenterTimeSlotDto {
     private LocalTime startTime;
     private LocalTime endTime;
     private boolean isAvailable;
+    private boolean isApproved;
     private SurgicalCenterDto surgicalCenter;
 
 }

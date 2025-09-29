@@ -7,39 +7,35 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.base.dto.TimePeriod;
-import de.bbajor.pvs.base.util.ModelToDtoMapper;
-import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
+import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterRepository;
+import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
 
 @Service
 public class SurgicalCenterService {
 
-    private final SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository;
-    private final SurgicalCenterRepository surgicalCenterRepository;
-    private final ModelToDtoMapper modelToDtoMapper;
+    @Autowired
+    private SurgicalCenterTimeSlotRepository timeSlotRepository;
+    @Autowired
+    private SurgicalCenterRepository surgicalCenterRepository;
+    @Autowired
+    private SurgicalCenterMapper mapper;
 
-    public SurgicalCenterService(SurgicalCenterRepository surgicalCenterRepository, ModelToDtoMapper modelToDtoMapper,
-            SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository) {
-        this.surgicalCenterRepository = surgicalCenterRepository;
-        this.modelToDtoMapper = modelToDtoMapper;
-        this.surgicalCenterTimeSlotRepository = surgicalCenterTimeSlotRepository;
-    }
-
-    public List<SurgicalCenter> findAll() {
-        return surgicalCenterRepository.findAll();
+    public List<SurgicalCenterDto> findAll() {
+        return mapper.toSurgicalCenterDtoList(surgicalCenterRepository.findAll());
     }
 
     public SurgicalCenterDto toDto(SurgicalCenter surgeryUnit) {
-        return modelToDtoMapper.toDto(surgeryUnit);
+        return mapper.toDto(surgeryUnit);
     }
 
     public Optional<SurgicalCenter> findByIdWithDetails(Integer id) {
@@ -50,8 +46,8 @@ public class SurgicalCenterService {
     }
 
     @Transactional
-    public SurgicalCenter save(SurgicalCenterDto surgeryUnitDto) {
-        SurgicalCenter entityToSave = modelToDtoMapper.toEntity(surgeryUnitDto);
+    public SurgicalCenter save(SurgicalCenterDto dto) {
+        SurgicalCenter entityToSave = mapper.toEntity(dto);
         if (entityToSave.getId() != null && entityToSave.getId() == 0L) {
             entityToSave.setId(null);
         }
@@ -64,33 +60,30 @@ public class SurgicalCenterService {
     }
 
     @Transactional
-    private void saveTimeSlots(List<SurgicalCenterTimeSlotDto> newTimeSlots, SurgicalCenter surgeryUnit) {
-        if (newTimeSlots == null || newTimeSlots.isEmpty() || surgeryUnit == null) {
+    private void saveTimeSlots(List<SurgicalCenterTimeSlotDto> newTimeSlots, SurgicalCenter entityToSave) {
+        if (newTimeSlots == null || newTimeSlots.isEmpty() || entityToSave == null) {
             return;
         }
 
         List<SurgicalCenterTimeSlot> newTimeSlotsToSave = newTimeSlots.stream()
                 .map(e -> {
-                    SurgicalCenterTimeSlot entity = toEntity(e);
-                    entity.setSurgicalCenter(surgeryUnit);
+                    SurgicalCenterTimeSlot entity = mapper.toEntity(e);
+                    entity.setSurgicalCenter(entityToSave);
                     return entity;
                 })
                 .toList();
-        surgicalCenterTimeSlotRepository.saveAll(newTimeSlotsToSave);
+        timeSlotRepository.saveAll(newTimeSlotsToSave);
     }
 
-    private SurgicalCenterTimeSlot toEntity(SurgicalCenterTimeSlotDto dto) {
-        return modelToDtoMapper.toEntity(dto);
-    }
+    public List<SurgicalCenterTimeSlot> findTimeSlotsBySurgicalCenterId(Integer id) {
+        Optional<SurgicalCenter> surgicalCenter = surgicalCenterRepository.findById(id);
+        if (!surgicalCenter.isPresent()) {
+            return new ArrayList<>();
+        }
 
-    public List<SurgicalCenterTimeSlot> findSurgeryUnitTimeSlots(Integer id) {
-        // TODO schöner per Query
-        Optional<SurgicalCenter> surgeryUnit = surgicalCenterRepository.findById(id);
-        List<SurgicalCenterTimeSlot> timeSlots = surgicalCenterTimeSlotRepository
-                .findBySurgicalCenter(surgeryUnit.get());
-        return timeSlots.stream().filter(
-                element -> element.getDate().isAfter(LocalDate.now()) || element.getDate().isEqual(LocalDate.now()))
-                .toList();
+        List<SurgicalCenterTimeSlot> timeSlots = timeSlotRepository
+                .findBySurgicalCenterAndDateGreaterThanEqual(surgicalCenter.get(), LocalDate.now());
+        return timeSlots;
     }
 
     @Transactional
@@ -102,10 +95,10 @@ public class SurgicalCenterService {
             return;
         }
 
-        SurgicalCenter entityToSave = modelToDtoMapper.toEntity(surgicalCenterDto);
+        SurgicalCenter entityToSave = mapper.toEntity(surgicalCenterDto);
         if (surgicalCenterDto.getSurgicalCenterAddress() != null) {
             entityToSave
-                    .setSurgicalCenterAddress(modelToDtoMapper.toEntity(surgicalCenterDto.getSurgicalCenterAddress()));
+                    .setSurgicalCenterAddress(mapper.toEntity(surgicalCenterDto.getSurgicalCenterAddress()));
         }
 
         SurgicalCenter savedEntity = surgicalCenterRepository.save(entityToSave);
@@ -125,33 +118,29 @@ public class SurgicalCenterService {
 
         List<SurgicalCenterTimeSlotDto> availableTimeSlots = new ArrayList<>();
         Sort sort = Sort.by("date").ascending().and(Sort.by("startTime").ascending());
+        List<SurgicalCenterTimeSlot> timeSlots = new ArrayList<>();
         if (surgicalCenterId == null) {
-            availableTimeSlots.addAll(surgicalCenterTimeSlotRepository.findByDateBetween(start, end, sort).stream()
-                    .map(modelToDtoMapper::toDto).toList());
+            timeSlots = timeSlotRepository.findByDateBetween(start, end,
+                    sort);
         } else {
             SurgicalCenter surgicalCenter = surgicalCenterRepository.getReferenceById(surgicalCenterId);
             if (surgicalCenter != null) {
-                availableTimeSlots.addAll(
-                        surgicalCenterTimeSlotRepository.findByDateBetweenAndSurgicalCenter(start, end, surgicalCenter,
-                                sort).stream().map(modelToDtoMapper::toDto).toList());
+                timeSlots = timeSlotRepository
+                        .findByDateBetweenAndSurgicalCenter(start, end, surgicalCenter,
+                                sort);
             }
         }
-
+        availableTimeSlots.addAll(mapper.toTimeSlotDtoList(timeSlots));
         return availableTimeSlots;
-    }
-
-    public Optional<SurgicalCenterTimeSlot> findSurgicalCenterTimeSlotById(Long id) {
-        return surgicalCenterTimeSlotRepository.findById(id);
     }
 
     public List<SurgicalCenterDto> getSurgicalCenters() {
         List<SurgicalCenterDto> surgicalCenterDtos = new ArrayList<>();
         List<SurgicalCenter> surgicalCenters = surgicalCenterRepository.findAll();
         for (SurgicalCenter surgicalCenter : surgicalCenters) {
-            SurgicalCenterDto surgicalCenterDto = modelToDtoMapper.toDto(surgicalCenter);
-            List<SurgicalCenterTimeSlot> timeSlots = surgicalCenterTimeSlotRepository
-                    .findBySurgicalCenter(surgicalCenter);
-            surgicalCenterDto.setAvailableTimeSlots(timeSlots.stream().map(modelToDtoMapper::toDto).toList());
+            SurgicalCenterDto surgicalCenterDto = mapper.toDto(surgicalCenter);
+            surgicalCenterDto.setAvailableTimeSlots(mapper.toTimeSlotDtoList(timeSlotRepository
+                    .findBySurgicalCenter(surgicalCenter)));
             surgicalCenterDtos.add(surgicalCenterDto);
         }
         return surgicalCenterDtos;

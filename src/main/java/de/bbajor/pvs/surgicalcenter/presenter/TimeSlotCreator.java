@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import de.bbajor.pvs.base.dto.TimePeriod;
 import de.bbajor.pvs.base.util.HolidayUtils;
+import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.intravitreal.treatment.dto.State;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
 

@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 
 public interface IvomDiagnosisRepository
-        extends JpaRepository<Diagnosis, Integer>, JpaSpecificationExecutor<Diagnosis> {
+        extends JpaRepository<Diagnosis, Long>, JpaSpecificationExecutor<Diagnosis> {
 
     Slice<Diagnosis> findAllBy(Pageable pageable);
 

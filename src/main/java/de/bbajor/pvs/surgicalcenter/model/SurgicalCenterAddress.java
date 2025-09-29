@@ -19,7 +19,7 @@ import lombok.experimental.Accessors;
 public class SurgicalCenterAddress extends BasicEntity<Long> {
 
     private String street;
-    private String houseNumber;
+    private String houseNo;
     private Double postalCode;
     private String city;
 

@@ -6,26 +6,27 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterMapper;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 
 @Component
 public class SurgicalCenterListPresenter {
 
-    private final ModelToDtoMapper modelToDtoMapper;
+    private final SurgicalCenterMapper modelToDtoMapper;
     private final SurgicalCenterService surgeryUnitService;
 
-    public SurgicalCenterListPresenter(SurgicalCenterService surgicalCenterService, ModelToDtoMapper modelToDtoMapper) {
+    public SurgicalCenterListPresenter(SurgicalCenterService surgicalCenterService,
+            SurgicalCenterMapper modelToDtoMapper) {
         this.surgeryUnitService = surgicalCenterService;
         this.modelToDtoMapper = modelToDtoMapper;
     }
 
     public List<SurgicalCenterDto> getAll() {
-        return surgeryUnitService.findAll().stream().map(modelToDtoMapper::toDto).toList();
+        return surgeryUnitService.findAll();
     }
 
     public SurgicalCenterDto getById(Integer id) {
@@ -60,7 +61,6 @@ public class SurgicalCenterListPresenter {
                     TimeSlotCreator.getNewInvalidTimeSlots(surgeryUnitDto.getAvailableTimeSlots(), newTimeSlots));
         }
 
-        // TODO DTOs aus den Service-layern rausholen, das Mapping muss in den Presentern erfolgen
         surgeryUnitService.saveTimeSlotsAndSurgeryUnit(newTimeSlots, surgeryUnitDto);
     }
 

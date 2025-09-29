@@ -8,36 +8,29 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
 import de.bbajor.pvs.medication.model.IntravitrealMedication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationImportService;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterMapper;
 
 @Component
 public class IntravitrealMedicationViewPresenter {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private final IntravitrealMedicationService intraviteralMedicationService;
-    private final IntravitrealMedicationImportService importService;
-    private final ModelToDtoMapper modelToDtoMapper;
-
-    public IntravitrealMedicationViewPresenter(IntravitrealMedicationService ivomDrugService,
-            IntravitrealMedicationImportService ivomDrugImportService,
-            ModelToDtoMapper modelToDtoMapper) {
-        this.intraviteralMedicationService = ivomDrugService;
-        this.importService = ivomDrugImportService;
-        this.modelToDtoMapper = modelToDtoMapper;
-    }
+    @Autowired
+    private IntravitrealMedicationService medicationService;
+    @Autowired
+    private IntravitrealMedicationImportService importService;
+    @Autowired
+    private SurgicalCenterMapper mapper;
 
     public List<IntravitrealMedicationDto> findAllBy(String searchString) {
-        List<IntravitrealMedication> ivoms = intraviteralMedicationService.findIntravitrealMedication(searchString);
-        return ivoms.stream()
-                .map(this::mapToDto)
-                .toList();
+        return medicationService.findIntravitrealMedication(searchString);
     }
 
     public int importCsv(Reader in) throws RuntimeException {
@@ -65,7 +58,7 @@ public class IntravitrealMedicationViewPresenter {
             LOGGER.debug("Headers gefunden: " + String.join(", ", firstRecord.getParser().getHeaderNames()));
             LOGGER.debug("Erste Zeile: " + firstRecord.toString());
 
-            List<IntravitrealMedication> newIvomDrugEntities = new ArrayList<>();
+            List<IntravitrealMedication> newMedicationEntityList = new ArrayList<>();
 
             for (CSVRecord record : records) {
                 // Skip empty records
@@ -104,12 +97,12 @@ public class IntravitrealMedicationViewPresenter {
                 LOGGER.debug("Parsed drug: " + drug.getArzneimittelbezeichnung() +
                         " (Eingangsnummer: " + drug.getEingangsnummer() + ")");
 
-                newIvomDrugEntities.add(drug);
+                newMedicationEntityList.add(drug);
             }
 
-            LOGGER.debug("Anzahl gefundener Datensätze: " + newIvomDrugEntities.size());
+            LOGGER.debug("Anzahl gefundener Datensätze: " + newMedicationEntityList.size());
 
-            return importService.importNewIntravitrealMedications(newIvomDrugEntities);
+            return importService.importNewIntravitrealMedications(newMedicationEntityList);
 
         } catch (Exception e) {
             LOGGER.debug("CSV Parse Error: " + e.getMessage());
@@ -119,16 +112,12 @@ public class IntravitrealMedicationViewPresenter {
     }
 
     public List<IntravitrealMedicationDto> getAll() {
-        return intraviteralMedicationService.findAll().stream().map(this::mapToDto).toList();
+        List<IntravitrealMedication> medicationList = new ArrayList<>(medicationService.findAll());
+        return mapper.toMedicationDtoList(medicationList);
     }
 
-    private IntravitrealMedicationDto mapToDto(IntravitrealMedication ivomDrug) {
-        return modelToDtoMapper.toDto(ivomDrug);
-    }
-
-    public void save(IntravitrealMedicationDto bean) {
-        IntravitrealMedication ivomDrug = modelToDtoMapper.toEntity(bean);
-        intraviteralMedicationService.save(ivomDrug);
+    public IntravitrealMedicationDto save(IntravitrealMedicationDto dto) {
+        return medicationService.save(dto);
     }
 
 }

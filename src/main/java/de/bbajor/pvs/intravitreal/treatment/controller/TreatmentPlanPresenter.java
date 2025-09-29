@@ -10,9 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.dto.SideOfEye;
-import de.bbajor.pvs.base.dto.TimePeriod;
-import de.bbajor.pvs.base.dto.TimeSlotRepetition;
 import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.base.util.TimePeriod;
+import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
@@ -28,8 +28,8 @@ import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 @Component
 public class TreatmentPlanPresenter {
 
-    private final IvomDiagnosisService ivomDiagnosisService;
-
+    @Autowired
+    private IvomDiagnosisService ivomDiagnosisService;
     @Autowired
     private TreatmentPlanService treatmentPlanService;
     @Autowired
@@ -40,10 +40,6 @@ public class TreatmentPlanPresenter {
     private IntravitrealMedicationService medicationService;
 
     private TreatmentPlanDto workingCopy;
-
-    TreatmentPlanPresenter(IvomDiagnosisService ivomDiagnosisService) {
-        this.ivomDiagnosisService = ivomDiagnosisService;
-    }
 
     public void loadTreatmentPlanById(Long id) {
         this.workingCopy = id != null ? treatmentPlanService.loadTreatmentPlanDto(id) : new TreatmentPlanDto();
@@ -161,7 +157,6 @@ public class TreatmentPlanPresenter {
     }
 
     public Collection<DiagnosisDto> getResaonsForTreatment() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getResaonsForTreatment'");
+        return ivomDiagnosisService.getDiagnosisDtos();
     }
 }

@@ -12,7 +12,6 @@ import lombok.EqualsAndHashCode;
 @Entity
 public class IcdVersion extends BasicEntity<Integer> {
  
-    private String version;
     private String description;
     private Date validFrom;
     private Date validTo;

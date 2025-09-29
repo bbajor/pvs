@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 public class Address extends BasicEntity<Long> {
 
     private String street;
-    private String houseNumber;
+    private String houseNo;
     private Double postalCode;
     private String city;
     private String country;

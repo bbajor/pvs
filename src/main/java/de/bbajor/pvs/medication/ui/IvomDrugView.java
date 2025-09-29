@@ -3,8 +3,11 @@ package de.bbajor.pvs.medication.ui;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.UI;
@@ -41,7 +44,7 @@ public class IvomDrugView extends Main {
     private TreeDataProvider<IvomDrugNode> dataProvider = new TreeDataProvider<>(new TreeData<>());
 
     private UI myUi; // wird in onAttach gesetzt
-    private IntravitrealMedicationViewPresenter ivomDrugViewPresenter;
+    private IntravitrealMedicationViewPresenter medicationPresenter;
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
@@ -49,8 +52,8 @@ public class IvomDrugView extends Main {
         this.myUi = attachEvent.getUI();
     }
 
-    public IvomDrugView(IntravitrealMedicationViewPresenter ivomDrugViewPresenter) {
-        this.ivomDrugViewPresenter = ivomDrugViewPresenter;
+    public IvomDrugView(IntravitrealMedicationViewPresenter medicationPresenter) {
+        this.medicationPresenter = medicationPresenter;
 
         // Info für den Anwender
         Paragraph info = new Paragraph("Bitte laden Sie die Arzneimitteldaten als CSV von folgender Seite herunter:");
@@ -70,14 +73,14 @@ public class IvomDrugView extends Main {
         grid.addItemDoubleClickListener(event -> {
             IvomDrugNode ivomDrugNode = event.getItem();
             if (ivomDrugNode.getDto() != null) {
-                IvomDrugDetailDialog detailDialog = new IvomDrugDetailDialog(ivomDrugViewPresenter,
+                IvomDrugDetailDialog detailDialog = new IvomDrugDetailDialog(medicationPresenter,
                         ivomDrugNode.getDto());
                 detailDialog.open();
             }
         });
         grid.setDataProvider(dataProvider);
 
-        reloadTree(ivomDrugViewPresenter.getAll());
+        reloadTree(medicationPresenter.getAll());
 
         // Filter oben
         TextField filterField = new TextField();
@@ -108,20 +111,20 @@ public class IvomDrugView extends Main {
             try {
                 int importedCount;
                 try (InputStream in = new ByteArrayInputStream(bytes)) {
-                    importedCount = ivomDrugViewPresenter.importCsv(new InputStreamReader(in));
+                    importedCount = medicationPresenter.importCsv(new InputStreamReader(in));
                 }
 
                 // UI-Update: sichere Ausführung im UI-Thread
                 if (myUi != null) {
                     myUi.access(() -> {
-                        reloadTree(ivomDrugViewPresenter.getAll()); // setzt neuen provider
+                        reloadTree(medicationPresenter.getAll()); // setzt neuen provider
                         Notification.show(importedCount + " Medikamente importiert",
                                 3000, Notification.Position.MIDDLE);
                     });
                 } else if (VaadinSession.getCurrent() != null) {
                     // Fallback: alle UIs in der Session updaten
                     VaadinSession.getCurrent().getUIs().forEach(ui -> ui.access(() -> {
-                        reloadTree(ivomDrugViewPresenter.getAll());
+                        reloadTree(medicationPresenter.getAll());
                         Notification.show(importedCount + " Medikamente importiert",
                                 3000, Notification.Position.MIDDLE);
                     }));
@@ -182,7 +185,7 @@ public class IvomDrugView extends Main {
     }
 
     private void reloadTree(List<IntravitrealMedicationDto> drugs) {
-        TreeData<IvomDrugNode> newTreeData = buildTree(drugs);
+        TreeData<IvomDrugNode> newTreeData = buildTree(new ArrayList<>(drugs));
         TreeDataProvider<IvomDrugNode> newProvider = new TreeDataProvider<>(newTreeData);
         grid.setDataProvider(newProvider);
         dataProvider = newProvider; // Referenz aktualisieren
