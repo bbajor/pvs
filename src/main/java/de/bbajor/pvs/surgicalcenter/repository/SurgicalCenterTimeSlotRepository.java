@@ -13,14 +13,17 @@ import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 
 public interface SurgicalCenterTimeSlotRepository
-        extends JpaRepository<SurgicalCenterTimeSlot, Long>, JpaSpecificationExecutor<SurgicalCenterTimeSlot> {
+                extends JpaRepository<SurgicalCenterTimeSlot, Long>, JpaSpecificationExecutor<SurgicalCenterTimeSlot> {
 
-    Slice<SurgicalCenterTimeSlot> findAllBy(Pageable pageable);
+        Slice<SurgicalCenterTimeSlot> findAllBy(Pageable pageable);
 
-    List<SurgicalCenterTimeSlot> findBySurgicalCenter(SurgicalCenter surgicalCenter);
+        List<SurgicalCenterTimeSlot> findBySurgicalCenter(SurgicalCenter surgicalCenter);
 
-    List<SurgicalCenterTimeSlot> findByDateBetween(LocalDate start, LocalDate end, Sort sort);
+        List<SurgicalCenterTimeSlot> findBySurgicalCenterAndDateGreaterThanEqual(SurgicalCenter surgicalCenter,
+                        LocalDate date);
 
-    List<SurgicalCenterTimeSlot> findByDateBetweenAndSurgicalCenter(LocalDate start, LocalDate end,
-            SurgicalCenter surgicalCenter, Sort sort);
+        List<SurgicalCenterTimeSlot> findByDateBetween(LocalDate start, LocalDate end, Sort sort);
+
+        List<SurgicalCenterTimeSlot> findByDateBetweenAndSurgicalCenter(LocalDate start, LocalDate end,
+                        SurgicalCenter surgicalCenter, Sort sort);
 }

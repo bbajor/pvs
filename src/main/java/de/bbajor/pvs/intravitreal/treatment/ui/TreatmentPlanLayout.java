@@ -24,10 +24,10 @@ import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
 
 import de.bbajor.pvs.base.dto.SideOfEye;
-import de.bbajor.pvs.base.dto.TimePeriod;
-import de.bbajor.pvs.base.dto.TimeSlotRepetition;
 import de.bbajor.pvs.base.ui.component.TimeLineCardConfig;
 import de.bbajor.pvs.base.ui.component.TimelineView;
+import de.bbajor.pvs.base.util.TimePeriod;
+import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;

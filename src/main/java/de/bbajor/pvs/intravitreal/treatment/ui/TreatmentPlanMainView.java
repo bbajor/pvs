@@ -1,6 +1,5 @@
 package de.bbajor.pvs.intravitreal.treatment.ui;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 

@@ -1,6 +1,6 @@
 package de.bbajor.pvs.taskmanagement.domain;
 
-import de.bbajor.pvs.base.domain.AbstractEntity;
+import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Table(name = "task")
-public class Task extends AbstractEntity<Long> {
+public class Task extends BasicEntity<Long> {
 
     public static final int DESCRIPTION_MAX_LENGTH = 255;
 

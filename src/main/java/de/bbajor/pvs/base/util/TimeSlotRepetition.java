@@ -1,4 +1,4 @@
-package de.bbajor.pvs.base.dto;
+package de.bbajor.pvs.base.util;
 
 public enum TimeSlotRepetition {
 

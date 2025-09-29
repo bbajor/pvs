@@ -1,6 +1,7 @@
 package de.bbajor.pvs.intravitreal.treatment.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
@@ -24,21 +25,21 @@ public class TreatmentPlan extends BasicEntity<Long> {
 
     private LocalDate creationDate;
     private String description;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Patient patient;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Diagnosis diagnosis;
     @OneToOne
     private ClinicalTrial clinicalTrial;
     private String additionalInformation;
     private String billId;
     private String sideOfEye;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private IntravitrealMedication drug;
     private String frequency;
     private String dosage;
-    @OneToMany(cascade = CascadeType.ALL)
-    private List<Treatment> treatments;
+    @OneToMany(mappedBy = "treatmentPlan", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Treatment> treatments = new ArrayList<>();
 
 
 

@@ -8,25 +8,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
 import de.bbajor.pvs.medication.model.IntravitrealMedication;
 import de.bbajor.pvs.medication.repository.IntravitrealMedicationRepository;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.transaction.Transactional;
 
 @Service
 public class IntravitrealMedicationService {
 
     @Autowired
-    private ModelToDtoMapper modelToDtoMapper;
+    private MedicationMapper treatmentPlanMapper;
     @Autowired
-    private IntravitrealMedicationRepository intravitrealMedicationRepository;
+    private IntravitrealMedicationRepository medicationRepository;
 
     public Optional<IntravitrealMedication> findById(Long id) {
-        return intravitrealMedicationRepository.findById(id);
+        return medicationRepository.findById(id);
     }
 
-    public List<IntravitrealMedication> findIntravitrealMedication(String filter) {
+    public List<IntravitrealMedicationDto> findIntravitrealMedication(String filter) {
         Specification<IntravitrealMedication> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
@@ -37,19 +37,30 @@ public class IntravitrealMedicationService {
             return cb.or(predicates.toArray(new Predicate[0]));
         };
 
-        return intravitrealMedicationRepository.findAll(spec);
+        return treatmentPlanMapper.toMedicationDtoList(medicationRepository.findAll(spec));
     }
 
     public List<IntravitrealMedication> findAll() {
-        return intravitrealMedicationRepository.findAll();
+        return medicationRepository.findAll();
     }
 
-    public void save(IntravitrealMedication newEntity) {
-        intravitrealMedicationRepository.save(newEntity);
+    @Transactional
+    public IntravitrealMedicationDto save(IntravitrealMedicationDto dto) {
+        IntravitrealMedication entityToSave;
+
+        if (dto.getId() == null) {
+            entityToSave = treatmentPlanMapper.toEntity(dto);
+        } else {
+            entityToSave = medicationRepository.getReferenceById(dto.getId());
+            treatmentPlanMapper.updateEntityFromDto(dto, entityToSave);
+        }
+
+        IntravitrealMedication savedEntity = medicationRepository.save(entityToSave);
+        return treatmentPlanMapper.toDto(savedEntity);
     }
 
     public List<IntravitrealMedicationDto> getMedicationListFavorites() {
-         return intravitrealMedicationRepository.findAllByIsFavouriteTrue().stream().map(modelToDtoMapper::toDto).toList();
+        return treatmentPlanMapper.toMedicationDtoList(medicationRepository.findAllByIsFavouriteTrue());
     }
 
 }

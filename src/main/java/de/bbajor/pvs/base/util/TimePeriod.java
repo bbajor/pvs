@@ -1,4 +1,4 @@
-package de.bbajor.pvs.base.dto;
+package de.bbajor.pvs.base.util;
 
 import java.time.LocalDate;
 import java.time.Month;

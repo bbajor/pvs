@@ -1,22 +1,21 @@
 package de.bbajor.pvs.patientsearch.presenter;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.vaadin.flow.data.binder.BinderValidationStatus;
 
 import de.bbajor.pvs.base.domain.Patient;
 import de.bbajor.pvs.base.service.HealthInsuranceService;
+import de.bbajor.pvs.base.service.PatientMapper;
 import de.bbajor.pvs.base.service.PatientService;
-import de.bbajor.pvs.base.util.ModelToDtoMapper;
 import de.bbajor.pvs.egk.reader.EgkReader;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
-import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
-import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
@@ -32,36 +31,32 @@ import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 @Component
 public class PatientDialogPresenter {
 
-    private final IntravitrealMedicationService ivomDrugService;
-    private final TreatmentPlanService treatmentPlanService;
-    private final IvomDiagnosisService ivomDiagnosisService;
-    private final SurgicalCenterService surgeryUnitService;
-    private final PatientService patientService;
-    private final HealthInsuranceService healthInsuranceService;
-    private final EgkReader egkReader;
-    private final ModelToDtoMapper modelToDtoMapper;
+    @Autowired
+    private IntravitrealMedicationService ivomDrugService;
+    @Autowired
+    private TreatmentPlanService treatmentPlanService;
+    @Autowired
+    private IvomDiagnosisService ivomDiagnosisService;
+    @Autowired
+    private SurgicalCenterService surgicalCenterService;
+    @Autowired
+    private PatientService patientService;
+    @Autowired
+    private HealthInsuranceService healthInsuranceService;
+    @Autowired
+    private EgkReader egkReader;
+    @Autowired
+    private PatientMapper patientMapper;
+
     private PatientDto workingCopy;
     private Patient original;
 
-    public PatientDialogPresenter(PatientService patientService, HealthInsuranceService healthInsuranceService,
-            EgkReader egkReader, ModelToDtoMapper modelToDtoMapper, SurgicalCenterService surgeryUnitService,
-            TreatmentPlanService ivomPlanService, IntravitrealMedicationService ivomDrugService,
-            IvomDiagnosisService ivomDiagnosisService) {
-        this.patientService = patientService;
-        this.healthInsuranceService = healthInsuranceService;
-        this.surgeryUnitService = surgeryUnitService;
-        this.treatmentPlanService = ivomPlanService;
-        this.egkReader = egkReader;
-        this.modelToDtoMapper = modelToDtoMapper;
-        this.ivomDrugService = ivomDrugService;
-        this.ivomDiagnosisService = ivomDiagnosisService;
-    }
-
     public void loadPatientById(Integer id) {
         if (id != null) {
-            this.original = patientService.findById(id)
+            Optional<Patient> patient = patientService.findEntityById(id);
+            this.original = patient
                     .orElseThrow(() -> new IllegalArgumentException("Patient not found: " + id));
-            this.workingCopy = modelToDtoMapper.toDto(original);
+            this.workingCopy = patientMapper.toDto(original);
         } else {
             this.original = null;
             this.workingCopy = new PatientDto(); // leere WorkingCopy für Neuanlage
@@ -74,16 +69,17 @@ public class PatientDialogPresenter {
         if (validationStatus.isOk()) {
             if (original == null) { // new patient
                 PatientDto newPatient = form.getPatient();
-                modelToDtoMapper.updateDto(newPatient, getWorkingCopy());
-                Patient newEntity = modelToDtoMapper.toEntity(getWorkingCopy());
+                patientMapper.updateDto(newPatient, getWorkingCopy());
+                Patient newEntity = patientMapper.toEntity(getWorkingCopy());
                 if (newEntity.getAddress() != null) {
                     newEntity.getAddress().setId(null);
                 }
-                patientService.save(newEntity);
+                workingCopy = patientService.save(newEntity);
             } else { // existing patient
-                modelToDtoMapper.updateDtoFromEntity(original, getWorkingCopy());
-                patientService.save(original);
+                patientMapper.updateDtoFromEntity(original, getWorkingCopy());
+                workingCopy = patientService.save(original);
             }
+            loadPatientById(workingCopy.getId());
         }
         return validationStatus;
     }
@@ -99,7 +95,7 @@ public class PatientDialogPresenter {
         try {
             PatientDto patientData = egkReader.readPatientFromCard();
             HealthInsuranceDto healthInsurance = egkReader.readHealthInsuranceFromCard();
-            modelToDtoMapper.updateDto(patientData, getWorkingCopy());
+            patientMapper.updateDto(patientData, getWorkingCopy());
             getWorkingCopy().setInsuranceId(patientData.getInsuranceId());
             getWorkingCopy().setHealthInsurance(healthInsurance);
         } catch (Exception e) {
@@ -108,7 +104,7 @@ public class PatientDialogPresenter {
     }
 
     public List<PatientDto> getPatients() {
-        return patientService.findAll().stream().map(modelToDtoMapper::toDto).toList();
+        return patientService.findAll();
     }
 
     public List<HealthInsuranceDto> getHealthInsurances() {
@@ -116,7 +112,7 @@ public class PatientDialogPresenter {
     }
 
     public List<IntravitrealMedicationDto> getDrugs() {
-        return ivomDrugService.findAll().stream().map(modelToDtoMapper::toDto).toList();
+        return ivomDrugService.getMedicationListFavorites();
     }
 
     public TreatmentPlanDto findById(Long id) {
@@ -128,10 +124,7 @@ public class PatientDialogPresenter {
     }
 
     public List<SurgicalCenterDto> getSurgicalCenterList() {
-        Collection<SurgicalCenter> surgeryUnits = surgeryUnitService.findAll();
-        return surgeryUnits.stream()
-                .map(modelToDtoMapper::toDto)
-                .toList();
+        return surgicalCenterService.findAll();
     }
 
     public DiagnosisDto save(DiagnosisDto dto) {
@@ -139,15 +132,11 @@ public class PatientDialogPresenter {
     }
 
     public List<SurgicalCenterTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
-        return surgeryUnitService.findSurgeryUnitTimeSlots(id);
+        return surgicalCenterService.findTimeSlotsBySurgicalCenterId(id);
     }
 
     public Collection<DiagnosisDto> getDiagnoses() {
-        Collection<Diagnosis> diagnoses = ivomDiagnosisService.findAll();
-        if (diagnoses == null || diagnoses.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return diagnoses.stream().map(modelToDtoMapper::toDto).toList();
+        return ivomDiagnosisService.getDiagnosisDtos();
     }
 
 }

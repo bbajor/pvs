@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 
-public interface TreatmentPlanTimeSlotRepository
+public interface TreatmentRepository
         extends JpaRepository<Treatment, Long>, JpaSpecificationExecutor<Treatment> {
 
     List<Treatment> findAllByTreatmentPlanId(Long treatmentPlanId);
