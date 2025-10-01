@@ -23,7 +23,7 @@ public interface TreatmentPlanMapper {
 
     @Mapping(target = "clinicalTrial", ignore = true)
     @Mapping(target = "treatments", ignore = true)
-    void updateEntityFromDto(TreatmentPlanDto workingCopy, @MappingTarget TreatmentPlan original);
+    void updateEntityFromDto(TreatmentPlanDto source, @MappingTarget TreatmentPlan target);
 
     @Mapping(target = "treatments", ignore = true)
     TreatmentPlanDto toDto(TreatmentPlan e);
@@ -46,7 +46,9 @@ public interface TreatmentPlanMapper {
 
     DiagnosisDto toDto(Diagnosis entity);
 
-    void updateEntityFromDto(DiagnosisDto dto, @MappingTarget Diagnosis entity);
+    void updateEntityFromDto(DiagnosisDto source, @MappingTarget Diagnosis target);
 
     Collection<DiagnosisDto> toDiagnosisDtoList(List<Diagnosis> entityList);
+
+    void updateDto(TreatmentPlanDto source, @MappingTarget TreatmentPlanDto target);
 }

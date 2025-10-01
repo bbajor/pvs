@@ -12,18 +12,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.base.domain.Patient;
-import de.bbajor.pvs.base.repository.PatientRepository;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
-import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
-import de.bbajor.pvs.intravitreal.treatment.repository.IvomDiagnosisRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
-import de.bbajor.pvs.medication.repository.IntravitrealMedicationRepository;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
@@ -34,16 +28,10 @@ public class TreatmentPlanService {
     @Autowired
     private TreatmentRepository treatmentRepository;
     @Autowired
-    private PatientRepository patientRepository;
-    @Autowired
-    private IvomDiagnosisRepository diagnosisRepository;
-    @Autowired
-    private IntravitrealMedicationRepository medicationRepository;
-    @Autowired
     private TreatmentPlanMapper entityMapper;
 
-    private Optional<TreatmentPlan> findById(Long id) {
-        return treatmentPlanRepository.findById(id);
+    private Optional<TreatmentPlan> findByIdWithDetails(Long id) {
+        return treatmentPlanRepository.findByIdWithDetails(id);
     }
 
     private List<TreatmentPlan> findAll() {
@@ -84,13 +72,13 @@ public class TreatmentPlanService {
         return treatmentPlanRepository.findAll(spec);
     }
 
-    private Collection<TreatmentPlan> generateDailyList(LocalDate date) {
+    private List<TreatmentPlan> generateDailyList(LocalDate date) {
         // TODO implement
         return Collections.emptyList();
     }
 
     public List<TreatmentPlanDto> generateDailyList() {
-        return generateDailyList(LocalDate.now()).stream().map(entityMapper::toDto).toList();
+        return entityMapper.toTreatmentPlanDtoList(generateDailyList(LocalDate.now()));
     }
 
     @Transactional
@@ -103,10 +91,10 @@ public class TreatmentPlanService {
     }
 
     public TreatmentPlanDto loadTreatmentPlanDto(Long id) {
-        Optional<TreatmentPlan> treatmentPlan = findById(id);
+        Optional<TreatmentPlan> treatmentPlan = findByIdWithDetails(id);
         if (treatmentPlan.isPresent()) {
             TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatmentPlan.get());
-            List<TreatmentDto> treatments = entityMapper.toTreatmentDtoList(getTreatmentSlots(id));
+            List<TreatmentDto> treatments = entityMapper.toTreatmentDtoList(treatmentPlan.get().getTreatments());
             treatmentPlanDto.setTreatments(treatments);
             return treatmentPlanDto;
         }
@@ -115,21 +103,14 @@ public class TreatmentPlanService {
 
     @Transactional
     public TreatmentPlanDto saveTreatmentPlan(TreatmentPlanDto treatmentPlanDto) {
-        // 1. save treatmentplan
-        Patient patient = patientRepository.getReferenceById(treatmentPlanDto.getPatient().getId());
-        Diagnosis diagnosis = diagnosisRepository.getReferenceById(treatmentPlanDto.getDiagnosis().getId());
-        IntravitrealMedication medication = medicationRepository.getReferenceById(treatmentPlanDto.getDrug().getId());
-
+        // 1. save treatmentplan without treatments
         TreatmentPlan treatmentPlanToSave;
-        if(treatmentPlanDto.getId()!=null) {
-            treatmentPlanToSave = treatmentPlanRepository.getReferenceById(treatmentPlanDto.getId());
+        if (treatmentPlanDto.getId() != null) {
+            treatmentPlanToSave = treatmentPlanRepository.findByIdWithDetails(treatmentPlanDto.getId()).get();
         } else {
             treatmentPlanToSave = entityMapper.toEntity(treatmentPlanDto);
         }
         entityMapper.updateEntityFromDto(treatmentPlanDto, treatmentPlanToSave);
-        treatmentPlanToSave.setPatient(patient);
-        treatmentPlanToSave.setDiagnosis(diagnosis);
-        treatmentPlanToSave.setDrug(medication);
         TreatmentPlan savedTreatmentPlan = treatmentPlanRepository.save(treatmentPlanToSave);
 
         // 2. apply treatmentplan to all treatments
@@ -145,21 +126,28 @@ public class TreatmentPlanService {
     }
 
     public TreatmentPlanDto getTreatmentPlanById(Long id) {
-        Optional<TreatmentPlan> treatmentPlan = treatmentPlanRepository.findById(id);
-        if (treatmentPlan.isPresent()) {
-            List<TreatmentDto> treatmentDtos = entityMapper.toTreatmentDtoList(treatmentRepository.findAllByTreatmentPlanId(id));
-            TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatmentPlan.get());
-            treatmentPlanDto.setTreatments(treatmentDtos);
-            return treatmentPlanDto;
-        }
-        return null;
+        TreatmentPlan result = treatmentPlanRepository.findByIdWithDetails(id).orElseThrow();
+        List<TreatmentDto> treatmentDtos = entityMapper.toTreatmentDtoList(result.getTreatments());
+        TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(result);
+        treatmentPlanDto.setTreatments(treatmentDtos);
+        return treatmentPlanDto;
     }
 
     @Transactional
-    public List<TreatmentDto> saveTreatments(List<TreatmentDto> treatmentsToCreate) {
+    public List<TreatmentDto> saveTreatments(List<TreatmentDto> treatmentsToCreate, Long treatmentPlanId) {
+
         List<Treatment> treatments = entityMapper.toTreatmentEntityList(treatmentsToCreate);
+        TreatmentPlan treatmentPlan = getOriginalById(treatmentPlanId).orElseThrow();
+
+        for (Treatment treatment : treatments) {
+            treatment.setTreatmentPlan(treatmentPlan);
+        }
+
         List<Treatment> saved = treatmentRepository.saveAll(treatments);
         return entityMapper.toTreatmentDtoList(saved);
     }
 
+    public Optional<TreatmentPlan> getOriginalById(Long id) {
+        return treatmentPlanRepository.findById(id);
+    }
 }

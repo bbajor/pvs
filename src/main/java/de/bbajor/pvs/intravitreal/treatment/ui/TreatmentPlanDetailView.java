@@ -29,24 +29,27 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     private final TreatmentPlanPresenter treatmentPlanPresenter;
     private final TreatmentPlanLayout treatmentPlanLayout;
 
+    private TreatmentPlanDto treatmentPlanDto;
+
     public TreatmentPlanDetailView(TreatmentPlanPresenter ivomDialogPresenter) {
         this.treatmentPlanPresenter = ivomDialogPresenter;
-
-        treatmentPlanLayout = new TreatmentPlanLayout(ivomDialogPresenter);
         setSizeFull();
+
+        treatmentPlanLayout = new TreatmentPlanLayout(ivomDialogPresenter, treatmentPlanDto);
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
 
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-            TreatmentPlanDto treatmentPlan = treatmentPlanLayout.geIntravitrealTreatmentDto();
+            TreatmentPlanDto treatmentPlan = treatmentPlanLayout.getTreatmentPlanDto();
             if (treatmentPlan.getId() == -1) {
                 treatmentPlan.setId(null);
             }
-            ivomDialogPresenter.setWorkingCopy(treatmentPlan);
-            TreatmentPlanDto savedTreatmentPlanDto = ivomDialogPresenter.saveNewTreatments(treatmentPlanLayout.getTimeSlotsToCreate());
-            UI.getCurrent().navigate("ivom/" + savedTreatmentPlanDto.getId());
+
+            TreatmentPlanDto saved = ivomDialogPresenter.save(treatmentPlan,
+                    treatmentPlanLayout.getTimeSlotsToCreate());
+            UI.getCurrent().navigate("ivom/" + saved.getId());
 
         });
         buttonBar.add(createButton);
@@ -79,14 +82,15 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                 TreatmentPlanDto newDto = new TreatmentPlanDto();
                 newDto.setId(id);
                 treatmentPlanLayout.setBean(newDto);
+                this.treatmentPlanDto = newDto;
             } else {
                 TreatmentPlanDto dto = treatmentPlanPresenter.getById(id);
-                treatmentPlanPresenter.setWorkingCopy(dto);
                 if (dto == null) {
                     event.forwardTo(TreatmentPlanMainView.class);
                     return;
                 }
                 treatmentPlanLayout.setBean(dto);
+                this.treatmentPlanDto = dto;
             }
         } catch (NumberFormatException nfe) {
             event.forwardTo(TreatmentPlanMainView.class);

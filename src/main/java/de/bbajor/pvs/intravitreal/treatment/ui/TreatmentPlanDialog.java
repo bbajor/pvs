@@ -7,18 +7,17 @@ import com.vaadin.flow.component.dialog.Dialog;
 
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
+import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
 
 public class TreatmentPlanDialog extends Dialog {
 
-    private final TreatmentPlanPresenter dialogPresenter;
     private List<TreatmentPlanChangeListener> listeners;
 
-    public TreatmentPlanDialog(TreatmentPlanPresenter dialogPresenter) {
-        this.dialogPresenter = dialogPresenter;
+    public TreatmentPlanDialog(TreatmentPlanPresenter dialogPresenter, TreatmentPlanDto dto) {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(true);
 
-        TreatmentPlanLayout treatmentPlanForm = new TreatmentPlanLayout(dialogPresenter);
+        TreatmentPlanLayout treatmentPlanForm = new TreatmentPlanLayout(dialogPresenter, dto);
         add(treatmentPlanForm);
     }
 
@@ -30,10 +29,6 @@ public class TreatmentPlanDialog extends Dialog {
             return;
         }
         listeners.add(mainView);
-    }
-
-    public void loadIvomById(Long id) {
-        dialogPresenter.loadTreatmentPlanById(id);
     }
 
 }

@@ -6,10 +6,10 @@ import java.util.List;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import de.bbajor.pvs.base.domain.HealthInsurance;
-import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
-import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
+import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.patient.dto.HealthInsuranceDto;
+import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterAddressDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
@@ -43,6 +43,6 @@ public interface SurgicalCenterMapper {
 
     List<SurgicalCenterDto> toSurgicalCenterDtoList(List<SurgicalCenter> all);
 
-    List<IntravitrealMedicationDto> toMedicationDtoList(Collection<IntravitrealMedication> medicationList);
+    List<MedicationDto> toMedicationDtoList(Collection<Medication> medicationList);
 
 }

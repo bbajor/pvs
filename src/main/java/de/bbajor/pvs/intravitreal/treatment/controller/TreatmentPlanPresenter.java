@@ -5,12 +5,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.base.dto.SideOfEye;
-import de.bbajor.pvs.base.service.PatientService;
+import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
@@ -18,12 +18,14 @@ import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
+import de.bbajor.pvs.medication.dto.MedicationDto;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
-import de.bbajor.pvs.patientsearch.dto.PatientDto;
+import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
+import jakarta.transaction.Transactional;
 
 @Component
 public class TreatmentPlanPresenter {
@@ -39,28 +41,21 @@ public class TreatmentPlanPresenter {
     @Autowired
     private IntravitrealMedicationService medicationService;
 
-    private TreatmentPlanDto workingCopy;
-
-    public void loadTreatmentPlanById(Long id) {
-        this.workingCopy = id != null ? treatmentPlanService.loadTreatmentPlanDto(id) : new TreatmentPlanDto();
+    public TreatmentPlanDto loadTreatmentPlanById(Long id) throws NoSuchElementException {
+        return treatmentPlanService.loadTreatmentPlanDto(id);
     }
 
-    public void saveChanges() {
-        treatmentPlanService.saveTreatmentPlan(workingCopy);
-    }
-
-    public TreatmentPlanDto getWorkingCopy() {
-        if (workingCopy == null) {
-            workingCopy = new TreatmentPlanDto();
-        }
-        return workingCopy;
+    @Transactional
+    public TreatmentPlanDto save(TreatmentPlanDto dto, List<TreatmentDto> treatmentDtos) {
+        TreatmentPlanDto saved = treatmentPlanService.saveTreatmentPlan(dto);
+        return saveNewTreatments(saved.getId(), treatmentDtos);
     }
 
     public List<PatientDto> getPatients() {
         return patientService.getAll();
     }
 
-    public List<IntravitrealMedicationDto> getDrugs() {
+    public List<MedicationDto> getDrugs() {
         return medicationService.getMedicationListFavorites();
     }
 
@@ -117,11 +112,10 @@ public class TreatmentPlanPresenter {
         return fullyFiltered;
     }
 
-    public TreatmentPlanDto saveNewTreatments(List<TreatmentDto> treatmentDtos) {
-        saveChanges();
-        List<TreatmentDto> savedTreatments = treatmentPlanService.saveTreatments(treatmentDtos);
-        workingCopy.getTreatments().addAll(savedTreatments);
-        return workingCopy;
+    @Transactional
+    private TreatmentPlanDto saveNewTreatments(Long treatmentPlanId, List<TreatmentDto> treatmentDtos) {
+        List<TreatmentDto> savedTreatments = treatmentPlanService.saveTreatments(treatmentDtos, treatmentPlanId);
+        return treatmentPlanService.getTreatmentPlanById(treatmentPlanId);
     }
 
     public TreatmentPlanDto getById(Long id) {
@@ -132,13 +126,8 @@ public class TreatmentPlanPresenter {
         return treatmentPlan;
     }
 
-    public PatientDto getCurrentPatient() {
-        return getWorkingCopy().getPatient();
-    }
-
-    public List<TreatmentDto> getTreatmentDtosOriginal(SideOfEye sideOfEye) {
-        List<TreatmentDto> treatmentSlots = treatmentPlanService
-                .getTreatmentSlotsByTreatmentPlanId(workingCopy.getId());
+    public List<TreatmentDto> getTreatmentDtos(SideOfEye sideOfEye, Long treatmentPlanId) {
+        List<TreatmentDto> treatmentSlots = treatmentPlanService.getTreatmentSlotsByTreatmentPlanId(treatmentPlanId);
         if (sideOfEye != null) {
             treatmentSlots.removeIf(e -> !sideOfEye.asDbString().equals(e.getSideOfEye()));
         }
@@ -148,15 +137,11 @@ public class TreatmentPlanPresenter {
         return treatmentSlots;
     }
 
-    public List<TreatmentDto> getTreatmentDtosWorkingCopy(SideOfEye sideOfEye) {
-        return workingCopy.getTreatments();
-    }
-
-    public void setWorkingCopy(TreatmentPlanDto workingCopy) {
-        this.workingCopy = workingCopy;
-    }
-
     public Collection<DiagnosisDto> getResaonsForTreatment() {
         return ivomDiagnosisService.getDiagnosisDtos();
+    }
+
+    public TreatmentPlanDto save(Long ivomPlanId, List<TreatmentDto> timeSlotsToCreate) {
+        return saveNewTreatments(ivomPlanId, timeSlotsToCreate);
     }
 }

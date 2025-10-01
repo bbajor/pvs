@@ -7,19 +7,19 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
+import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
 
 @Mapper(componentModel = "spring")
 public interface MedicationMapper {
 
-    IntravitrealMedication toEntity(IntravitrealMedicationDto bean);
+    Medication toEntity(MedicationDto bean);
 
-    IntravitrealMedicationDto toDto(IntravitrealMedication entity);
+    MedicationDto toDto(Medication entity);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
-    void updateEntityFromDto(IntravitrealMedicationDto dto, @MappingTarget IntravitrealMedication entity);
+    void updateEntityFromDto(MedicationDto dto, @MappingTarget Medication entity);
 
-    List<IntravitrealMedicationDto> toMedicationDtoList(Collection<IntravitrealMedication> allByIsFavouriteTrue);
+    List<MedicationDto> toMedicationDtoList(Collection<Medication> allByIsFavouriteTrue);
 }

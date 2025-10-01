@@ -134,6 +134,7 @@ public class SurgicalCenterService {
         return availableTimeSlots;
     }
 
+    @Transactional(readOnly = true)
     public List<SurgicalCenterDto> getSurgicalCenters() {
         List<SurgicalCenterDto> surgicalCenterDtos = new ArrayList<>();
         List<SurgicalCenter> surgicalCenters = surgicalCenterRepository.findAll();

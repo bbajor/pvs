@@ -23,17 +23,17 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
 
-import de.bbajor.pvs.base.dto.SideOfEye;
 import de.bbajor.pvs.base.ui.component.TimeLineCardConfig;
 import de.bbajor.pvs.base.ui.component.TimelineView;
+import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
-import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
-import de.bbajor.pvs.patientsearch.dto.PatientDto;
+import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.patient.dto.PatientDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
 
@@ -48,7 +48,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     // Filter
     private final ComboBox<SideOfEye> sideOfEye = new ComboBox<>("Welches Auge?");
-    private final ComboBox<IntravitrealMedicationDto> medicationComboBox = new ComboBox<>("Medikament");
+    private final ComboBox<MedicationDto> medicationComboBox = new ComboBox<>("Medikament");
     private final DatePicker startDatePicker = new DatePicker("Neue Termine finden ab");
     private final ComboBox<TimeSlotRepetition> repetitionComboBox = new ComboBox<>("Terminintervall");
     private final ComboBox<TimePeriod> timePeriodComboBox = new ComboBox<>("Termine erstellen für");
@@ -68,8 +68,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private final TreatmentPlanPresenter presenter;
 
-    public TreatmentPlanLayout(TreatmentPlanPresenter presenter) {
+    private TreatmentPlanDto treatmentPlanDto;
+
+    public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlanDto treatmentPlanDto) {
         this.presenter = presenter;
+        this.treatmentPlanDto = treatmentPlanDto;
 
         patientSelectComboBox.setItems(presenter.getPatients());
         patientSelectComboBox.addValueChangeListener(event -> {
@@ -136,18 +139,20 @@ public class TreatmentPlanLayout extends VerticalLayout {
         // direkt hier einfügen
         add(additionalInformation);
 
-        initializeBinder();
+        initializeBinder(treatmentPlanDto);
     }
 
-    private void initializeBinder() {
+    private void initializeBinder(TreatmentPlanDto dto) {
         binder.bind(creationDatePicker, TreatmentPlanDto::getCreationDate,
                 TreatmentPlanDto::setCreationDate);
         binder.bind(additionalInformation, TreatmentPlanDto::getAdditionalInformation,
                 TreatmentPlanDto::setAdditionalInformation);
+        binder.bind(patientSelectComboBox, TreatmentPlanDto::getPatient, TreatmentPlanDto::setPatient);
         binder.bind(sideOfEye, TreatmentPlanDto::getSideOfEye, TreatmentPlanDto::setSideOfEye);
         binder.bind(reasonForTreatmentComboBox, TreatmentPlanDto::getDiagnosis,
                 TreatmentPlanDto::setDiagnosis);
         binder.bind(medicationComboBox, TreatmentPlanDto::getDrug, TreatmentPlanDto::setDrug);
+        binder.setBean(dto == null ? new TreatmentPlanDto() : dto);
     }
 
     private void initializeTimeSlotFilter() {
@@ -195,8 +200,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void setRightEyeTreatmentHistory() {
         List<TimeLineCardConfig> rightEyeTreatments = new ArrayList<>();
-        if (presenter.getCurrentPatient() != null) {
-            List<TreatmentDto> treatments = presenter.getTreatmentDtosOriginal(SideOfEye.RIGHT);
+        if (treatmentPlanDto != null && treatmentPlanDto.getId() != null) {
+            List<TreatmentDto> treatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, treatmentPlanDto.getId());
             for (TreatmentDto treatmentSlotDto : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig();
                 config.setTreatmenDate(treatmentSlotDto.getSurgicalCenterTimeSlot().getDate());
@@ -237,8 +242,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void setLeftEyeTreatmentHistory() {
         List<TimeLineCardConfig> leftEyeTreatments = new ArrayList<>();
-        if (presenter.getCurrentPatient() != null) {
-            List<TreatmentDto> treatments = presenter.getTreatmentDtosOriginal(SideOfEye.LEFT);
+        if (treatmentPlanDto != null && treatmentPlanDto.getId() != null) {
+            List<TreatmentDto> treatments = presenter.getTreatmentDtos(SideOfEye.LEFT, treatmentPlanDto.getId());
             for (TreatmentDto treatmentSlotDto : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig();
                 config.setTreatmenDate(treatmentSlotDto.getSurgicalCenterTimeSlot().getDate());
@@ -254,7 +259,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     }
 
-    public TreatmentPlanDto geIntravitrealTreatmentDto() {
+    public TreatmentPlanDto getTreatmentPlanDto() {
         TreatmentPlanDto dto = binder.getBean();
         // private String frequency;
         // private String dosage;
@@ -273,8 +278,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
             TreatmentDto timeSlotToCreate = new TreatmentDto()
                     .setSideOfEye(sideOfEye.getValue().asDbString())
                     .setSurgicalCenterTimeSlot(surgicalCenterTimeSlotDto)
-                    .setTreatmentPlan(presenter.getWorkingCopy());
-                    // TODO
+                    .setTreatmentPlan(treatmentPlanDto);
+            // TODO
             timeSlotsToCreate.add(timeSlotToCreate);
         }
         return timeSlotsToCreate;
@@ -284,4 +289,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
         binder.setBean(newDto);
     }
 
+    public void setTreatmentPlan(TreatmentPlanDto dto) {
+        this.treatmentPlanDto = dto;
+        setBean(treatmentPlanDto);
+    }
 }
