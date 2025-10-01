@@ -3,9 +3,9 @@ package de.bbajor.pvs.intravitreal.treatment.dto;
 import java.time.LocalDate;
 import java.util.List;
 
-import de.bbajor.pvs.base.dto.SideOfEye;
-import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
-import de.bbajor.pvs.patientsearch.dto.PatientDto;
+import de.bbajor.pvs.base.util.SideOfEye;
+import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.patient.dto.PatientDto;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -22,7 +22,7 @@ public class TreatmentPlanDto {
     private String billId;
     private SideOfEye sideOfEye;
     private DiagnosisDto diagnosis;
-    private IntravitrealMedicationDto drug;
+    private MedicationDto drug;
     private String frequency;
     private String dosage;
     private List<TreatmentDto> treatments;

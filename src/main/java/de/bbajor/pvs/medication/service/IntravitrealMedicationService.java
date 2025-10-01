@@ -8,9 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import de.bbajor.pvs.medication.dto.IntravitrealMedicationDto;
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
-import de.bbajor.pvs.medication.repository.IntravitrealMedicationRepository;
+import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.repository.MedicationRepository;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 
@@ -20,14 +20,14 @@ public class IntravitrealMedicationService {
     @Autowired
     private MedicationMapper treatmentPlanMapper;
     @Autowired
-    private IntravitrealMedicationRepository medicationRepository;
+    private MedicationRepository medicationRepository;
 
-    public Optional<IntravitrealMedication> findById(Long id) {
+    public Optional<Medication> findById(Long id) {
         return medicationRepository.findById(id);
     }
 
-    public List<IntravitrealMedicationDto> findIntravitrealMedication(String filter) {
-        Specification<IntravitrealMedication> spec = (root, query, cb) -> {
+    public List<MedicationDto> findIntravitrealMedication(String filter) {
+        Specification<Medication> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
 
@@ -40,13 +40,13 @@ public class IntravitrealMedicationService {
         return treatmentPlanMapper.toMedicationDtoList(medicationRepository.findAll(spec));
     }
 
-    public List<IntravitrealMedication> findAll() {
+    public List<Medication> findAll() {
         return medicationRepository.findAll();
     }
 
     @Transactional
-    public IntravitrealMedicationDto save(IntravitrealMedicationDto dto) {
-        IntravitrealMedication entityToSave;
+    public MedicationDto save(MedicationDto dto) {
+        Medication entityToSave;
 
         if (dto.getId() == null) {
             entityToSave = treatmentPlanMapper.toEntity(dto);
@@ -55,11 +55,11 @@ public class IntravitrealMedicationService {
             treatmentPlanMapper.updateEntityFromDto(dto, entityToSave);
         }
 
-        IntravitrealMedication savedEntity = medicationRepository.save(entityToSave);
+        Medication savedEntity = medicationRepository.save(entityToSave);
         return treatmentPlanMapper.toDto(savedEntity);
     }
 
-    public List<IntravitrealMedicationDto> getMedicationListFavorites() {
+    public List<MedicationDto> getMedicationListFavorites() {
         return treatmentPlanMapper.toMedicationDtoList(medicationRepository.findAllByIsFavouriteTrue());
     }
 

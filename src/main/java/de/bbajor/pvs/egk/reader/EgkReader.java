@@ -23,8 +23,8 @@ import de.bbajor.pvs.egk.model.personal.Adresse;
 import de.bbajor.pvs.egk.model.personal.Person;
 import de.bbajor.pvs.egk.model.personal.UcPersoenlicheVersichertenDatenXml;
 import de.bbajor.pvs.egk.model.personal.VersicherterPersoenlich;
-import de.bbajor.pvs.patientsearch.dto.HealthInsuranceDto;
-import de.bbajor.pvs.patientsearch.dto.PatientDto;
+import de.bbajor.pvs.patient.dto.HealthInsuranceDto;
+import de.bbajor.pvs.patient.dto.PatientDto;
 
 @Component
 public class EgkReader {

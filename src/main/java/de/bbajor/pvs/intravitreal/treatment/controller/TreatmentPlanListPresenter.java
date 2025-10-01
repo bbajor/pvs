@@ -25,8 +25,8 @@ public class TreatmentPlanListPresenter {
         return treatmentPlanService.getTreatmentPlans(searchString);
     }
 
-    public TreatmentPlanDto save(TreatmentPlanDto ivomPlanDto, List<TreatmentDto> timeSlotsToCreate) {
-        return treatmentPlanPresenter.saveNewTreatments(timeSlotsToCreate);
+    public TreatmentPlanDto saveNewTreatments(Long ivomPlanId, List<TreatmentDto> timeSlotsToCreate) {
+        return treatmentPlanPresenter.save(ivomPlanId, timeSlotsToCreate);
     }
 
     public List<TreatmentPlanDto> findAll() {

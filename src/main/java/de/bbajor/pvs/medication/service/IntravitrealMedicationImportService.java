@@ -9,32 +9,32 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
-import de.bbajor.pvs.medication.repository.IntravitrealMedicationRepository;
+import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.repository.MedicationRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class IntravitrealMedicationImportService {
 
-    private final IntravitrealMedicationRepository repo;
+    private final MedicationRepository repo;
 
     @Transactional
-    public int importNewIntravitrealMedications(List<IntravitrealMedication> drugListToImport) throws Exception {
+    public int importNewIntravitrealMedications(List<Medication> drugListToImport) throws Exception {
 
         LocalDate heute = LocalDate.now();
 
         // Schritt 1: vorhandene Präparate laden
-        List<IntravitrealMedication> bestehende = repo.findAll();
+        List<Medication> bestehende = repo.findAll();
 
         // Map nach Zulassungsnummer für schnellen Abgleich
-        Map<String, IntravitrealMedication> bestehendeMap = bestehende.stream()
-                .collect(Collectors.toMap(IntravitrealMedication::getZulassungsNr, d -> d));
+        Map<String, Medication> bestehendeMap = bestehende.stream()
+                .collect(Collectors.toMap(Medication::getZulassungsNr, d -> d));
 
         AtomicInteger updateCount = new AtomicInteger(0);
         // Schritt 2: Neue/aktualisierte Präparate übernehmen
-        for (IntravitrealMedication neu : drugListToImport) {
-            IntravitrealMedication alt = bestehendeMap.get(neu.getZulassungsNr());
+        for (Medication neu : drugListToImport) {
+            Medication alt = bestehendeMap.get(neu.getZulassungsNr());
             if (alt == null) {
                 // komplett neu → einfügen
                 neu.setValidFrom(heute);

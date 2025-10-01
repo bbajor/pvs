@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
-import de.bbajor.pvs.base.domain.Patient;
-import de.bbajor.pvs.medication.model.IntravitrealMedication;
+import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.patient.model.Patient;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -25,17 +25,17 @@ public class TreatmentPlan extends BasicEntity<Long> {
 
     private LocalDate creationDate;
     private String description;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Patient patient;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Diagnosis diagnosis;
     @OneToOne
     private ClinicalTrial clinicalTrial;
     private String additionalInformation;
     private String billId;
     private String sideOfEye;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private IntravitrealMedication drug;
+    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private Medication drug;
     private String frequency;
     private String dosage;
     @OneToMany(mappedBy = "treatmentPlan", cascade = CascadeType.ALL, orphanRemoval = true)

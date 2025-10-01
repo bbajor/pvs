@@ -18,7 +18,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.renderer.TextRenderer;
 
-import de.bbajor.pvs.base.ui.view.AddressField;
+import de.bbajor.pvs.base.ui.component.AddressField;
 import de.bbajor.pvs.intravitreal.treatment.ui.TimeSlotConfigForm;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterAddressDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
