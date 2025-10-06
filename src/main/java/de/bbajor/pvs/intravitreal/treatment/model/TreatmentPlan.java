@@ -25,16 +25,16 @@ public class TreatmentPlan extends BasicEntity<Long> {
 
     private LocalDate creationDate;
     private String description;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.MERGE, fetch = FetchType.EAGER)
     private Patient patient;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.MERGE, fetch = FetchType.EAGER)
     private Diagnosis diagnosis;
     @OneToOne
     private ClinicalTrial clinicalTrial;
     private String additionalInformation;
     private String billId;
     private String sideOfEye;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.MERGE, fetch = FetchType.EAGER)
     private Medication drug;
     private String frequency;
     private String dosage;

@@ -56,7 +56,7 @@ public class TreatmentPlanPresenter {
     }
 
     public List<MedicationDto> getDrugs() {
-        return medicationService.getMedicationListFavorites();
+        return medicationService.getMedicationListFavourites();
     }
 
     public List<SurgicalCenterDto> getSurgicalCenters() {
@@ -127,12 +127,20 @@ public class TreatmentPlanPresenter {
     }
 
     public List<TreatmentDto> getTreatmentDtos(SideOfEye sideOfEye, Long treatmentPlanId) {
+        if (treatmentPlanId == null || treatmentPlanId == -1) {
+            return new ArrayList<>();
+        }
         List<TreatmentDto> treatmentSlots = treatmentPlanService.getTreatmentSlotsByTreatmentPlanId(treatmentPlanId);
         if (sideOfEye != null) {
             treatmentSlots.removeIf(e -> !sideOfEye.asDbString().equals(e.getSideOfEye()));
         }
         treatmentSlots.sort((o1, o2) -> {
-            return o1.getSurgicalCenterTimeSlot().getDate().isAfter(o2.getSurgicalCenterTimeSlot().getDate()) ? 1 : -1;
+            if (o1.getSurgicalCenterTimeSlot() != null && o2.getSurgicalCenterTimeSlot() != null) {
+                return o1.getSurgicalCenterTimeSlot().getDate().isAfter(o2.getSurgicalCenterTimeSlot().getDate()) ? 1
+                        : -1;
+            } else {
+                return 0;
+            }
         });
         return treatmentSlots;
     }

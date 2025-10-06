@@ -61,7 +61,7 @@ public class SurgicalCenterListPresenter {
                     TimeSlotCreator.getNewInvalidTimeSlots(surgeryUnitDto.getAvailableTimeSlots(), newTimeSlots));
         }
 
-        surgeryUnitService.saveTimeSlotsAndSurgeryUnit(newTimeSlots, surgeryUnitDto);
+        surgeryUnitService.saveTimeSlotsAndSurgicalCenter(newTimeSlots, surgeryUnitDto);
     }
 
 }

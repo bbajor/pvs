@@ -19,7 +19,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class Treatment extends BasicEntity<Long> {
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "treatment_plan_id")
     private TreatmentPlan treatmentPlan;
     private String sideOfEye;

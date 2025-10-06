@@ -46,8 +46,13 @@ public class SurgicalCenterService {
     }
 
     @Transactional
-    public SurgicalCenter save(SurgicalCenterDto dto) {
+    public SurgicalCenter saveSurgicalCenter(SurgicalCenterDto dto) {
         SurgicalCenter entityToSave = mapper.toEntity(dto);
+        return saveSurgicalCenter(entityToSave);
+    }
+
+    @Transactional
+    public SurgicalCenter saveSurgicalCenter(SurgicalCenter entityToSave) {
         if (entityToSave.getId() != null && entityToSave.getId() == 0L) {
             entityToSave.setId(null);
         }
@@ -60,15 +65,16 @@ public class SurgicalCenterService {
     }
 
     @Transactional
-    private void saveTimeSlots(List<SurgicalCenterTimeSlotDto> newTimeSlots, SurgicalCenter entityToSave) {
-        if (newTimeSlots == null || newTimeSlots.isEmpty() || entityToSave == null) {
+    private void saveTimeSlotsForExistingSurgicalCenter(List<SurgicalCenterTimeSlotDto> newTimeSlots,
+            SurgicalCenter existingEntity) {
+        if (newTimeSlots == null || newTimeSlots.isEmpty() || existingEntity == null) {
             return;
         }
 
         List<SurgicalCenterTimeSlot> newTimeSlotsToSave = newTimeSlots.stream()
                 .map(e -> {
                     SurgicalCenterTimeSlot entity = mapper.toEntity(e);
-                    entity.setSurgicalCenter(entityToSave);
+                    entity.setSurgicalCenter(existingEntity);
                     return entity;
                 })
                 .toList();
@@ -84,25 +90,6 @@ public class SurgicalCenterService {
         List<SurgicalCenterTimeSlot> timeSlots = timeSlotRepository
                 .findBySurgicalCenterAndDateGreaterThanEqual(surgicalCenter.get(), LocalDate.now());
         return timeSlots;
-    }
-
-    @Transactional
-    public void saveTimeSlotsAndSurgeryUnit(List<SurgicalCenterTimeSlotDto> newTimeSlots,
-            SurgicalCenterDto surgicalCenterDto) {
-
-        // TODO dtos aus der service-klasse auslagern
-        if (surgicalCenterDto == null) {
-            return;
-        }
-
-        SurgicalCenter entityToSave = mapper.toEntity(surgicalCenterDto);
-        if (surgicalCenterDto.getSurgicalCenterAddress() != null) {
-            entityToSave
-                    .setSurgicalCenterAddress(mapper.toEntity(surgicalCenterDto.getSurgicalCenterAddress()));
-        }
-
-        SurgicalCenter savedEntity = surgicalCenterRepository.save(entityToSave);
-        saveTimeSlots(newTimeSlots, savedEntity);
     }
 
     public Collection<SurgicalCenterTimeSlotDto> findAvailableTimeSlotsFilteredBy(LocalDate periodStart,
@@ -145,6 +132,35 @@ public class SurgicalCenterService {
             surgicalCenterDtos.add(surgicalCenterDto);
         }
         return surgicalCenterDtos;
+    }
+
+    @Transactional
+    public void saveTimeSlotsAndSurgicalCenter(List<SurgicalCenterTimeSlot> availableTimeSlots,
+            SurgicalCenter surgicalCenter) {
+        SurgicalCenter savedEntity = surgicalCenterRepository.save(surgicalCenter);
+        SurgicalCenter saved = surgicalCenterRepository.getReferenceById(savedEntity.getId());
+        for (SurgicalCenterTimeSlot surgicalCenterTimeSlot : availableTimeSlots) {
+            surgicalCenterTimeSlot.setSurgicalCenter(saved);
+        }
+        timeSlotRepository.saveAll(availableTimeSlots);
+    }
+
+    @Transactional
+    public void saveTimeSlotsAndSurgicalCenter(List<SurgicalCenterTimeSlotDto> newTimeSlots,
+            SurgicalCenterDto surgicalCenterDto) {
+
+        if (surgicalCenterDto == null) {
+            return;
+        }
+
+        SurgicalCenter entityToSave = mapper.toEntity(surgicalCenterDto);
+        if (surgicalCenterDto.getSurgicalCenterAddress() != null) {
+            entityToSave
+                    .setSurgicalCenterAddress(mapper.toEntity(surgicalCenterDto.getSurgicalCenterAddress()));
+        }
+
+        SurgicalCenter savedEntity = surgicalCenterRepository.save(entityToSave);
+        saveTimeSlotsForExistingSurgicalCenter(newTimeSlots, savedEntity);
     }
 
 }

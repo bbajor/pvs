@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.patient.dto.PatientDto;
 import de.bbajor.pvs.patient.model.Patient;
@@ -68,10 +69,19 @@ public class PatientService {
     }
 
     public Patient findEntityById(Integer id) {
-        if(id == null) {
+        if (id == null) {
             return null;
         }
         return patientRepository.findById(id).orElseThrow();
+    }
+
+    @Transactional
+    public List<PatientDto> saveAll(List<Patient> patients) {
+        List<PatientDto> patientDtos = new ArrayList<>();
+        for (Patient patient : patients) {
+            patientDtos.add(save(patient));
+        }
+        return patientDtos;
     }
 
 }

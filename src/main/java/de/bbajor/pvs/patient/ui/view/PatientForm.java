@@ -15,15 +15,15 @@ import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.base.ui.component.AddressField;
 import de.bbajor.pvs.patient.dto.HealthInsuranceDto;
 import de.bbajor.pvs.patient.dto.PatientDto;
-import de.bbajor.pvs.patient.dto.SalutationDto;
-import de.bbajor.pvs.patient.dto.TitleDto;
+import de.bbajor.pvs.patient.dto.Salutation;
+import de.bbajor.pvs.patient.dto.Title;
 
 public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm, PatientDto> {
 
         private final Binder<PatientDto> binder = new Binder<>(PatientDto.class);
 
-        private final ComboBox<SalutationDto> salutationComboBox = new ComboBox<>("Anrede");
-        private final ComboBox<TitleDto> titleComboBox = new ComboBox<TitleDto>("Titel");
+        private final ComboBox<Salutation> salutationComboBox = new ComboBox<>("Anrede");
+        private final ComboBox<Title> titleComboBox = new ComboBox<Title>("Titel");
 
         private final TextField firstNameField = new TextField("Vorname");
         private final TextField lastNameField = new TextField("Nachname");
@@ -39,8 +39,8 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         public PatientForm(List<HealthInsuranceDto> healthInsurances, PatientDto patientDto) {
                 super(patientDto);
 
-                titleComboBox.setItems(TitleDto.values());
-                salutationComboBox.setItems(SalutationDto.values());
+                titleComboBox.setItems(Title.values());
+                salutationComboBox.setItems(Salutation.values());
                 healthInsuranceField.setItems(healthInsurances);
 
                 descriptionField.setWidthFull();

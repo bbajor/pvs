@@ -1,6 +1,7 @@
 package de.bbajor.pvs.intravitreal.treatment.dto;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import de.bbajor.pvs.base.util.SideOfEye;
@@ -43,6 +44,13 @@ public class TreatmentPlanDto {
         return patient != null && patient.getHealthInsurance() != null
                 ? patient.getHealthInsurance().getCostCarrierName()
                 : "Name n.a.";
+    }
+
+    public List<TreatmentDto> getTreatments() {
+        if (treatments == null) {
+            treatments = new ArrayList<>();
+        }
+        return treatments;
     }
 
 }

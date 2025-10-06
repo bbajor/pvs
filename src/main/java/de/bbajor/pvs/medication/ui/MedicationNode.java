@@ -33,8 +33,8 @@ public class MedicationNode {
         return dto != null ? dto.getWirkstoffe() : "";
     }
 
-    public String getZulassungsRegNrOderKennziffer() {
-        return dto != null ? dto.getZulassungsRegNrOderKennziffer() : "";
+    public String getAnwendungsgebiete() {
+        return dto != null ? dto.getAnwendungsgebiete() : "";
     }
 
     public String getZulassungsinhaber() {

@@ -12,8 +12,8 @@ public class PatientDto {
 
     private Integer id;
     private Long version;
-    private SalutationDto salutation;
-    private TitleDto title;
+    private Salutation salutation;
+    private Title title;
     private String gender;
     private String firstName;
     private String lastName;

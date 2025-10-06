@@ -24,7 +24,7 @@ public class TreatmentDto {
         return surgicalCenterTimeSlot == null ? null : surgicalCenterTimeSlot.getDate();
     }
 
-    public String getSurgeryUnitString() {
+    public String getSurgicalCenterString() {
         if (surgicalCenterTimeSlot == null || surgicalCenterTimeSlot.getSurgicalCenter() == null) {
             return "-";
         }

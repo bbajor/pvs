@@ -80,7 +80,7 @@ public class PatientPresenter {
     }
 
     public List<MedicationDto> getDrugs() {
-        return ivomDrugService.getMedicationListFavorites();
+        return ivomDrugService.getMedicationListFavourites();
     }
 
     public TreatmentPlanDto findById(Long id) {
