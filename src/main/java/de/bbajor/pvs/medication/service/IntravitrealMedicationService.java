@@ -18,7 +18,7 @@ import jakarta.transaction.Transactional;
 public class IntravitrealMedicationService {
 
     @Autowired
-    private MedicationMapper treatmentPlanMapper;
+    private MedicationMapper medicationMapper;
     @Autowired
     private MedicationRepository medicationRepository;
 
@@ -37,7 +37,7 @@ public class IntravitrealMedicationService {
             return cb.or(predicates.toArray(new Predicate[0]));
         };
 
-        return treatmentPlanMapper.toMedicationDtoList(medicationRepository.findAll(spec));
+        return medicationMapper.toMedicationDtoList(medicationRepository.findAll(spec));
     }
 
     public List<Medication> findAll() {
@@ -49,18 +49,27 @@ public class IntravitrealMedicationService {
         Medication entityToSave;
 
         if (dto.getId() == null) {
-            entityToSave = treatmentPlanMapper.toEntity(dto);
+            entityToSave = medicationMapper.toEntity(dto);
         } else {
             entityToSave = medicationRepository.getReferenceById(dto.getId());
-            treatmentPlanMapper.updateEntityFromDto(dto, entityToSave);
+            medicationMapper.updateEntityFromDto(dto, entityToSave);
         }
 
         Medication savedEntity = medicationRepository.save(entityToSave);
-        return treatmentPlanMapper.toDto(savedEntity);
+        return medicationMapper.toDto(savedEntity);
     }
 
-    public List<MedicationDto> getMedicationListFavorites() {
-        return treatmentPlanMapper.toMedicationDtoList(medicationRepository.findAllByIsFavouriteTrue());
+    public List<MedicationDto> getMedicationListFavourites() {
+        return medicationMapper.toMedicationDtoList(medicationRepository.findAllByIsFavouriteTrue());
+    }
+
+    @Transactional
+    public List<MedicationDto> saveAll(List<Medication> medications) {
+        List<MedicationDto> medicationDtos = new ArrayList<>();
+        for (Medication medication : medications) {
+            medicationDtos.add(save(medicationMapper.toDto(medication)));
+        }
+        return medicationDtos;
     }
 
 }

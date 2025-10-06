@@ -18,10 +18,15 @@ import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
+import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterMapper;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class TreatmentPlanService {
+
+    private final SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository;
 
     @Autowired
     private TreatmentPlanRepository treatmentPlanRepository;
@@ -29,9 +34,18 @@ public class TreatmentPlanService {
     private TreatmentRepository treatmentRepository;
     @Autowired
     private TreatmentPlanMapper entityMapper;
+    @Autowired
+    private SurgicalCenterMapper surgicalCenterMapper;
 
-    private Optional<TreatmentPlan> findByIdWithDetails(Long id) {
-        return treatmentPlanRepository.findByIdWithDetails(id);
+    TreatmentPlanService(SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository) {
+        this.surgicalCenterTimeSlotRepository = surgicalCenterTimeSlotRepository;
+    }
+
+    private TreatmentPlan findByIdWithDetails(Long id) {
+        TreatmentPlan treatmentPlan = treatmentPlanRepository.findByIdWithDetailsWithoutSurgicalCenterTimeSlots(id)
+                .orElseThrow();
+        treatmentPlan.setTreatments(treatmentRepository.findTreatmentsByPlanId(treatmentPlan.getId()));
+        return treatmentPlan;
     }
 
     private List<TreatmentPlan> findAll() {
@@ -83,22 +97,21 @@ public class TreatmentPlanService {
 
     @Transactional
     private List<Treatment> getTreatmentSlots(Long treatmentPlanId) {
-        return treatmentRepository.findAllByTreatmentPlanId(treatmentPlanId);
+        List<Treatment> treatments = treatmentRepository.findTreatmentsByPlanId(treatmentPlanId);
+        return treatments;
     }
 
     public List<TreatmentDto> getTreatmentSlotsByTreatmentPlanId(Long treatmentPlanId) {
-        return getTreatmentSlots(treatmentPlanId).stream().map(entityMapper::toDto).toList();
+        List<Treatment> treatments = getTreatmentSlots(treatmentPlanId);
+        return toTreatmentDtoList(treatments);
     }
 
     public TreatmentPlanDto loadTreatmentPlanDto(Long id) {
-        Optional<TreatmentPlan> treatmentPlan = findByIdWithDetails(id);
-        if (treatmentPlan.isPresent()) {
-            TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatmentPlan.get());
-            List<TreatmentDto> treatments = entityMapper.toTreatmentDtoList(treatmentPlan.get().getTreatments());
-            treatmentPlanDto.setTreatments(treatments);
-            return treatmentPlanDto;
-        }
-        return null;
+        TreatmentPlan treatmentPlan = findByIdWithDetails(id);
+        TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatmentPlan);
+        List<TreatmentDto> treatments = toTreatmentDtoList(treatmentPlan.getTreatments());
+        treatmentPlanDto.setTreatments(treatments);
+        return treatmentPlanDto;
     }
 
     @Transactional
@@ -106,7 +119,8 @@ public class TreatmentPlanService {
         // 1. save treatmentplan without treatments
         TreatmentPlan treatmentPlanToSave;
         if (treatmentPlanDto.getId() != null) {
-            treatmentPlanToSave = treatmentPlanRepository.findByIdWithDetails(treatmentPlanDto.getId()).get();
+            treatmentPlanToSave = treatmentPlanRepository
+                    .findByIdWithDetailsWithoutSurgicalCenterTimeSlots(treatmentPlanDto.getId()).get();
         } else {
             treatmentPlanToSave = entityMapper.toEntity(treatmentPlanDto);
         }
@@ -114,20 +128,27 @@ public class TreatmentPlanService {
         TreatmentPlan savedTreatmentPlan = treatmentPlanRepository.save(treatmentPlanToSave);
 
         // 2. apply treatmentplan to all treatments
-        List<Treatment> treatmentEntityList = entityMapper.toTreatmentEntityList(treatmentPlanDto.getTreatments());
-
-        treatmentEntityList.forEach(t -> t.setTreatmentPlan(savedTreatmentPlan));
+        List<Treatment> treatmentEntityList = new ArrayList<>();
+        for (TreatmentDto treatmentDto : treatmentPlanDto.getTreatments()) {
+            Treatment treatmentToSave = entityMapper.toEntity(treatmentDto);
+            SurgicalCenterTimeSlot surgicalCenterTimeSlot = surgicalCenterTimeSlotRepository
+                    .getReferenceById(treatmentDto.getSurgicalCenterTimeSlot().getId());
+            treatmentToSave.setSurgicalCenterTimeSlot(surgicalCenterTimeSlot);
+            treatmentToSave.setTreatmentPlan(savedTreatmentPlan);
+            treatmentEntityList.add(treatmentToSave);
+        }
         List<Treatment> savedTreatments = treatmentRepository.saveAll(treatmentEntityList);
 
-        TreatmentPlanDto savedTreatmentPlanDto = entityMapper.toDto(savedTreatmentPlan);
-        List<TreatmentDto> savedTreatmentDtos = entityMapper.toTreatmentDtoList(savedTreatments);
-        savedTreatmentPlanDto.setTreatments(savedTreatmentDtos);
+        TreatmentPlanDto savedTreatmentPlanDto = getTreatmentPlanById(savedTreatmentPlan.getId());
         return savedTreatmentPlanDto;
     }
 
     public TreatmentPlanDto getTreatmentPlanById(Long id) {
-        TreatmentPlan result = treatmentPlanRepository.findByIdWithDetails(id).orElseThrow();
-        List<TreatmentDto> treatmentDtos = entityMapper.toTreatmentDtoList(result.getTreatments());
+        TreatmentPlan result = treatmentPlanRepository.findByIdWithDetailsWithoutSurgicalCenterTimeSlots(id)
+                .orElseThrow();
+        result.getTreatments().clear();
+        result.getTreatments().addAll(treatmentRepository.findTreatmentsByPlanId(result.getId()));
+        List<TreatmentDto> treatmentDtos = toTreatmentDtoList(result.getTreatments());
         TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(result);
         treatmentPlanDto.setTreatments(treatmentDtos);
         return treatmentPlanDto;
@@ -136,15 +157,31 @@ public class TreatmentPlanService {
     @Transactional
     public List<TreatmentDto> saveTreatments(List<TreatmentDto> treatmentsToCreate, Long treatmentPlanId) {
 
-        List<Treatment> treatments = entityMapper.toTreatmentEntityList(treatmentsToCreate);
         TreatmentPlan treatmentPlan = getOriginalById(treatmentPlanId).orElseThrow();
-
-        for (Treatment treatment : treatments) {
+        List<Treatment> treatments = new ArrayList<>();
+        for (TreatmentDto treatmentDto : treatmentsToCreate) {
+            SurgicalCenterTimeSlot timeSlot = surgicalCenterTimeSlotRepository
+                    .getReferenceById(treatmentDto.getSurgicalCenterTimeSlot().getId());
+            Treatment treatment = entityMapper.toEntity(treatmentDto);
+            treatment.setSurgicalCenterTimeSlot(timeSlot);
             treatment.setTreatmentPlan(treatmentPlan);
+            treatments.add(treatment);
         }
 
         List<Treatment> saved = treatmentRepository.saveAll(treatments);
-        return entityMapper.toTreatmentDtoList(saved);
+        return toTreatmentDtoList(saved);
+
+    }
+
+    private List<TreatmentDto> toTreatmentDtoList(List<Treatment> treatments) {
+        List<TreatmentDto> resultList = new ArrayList<>();
+        for (Treatment treatment : treatments) {
+            TreatmentDto treatmentDto = entityMapper.toDto(treatment);
+            treatmentDto.setTreatmentPlan(entityMapper.toDto(treatment.getTreatmentPlan()));
+            treatmentDto.setSurgicalCenterTimeSlot(surgicalCenterMapper.toDto(treatment.getSurgicalCenterTimeSlot()));
+            resultList.add(treatmentDto);
+        }
+        return resultList;
     }
 
     public Optional<TreatmentPlan> getOriginalById(Long id) {

@@ -195,13 +195,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
         accordionPanelRight.setOpened(true);
         accordionPanelRight.getElement().getStyle().set("width", "100%");
         add(accordionPanelRight);
-        setRightEyeTreatmentHistory();
+        setRightEyeTreatmentHistory(null);
     }
 
-    private void setRightEyeTreatmentHistory() {
+    private void setRightEyeTreatmentHistory(Long treatmentPlanId) {
         List<TimeLineCardConfig> rightEyeTreatments = new ArrayList<>();
-        if (treatmentPlanDto != null && treatmentPlanDto.getId() != null) {
-            List<TreatmentDto> treatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, treatmentPlanDto.getId());
+        if (treatmentPlanId != null) {
+            List<TreatmentDto> treatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, treatmentPlanId);
             for (TreatmentDto treatmentSlotDto : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig();
                 config.setTreatmenDate(treatmentSlotDto.getSurgicalCenterTimeSlot().getDate());
@@ -237,13 +237,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
         accordionPanelLeft.setOpened(true);
         accordionPanelLeft.getElement().getStyle().set("width", "100%");
         add(accordionPanelLeft);
-        setLeftEyeTreatmentHistory();
+        setLeftEyeTreatmentHistory(null);
     }
 
-    private void setLeftEyeTreatmentHistory() {
+    private void setLeftEyeTreatmentHistory(Long treatmentPlanId) {
         List<TimeLineCardConfig> leftEyeTreatments = new ArrayList<>();
-        if (treatmentPlanDto != null && treatmentPlanDto.getId() != null) {
-            List<TreatmentDto> treatments = presenter.getTreatmentDtos(SideOfEye.LEFT, treatmentPlanDto.getId());
+        if (treatmentPlanId != null) {
+            List<TreatmentDto> treatments = presenter.getTreatmentDtos(SideOfEye.LEFT, treatmentPlanId);
             for (TreatmentDto treatmentSlotDto : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig();
                 config.setTreatmenDate(treatmentSlotDto.getSurgicalCenterTimeSlot().getDate());
@@ -254,20 +254,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineViewRightEye.setItems(leftEyeTreatments);
     }
 
-    public void setIvom(TreatmentPlanDto ivom) {
-        binder.setBean(ivom);
-
-    }
-
     public TreatmentPlanDto getTreatmentPlanDto() {
         TreatmentPlanDto dto = binder.getBean();
-        // private String frequency;
-        // private String dosage;
-        dto.setTreatments(getTimeSlotsToCreate());
+        dto.getTreatments().addAll(getTimeSlotsToCreate());
         dto.setPatient(patientSelectComboBox.getValue());
-        // private PatientDto patient;
-        // private String additionalInformation;
-        // private String billId;
         return dto;
     }
 
@@ -279,18 +269,15 @@ public class TreatmentPlanLayout extends VerticalLayout {
                     .setSideOfEye(sideOfEye.getValue().asDbString())
                     .setSurgicalCenterTimeSlot(surgicalCenterTimeSlotDto)
                     .setTreatmentPlan(treatmentPlanDto);
-            // TODO
             timeSlotsToCreate.add(timeSlotToCreate);
         }
         return timeSlotsToCreate;
     }
 
-    public void setBean(TreatmentPlanDto newDto) {
-        binder.setBean(newDto);
-    }
-
     public void setTreatmentPlan(TreatmentPlanDto dto) {
         this.treatmentPlanDto = dto;
-        setBean(treatmentPlanDto);
+        binder.setBean(treatmentPlanDto);
+        setLeftEyeTreatmentHistory(treatmentPlanDto != null ? treatmentPlanDto.getId() : null);
+        setRightEyeTreatmentHistory(treatmentPlanDto != null ? treatmentPlanDto.getId() : null);
     }
 }

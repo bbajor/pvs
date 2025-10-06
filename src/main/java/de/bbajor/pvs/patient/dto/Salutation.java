@@ -1,6 +1,6 @@
 package de.bbajor.pvs.patient.dto;
 
-public enum SalutationDto {
+public enum Salutation {
 
     MALE("Herr"),
     FEMALE("Frau"),
@@ -9,7 +9,7 @@ public enum SalutationDto {
 
     private final String ident;
 
-    SalutationDto(String ident) {
+    Salutation(String ident) {
         this.ident = ident;
     }
 
@@ -18,8 +18,8 @@ public enum SalutationDto {
         return ident;
     }
 
-    public SalutationDto byString(String salutation) {
-        for (SalutationDto element : SalutationDto.values()) {
+    public static Salutation byString(String salutation) {
+        for (Salutation element : Salutation.values()) {
             if (element.toString().equals(salutation)) {
                 return element;
             }

@@ -1,6 +1,6 @@
 package de.bbajor.pvs.patient.dto;
 
-public enum TitleDto {
+public enum Title {
 
     DR("Dr."),
     PROF_DR("Prof. Dr."),
@@ -9,7 +9,7 @@ public enum TitleDto {
 
     private final String displayName;
 
-    TitleDto(String displayName) {
+    Title(String displayName) {
         this.displayName = displayName;
     }
 
@@ -18,8 +18,8 @@ public enum TitleDto {
         return displayName;
     }
 
-    public TitleDto byString(String title) {
-        for (TitleDto element : TitleDto.values()) {
+    public static Title byString(String title) {
+        for (Title element : Title.values()) {
             if (element.toString().equals(title)) {
                 return element;
             }

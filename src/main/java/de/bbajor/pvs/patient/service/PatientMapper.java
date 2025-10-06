@@ -18,6 +18,8 @@ import de.bbajor.pvs.patient.model.PatientHistory;
 @Mapper(componentModel = "spring")
 public interface PatientMapper {
 
+    @Mapping(target = "salutation", expression = "java(Salutation.byString(patient.getSalutation()))")
+    @Mapping(target = "title", expression = "java(Title.byString(patient.getTitle()))")
     PatientDto toDto(Patient patient);
 
     PatientHistory toEntity(PatientHistoryDto dto);

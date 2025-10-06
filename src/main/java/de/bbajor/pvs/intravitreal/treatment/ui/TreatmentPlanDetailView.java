@@ -81,7 +81,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
             if (-1 == id) {
                 TreatmentPlanDto newDto = new TreatmentPlanDto();
                 newDto.setId(id);
-                treatmentPlanLayout.setBean(newDto);
+                treatmentPlanLayout.setTreatmentPlan(newDto);
                 this.treatmentPlanDto = newDto;
             } else {
                 TreatmentPlanDto dto = treatmentPlanPresenter.getById(id);
@@ -89,7 +89,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                     event.forwardTo(TreatmentPlanMainView.class);
                     return;
                 }
-                treatmentPlanLayout.setBean(dto);
+                treatmentPlanLayout.setTreatmentPlan(dto);
                 this.treatmentPlanDto = dto;
             }
         } catch (NumberFormatException nfe) {

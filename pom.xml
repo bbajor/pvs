@@ -49,7 +49,18 @@
   <artifactId>mapstruct</artifactId>
   <version>1.5.5.Final</version>
 </dependency>
-
+<!-- https://mvnrepository.com/artifact/org.instancio/instancio-core -->
+<dependency>
+    <groupId>org.instancio</groupId>
+    <artifactId>instancio-core</artifactId>
+    <version>5.5.1</version>
+</dependency>
+<dependency>
+  <groupId>org.instancio</groupId>
+  <artifactId>instancio-junit</artifactId>
+  <version>5.5.1</version>
+  <scope>test</scope>
+</dependency>
 <dependency>
   <groupId>org.mapstruct</groupId>
   <artifactId>mapstruct-processor</artifactId>

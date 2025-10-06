@@ -26,5 +26,5 @@ public interface TreatmentPlanRepository
             "left join fetch drug " +
             "left join fetch treatments " +
             "where tp.id = :id")
-    Optional<TreatmentPlan> findByIdWithDetails(@Param("id") Long id);
+    Optional<TreatmentPlan> findByIdWithDetailsWithoutSurgicalCenterTimeSlots(@Param("id") Long id);
 }

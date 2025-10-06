@@ -31,6 +31,7 @@ public interface SurgicalCenterMapper {
     @Mapping(target = "locale", ignore = true)
     SurgicalCenterAddress toEntity(SurgicalCenterAddressDto dto);
 
+    @Mapping(target = "surgicalCenter", ignore = true)
     SurgicalCenterTimeSlot toEntity(SurgicalCenterTimeSlotDto dto);
 
     @Mapping(target = "surgicalCenter", ignore = true)

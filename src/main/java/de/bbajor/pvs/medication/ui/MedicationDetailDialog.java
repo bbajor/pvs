@@ -1,11 +1,11 @@
 package de.bbajor.pvs.medication.ui;
 
+import java.util.function.Consumer;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.formlayout.FormLayout.FormRow;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
@@ -17,8 +17,11 @@ import de.bbajor.pvs.medication.dto.MedicationDto;
 public class MedicationDetailDialog extends Dialog {
 
         private Binder<MedicationDto> binder = new Binder<>();
+        private final Consumer<MedicationDto> onSave;
 
-        public MedicationDetailDialog(MedicationViewPresenter presenter, MedicationDto medication) {
+        public MedicationDetailDialog(MedicationViewPresenter presenter, MedicationDto medication,
+                        Consumer<MedicationDto> onSave) {
+                this.onSave = onSave;
 
                 boolean isReadOnly = true;
                 setWidth("1200px");
@@ -39,6 +42,7 @@ public class MedicationDetailDialog extends Dialog {
                 anwendungsArt.setReadOnly(isReadOnly);
                 TextArea anwendungsGebiete = new TextArea("Anwendungsgebiete");
                 anwendungsGebiete.setHeight("80px");
+                anwendungsGebiete.setMinWidth("200px");
                 anwendungsGebiete.setReadOnly(isReadOnly);
                 TextField indikationAtc = new TextField("Indikation/ATC");
                 indikationAtc.setReadOnly(isReadOnly);
@@ -67,27 +71,27 @@ public class MedicationDetailDialog extends Dialog {
                 wirkstoffe.setReadOnly(isReadOnly);
                 TextArea packungsGroessenGruppeVerkaufsabgrenzung = new TextArea(
                                 "Packungsgrößen-Gruppe/Verkaufsabgrenzung");
-                packungsGroessenGruppeVerkaufsabgrenzung.setHeight("160px");
+                packungsGroessenGruppeVerkaufsabgrenzung.setHeight("80px");
                 packungsGroessenGruppeVerkaufsabgrenzung.setReadOnly(isReadOnly);
                 TextArea amKlassifikationen = new TextArea("AM-Klassifikationen");
-                amKlassifikationen.setHeight("160px");
+                amKlassifikationen.setHeight("80px");
                 amKlassifikationen.setReadOnly(isReadOnly);
                 Checkbox favourite = new Checkbox("Favorit");
+
                 FormLayout detailLayout = new FormLayout();
-                FormRow firstRow = new FormRow();
-                firstRow.add(nr, eingangsnummer, zielgruppe, anwendungsArt);
-                FormRow secondRow = new FormRow();
-                secondRow.add(arzneimittelBezeichnung, 2);
-                secondRow.add(anwendungsArt);
-                secondRow.add(darreichungsForm);
-                FormRow thirdRow = new FormRow();
-                thirdRow.add(anwendungsGebiete, 5);
-                FormRow fourthRow = new FormRow();
-                fourthRow.add(indikationAtc, zulassungsRegNrOderKennziffer, euVerfahrensNummer);
-                detailLayout.add(firstRow, secondRow, thirdRow, fourthRow, bescheidDatumZulassung, zulassungsStatus,
+                detailLayout.setMinColumns(3);
+                detailLayout.setColumnSpacing("5em");
+                detailLayout.setExpandColumns(true);
+
+                detailLayout.add(nr, eingangsnummer, zielgruppe, anwendungsArt, arzneimittelBezeichnung);
+                detailLayout.add(amKlassifikationen, 3);
+                detailLayout.add(anwendungsGebiete, 3);
+                detailLayout.add(darreichungsForm, indikationAtc, zulassungsRegNrOderKennziffer,
+                                euVerfahrensNummer, bescheidDatumZulassung, zulassungsStatus,
                                 verkehrsFaehigkeit, parallelImportInformationen,
                                 zulassungsInhaber, herstellerEndFreigabe, vertreiber, oertlicherVertreter,
-                                wirkstoffe, packungsGroessenGruppeVerkaufsabgrenzung, amKlassifikationen, favourite);
+                                wirkstoffe, packungsGroessenGruppeVerkaufsabgrenzung);
+                detailLayout.add(amKlassifikationen, 3);
                 detailLayout.setSizeFull();
                 Scroller scroller = new Scroller(detailLayout);
                 add(scroller);
@@ -96,6 +100,9 @@ public class MedicationDetailDialog extends Dialog {
                 saveButton.addClickListener(event -> {
                         MedicationDto saved = presenter.save(binder.getBean());
                         binder.setBean(saved);
+                        if (onSave != null) {
+                                onSave.accept(saved);
+                        }
                         close();
                 });
                 Button cancelButton = new Button("Abbrechen");
@@ -103,7 +110,7 @@ public class MedicationDetailDialog extends Dialog {
                         close();
                 });
 
-                getFooter().add(saveButton, cancelButton);
+                getFooter().add(favourite, saveButton, cancelButton);
 
                 binder.forField(nr).bind(MedicationDto::getZulassungsNr, MedicationDto::setZulassungsNr);
                 binder.forField(eingangsnummer).bind(MedicationDto::getEingangsnummer,

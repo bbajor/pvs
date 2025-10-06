@@ -13,8 +13,9 @@ import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.patient.service.PatientMapper;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = {PatientMapper.class})
 public interface TreatmentPlanMapper {
 
     @Mapping(target = "clinicalTrial", ignore = true)
@@ -33,14 +34,14 @@ public interface TreatmentPlanMapper {
     List<TreatmentPlan> toTreatmentPlanEntityList(List<TreatmentPlanDto> treatmentPlanDtoList);
 
     @Mapping(target = "surgicalCenterTimeSlot", ignore = true)
+    @Mapping(target = "treatmentPlan", ignore = true)
     Treatment toEntity(TreatmentDto dto);
 
+    @Mapping(target = "surgicalCenterTimeSlot", ignore = true)
     @Mapping(target = "treatmentPlan", ignore = true)
     TreatmentDto toDto(Treatment entity);
 
     List<Treatment> toTreatmentEntityList(List<TreatmentDto> treatmentDtoList);
-
-    List<TreatmentDto> toTreatmentDtoList(List<Treatment> treatmentList);
 
     Diagnosis toEntity(DiagnosisDto dto);
 
