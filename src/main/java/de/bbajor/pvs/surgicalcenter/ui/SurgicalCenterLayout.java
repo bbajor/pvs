@@ -78,7 +78,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
 
         VerticalLayout availableTimeSlotsLayout = new VerticalLayout();
         availableTimeSlotsLayout.setSizeFull();
-        availableTimeSlotsLayout.setMinHeight("500px");
+        availableTimeSlotsLayout.setMinHeight("800px");
         availableTimeSlotsLayout.add(new Div("Vorhandene Zeitslots"));
         availableTimeSlots.addColumn(SurgicalCenterTimeSlotDto::getDate).setHeader("Tag");
         availableTimeSlots.addColumn(new TextRenderer<>(slot -> {

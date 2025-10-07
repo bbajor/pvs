@@ -4,8 +4,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.bbajor.pvs.base.util.SideOfEye;
-import de.bbajor.pvs.medication.dto.MedicationDto;
 import de.bbajor.pvs.patient.dto.PatientDto;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -20,12 +18,7 @@ public class TreatmentPlanDto {
     private String description;
     private PatientDto patient;
     private String additionalInformation;
-    private String billId;
-    private SideOfEye sideOfEye;
     private DiagnosisDto diagnosis;
-    private MedicationDto drug;
-    private String frequency;
-    private String dosage;
     private List<TreatmentDto> treatments;
 
     public String getFirstName() {

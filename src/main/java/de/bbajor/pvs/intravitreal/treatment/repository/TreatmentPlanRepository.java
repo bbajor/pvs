@@ -11,20 +11,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
-import de.bbajor.pvs.patient.model.Patient;
 
 public interface TreatmentPlanRepository
         extends JpaRepository<TreatmentPlan, Long>, JpaSpecificationExecutor<TreatmentPlan> {
 
-    Slice<Patient> findAllBy(Pageable pageable);
+    Slice<TreatmentPlan> findAllBy(Pageable pageable);
 
     List<TreatmentPlan> findByPatientId(Integer patientId);
 
     @Query("Select Distinct tp from TreatmentPlan tp " +
             "left join fetch tp.patient " +
             "left join fetch tp.diagnosis " +
-            "left join fetch drug " +
-            "left join fetch treatments " +
+            "left join fetch tp.treatments tm " +
+            "left join fetch tm.medication m " +
             "where tp.id = :id")
     Optional<TreatmentPlan> findByIdWithDetailsWithoutSurgicalCenterTimeSlots(@Param("id") Long id);
 }

@@ -1,5 +1,6 @@
 package de.bbajor.pvs.intravitreal.treatment.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,13 +11,28 @@ import org.springframework.data.repository.query.Param;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 
 public interface TreatmentRepository
-        extends JpaRepository<Treatment, Long>, JpaSpecificationExecutor<Treatment> {
+                extends JpaRepository<Treatment, Long>, JpaSpecificationExecutor<Treatment> {
 
-    @Query("""
-            select distinct t from Treatment t
-            left join fetch t.surgicalCenterTimeSlot
-            where t.treatmentPlan.id = :planId
-            """)
-    List<Treatment> findTreatmentsByPlanId(@Param("planId") Long planId);
+        @Query("""
+                        select distinct t from Treatment t
+                        left join fetch t.treatmentPlan tp
+                        left join fetch t.medication m
+                        left join fetch t.surgicalCenterTimeSlot ts
+                        where tp.id = :planId
+                        order by ts.date asc
+                        """)
+        List<Treatment> findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(@Param("planId") Long planId);
+
+        @Query("""
+                        select distinct t from Treatment t
+                        left join fetch t.surgicalCenterTimeSlot ts
+                        left join fetch ts.surgicalCenter sc
+                        left join fetch t.medication m
+                        left join fetch t.treatmentPlan tp
+                        where ts.date between :startDate and :endDate
+                        order by ts.date asc
+                        """)
+        List<Treatment> findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(LocalDate startDate,
+                        LocalDate endDate);
 
 }

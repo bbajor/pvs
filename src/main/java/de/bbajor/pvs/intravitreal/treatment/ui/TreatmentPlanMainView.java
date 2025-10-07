@@ -48,13 +48,16 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
         searchField.setWidthFull();
 
-        generateDailyListButton = new Button("Tagesliste generieren",
-                event -> ivomListPresenter.generateDailyList());
+        generateDailyListButton = new Button("Wochenliste generieren",
+                event -> {
+                    DailyTreatmentsDialog dailyTreatmentsDialog = new DailyTreatmentsDialog(
+                            ivomListPresenter.generateWeeklyList());
+                    dailyTreatmentsDialog.open();
+                });
         generateDailyListButton
-                .setTooltipText("Erzeugt eine Tagesliste für den nächsten anstehenden OP-Slot. " +
-                        "Dabei werden die wesentlichen Patientendaten, sowie die jeweiligen Einrichtungen aufgelistet, "
-                        +
-                        "an denen der Patient behandelt wird.");
+                .setTooltipText("Erzeugt eine Tagesliste für die tagesaktuellen OP-Slots. " +
+                        "Dabei werden die zu behandelnden Patienten, sowie die jeweiligen " +
+                        "Einrichtungen aufgelistet, an denen die Behandlung stattfindet.");
         generateDailyListButton.getElement().setAttribute("theme", "primary");
 
         add(new ViewToolbar("IVOM-Planer",
@@ -82,8 +85,6 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         ivomPlanGrid.addColumn(TreatmentPlanDto::getBirth).setHeader("Geburtsdatum");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getHealthInsurance).setHeader("Krankenkasse");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getSideOfEye).setHeader("Betroffenes Auge");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getDrug).setHeader("Medikament");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
         ivomPlanGrid.setSizeFull();
         ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {

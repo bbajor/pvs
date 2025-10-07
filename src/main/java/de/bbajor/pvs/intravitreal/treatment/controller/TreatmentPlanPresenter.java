@@ -85,7 +85,7 @@ public class TreatmentPlanPresenter {
     public Collection<SurgicalCenterTimeSlotDto> getAllTimeSlotsFilteredBy(LocalDate start, TimePeriod period,
             TimeSlotRepetition repetition,
             Integer surgicalCenterId) {
-        Collection<SurgicalCenterTimeSlotDto> surgeryUnitTimeSlots = surgicalCenterService
+        Collection<SurgicalCenterTimeSlotDto> surgicalCenterTimeSlots = surgicalCenterService
                 .findAvailableTimeSlotsFilteredBy(start, period, surgicalCenterId);
 
         List<SurgicalCenterTimeSlotDto> fullyFiltered = new ArrayList<>();
@@ -93,7 +93,7 @@ public class TreatmentPlanPresenter {
         var end = period.calculateEndDate(start);
         var repeatEveryWeeks = repetition.getRepeatEveryWeeks();
 
-        for (SurgicalCenterTimeSlotDto slot : surgeryUnitTimeSlots) {
+        for (SurgicalCenterTimeSlotDto slot : surgicalCenterTimeSlots) {
             LocalDate slotDate = slot.getDate();
 
             // nur Slots innerhalb des Zeitraums beachten
@@ -134,14 +134,6 @@ public class TreatmentPlanPresenter {
         if (sideOfEye != null) {
             treatmentSlots.removeIf(e -> !sideOfEye.asDbString().equals(e.getSideOfEye()));
         }
-        treatmentSlots.sort((o1, o2) -> {
-            if (o1.getSurgicalCenterTimeSlot() != null && o2.getSurgicalCenterTimeSlot() != null) {
-                return o1.getSurgicalCenterTimeSlot().getDate().isAfter(o2.getSurgicalCenterTimeSlot().getDate()) ? 1
-                        : -1;
-            } else {
-                return 0;
-            }
-        });
         return treatmentSlots;
     }
 

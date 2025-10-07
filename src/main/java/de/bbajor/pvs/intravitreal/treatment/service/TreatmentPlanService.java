@@ -3,8 +3,9 @@ package de.bbajor.pvs.intravitreal.treatment.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,13 @@ import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.repository.MedicationRepository;
+import de.bbajor.pvs.medication.service.MedicationMapper;
+import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
+import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterMapper;
@@ -26,25 +34,27 @@ import jakarta.persistence.criteria.Predicate;
 @Service
 public class TreatmentPlanService {
 
-    private final SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository;
-
+    @Autowired
+    private SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository;
     @Autowired
     private TreatmentPlanRepository treatmentPlanRepository;
     @Autowired
     private TreatmentRepository treatmentRepository;
     @Autowired
+    private MedicationRepository medicationRepository;
+
+    @Autowired
     private TreatmentPlanMapper entityMapper;
     @Autowired
     private SurgicalCenterMapper surgicalCenterMapper;
-
-    TreatmentPlanService(SurgicalCenterTimeSlotRepository surgicalCenterTimeSlotRepository) {
-        this.surgicalCenterTimeSlotRepository = surgicalCenterTimeSlotRepository;
-    }
+    @Autowired
+    private MedicationMapper medicationMapper;
 
     private TreatmentPlan findByIdWithDetails(Long id) {
         TreatmentPlan treatmentPlan = treatmentPlanRepository.findByIdWithDetailsWithoutSurgicalCenterTimeSlots(id)
                 .orElseThrow();
-        treatmentPlan.setTreatments(treatmentRepository.findTreatmentsByPlanId(treatmentPlan.getId()));
+        treatmentPlan.setTreatments(treatmentRepository
+                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlan.getId()));
         return treatmentPlan;
     }
 
@@ -62,7 +72,8 @@ public class TreatmentPlanService {
     }
 
     public List<TreatmentPlanDto> getTreatmentPlans(String filter) {
-        return findTreatmentPlans(filter).stream().map(entityMapper::toDto).toList();
+        List<TreatmentPlan> treatmentPlans = findTreatmentPlans(filter);
+        return entityMapper.toTreatmentPlanDtoList(treatmentPlans);
     }
 
     private List<TreatmentPlan> findTreatmentPlans(String filter) {
@@ -86,18 +97,36 @@ public class TreatmentPlanService {
         return treatmentPlanRepository.findAll(spec);
     }
 
-    private List<TreatmentPlan> generateDailyList(LocalDate date) {
-        // TODO implement
-        return Collections.emptyList();
-    }
+    public List<TreatmentDto> generateWeeklyList(LocalDate startDate) {
 
-    public List<TreatmentPlanDto> generateDailyList() {
-        return entityMapper.toTreatmentPlanDtoList(generateDailyList(LocalDate.now()));
+        List<TreatmentDto> resultList = new ArrayList<>();
+
+        List<Treatment> treatments = treatmentRepository
+                .findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(startDate, startDate.plusDays(7));
+        for (Treatment treatment : treatments) {
+
+            SurgicalCenterTimeSlot timeSlot = treatment.getSurgicalCenterTimeSlot();
+            SurgicalCenter surgicalCenter = timeSlot.getSurgicalCenter();
+
+            SurgicalCenterTimeSlotDto timeSlotDto = surgicalCenterMapper.toDto(timeSlot);
+            SurgicalCenterDto surgicalCenterDto = surgicalCenterMapper.toDto(surgicalCenter);
+            timeSlotDto.setSurgicalCenter(surgicalCenterDto);
+            TreatmentDto treatmentDto = entityMapper.toDto(treatment);
+            MedicationDto medicationDto = medicationMapper.toDto(treatment.getMedication());
+            TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatment.getTreatmentPlan());
+            treatmentDto.setSurgicalCenterTimeSlot(timeSlotDto);
+            treatmentDto.setTreatmentPlan(treatmentPlanDto);
+            treatmentDto.setMedication(medicationDto);
+            resultList.add(treatmentDto);
+        }
+
+        return resultList;
     }
 
     @Transactional
     private List<Treatment> getTreatmentSlots(Long treatmentPlanId) {
-        List<Treatment> treatments = treatmentRepository.findTreatmentsByPlanId(treatmentPlanId);
+        List<Treatment> treatments = treatmentRepository
+                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlanId);
         return treatments;
     }
 
@@ -133,7 +162,9 @@ public class TreatmentPlanService {
             Treatment treatmentToSave = entityMapper.toEntity(treatmentDto);
             SurgicalCenterTimeSlot surgicalCenterTimeSlot = surgicalCenterTimeSlotRepository
                     .getReferenceById(treatmentDto.getSurgicalCenterTimeSlot().getId());
+            Medication medication = medicationRepository.getReferenceById(treatmentDto.getMedication().getId());
             treatmentToSave.setSurgicalCenterTimeSlot(surgicalCenterTimeSlot);
+            treatmentToSave.setMedication(medication);
             treatmentToSave.setTreatmentPlan(savedTreatmentPlan);
             treatmentEntityList.add(treatmentToSave);
         }
@@ -147,7 +178,8 @@ public class TreatmentPlanService {
         TreatmentPlan result = treatmentPlanRepository.findByIdWithDetailsWithoutSurgicalCenterTimeSlots(id)
                 .orElseThrow();
         result.getTreatments().clear();
-        result.getTreatments().addAll(treatmentRepository.findTreatmentsByPlanId(result.getId()));
+        result.getTreatments().addAll(
+                treatmentRepository.findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(result.getId()));
         List<TreatmentDto> treatmentDtos = toTreatmentDtoList(result.getTreatments());
         TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(result);
         treatmentPlanDto.setTreatments(treatmentDtos);
@@ -157,14 +189,16 @@ public class TreatmentPlanService {
     @Transactional
     public List<TreatmentDto> saveTreatments(List<TreatmentDto> treatmentsToCreate, Long treatmentPlanId) {
 
-        TreatmentPlan treatmentPlan = getOriginalById(treatmentPlanId).orElseThrow();
+        TreatmentPlan treatmentPlan = treatmentPlanRepository.findById(treatmentPlanId).orElseThrow();
         List<Treatment> treatments = new ArrayList<>();
         for (TreatmentDto treatmentDto : treatmentsToCreate) {
             SurgicalCenterTimeSlot timeSlot = surgicalCenterTimeSlotRepository
                     .getReferenceById(treatmentDto.getSurgicalCenterTimeSlot().getId());
+            Medication medication = medicationRepository.getReferenceById(treatmentDto.getMedication().getId());
             Treatment treatment = entityMapper.toEntity(treatmentDto);
             treatment.setSurgicalCenterTimeSlot(timeSlot);
             treatment.setTreatmentPlan(treatmentPlan);
+            treatment.setMedication(medication);
             treatments.add(treatment);
         }
 
@@ -177,14 +211,11 @@ public class TreatmentPlanService {
         List<TreatmentDto> resultList = new ArrayList<>();
         for (Treatment treatment : treatments) {
             TreatmentDto treatmentDto = entityMapper.toDto(treatment);
+            treatmentDto.setMedication(medicationMapper.toDto(treatment.getMedication()));
             treatmentDto.setTreatmentPlan(entityMapper.toDto(treatment.getTreatmentPlan()));
             treatmentDto.setSurgicalCenterTimeSlot(surgicalCenterMapper.toDto(treatment.getSurgicalCenterTimeSlot()));
             resultList.add(treatmentDto);
         }
         return resultList;
-    }
-
-    public Optional<TreatmentPlan> getOriginalById(Long id) {
-        return treatmentPlanRepository.findById(id);
     }
 }
