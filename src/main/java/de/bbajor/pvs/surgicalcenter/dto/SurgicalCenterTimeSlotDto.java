@@ -3,12 +3,16 @@ package de.bbajor.pvs.surgicalcenter.dto;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
+@AllArgsConstructor
+@NoArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class SurgicalCenterTimeSlotDto {
 
@@ -21,5 +25,6 @@ public class SurgicalCenterTimeSlotDto {
     private boolean isAvailable;
     private boolean isApproved;
     private SurgicalCenterDto surgicalCenter;
+    private Long patientCount;
 
 }

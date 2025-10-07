@@ -29,7 +29,7 @@ import de.bbajor.pvs.patient.dto.PatientDto;
 @Component
 public class EgkReader {
 
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOG = LogManager.getLogger();
 
     private final EgkToolProperties properties;
     private static final Map<String, String> EGK_TO_ISO = new HashMap<>();
@@ -103,7 +103,7 @@ public class EgkReader {
         try {
             addressDto.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()).getCountry());
         } catch (NullPointerException e) {
-            LOGGER.debug("Land in Adresse nicht gesetzt");
+            LOG.debug("Land in Adresse nicht gesetzt");
         }
         dto.setAddress(addressDto);
         return dto;

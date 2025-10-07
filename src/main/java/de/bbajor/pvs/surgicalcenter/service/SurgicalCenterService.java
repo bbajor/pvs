@@ -38,11 +38,17 @@ public class SurgicalCenterService {
         return mapper.toDto(surgeryUnit);
     }
 
-    public Optional<SurgicalCenter> findByIdWithDetails(Integer id) {
-        if (id == null || id <= 0) {
-            return null;
+    public SurgicalCenterDto findByIdWithDetails(Integer id) {
+        SurgicalCenter surgicalCenter = surgicalCenterRepository.findByIdWithDetails(id).orElseThrow();
+        SurgicalCenterDto surgicalCenterDto = mapper.toDto(surgicalCenter);
+        List<SurgicalCenterTimeSlotDto> availableTimeSlotDtos = new ArrayList<>();
+        for (SurgicalCenterTimeSlot timeSlot : surgicalCenter.getAvailableTimeSlots()) {
+            SurgicalCenterTimeSlotDto timeSlotDto = mapper.toDto(timeSlot);
+            availableTimeSlotDtos.add(timeSlotDto);
         }
-        return surgicalCenterRepository.findByIdWithDetails(id);
+        surgicalCenterDto.setAvailableTimeSlots(availableTimeSlotDtos);
+
+        return surgicalCenterDto;
     }
 
     @Transactional
@@ -161,6 +167,10 @@ public class SurgicalCenterService {
 
         SurgicalCenter savedEntity = surgicalCenterRepository.save(entityToSave);
         saveTimeSlotsForExistingSurgicalCenter(newTimeSlots, savedEntity);
+    }
+
+    public List<SurgicalCenterTimeSlotDto> getTimeSlotsBySurgicalCenterIdWithTreatmentCount(Integer surgicalCenterId) {
+        return timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(surgicalCenterId);
     }
 
 }
