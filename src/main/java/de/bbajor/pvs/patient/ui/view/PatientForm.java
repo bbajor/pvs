@@ -6,6 +6,7 @@ import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
@@ -48,6 +49,7 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
 
                 // Configure the form
                 var formLayout = getContent();
+
                 formLayout.add(salutationComboBox);
                 formLayout.add(titleComboBox);
                 formLayout.add(firstNameField);
@@ -59,6 +61,14 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                 formLayout.add(healthInsuranceField);
                 formLayout.add(healthInsuranceNumberField);
                 formLayout.add(descriptionField, 2);
+
+                formLayout.setResponsiveSteps(
+                                // Use one column by default
+                                new ResponsiveStep("0", 1),
+                                // Use two columns, if the layout's width exceeds 320px
+                                new ResponsiveStep("320px", 2),
+                                // Use three columns, if the layout's width exceeds 500px
+                                new ResponsiveStep("500px", 3));
 
                 binder.bind(firstNameField, PatientDto::getFirstName, PatientDto::setFirstName);
                 binder.bind(lastNameField, PatientDto::getLastName, PatientDto::setLastName);

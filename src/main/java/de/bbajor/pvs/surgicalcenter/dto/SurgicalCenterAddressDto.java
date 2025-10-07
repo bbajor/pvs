@@ -10,4 +10,9 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = false)
 public class SurgicalCenterAddressDto extends AddressDto {
 
+    @Override
+    public String toString() {
+        return super.toString();
+    }
+
 }

@@ -21,7 +21,7 @@ import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 public interface SurgicalCenterMapper {
 
     @Mapping(target = "availableTimeSlots", ignore = true)
-    SurgicalCenterDto toDto(SurgicalCenter surgeryUnit);
+    SurgicalCenterDto toDto(SurgicalCenter surgicalCenter);
 
     @Mapping(target = "availableTimeSlots", ignore = true)
     SurgicalCenter toEntity(SurgicalCenterDto dto);

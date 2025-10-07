@@ -2,6 +2,7 @@ package de.bbajor.pvs.intravitreal.treatment.dto;
 
 import java.time.LocalDate;
 
+import de.bbajor.pvs.medication.dto.MedicationDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterAddressDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
@@ -18,7 +19,8 @@ public class TreatmentDto {
     private TreatmentPlanDto treatmentPlan;
     private SurgicalCenterTimeSlotDto surgicalCenterTimeSlot;
     private LocalDate approvalDate;
-    private String remarks;
+    private String additionalInfo;
+    private MedicationDto medication;
 
     public LocalDate getDate() {
         return surgicalCenterTimeSlot == null ? null : surgicalCenterTimeSlot.getDate();
@@ -35,6 +37,10 @@ public class TreatmentDto {
                 .append(address.getHouseNo()).append(", ")
                 .append(address.getPostalCode()).append(" ").append(address.getCity())
                 .toString();
+    }
+
+    public String getPatientInfo() {
+        return treatmentPlan.getPatient().toString();
     }
 
 }

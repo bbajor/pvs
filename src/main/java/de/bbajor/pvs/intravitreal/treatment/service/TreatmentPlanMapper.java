@@ -35,10 +35,12 @@ public interface TreatmentPlanMapper {
 
     @Mapping(target = "surgicalCenterTimeSlot", ignore = true)
     @Mapping(target = "treatmentPlan", ignore = true)
+    @Mapping(target = "medication", ignore = true)
     Treatment toEntity(TreatmentDto dto);
 
     @Mapping(target = "surgicalCenterTimeSlot", ignore = true)
     @Mapping(target = "treatmentPlan", ignore = true)
+    @Mapping(target = "medication", ignore = true)
     TreatmentDto toDto(Treatment entity);
 
     List<Treatment> toTreatmentEntityList(List<TreatmentDto> treatmentDtoList);

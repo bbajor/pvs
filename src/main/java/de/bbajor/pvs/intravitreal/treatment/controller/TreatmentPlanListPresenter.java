@@ -1,5 +1,6 @@
 package de.bbajor.pvs.intravitreal.treatment.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +18,8 @@ public class TreatmentPlanListPresenter {
     @Autowired
     private TreatmentPlanPresenter treatmentPlanPresenter;
 
-    public List<TreatmentPlanDto> generateDailyList() {
-        return treatmentPlanService.generateDailyList();
+    public List<TreatmentDto> generateWeeklyList() {
+        return treatmentPlanService.generateWeeklyList(LocalDate.now());
     }
 
     public List<TreatmentPlanDto> findAllBy(String searchString) {

@@ -6,6 +6,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
@@ -93,6 +94,15 @@ public class MedicationDetailDialog extends Dialog {
                                 wirkstoffe, packungsGroessenGruppeVerkaufsabgrenzung);
                 detailLayout.add(amKlassifikationen, 3);
                 detailLayout.setSizeFull();
+                
+                detailLayout.setResponsiveSteps(
+                                // Use one column by default
+                                new ResponsiveStep("0", 1),
+                                // Use two columns, if the layout's width exceeds 320px
+                                new ResponsiveStep("320px", 2),
+                                // Use three columns, if the layout's width exceeds 500px
+                                new ResponsiveStep("500px", 3));
+
                 Scroller scroller = new Scroller(detailLayout);
                 add(scroller);
 

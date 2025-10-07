@@ -25,6 +25,9 @@ public class PatientDialog extends Dialog {
             patientDto = new PatientDto();
         }
 
+        setWidth("800px");
+        setHeight("600px");
+
         // Create the components
         form = new PatientForm(presenter.getHealthInsurances(), patientDto);
 

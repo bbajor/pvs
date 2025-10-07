@@ -63,7 +63,6 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         dummy.setWidthFull();
         buttonBar.add(dummy);
         add(buttonBar);
-
         add(treatmentPlanLayout);
     }
 
