@@ -25,21 +25,21 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
 
     @Value("${domain.bundesland}")
     private String bundesland;
-    private final SurgicalCenterListPresenter surgeryUnitListPresenter;
-    private final SurgicalCenterLayout surgeryUnitForm = new SurgicalCenterLayout();
+    private final SurgicalCenterListPresenter surgicalCenterListPresenter;
+    private final SurgicalCenterLayout surgicalCenterLayout = new SurgicalCenterLayout();
 
-    public SurgicalCenterDetailView(SurgicalCenterListPresenter surgeryUnitListPresenter) {
-        this.surgeryUnitListPresenter = surgeryUnitListPresenter;
+    public SurgicalCenterDetailView(SurgicalCenterListPresenter surgicalCenterListPresenter) {
+        this.surgicalCenterListPresenter = surgicalCenterListPresenter;
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-            SurgicalCenterDto surgeryUnit = surgeryUnitForm.getBean();
+            SurgicalCenterDto surgeryUnit = surgicalCenterLayout.getBean();
             if(surgeryUnit.getId() == -1) {
                 surgeryUnit.setId(null);
             }
-            surgeryUnitListPresenter.save(surgeryUnit, surgeryUnitForm.getTimeSlotsToCreate());
+            surgicalCenterListPresenter.save(surgeryUnit, surgicalCenterLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("surgicalcenter");
 
         });
@@ -54,7 +54,7 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
         buttonBar.add(dummyLayout2);
         add(buttonBar);
 
-        add(surgeryUnitForm);
+        add(surgicalCenterLayout);
     }
 
     @Override
@@ -71,14 +71,14 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
             if (-1 == id) {
                 SurgicalCenterDto newDto = new SurgicalCenterDto();
                 newDto.setId(id);
-                surgeryUnitForm.setBean(newDto);
+                surgicalCenterLayout.setBean(newDto);
             } else {
-                SurgicalCenterDto dto = surgeryUnitListPresenter.getById(id);
+                SurgicalCenterDto dto = surgicalCenterListPresenter.getById(id);
                 if (dto == null) {
                     event.forwardTo(SurgicalCenterMainView.class);
                     return;
                 }
-                surgeryUnitForm.setBean(dto);
+                surgicalCenterLayout.setBean(dto);
             }
         } catch (NumberFormatException nfe) {
             event.forwardTo(SurgicalCenterMainView.class);

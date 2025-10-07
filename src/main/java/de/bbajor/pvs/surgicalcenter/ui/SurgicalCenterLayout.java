@@ -1,7 +1,9 @@
 package de.bbajor.pvs.surgicalcenter.ui;
 
+import java.text.DateFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +45,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         setSizeFull();
 
         binder.forField(unitNameField).bind(SurgicalCenterDto::getName, SurgicalCenterDto::setName);
-        binder.forField(addressForm).bind(SurgicalCenterDto::getSurgicalCenterAddress, SurgicalCenterDto::setSurgicalCenterAddress);
+        binder.forField(addressForm).bind(SurgicalCenterDto::getSurgicalCenterAddress,
+                SurgicalCenterDto::setSurgicalCenterAddress);
         binder.forField(phoneField).bind(SurgicalCenterDto::getPhone, SurgicalCenterDto::setPhone);
         binder.forField(emailField).bind(SurgicalCenterDto::getEmail, SurgicalCenterDto::setEmail);
         binder.forField(contactField).bind(SurgicalCenterDto::getContact, SurgicalCenterDto::setContact);
@@ -80,7 +83,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         availableTimeSlotsLayout.setSizeFull();
         availableTimeSlotsLayout.setMinHeight("800px");
         availableTimeSlotsLayout.add(new Div("Vorhandene Zeitslots"));
-        availableTimeSlots.addColumn(SurgicalCenterTimeSlotDto::getDate).setHeader("Tag");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("E dd.MM.yyyy", Locale.GERMAN);
+        availableTimeSlots.addColumn(dto -> formatter.format(dto.getDate())).setHeader("Datum");
         availableTimeSlots.addColumn(new TextRenderer<>(slot -> {
             LocalDate date = slot.getDate();
             if (date == null) {
@@ -95,6 +99,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
             String end = slot.getEndTime() == null ? "-" : slot.getEndTime().toString();
             return start + " - " + end + " Uhr";
         })).setHeader("Uhrzeit");
+        availableTimeSlots.addColumn(dto -> dto.getPatientCount()).setHeader("Anzahl Patienten");
         availableTimeSlots.setSizeFull();
         availableTimeSlotsLayout.add(availableTimeSlots);
 
