@@ -49,14 +49,15 @@ public class IntravitrealMedicationService {
         Medication entityToSave;
 
         if (dto.getId() == null) {
-            entityToSave = medicationMapper.toEntity(dto);
+            entityToSave = new Medication();
+            medicationMapper.updateEntityFromDto(dto, entityToSave);
         } else {
             entityToSave = medicationRepository.getReferenceById(dto.getId());
             medicationMapper.updateEntityFromDto(dto, entityToSave);
         }
 
         Medication savedEntity = medicationRepository.save(entityToSave);
-        return medicationMapper.toDto(savedEntity);
+        return medicationMapper.toMedicationDto(savedEntity);
     }
 
     public List<MedicationDto> getMedicationListFavourites() {
@@ -67,7 +68,7 @@ public class IntravitrealMedicationService {
     public List<MedicationDto> saveAll(List<Medication> medications) {
         List<MedicationDto> medicationDtos = new ArrayList<>();
         for (Medication medication : medications) {
-            medicationDtos.add(save(medicationMapper.toDto(medication)));
+            medicationDtos.add(save(medicationMapper.toMedicationDto(medication)));
         }
         return medicationDtos;
     }

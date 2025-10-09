@@ -23,36 +23,6 @@ class MedicationMapperTest {
     }
 
     @Test
-    void testToEntity() {
-        LocalDate now = LocalDate.now();
-        MedicationDto dto = new MedicationDto();
-        dto.setArzneimittelbezeichnung("Eylea");
-        dto.setDarreichungsform("Injektionslösung");
-        dto.setWirkstoffe("Aflibercept");
-        dto.setIndikationAtc("Altersbedingtes Makulaödem");
-        dto.setAnwendungsart("intravitreal");
-        dto.setDescription("40mg/ml Injektionslösung");
-        dto.setZulassungsinhaber("Bayer AG");
-        dto.setFavourite(true);
-        dto.setValidFrom(now);
-        dto.setValidUntil(now.plusYears(2));
-
-        Medication entity = mapper.toEntity(dto);
-
-        assertNotNull(entity);
-        assertEquals("Eylea", entity.getArzneimittelbezeichnung());
-        assertEquals("Injektionslösung", entity.getDarreichungsform());
-        assertEquals("Aflibercept", entity.getWirkstoffe());
-        assertEquals("Altersbedingtes Makulaödem", entity.getIndikationAtc());
-        assertEquals("intravitreal", entity.getAnwendungsart());
-        assertEquals("40mg/ml Injektionslösung", entity.getDescription());
-        assertEquals("Bayer AG", entity.getZulassungsinhaber());
-        assertTrue(entity.isFavourite());
-        assertEquals(now, entity.getValidFrom());
-        assertEquals(now.plusYears(2), entity.getValidUntil());
-    }
-
-    @Test
     void testToDto() {
         LocalDate now = LocalDate.now();
         Medication entity = new Medication();
@@ -67,7 +37,7 @@ class MedicationMapperTest {
         entity.setValidFrom(now);
         entity.setValidUntil(now.plusYears(2));
 
-        MedicationDto dto = mapper.toDto(entity);
+        MedicationDto dto = mapper.toMedicationDto(entity);
 
         assertNotNull(dto);
         assertEquals("Lucentis", dto.getArzneimittelbezeichnung());

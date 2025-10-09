@@ -12,4 +12,9 @@ public class DiagnosisDto {
     private String name;
     private String icdCode;
     private String description;
+
+    @Override
+    public String toString() {
+        return (name != null ? name.trim() : "Name n.b.") + " (ICD: " + (icdCode != null ? icdCode.trim() : "-") + ")";
+    }
 }

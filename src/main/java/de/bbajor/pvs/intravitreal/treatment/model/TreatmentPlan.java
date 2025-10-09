@@ -27,7 +27,7 @@ public class TreatmentPlan extends BasicEntity<Long> {
     @ManyToOne(fetch = FetchType.EAGER)
     private Patient patient;
     @ManyToOne(fetch = FetchType.EAGER)
-    private Diagnosis diagnosis;
+    private Diagnose diagnosis;
     @OneToOne
     private ClinicalTrial clinicalTrial;
     private String additionalInformation;
