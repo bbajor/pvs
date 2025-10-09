@@ -32,3 +32,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Vaadin 24 generated files
+src/main/frontend/generated/
+src/main/bundles/
+vite.generated.ts
+types.d.ts
+tsconfig.json
+package-lock.json
+package.json
+vite.config.ts
