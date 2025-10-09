@@ -10,7 +10,7 @@ import lombok.experimental.Accessors;
 @Setter
 @Entity
 @Accessors(chain = true)
-public class Diagnosis extends BasicEntity<Long> {
+public class Diagnose extends BasicEntity<Long> {
 
     private String name;
     private String icdCode;

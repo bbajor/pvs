@@ -13,7 +13,6 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoIcon;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
@@ -28,11 +27,12 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     @Value("${domain.bundesland}")
     private String bundesland;
 
-    private final Button createButton = new Button();
-    private final Button cancelButton = new Button(VaadinIcon.ARROW_BACKWARD.create());
+    private final Button createButton = new Button("Erstellen", VaadinIcon.PLUS.create());
+    private final Button cancelButton = new Button("Abbrechen", VaadinIcon.ARROW_BACKWARD.create());
 
     private final TreatmentPlanPresenter treatmentPlanPresenter;
     private final TreatmentPlanLayout treatmentPlanLayout;
+    
     private TreatmentPlanDto treatmentPlanDto;
 
     public TreatmentPlanDetailView(TreatmentPlanPresenter ivomDialogPresenter) {
@@ -57,7 +57,6 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         });
         buttonBar.add(createButton);
 
-        cancelButton.setTooltipText("Zurück");
         cancelButton.addClickListener(event -> {
             UI.getCurrent().navigate("ivom");
         });
@@ -103,14 +102,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     private void updateCreateButton() {
         boolean isNewTreatmentPlan = treatmentPlanDto == null || treatmentPlanDto.getId() == null
                 || treatmentPlanDto.getId() == -1;
-        createButton
-                .setIcon(isNewTreatmentPlan
-                        ? VaadinIcon.FILE_ADD.create()
-                        : VaadinIcon.EDIT.create());
-        createButton.setTooltipText(
-                isNewTreatmentPlan
-                        ? "Erstellen"
-                        : "Aktualisieren");
+        createButton.setText(isNewTreatmentPlan ? "Erstellen" : "Aktualisieren");
     }
 
 }

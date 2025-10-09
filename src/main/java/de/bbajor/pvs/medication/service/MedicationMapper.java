@@ -13,9 +13,9 @@ import de.bbajor.pvs.medication.model.Medication;
 @Mapper(componentModel = "spring")
 public interface MedicationMapper {
 
-    Medication toEntity(MedicationDto bean);
+    // Medication toEntity(MedicationDto bean);
 
-    MedicationDto toDto(Medication entity);
+    MedicationDto toMedicationDto(Medication entity);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)

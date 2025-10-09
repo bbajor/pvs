@@ -33,7 +33,9 @@ public interface SurgicalCenterTimeSlotRepository
                                         select new de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto(ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime, false, false, null, count(t))
                                         from SurgicalCenterTimeSlot ts
                                         left join Treatment t on t.surgicalCenterTimeSlot = ts
+                                        where ts.surgicalCenter.id = ?1
                                         group by ts
+                                        order by ts.date asc, ts.startTime asc
                         """)
         List<SurgicalCenterTimeSlotDto> findBySurgicalCenterIdWithTreatmentCount(Integer id);
 }
