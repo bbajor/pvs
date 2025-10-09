@@ -89,21 +89,23 @@ public class EgkReader {
         Adresse adr = p.getStrassenAdresse();
 
         PatientDto dto = new PatientDto();
-        dto.setInsuranceId(v.getVersichertenId());
+        dto.setInsuranceNumber(v.getVersichertenId());
         dto.setFirstName(p.getVorname());
         dto.setLastName(p.getNachname());
         dto.setBirth(p.getGeburtsdatum());
         dto.setGender(p.getGeschlecht());
 
         AddressDto addressDto = new AddressDto();
-        addressDto.setStreet(adr == null ? "" : adr.getStrasse())
-                .setHouseNo(adr == null ? "" : adr.getHausnummer())
-                .setPostalCode(adr == null ? Double.NaN : Double.parseDouble(adr.getPostleitzahl()))
-                .setCity(adr == null ? "" : adr.getOrt());
         try {
+            addressDto.setStreet(adr == null ? "" : adr.getStrasse())
+                    .setHouseNo(adr == null ? "" : adr.getHausnummer())
+                    .setPostalCode(adr == null ? 00000 : Integer.parseInt(adr.getPostleitzahl()))
+                    .setCity(adr == null ? "" : adr.getOrt());
             addressDto.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()).getCountry());
         } catch (NullPointerException e) {
-            LOG.debug("Land in Adresse nicht gesetzt");
+            LOG.warn("Land in Adresse nicht gesetzt");
+        } catch (NumberFormatException e) {
+            LOG.warn("Fehler beim Parsen der Postleitzahl von String zu Integer", e);
         }
         dto.setAddress(addressDto);
         return dto;

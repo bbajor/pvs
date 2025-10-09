@@ -2,12 +2,12 @@ package de.bbajor.pvs.intravitreal.treatment.model;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
 @Entity
 @Accessors(chain = true)
 public class Diagnosis extends BasicEntity<Long> {

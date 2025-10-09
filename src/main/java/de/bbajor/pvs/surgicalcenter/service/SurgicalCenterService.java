@@ -24,20 +24,18 @@ import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
 public class SurgicalCenterService {
 
     @Autowired
-    private SurgicalCenterTimeSlotRepository timeSlotRepository;
+    protected SurgicalCenterTimeSlotRepository timeSlotRepository;
     @Autowired
-    private SurgicalCenterRepository surgicalCenterRepository;
+    protected SurgicalCenterRepository surgicalCenterRepository;
     @Autowired
-    private SurgicalCenterMapper mapper;
+    protected SurgicalCenterMapper mapper;
 
+    @Transactional(readOnly = true)
     public List<SurgicalCenterDto> findAll() {
         return mapper.toSurgicalCenterDtoList(surgicalCenterRepository.findAll());
     }
 
-    public SurgicalCenterDto toDto(SurgicalCenter surgeryUnit) {
-        return mapper.toDto(surgeryUnit);
-    }
-
+    @Transactional(readOnly = true)
     public SurgicalCenterDto findByIdWithDetails(Integer id) {
         SurgicalCenter surgicalCenter = surgicalCenterRepository.findByIdWithDetails(id).orElseThrow();
         SurgicalCenterDto surgicalCenterDto = mapper.toDto(surgicalCenter);
@@ -71,10 +69,11 @@ public class SurgicalCenterService {
     }
 
     @Transactional
-    private void saveTimeSlotsForExistingSurgicalCenter(List<SurgicalCenterTimeSlotDto> newTimeSlots,
+    private List<SurgicalCenterTimeSlotDto> saveTimeSlotsForExistingSurgicalCenter(
+            List<SurgicalCenterTimeSlotDto> newTimeSlots,
             SurgicalCenter existingEntity) {
         if (newTimeSlots == null || newTimeSlots.isEmpty() || existingEntity == null) {
-            return;
+            return Collections.emptyList();
         }
 
         List<SurgicalCenterTimeSlot> newTimeSlotsToSave = newTimeSlots.stream()
@@ -84,10 +83,12 @@ public class SurgicalCenterService {
                     return entity;
                 })
                 .toList();
-        timeSlotRepository.saveAll(newTimeSlotsToSave);
+        List<SurgicalCenterTimeSlot> savedTimeSlots = timeSlotRepository.saveAll(newTimeSlotsToSave);
+        return mapper.toTimeSlotDtoList(savedTimeSlots);
     }
 
-    public List<SurgicalCenterTimeSlot> findTimeSlotsBySurgicalCenterId(Integer id) {
+    @Transactional
+    protected List<SurgicalCenterTimeSlot> findTimeSlotsBySurgicalCenterId(Integer id) {
         Optional<SurgicalCenter> surgicalCenter = surgicalCenterRepository.findById(id);
         if (!surgicalCenter.isPresent()) {
             return new ArrayList<>();
@@ -98,6 +99,7 @@ public class SurgicalCenterService {
         return timeSlots;
     }
 
+    @Transactional(readOnly = true)
     public Collection<SurgicalCenterTimeSlotDto> findAvailableTimeSlotsFilteredBy(LocalDate periodStart,
             TimePeriod timePeriod,
             Integer surgicalCenterId) {
@@ -152,11 +154,11 @@ public class SurgicalCenterService {
     }
 
     @Transactional
-    public void saveTimeSlotsAndSurgicalCenter(List<SurgicalCenterTimeSlotDto> newTimeSlots,
+    public SurgicalCenterDto saveTimeSlotsAndSurgicalCenter(List<SurgicalCenterTimeSlotDto> newTimeSlots,
             SurgicalCenterDto surgicalCenterDto) {
 
         if (surgicalCenterDto == null) {
-            return;
+            return null;
         }
 
         SurgicalCenter entityToSave = mapper.toEntity(surgicalCenterDto);
@@ -166,9 +168,14 @@ public class SurgicalCenterService {
         }
 
         SurgicalCenter savedEntity = surgicalCenterRepository.save(entityToSave);
-        saveTimeSlotsForExistingSurgicalCenter(newTimeSlots, savedEntity);
+        List<SurgicalCenterTimeSlotDto> savedTimeSlots = saveTimeSlotsForExistingSurgicalCenter(newTimeSlots,
+                savedEntity);
+        SurgicalCenterDto savedSurgicalCenterDto = mapper.toDto(savedEntity);
+        savedSurgicalCenterDto.setAvailableTimeSlots(savedTimeSlots);
+        return savedSurgicalCenterDto;
     }
 
+    @Transactional(readOnly = true)
     public List<SurgicalCenterTimeSlotDto> getTimeSlotsBySurgicalCenterIdWithTreatmentCount(Integer surgicalCenterId) {
         return timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(surgicalCenterId);
     }

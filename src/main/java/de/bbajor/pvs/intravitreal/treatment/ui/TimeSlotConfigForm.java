@@ -85,7 +85,7 @@ public class TimeSlotConfigForm extends HorizontalLayout {
                 return ValidationResult.ok();
             }
         }).bind(TimeSlotConfig::getTimePeriod, TimeSlotConfig::setTimePeriod);
-        binder.forField(timeSlotRepetitionComboBox).asRequired().asRequired((repetition, t) -> {
+        binder.forField(timeSlotRepetitionComboBox).asRequired((repetition, t) -> {
             Boolean isSingleAppointment = singleAppointmentCheckBox.getValue() != null
                     && singleAppointmentCheckBox.getValue();
             if (!isSingleAppointment && repetition == null) {
@@ -95,13 +95,30 @@ public class TimeSlotConfigForm extends HorizontalLayout {
             }
         }).bind(TimeSlotConfig::getTimeSlotRepetition,
                 TimeSlotConfig::setTimeSlotRepetition);
-        binder.forField(periodStartPicker).asRequired().bind(TimeSlotConfig::getPeriodStartDate,
-                TimeSlotConfig::setPeriodStartDate);
-        binder.forField(dayOfWeekComboBox).asRequired().bind(TimeSlotConfig::getDayOfWeek,
-                TimeSlotConfig::setDayOfWeek);
-        binder.forField(timeSlotStartPicker).asRequired().bind(TimeSlotConfig::getStartTime,
-                TimeSlotConfig::setStartTime);
-        binder.forField(timeSlotEndPicker).asRequired().bind(TimeSlotConfig::getEndTime, TimeSlotConfig::setEndTime);
+        binder.forField(periodStartPicker).asRequired()
+                .withValidator(
+                        date -> date != null && (!date.isBefore(LocalDate.now()) || date.isEqual(LocalDate.now())),
+                        "Das Datum muss in der Zukunft oder heute liegen")
+                .bind(TimeSlotConfig::getPeriodStartDate,
+                        TimeSlotConfig::setPeriodStartDate);
+        binder.forField(dayOfWeekComboBox).asRequired()
+                .withValidator(t -> t != null, "Bitte wählen Sie einen Wochentag aus")
+                .bind(TimeSlotConfig::getDayOfWeek,
+                        TimeSlotConfig::setDayOfWeek);
+        binder.forField(timeSlotStartPicker).asRequired()
+                .withValidator(
+                        start -> start != null
+                                && (timeSlotEndPicker.getValue() == null
+                                        || timeSlotEndPicker.getValue().isAfter(start)),
+                        "Bitte geben Sie eine gültige Uhrzeit ein")
+                .bind(TimeSlotConfig::getStartTime,
+                        TimeSlotConfig::setStartTime);
+        binder.forField(timeSlotEndPicker).asRequired().withValidator(
+                end -> end != null
+                        && (timeSlotStartPicker.getValue() == null
+                                || timeSlotStartPicker.getValue().isBefore(end)),
+                "Bitte geben Sie eine gültige Uhrzeit ein")
+                .bind(TimeSlotConfig::getEndTime, TimeSlotConfig::setEndTime);
         binder.forField(singleAppointmentCheckBox).bind(TimeSlotConfig::isSingleAppointment,
                 TimeSlotConfig::setSingleAppointment);
 

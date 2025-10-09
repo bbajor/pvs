@@ -18,7 +18,8 @@ public interface SurgicalCenterRepository
 
     @Query("SELECT DISTINCT sc FROM SurgicalCenter sc " +
             "LEFT JOIN FETCH sc.surgicalCenterAddress " +
-            "LEFT JOIN FETCH sc.availableTimeSlots " +
-            "WHERE sc.id = :id")
+            "LEFT JOIN FETCH sc.availableTimeSlots scts " +
+            "WHERE sc.id = :id " +
+            "ORDER BY scts.date ASC")
     Optional<SurgicalCenter> findByIdWithDetails(@Param("id") Integer id);
 }

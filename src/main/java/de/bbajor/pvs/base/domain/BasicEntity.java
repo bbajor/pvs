@@ -1,6 +1,8 @@
 package de.bbajor.pvs.base.domain;
 
-import org.springframework.data.util.ProxyUtils;
+import java.util.Objects;
+
+import org.hibernate.proxy.HibernateProxy;
 
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
@@ -11,7 +13,7 @@ import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Version;
 
 @MappedSuperclass
-public class BasicEntity<ID> {
+public abstract class BasicEntity<ID> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,30 +45,37 @@ public class BasicEntity<ID> {
     }
 
     @Override
-    public int hashCode() {
-        // Hashcode should never change during the lifetime of an object. Because of
-        // this we can't use getId() to calculate the hashcode. Unless you have sets
-        // with lots of entities in them, returning the same hashcode should not be a
-        // problem.
-        return ProxyUtils.getUserClass(getClass()).hashCode();
+    public final boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null)
+            return false;
+
+        // Hibernate-Proxys sauber auflösen
+        Class<?> thisClass = this instanceof HibernateProxy
+                ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass()
+                : getClass();
+
+        Class<?> otherClass = o instanceof HibernateProxy
+                ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass()
+                : o.getClass();
+
+        if (!thisClass.equals(otherClass))
+            return false;
+
+        BasicEntity<ID> that = (BasicEntity<ID>) o;
+
+        // equals nur auf Basis der ID, wenn vorhanden
+        return id != null && id.equals(that.id);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        } else if (obj == this) {
-            return true;
-        }
-
-        var thisUserClass = ProxyUtils.getUserClass(getClass());
-        var otherUserClass = ProxyUtils.getUserClass(obj);
-        if (thisUserClass != otherUserClass) {
-            return false;
-        }
-
-        var id = getId();
-        return id != null && id.equals(((BasicEntity<?>) obj).getId());
+    public final int hashCode() {
+        // Verwende Klassenhash, um StackOverflow zu vermeiden
+        // (weil id bei transienten Entities noch null ist)
+        return Objects.hashCode(
+                this instanceof HibernateProxy
+                        ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass()
+                        : getClass());
     }
-
 }

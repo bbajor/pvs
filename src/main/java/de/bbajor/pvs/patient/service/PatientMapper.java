@@ -38,6 +38,10 @@ public interface PatientMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
+    void updateEntityFromEntity(Patient source, @MappingTarget Patient target);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "version", ignore = true)
     void updateEntityFromDto(PatientDto dto, @MappingTarget Patient entity);
 
     void updateDtoFromEntity(Patient entity, @MappingTarget PatientDto dto);

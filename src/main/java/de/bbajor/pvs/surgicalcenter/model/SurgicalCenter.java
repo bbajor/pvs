@@ -8,17 +8,18 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
 @Entity
 @Accessors(chain = true)
 public class SurgicalCenter extends BasicEntity<Integer> {
 
     private String name;
+    private String description;
     private String phone;
     private String email;
     private String contact;

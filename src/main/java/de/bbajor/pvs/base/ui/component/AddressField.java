@@ -4,9 +4,11 @@ import java.util.Locale;
 
 import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.binder.BinderValidationStatus;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
@@ -18,7 +20,7 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
     private final Binder<T> binder = new Binder<>();
     private final TextField streetField = new TextField("Straße");
     private final TextField houseNoField = new TextField("Hausnummer");
-    private final NumberField zipCodeField = new NumberField("Postleitzahl");
+    private final IntegerField zipCodeField = new IntegerField("Postleitzahl");
     private final TextField cityField = new TextField("Stadt");
     private final CountrySelectionComboBox countryCodeBox = new CountrySelectionComboBox();
 
@@ -107,8 +109,8 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
      * 
      * @return true, wenn alle Eingaben gültig sind
      */
-    public boolean validate() {
-        return binder.validate().isOk();
+    public BinderValidationStatus<T> validate() {
+        return binder.validate();
     }
 
     /**

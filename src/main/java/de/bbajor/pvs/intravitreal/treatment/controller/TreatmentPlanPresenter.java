@@ -41,12 +41,12 @@ public class TreatmentPlanPresenter {
     @Autowired
     private IntravitrealMedicationService medicationService;
 
-    public TreatmentPlanDto loadTreatmentPlanById(Long id) throws NoSuchElementException {
-        return treatmentPlanService.loadTreatmentPlanDto(id);
+    public TreatmentPlanDto loadTreatmentPlanByIdWithFullDetails(Long id) throws NoSuchElementException {
+        return treatmentPlanService.loadTreatmentPlanWithFullDetails(id);
     }
 
     @Transactional
-    public TreatmentPlanDto save(TreatmentPlanDto dto, List<TreatmentDto> treatmentDtos) {
+    public TreatmentPlanDto saveTreatmentPlanAndTreatments(TreatmentPlanDto dto, List<TreatmentDto> treatmentDtos) {
         TreatmentPlanDto saved = treatmentPlanService.saveTreatmentPlan(dto);
         return saveNewTreatments(saved.getId(), treatmentDtos);
     }
@@ -70,7 +70,7 @@ public class TreatmentPlanPresenter {
     public List<SurgicalCenterTimeSlotDto> loadAvailableSurgicalCenterTimeSlots(
             SurgicalCenterDto selectedSurgicalCenter) {
         List<SurgicalCenterDto> surgicalCenterDtos = new ArrayList<>();
-        if (selectedSurgicalCenter == null) { // if no specific surgeryunit has been selected, choose all
+        if (selectedSurgicalCenter == null) { // if no specific surgical center has been selected, choose all
             surgicalCenterDtos.addAll(surgicalCenterService.getSurgicalCenters());
         } else {
             surgicalCenterDtos.add(selectedSurgicalCenter);
@@ -114,12 +114,12 @@ public class TreatmentPlanPresenter {
 
     @Transactional
     private TreatmentPlanDto saveNewTreatments(Long treatmentPlanId, List<TreatmentDto> treatmentDtos) {
-        List<TreatmentDto> savedTreatments = treatmentPlanService.saveTreatments(treatmentDtos, treatmentPlanId);
-        return treatmentPlanService.getTreatmentPlanById(treatmentPlanId);
+        List<TreatmentDto> savedTreatments = treatmentPlanService.saveNewTreatmentsForExistingPlan(treatmentDtos, treatmentPlanId);
+        return treatmentPlanService.getTreatmentPlanByIdWithFullDetails(treatmentPlanId);
     }
 
-    public TreatmentPlanDto getById(Long id) {
-        TreatmentPlanDto treatmentPlan = treatmentPlanService.getTreatmentPlanById(id);
+    public TreatmentPlanDto getByIdWithFullDetails(Long id) {
+        TreatmentPlanDto treatmentPlan = treatmentPlanService.getTreatmentPlanByIdWithFullDetails(id);
         if (treatmentPlan == null) {
             return new TreatmentPlanDto();
         }

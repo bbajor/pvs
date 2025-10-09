@@ -10,7 +10,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Address;
+import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.patient.repository.HealthInsuranceRepository;
+import de.bbajor.pvs.patient.repository.PatientAddressRepository;
 import de.bbajor.pvs.patient.repository.PatientRepository;
 import jakarta.persistence.criteria.Predicate;
 
@@ -19,6 +23,10 @@ public class PatientService {
 
     @Autowired
     private PatientRepository patientRepository;
+    @Autowired
+    private PatientAddressRepository addressRepository;
+    @Autowired
+    private HealthInsuranceRepository healthInsuranceRepository;
     @Autowired
     private PatientMapper mapper;
 
@@ -37,8 +45,6 @@ public class PatientService {
                     cb.like(cb.lower(root.get("lastName")), likeFilter)
             // cb.like(cb.lower(root.get("healthInsuranceCard")), likeFilter)
             ));
-
-            // Beispiel für Integer-Feld birth
             try {
                 Integer birthFilter = Integer.parseInt(filter);
                 predicates.add(cb.equal(root.get("birth"), birthFilter));
@@ -52,7 +58,70 @@ public class PatientService {
     }
 
     public PatientDto save(Patient patient) {
-        Patient saved = patientRepository.save(patient);
+        if (patient == null) {
+            return null;
+        }
+        Patient saved;
+        if (patient.getId() != null) {
+            if (patient.getId() <= 0) {
+                patient.setId(null);
+                if (patient.getAddress() != null) {
+                    Address address = patient.getAddress();
+                    if (address.getId() != null && address.getId() <= 0) {
+                        address.setId(null);
+                    }
+                    Address savedAddress = addressRepository.save(address);
+                    patient.setAddress(savedAddress);
+                }
+                if (patient.getHealthInsurance() != null) {
+                    HealthInsurance healthInsurance = patient.getHealthInsurance();
+                    if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
+                        healthInsurance.setId(null);
+                    }
+                    HealthInsurance savedHealthInsurance = healthInsuranceRepository.save(healthInsurance);
+                    patient.setHealthInsurance(savedHealthInsurance);
+                }
+                saved = patientRepository.save(patient);
+            } else {
+                Patient existingPatient = patientRepository.getReferenceById(patient.getId());
+                if (patient.getAddress() != null) {
+                    Address address = patient.getAddress();
+                    if (address.getId() != null && address.getId() <= 0) {
+                        address.setId(null);
+                    }
+                    Address savedAddress = addressRepository.save(address);
+                    patient.setAddress(savedAddress);
+                }
+                if (patient.getHealthInsurance() != null) {
+                    HealthInsurance healthInsurance = patient.getHealthInsurance();
+                    if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
+                        healthInsurance.setId(null);
+                    }
+                    HealthInsurance savedHealthInsurance = healthInsuranceRepository.save(healthInsurance);
+                    patient.setHealthInsurance(savedHealthInsurance);
+                }
+                mapper.updateEntityFromEntity(patient, existingPatient);
+                saved = patientRepository.save(existingPatient);
+            }
+        } else {
+            if (patient.getAddress() != null) {
+                Address address = patient.getAddress();
+                if (address.getId() != null && address.getId() <= 0) {
+                    address.setId(null);
+                }
+                Address savedAddress = addressRepository.save(address);
+                patient.setAddress(savedAddress);
+            }
+            if (patient.getHealthInsurance() != null) {
+                    HealthInsurance healthInsurance = patient.getHealthInsurance();
+                    if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
+                        healthInsurance.setId(null);
+                    }
+                    HealthInsurance savedHealthInsurance = healthInsuranceRepository.save(healthInsurance);
+                    patient.setHealthInsurance(savedHealthInsurance);
+                }
+            saved = patientRepository.save(patient);
+        }
         return mapper.toDto(saved);
     }
 

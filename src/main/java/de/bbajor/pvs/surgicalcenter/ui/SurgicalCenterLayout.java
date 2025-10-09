@@ -1,18 +1,20 @@
 package de.bbajor.pvs.surgicalcenter.ui;
 
-import java.text.DateFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.accordion.AccordionPanel;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.details.DetailsVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -21,6 +23,8 @@ import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.renderer.TextRenderer;
 
 import de.bbajor.pvs.base.ui.component.AddressField;
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.base.util.PhoneUtils;
 import de.bbajor.pvs.intravitreal.treatment.ui.TimeSlotConfigForm;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterAddressDto;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
@@ -34,8 +38,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     private final TextField unitNameField = new TextField("Name der operativen Einrichtung");
     private final TextField phoneField = new TextField("Telefonnummer");
     private final EmailField emailField = new EmailField("E-Mail");
-    private final TextField contactField = new TextField("Kontakt");
-    private final TextField phoneContactField = new TextField("Telefonnummer Kontakt");
+    private final TextField contactField = new TextField("Name Kontaktperson");
+    private final TextField phoneContactField = new TextField("Telefonnummer Kontaktperson");
     private final AddressField<SurgicalCenterAddressDto> addressForm = new AddressField<>("Adresse",
             new SurgicalCenterAddressDto());
     private TimeSlotConfigForm timeSlotConfigForm = new TimeSlotConfigForm();
@@ -44,13 +48,105 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     public SurgicalCenterLayout() {
         setSizeFull();
 
-        binder.forField(unitNameField).bind(SurgicalCenterDto::getName, SurgicalCenterDto::setName);
-        binder.forField(addressForm).bind(SurgicalCenterDto::getSurgicalCenterAddress,
-                SurgicalCenterDto::setSurgicalCenterAddress);
-        binder.forField(phoneField).bind(SurgicalCenterDto::getPhone, SurgicalCenterDto::setPhone);
-        binder.forField(emailField).bind(SurgicalCenterDto::getEmail, SurgicalCenterDto::setEmail);
-        binder.forField(contactField).bind(SurgicalCenterDto::getContact, SurgicalCenterDto::setContact);
-        binder.forField(phoneContactField).bind(SurgicalCenterDto::getPhoneContact, SurgicalCenterDto::setPhoneContact);
+        phoneField.setPrefixComponent(new Button(new Icon(VaadinIcon.PHONE), e -> {
+            if (phoneField.getValue() != null && !phoneField.getValue().isEmpty()) {
+                UI.getCurrent().getPage().open("tel:" + phoneField.getValue(), "_self");
+            }
+        }));
+
+        phoneContactField.setPrefixComponent(new Button(new Icon(VaadinIcon.PHONE), e -> {
+            if (phoneContactField.getValue() != null && !phoneContactField.getValue().isEmpty()) {
+                UI.getCurrent().getPage().open("tel:" + phoneContactField.getValue(), "_self");
+            }
+        }));
+
+        emailField.setPrefixComponent(new Icon(VaadinIcon.ENVELOPE));
+
+        binder.forField(unitNameField).asRequired()
+                .withNullRepresentation("")
+                .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 200,
+                        "Bitte geben Sie einen gültigen Namen ein (max. 200 Zeichen)")
+                .bind(SurgicalCenterDto::getName, SurgicalCenterDto::setName);
+
+        binder.forField(addressForm).asRequired().withValidator(
+                address -> address != null && address.getStreet() != null && !address.getStreet().trim().isEmpty()
+                        && address.getHouseNo() != null && !address.getHouseNo().trim().isEmpty()
+                        && address.getPostalCode() != null
+                        && address.getPostalCode() >= 1000
+                        && address.getPostalCode() <= 99999
+                        && address.getCity() != null && !address.getCity().trim().isEmpty(),
+                "Bitte geben Sie eine gültige Adresse ein").bind(SurgicalCenterDto::getSurgicalCenterAddress,
+                        SurgicalCenterDto::setSurgicalCenterAddress);
+
+        binder.forField(phoneField).withValidator(item -> {
+            if (item == null || item.trim().isEmpty()) {
+                return true; // Allow empty phone numbers
+            }
+            return item.trim().length() <= 50;
+        }, "Bitte geben Sie eine gültige Telefonnummer ein (max. 50 Zeichen)")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true; // Allow empty phone numbers
+                    }
+                    try {
+                        String formatted = PhoneUtils.formatPhoneNumber(item);
+                        return formatted.matches("\\+49[1-9][0-9]{8,14}");
+                    } catch (Exception e) {
+                        return false;
+                    }
+                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein (Format: +49...)")
+                .withConverter(
+                        rawValue -> {
+                            if (rawValue == null || rawValue.trim().isEmpty()) {
+                                return null;
+                            }
+                            return PhoneUtils.formatPhoneNumber(rawValue);
+                        },
+                        formattedValue -> formattedValue)
+                .withNullRepresentation("")
+                .bind(SurgicalCenterDto::getPhone, SurgicalCenterDto::setPhone);
+
+        binder.forField(emailField)
+                .withNullRepresentation("")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true; // Email is optional
+                    }
+                    return item.trim().length() <= 100 && item.contains("@") && item.contains(".");
+                }, "Bitte geben Sie eine gültige E-Mail-Adresse ein(max. 100 Zeichen)")
+                .bind(SurgicalCenterDto::getEmail, SurgicalCenterDto::setEmail);
+
+        binder.forField(contactField)
+                .withNullRepresentation("")
+                .bind(SurgicalCenterDto::getContact, SurgicalCenterDto::setContact);
+        binder.forField(phoneContactField)
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true; // Kontakt-Telefon ist optional
+                    }
+                    return item.trim().length() <= 50;
+                }, "Bitte geben Sie eine gültige Telefonnummer ein (max. 50 Zeichen)")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true; // Kontakt-Telefon ist optional
+                    }
+                    try {
+                        String formatted = PhoneUtils.formatPhoneNumber(item);
+                        return formatted.matches("\\+49[1-9][0-9]{8,14}");
+                    } catch (Exception e) {
+                        return false;
+                    }
+                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein (Format: +49...)")
+                .withConverter(
+                        rawValue -> {
+                            if (rawValue == null || rawValue.trim().isEmpty()) {
+                                return null;
+                            }
+                            return PhoneUtils.formatPhoneNumber(rawValue);
+                        },
+                        formattedValue -> formattedValue)
+                .withNullRepresentation("")
+                .bind(SurgicalCenterDto::getPhoneContact, SurgicalCenterDto::setPhoneContact);
 
         VerticalLayout detailsLayout = new VerticalLayout();
         detailsLayout.setSizeFull();
@@ -83,8 +179,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         availableTimeSlotsLayout.setSizeFull();
         availableTimeSlotsLayout.setMinHeight("800px");
         availableTimeSlotsLayout.add(new Div("Vorhandene Zeitslots"));
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("E dd.MM.yyyy", Locale.GERMAN);
-        availableTimeSlots.addColumn(dto -> formatter.format(dto.getDate())).setHeader("Datum");
+        availableTimeSlots.addColumn(dto -> DateAndTimeUtils.getGermanDateTimeFormatter().format(dto.getDate()))
+                .setHeader("Datum");
         availableTimeSlots.addColumn(new TextRenderer<>(slot -> {
             LocalDate date = slot.getDate();
             if (date == null) {

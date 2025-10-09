@@ -1,12 +1,12 @@
 package de.bbajor.pvs.intravitreal.treatment.service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.NoSuchElementException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -50,11 +50,19 @@ public class TreatmentPlanService {
     @Autowired
     private MedicationMapper medicationMapper;
 
+    @Transactional(readOnly = true)
     private TreatmentPlan findByIdWithDetails(Long id) {
-        TreatmentPlan treatmentPlan = treatmentPlanRepository.findByIdWithDetailsWithoutSurgicalCenterTimeSlots(id)
-                .orElseThrow();
-        treatmentPlan.setTreatments(treatmentRepository
-                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlan.getId()));
+        // Fetch the treatment plan with patient and diagnosis in a single query
+        TreatmentPlan treatmentPlan = treatmentPlanRepository.findTreatmentPlanByIdWithPatientDiagnosis(id)
+                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
+                
+        // Fetch treatments separately to avoid lazy loading issues
+        List<Treatment> treatments = treatmentRepository
+                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(id);
+                
+        // Set treatments without modifying the collection directly
+        treatmentPlan.setTreatments(new ArrayList<>(treatments));
+        
         return treatmentPlan;
     }
 
@@ -63,7 +71,7 @@ public class TreatmentPlanService {
     }
 
     public List<TreatmentPlanDto> getTreatmentPlans() {
-        return findAll().stream().map(entityMapper::toDto).toList();
+        return entityMapper.toTreatmentPlanDtoList(findAll());
     }
 
     @Transactional
@@ -82,38 +90,41 @@ public class TreatmentPlanService {
             List<Predicate> predicates = new ArrayList<>();
 
             predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("description")), likeFilter)));
+                    cb.like(cb.lower(root.get("description")), likeFilter),
+                    cb.like(cb.lower(root.get("additionalInformation")), likeFilter),
+                    cb.like(cb.lower(root.get("patient").get("firstName")), likeFilter),
+                    cb.like(cb.lower(root.get("patient").get("lastName")), likeFilter)));
             // TODO add more fields like name of health insurance, ivom type etc.
-
             try {
                 Integer birthFilter = Integer.parseInt(filter);
                 predicates.add(cb.equal(root.get("birth"), birthFilter));
             } catch (NumberFormatException ignored) {
             }
-
             return cb.or(predicates.toArray(new Predicate[0]));
         };
-
         return treatmentPlanRepository.findAll(spec);
     }
 
+    @Transactional(readOnly = true)
     public List<TreatmentDto> generateWeeklyList(LocalDate startDate) {
 
         List<TreatmentDto> resultList = new ArrayList<>();
+        LocalDate monday = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate endOfWeek = monday.plusDays(6);
 
         List<Treatment> treatments = treatmentRepository
-                .findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(startDate, startDate.plusDays(7));
+                .findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(monday, endOfWeek);
         for (Treatment treatment : treatments) {
 
             SurgicalCenterTimeSlot timeSlot = treatment.getSurgicalCenterTimeSlot();
             SurgicalCenter surgicalCenter = timeSlot.getSurgicalCenter();
 
-            SurgicalCenterTimeSlotDto timeSlotDto = surgicalCenterMapper.toDto(timeSlot);
-            SurgicalCenterDto surgicalCenterDto = surgicalCenterMapper.toDto(surgicalCenter);
-            timeSlotDto.setSurgicalCenter(surgicalCenterDto);
             TreatmentDto treatmentDto = entityMapper.toDto(treatment);
             MedicationDto medicationDto = medicationMapper.toDto(treatment.getMedication());
             TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatment.getTreatmentPlan());
+            SurgicalCenterTimeSlotDto timeSlotDto = surgicalCenterMapper.toDto(timeSlot);
+            SurgicalCenterDto surgicalCenterDto = surgicalCenterMapper.toDto(surgicalCenter);
+            timeSlotDto.setSurgicalCenter(surgicalCenterDto);
             treatmentDto.setSurgicalCenterTimeSlot(timeSlotDto);
             treatmentDto.setTreatmentPlan(treatmentPlanDto);
             treatmentDto.setMedication(medicationDto);
@@ -135,7 +146,7 @@ public class TreatmentPlanService {
         return toTreatmentDtoList(treatments);
     }
 
-    public TreatmentPlanDto loadTreatmentPlanDto(Long id) {
+    public TreatmentPlanDto loadTreatmentPlanWithFullDetails(Long id) {
         TreatmentPlan treatmentPlan = findByIdWithDetails(id);
         TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(treatmentPlan);
         List<TreatmentDto> treatments = toTreatmentDtoList(treatmentPlan.getTreatments());
@@ -144,21 +155,39 @@ public class TreatmentPlanService {
     }
 
     @Transactional
-    public TreatmentPlanDto saveTreatmentPlan(TreatmentPlanDto treatmentPlanDto) {
+    public TreatmentPlanDto saveTreatmentPlan(TreatmentPlanDto update) throws NoSuchElementException {
         // 1. save treatmentplan without treatments
-        TreatmentPlan treatmentPlanToSave;
-        if (treatmentPlanDto.getId() != null) {
-            treatmentPlanToSave = treatmentPlanRepository
-                    .findByIdWithDetailsWithoutSurgicalCenterTimeSlots(treatmentPlanDto.getId()).get();
+        TreatmentPlan current;
+        if (update.getId() != null) {
+            // Load the current treatment plan with all its treatments
+            current = treatmentPlanRepository.findById(update.getId())
+                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found: " + update.getId()));
+            
+            // Clear existing treatments from the plan to avoid orphans
+            // First, detach existing treatments from the plan
+            if (current.getTreatments() != null) {
+                List<Treatment> existingTreatments = new ArrayList<>(current.getTreatments());
+                for (Treatment existingTreatment : existingTreatments) {
+                    // Don't remove from database yet, just detach from the plan
+                    existingTreatment.setTreatmentPlan(null);
+                }
+                current.getTreatments().clear();
+                // Explicitly save to ensure the detachment is persisted
+                treatmentRepository.saveAll(existingTreatments);
+            }
         } else {
-            treatmentPlanToSave = entityMapper.toEntity(treatmentPlanDto);
+            current = entityMapper.toEntity(update);
         }
-        entityMapper.updateEntityFromDto(treatmentPlanDto, treatmentPlanToSave);
-        TreatmentPlan savedTreatmentPlan = treatmentPlanRepository.save(treatmentPlanToSave);
+        
+        // Update the treatment plan from the DTO
+        entityMapper.updateEntityFromDto(update, current);
+        
+        // Save the treatment plan first
+        TreatmentPlan savedTreatmentPlan = treatmentPlanRepository.save(current);
 
-        // 2. apply treatmentplan to all treatments
+        // 2. Create and save new treatments linked to the treatment plan
         List<Treatment> treatmentEntityList = new ArrayList<>();
-        for (TreatmentDto treatmentDto : treatmentPlanDto.getTreatments()) {
+        for (TreatmentDto treatmentDto : update.getTreatments()) {
             Treatment treatmentToSave = entityMapper.toEntity(treatmentDto);
             SurgicalCenterTimeSlot surgicalCenterTimeSlot = surgicalCenterTimeSlotRepository
                     .getReferenceById(treatmentDto.getSurgicalCenterTimeSlot().getId());
@@ -168,18 +197,17 @@ public class TreatmentPlanService {
             treatmentToSave.setTreatmentPlan(savedTreatmentPlan);
             treatmentEntityList.add(treatmentToSave);
         }
-        List<Treatment> savedTreatments = treatmentRepository.saveAll(treatmentEntityList);
-
-        TreatmentPlanDto savedTreatmentPlanDto = getTreatmentPlanById(savedTreatmentPlan.getId());
+        
+        // Save all new treatments
+        treatmentRepository.saveAll(treatmentEntityList);
+        
+        // Refresh the treatment plan to get the updated state with treatments
+        TreatmentPlanDto savedTreatmentPlanDto = getTreatmentPlanByIdWithFullDetails(savedTreatmentPlan.getId());
         return savedTreatmentPlanDto;
     }
 
-    public TreatmentPlanDto getTreatmentPlanById(Long id) {
-        TreatmentPlan result = treatmentPlanRepository.findByIdWithDetailsWithoutSurgicalCenterTimeSlots(id)
-                .orElseThrow();
-        result.getTreatments().clear();
-        result.getTreatments().addAll(
-                treatmentRepository.findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(result.getId()));
+    public TreatmentPlanDto getTreatmentPlanByIdWithFullDetails(Long id) throws NoSuchElementException {
+        TreatmentPlan result = findByIdWithDetails(id);
         List<TreatmentDto> treatmentDtos = toTreatmentDtoList(result.getTreatments());
         TreatmentPlanDto treatmentPlanDto = entityMapper.toDto(result);
         treatmentPlanDto.setTreatments(treatmentDtos);
@@ -187,22 +215,41 @@ public class TreatmentPlanService {
     }
 
     @Transactional
-    public List<TreatmentDto> saveTreatments(List<TreatmentDto> treatmentsToCreate, Long treatmentPlanId) {
+    public List<TreatmentDto> saveNewTreatmentsForExistingPlan(List<TreatmentDto> treatmentsToCreate,
+            Long treatmentPlanId) {
 
-        TreatmentPlan treatmentPlan = treatmentPlanRepository.findById(treatmentPlanId).orElseThrow();
+        // Get the treatment plan by ID, ensuring it exists
+        TreatmentPlan treatmentPlan = treatmentPlanRepository.findById(treatmentPlanId)
+            .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + treatmentPlanId));
+        
+        // Create new treatments linked to the treatment plan
         List<Treatment> treatments = new ArrayList<>();
         for (TreatmentDto treatmentDto : treatmentsToCreate) {
+            // Get references to related entities
             SurgicalCenterTimeSlot timeSlot = surgicalCenterTimeSlotRepository
                     .getReferenceById(treatmentDto.getSurgicalCenterTimeSlot().getId());
             Medication medication = medicationRepository.getReferenceById(treatmentDto.getMedication().getId());
+            
+            // Create and configure the treatment
             Treatment treatment = entityMapper.toEntity(treatmentDto);
             treatment.setSurgicalCenterTimeSlot(timeSlot);
-            treatment.setTreatmentPlan(treatmentPlan);
             treatment.setMedication(medication);
+            treatment.setTreatmentPlan(treatmentPlan);
             treatments.add(treatment);
         }
 
+        // Save all treatments in a single batch operation
         List<Treatment> saved = treatmentRepository.saveAll(treatments);
+        
+        // Update the treatments collection in the treatment plan
+        if (treatmentPlan.getTreatments() == null) {
+            treatmentPlan.setTreatments(new ArrayList<>(saved));
+        } else {
+            treatmentPlan.getTreatments().addAll(saved);
+        }
+        treatmentPlanRepository.save(treatmentPlan);
+        
+        // Convert and return the saved treatments
         return toTreatmentDtoList(saved);
 
     }

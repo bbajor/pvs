@@ -13,9 +13,11 @@ public class HolidayUtils {
         Set<LocalDate> holidays = new HashSet<>();
 
         holidays.add(LocalDate.of(year, 1, 1)); // Neujahr
-        holidays.add(LocalDate.of(year, 12, 25)); // Weihnachten
+        holidays.add(LocalDate.of(year, 12, 25)); // erster Weihnachtsfeiertag
+        holidays.add(LocalDate.of(year, 12, 26)); // zweiter Weihnachtsfeiertag
         holidays.add(LocalDate.of(year, 5, 1)); // Tag der Arbeit
         holidays.add(LocalDate.of(year, 8, 15)); // Mariä Himmelfahrt (beispielsweise)
+        holidays.add(LocalDate.of(year, 10, 3)); // Tag der Deutschen Einheit
 
         // Bewegliche Feiertage (abhängig von Ostern)
         LocalDate easterSunday = calculateEasterSunday(year);
@@ -24,6 +26,7 @@ public class HolidayUtils {
         holidays.add(easterSunday.plusDays(1)); // Ostermontag
         holidays.add(easterSunday.plusDays(39)); // Christi Himmelfahrt
         holidays.add(easterSunday.plusDays(50)); // Pfingstmontag
+        
 
         // ---- Regionale Feiertage mit Sets ----
         if (Set.of(State.BW, State.BY, State.ST).contains(bl)) {
@@ -61,7 +64,7 @@ public class HolidayUtils {
     /**
      * Berechnet den Ostersonntag nach der Gaußschen Osterformel
      */
-    private static LocalDate calculateEasterSunday(int year) {
+    public static LocalDate calculateEasterSunday(int year) {
         int a = year % 19;
         int b = year / 100;
         int c = year % 100;
@@ -81,8 +84,8 @@ public class HolidayUtils {
     }
 
     /** Buß- und Bettag: Mittwoch vor dem 23. November */
-    private static LocalDate getBussUndBettag(int year) {
-        LocalDate nov23 = LocalDate.of(year, 11, 23);
+    public static LocalDate getBussUndBettag(int year) {
+        LocalDate nov23 = LocalDate.of(year, 11, 22);
         LocalDate wednesdayBefore = nov23;
         while (wednesdayBefore.getDayOfWeek() != DayOfWeek.WEDNESDAY) {
             wednesdayBefore = wednesdayBefore.minusDays(1);

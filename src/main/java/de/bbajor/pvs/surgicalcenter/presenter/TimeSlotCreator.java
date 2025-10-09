@@ -18,7 +18,10 @@ public class TimeSlotCreator {
     public static List<SurgicalCenterTimeSlotDto> createTimeSlots(TimeSlotConfig timeSlotConfig) {
 
         List<SurgicalCenterTimeSlotDto> resultList = new ArrayList<>();
-        if (timeSlotConfig == null) {
+        if (timeSlotConfig == null || timeSlotConfig.getDayOfWeek() == null
+                || timeSlotConfig.getStartTime() == null || timeSlotConfig.getEndTime() == null
+                || timeSlotConfig.getPeriodStartDate() == null || timeSlotConfig.getTimePeriod() == null
+                || timeSlotConfig.getTimeSlotRepetition() == null || timeSlotConfig.getBundesland() == null) {
             return resultList;
         }
 
