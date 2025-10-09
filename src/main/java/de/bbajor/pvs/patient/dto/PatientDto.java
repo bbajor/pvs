@@ -22,7 +22,7 @@ public class PatientDto {
     private String phone;
     private String email;
     private HealthInsuranceDto healthInsurance;
-    private String insuranceId;
+    private String insuranceNumber;
     private String description;
     private PatientHistoryDto patientHistory;
 

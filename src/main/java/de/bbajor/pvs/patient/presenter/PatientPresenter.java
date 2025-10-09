@@ -21,7 +21,6 @@ import de.bbajor.pvs.patient.service.HealthInsuranceService;
 import de.bbajor.pvs.patient.service.PatientMapper;
 import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
-import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import jakarta.transaction.Transactional;
 
@@ -47,7 +46,7 @@ public class PatientPresenter {
     private PatientMapper patientMapper;
 
     @Transactional
-    public PatientDto save(PatientDto dtoToSave) {
+    public PatientDto savePatient(PatientDto dtoToSave) {
         if (dtoToSave.getId() != null) {
             Patient existingPatient = patientService.findEntityById(dtoToSave.getId());
             patientMapper.updateEntityFromDto(dtoToSave, existingPatient);
@@ -84,23 +83,19 @@ public class PatientPresenter {
     }
 
     public TreatmentPlanDto findById(Long id) {
-        return treatmentPlanService.loadTreatmentPlanDto(id);
+        return treatmentPlanService.loadTreatmentPlanWithFullDetails(id);
     }
 
-    public void save(TreatmentPlanDto treatmentPlan) {
-        treatmentPlanService.saveTreatmentPlan(treatmentPlan);
+    public TreatmentPlanDto saveTreatmentPlan(TreatmentPlanDto treatmentPlan) {
+        return treatmentPlanService.saveTreatmentPlan(treatmentPlan);
     }
 
     public List<SurgicalCenterDto> getSurgicalCenterList() {
         return surgicalCenterService.findAll();
     }
 
-    public DiagnosisDto save(DiagnosisDto dto) {
+    public DiagnosisDto saveDiagnosis(DiagnosisDto dto) {
         return ivomDiagnosisService.save(dto);
-    }
-
-    public List<SurgicalCenterTimeSlot> getAvailableSurgeryUnitTimeSlots(Integer id) {
-        return surgicalCenterService.findTimeSlotsBySurgicalCenterId(id);
     }
 
     public Collection<DiagnosisDto> getDiagnoses() {

@@ -13,17 +13,26 @@ import org.springframework.data.repository.query.Param;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 
 public interface TreatmentPlanRepository
-        extends JpaRepository<TreatmentPlan, Long>, JpaSpecificationExecutor<TreatmentPlan> {
+                extends JpaRepository<TreatmentPlan, Long>, JpaSpecificationExecutor<TreatmentPlan> {
 
-    Slice<TreatmentPlan> findAllBy(Pageable pageable);
+        Slice<TreatmentPlan> findAllBy(Pageable pageable);
 
-    List<TreatmentPlan> findByPatientId(Integer patientId);
+        List<TreatmentPlan> findByPatientId(Integer patientId);
 
-    @Query("Select Distinct tp from TreatmentPlan tp " +
-            "left join fetch tp.patient " +
-            "left join fetch tp.diagnosis " +
-            "left join fetch tp.treatments tm " +
-            "left join fetch tm.medication m " +
-            "where tp.id = :id")
-    Optional<TreatmentPlan> findByIdWithDetailsWithoutSurgicalCenterTimeSlots(@Param("id") Long id);
+        @Query("""
+                            SELECT DISTINCT tp FROM TreatmentPlan tp
+                            LEFT JOIN FETCH tp.patient p
+                            LEFT JOIN FETCH p.address a
+                            LEFT JOIN FETCH tp.diagnosis d
+                        """)
+        List<TreatmentPlan> findAllTreatmentPlansWithPatientDiagnosis();
+
+        @Query("""
+                            SELECT DISTINCT tp FROM TreatmentPlan tp
+                            LEFT JOIN FETCH tp.patient p
+                            LEFT JOIN FETCH p.address a
+                            LEFT JOIN FETCH tp.diagnosis d
+                            WHERE tp.id = :id
+                        """)
+        Optional<TreatmentPlan> findTreatmentPlanByIdWithPatientDiagnosis(@Param("id") Long id);
 }

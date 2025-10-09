@@ -3,6 +3,7 @@ package de.bbajor.pvs.patient.ui.view;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.vaadin.flow.component.HasValue.ValueChangeEvent;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -15,6 +16,7 @@ import de.bbajor.pvs.patient.presenter.PatientPresenter;
 public class PatientDialog extends Dialog {
 
     private List<PatientChangeListener> listeners = new ArrayList<>();
+    private final Button saveButton = new Button();
 
     private final PatientPresenter presenter;
     private final PatientForm form;
@@ -29,25 +31,29 @@ public class PatientDialog extends Dialog {
         setHeight("600px");
 
         // Create the components
-        form = new PatientForm(presenter.getHealthInsurances(), patientDto);
+        form = new PatientForm(presenter.getHealthInsurances(), patientDto, e -> valueChanged(e));
 
-        var readBtn = new Button("Patientendaten einlesen", event -> {
+        var readBtn = new Button("Aus Gesundheitskarte einlesen", event -> {
             try {
                 form.setValue(presenter.readDataFromEgk());
             } catch (Exception e) {
-                Notification.show("Fehler beim Lesen der eGK: " + e.getMessage());
+                Notification.show("Einlesen der Karte nicht erfolgreich: " + e.getMessage());
             }
         });
         readBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-        String saveLabel = patientDto == null || patientDto.getId() == null ? "Erstellen" : "Aktualisieren";
-        var saveBtn = new Button(saveLabel, event -> {
+        
+        var saveLbl = patientDto == null || patientDto.getId() == null ? "Erstellen"
+                : "Aktualisieren";
+        saveButton.setText(saveLbl);
+        saveButton.setEnabled(form.isValidateOk());
+        saveButton.addClickListener(event -> {
             try {
                 save();
             } catch (ValidationException e) {
                 Notification.show("Patientendaten konnten nicht gespeichert werden:" + e.getMessage());
             }
         });
-        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         var cancelBtn = new Button("Abbrechen", event -> close());
 
@@ -56,7 +62,7 @@ public class PatientDialog extends Dialog {
                 : "Patient " + patientDto.toString();
         setHeaderTitle(title);
         add(form);
-        getFooter().add(cancelBtn, readBtn, saveBtn);
+        getFooter().add(cancelBtn, readBtn, saveButton);
     }
 
     public void addChangeListener(PatientChangeListener listener) {
@@ -64,15 +70,22 @@ public class PatientDialog extends Dialog {
     }
 
     protected void notifyListeners() {
-        listeners.forEach(PatientChangeListener::onPatientChanged);
+        listeners.forEach(e -> e.onPatientChanged(form.getValue()));
     }
 
     private void save() throws ValidationException {
         if (form.isValidateOk()) {
             form.writeIfValid();
-            presenter.save(form.getValue());
+            presenter.savePatient(form.getValue());
             notifyListeners();
             close();
+        } else {
+            Notification.show("Es fehlen noch Angaben. Bitte ergänzen.");
         }
     }
+
+    public void valueChanged(ValueChangeEvent<?> event) {
+        saveButton.setEnabled(form.isValidateOk());
+    }
+
 }

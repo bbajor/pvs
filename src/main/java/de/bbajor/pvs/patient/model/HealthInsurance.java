@@ -4,12 +4,12 @@ import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
 @Entity
 @Accessors(chain = true)
 public class HealthInsurance extends BasicEntity<Integer> {
@@ -24,5 +24,4 @@ public class HealthInsurance extends BasicEntity<Integer> {
     private String costCarrierCountryCode; // Länderkürzel des Kostenträgers
     private String costCarrierId; // Kostenträgernummer
     private String costCarrierName; // Kostenträger
-
 }

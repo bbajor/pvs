@@ -1,15 +1,20 @@
 package de.bbajor.pvs.medication.model;
 
-import jakarta.persistence.*;
-import lombok.*;
 import java.util.HashSet;
 import java.util.Set;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
-@EqualsAndHashCode(callSuper = true)
-@Data
+@Getter
+@Setter
 public class IcdEntry extends BasicEntity<Integer> {
 
     @Column(name = "coding_type", nullable = false)

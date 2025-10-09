@@ -8,19 +8,19 @@ import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Transient;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
 @Entity
 @Accessors(chain = true)
 public class SurgicalCenterAddress extends BasicEntity<Long> {
 
     private String street;
     private String houseNo;
-    private Double postalCode;
+    private Integer postalCode;
     private String city;
 
     private String country;

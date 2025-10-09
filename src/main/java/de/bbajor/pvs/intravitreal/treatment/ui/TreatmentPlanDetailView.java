@@ -6,12 +6,14 @@ import org.springframework.beans.factory.annotation.Value;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoIcon;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
@@ -26,9 +28,11 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     @Value("${domain.bundesland}")
     private String bundesland;
 
+    private final Button createButton = new Button();
+    private final Button cancelButton = new Button(VaadinIcon.ARROW_BACKWARD.create());
+
     private final TreatmentPlanPresenter treatmentPlanPresenter;
     private final TreatmentPlanLayout treatmentPlanLayout;
-
     private TreatmentPlanDto treatmentPlanDto;
 
     public TreatmentPlanDetailView(TreatmentPlanPresenter ivomDialogPresenter) {
@@ -40,21 +44,20 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
 
-        Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
             TreatmentPlanDto treatmentPlan = treatmentPlanLayout.getTreatmentPlanDto();
             if (treatmentPlan.getId() == -1) {
                 treatmentPlan.setId(null);
             }
 
-            TreatmentPlanDto saved = ivomDialogPresenter.save(treatmentPlan,
+            TreatmentPlanDto saved = ivomDialogPresenter.saveTreatmentPlanAndTreatments(treatmentPlan,
                     treatmentPlanLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("ivom/" + saved.getId());
 
         });
         buttonBar.add(createButton);
 
-        Button cancelButton = new Button("Zurück");
+        cancelButton.setTooltipText("Zurück");
         cancelButton.addClickListener(event -> {
             UI.getCurrent().navigate("ivom");
         });
@@ -83,7 +86,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                 treatmentPlanLayout.setTreatmentPlan(newDto);
                 this.treatmentPlanDto = newDto;
             } else {
-                TreatmentPlanDto dto = treatmentPlanPresenter.getById(id);
+                TreatmentPlanDto dto = treatmentPlanPresenter.getByIdWithFullDetails(id);
                 if (dto == null) {
                     event.forwardTo(TreatmentPlanMainView.class);
                     return;
@@ -91,9 +94,23 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                 treatmentPlanLayout.setTreatmentPlan(dto);
                 this.treatmentPlanDto = dto;
             }
+            updateCreateButton();
         } catch (NumberFormatException nfe) {
             event.forwardTo(TreatmentPlanMainView.class);
         }
+    }
+
+    private void updateCreateButton() {
+        boolean isNewTreatmentPlan = treatmentPlanDto == null || treatmentPlanDto.getId() == null
+                || treatmentPlanDto.getId() == -1;
+        createButton
+                .setIcon(isNewTreatmentPlan
+                        ? VaadinIcon.FILE_ADD.create()
+                        : VaadinIcon.EDIT.create());
+        createButton.setTooltipText(
+                isNewTreatmentPlan
+                        ? "Erstellen"
+                        : "Aktualisieren");
     }
 
 }

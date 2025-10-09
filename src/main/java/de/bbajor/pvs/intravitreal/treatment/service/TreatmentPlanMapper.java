@@ -1,6 +1,5 @@
 package de.bbajor.pvs.intravitreal.treatment.service;
 
-import java.util.Collection;
 import java.util.List;
 
 import org.mapstruct.Mapper;
@@ -15,7 +14,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.patient.service.PatientMapper;
 
-@Mapper(componentModel = "spring", uses = {PatientMapper.class})
+@Mapper(componentModel = "spring", uses = { PatientMapper.class })
 public interface TreatmentPlanMapper {
 
     @Mapping(target = "clinicalTrial", ignore = true)
@@ -51,7 +50,7 @@ public interface TreatmentPlanMapper {
 
     void updateEntityFromDto(DiagnosisDto source, @MappingTarget Diagnosis target);
 
-    Collection<DiagnosisDto> toDiagnosisDtoList(List<Diagnosis> entityList);
+    List<DiagnosisDto> toDiagnosisDtoList(List<Diagnosis> entityList);
 
     void updateDto(TreatmentPlanDto source, @MappingTarget TreatmentPlanDto target);
 }

@@ -15,6 +15,7 @@ public class SurgicalCenterDto {
     private Integer id;
     private Long version;
     private String name;
+    private String description;
     private String phone;
     private String email;
     private SurgicalCenterAddressDto surgicalCenterAddress;

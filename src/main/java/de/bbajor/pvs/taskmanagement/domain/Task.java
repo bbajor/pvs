@@ -1,19 +1,24 @@
 package de.bbajor.pvs.taskmanagement.domain;
 
-import de.bbajor.pvs.base.domain.BasicEntity;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.Size;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-
-import org.jspecify.annotations.Nullable;
-
 import java.time.Instant;
 import java.time.LocalDate;
 
+import org.jspecify.annotations.Nullable;
+
+import de.bbajor.pvs.base.domain.BasicEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 @Entity
-@Data
-@EqualsAndHashCode(callSuper = true)
 @Table(name = "task")
 public class Task extends BasicEntity<Long> {
 

@@ -7,6 +7,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Main;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
@@ -14,6 +15,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
 import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
@@ -27,15 +29,15 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
     private final TreatmentPlanListPresenter ivomListPresenter;
     private final TextField searchField = new TextField();
-    private final Button searchButton = new Button("Suchen");
-    private final Button createButton;
+    private final Button searchButton = new Button(VaadinIcon.SEARCH.create());
+    private final Button createButton = new Button(VaadinIcon.PLUS.create());
     private final Button generateDailyListButton;
     private final Grid<TreatmentPlanDto> ivomPlanGrid = new Grid<>(TreatmentPlanDto.class, false);
 
     public TreatmentPlanMainView(TreatmentPlanListPresenter ivomListPresenter) {
         this.ivomListPresenter = ivomListPresenter;
 
-        createButton = new Button("Neuer IVOM-Plan", event -> {
+        createButton.addClickListener(event -> {
             Optional<TreatmentPlanDto> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
                 navigateToDetailView(ivom.get());
@@ -48,7 +50,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
         searchField.setWidthFull();
 
-        generateDailyListButton = new Button("Wochenliste generieren",
+        generateDailyListButton = new Button("Wochenliste anzeigen",
                 event -> {
                     DailyTreatmentsDialog dailyTreatmentsDialog = new DailyTreatmentsDialog(
                             ivomListPresenter.generateWeeklyList());
@@ -60,7 +62,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                         "Einrichtungen aufgelistet, an denen die Behandlung stattfindet.");
         generateDailyListButton.getElement().setAttribute("theme", "primary");
 
-        add(new ViewToolbar("IVOM-Planer",
+        add(new ViewToolbar("IVOM-Behandlungspläne",
                 ViewToolbar.group(createButton, searchField, searchButton, generateDailyListButton)));
         add(ivomPlanGrid);
 
@@ -82,7 +84,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private void configureGrid() {
         ivomPlanGrid.addColumn(TreatmentPlanDto::getLastName).setHeader("Nachname");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getFirstName).setHeader("Vorname");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getBirth).setHeader("Geburtsdatum");
+        ivomPlanGrid.addColumn(dto -> DateAndTimeUtils.getGermanDateTimeFormatter().format(dto.getBirth()))
+                .setHeader("Geburtsdatum");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getHealthInsurance).setHeader("Krankenkasse");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
         ivomPlanGrid.addColumn(TreatmentPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");

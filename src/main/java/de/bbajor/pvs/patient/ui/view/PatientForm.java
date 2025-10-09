@@ -37,7 +37,8 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         private final TextField phoneField = new TextField("Telefonnummer");
         private final TextField emailField = new TextField("E-Mail");
 
-        public PatientForm(List<HealthInsuranceDto> healthInsurances, PatientDto patientDto) {
+        public PatientForm(List<HealthInsuranceDto> healthInsurances, PatientDto patientDto,
+                        ValueChangeListener<? super ValueChangeEvent<?>> listener) {
                 super(patientDto);
 
                 titleComboBox.setItems(Title.values());
@@ -70,18 +71,38 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                                 // Use three columns, if the layout's width exceeds 500px
                                 new ResponsiveStep("500px", 3));
 
-                binder.bind(firstNameField, PatientDto::getFirstName, PatientDto::setFirstName);
-                binder.bind(lastNameField, PatientDto::getLastName, PatientDto::setLastName);
-                binder.bind(birthDateField, PatientDto::getBirth, PatientDto::setBirth);
-                binder.bind(phoneField, PatientDto::getPhone, PatientDto::setPhone);
-                binder.bind(emailField, PatientDto::getEmail, PatientDto::setEmail);
+                binder.forField(firstNameField).asRequired("Bitte geben Sie einen gültigen Vornamen ein")
+                                .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 100,
+                                                "Der Vorname muss zwischen 1 und 100 Zeichen enthalten")
+                                .bind(PatientDto::getFirstName, PatientDto::setFirstName);
+                binder.forField(lastNameField).asRequired("Bitte geben Sie einen gültigen Nachnamen ein")
+                                .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 100,
+                                                "Der Nachname muss zwischen 1 und 100 Zeichen enthalten")
+                                .bind(PatientDto::getLastName, PatientDto::setLastName);
+                binder.forField(birthDateField).asRequired("Bitte geben Sie ein gültiges Geburtsdatum ein")
+                                .withValidator(item -> item != null && item.isBefore(java.time.LocalDate.now()),
+                                                "Das Geburtsdatum muss in der Vergangenheit liegen")
+                                .bind(PatientDto::getBirth, PatientDto::setBirth);
+                binder.forField(phoneField).withValidator(item -> item.isEmpty() || item.trim().length() < 30,
+                                "Die Telefonnummer darf maximal 30 Zeichen enthalten")
+                                .bind(PatientDto::getPhone, PatientDto::setPhone);
+                binder.forField(emailField).withValidator(item -> item.isEmpty() || item.contains("@"),
+                                "Bitte eine gültige E-Mail-Adresse eingeben")
+                                .bind(PatientDto::getEmail, PatientDto::setEmail);
                 binder.bind(salutationComboBox, PatientDto::getSalutation, PatientDto::setSalutation);
-                binder.bind(healthInsuranceNumberField, PatientDto::getInsuranceId,
-                                PatientDto::setInsuranceId);
+                binder.forField(healthInsuranceNumberField)
+                                .withValidator(item -> item != null, "Die Versichertennummer darf nicht leer sein")
+                                .withValidator(item -> item.isEmpty() || item.trim().length() < 30,
+                                                "Die Versichertennummer darf maximal 30 Zeichen enthalten")
+                                .bind(PatientDto::getInsuranceNumber,
+                                                PatientDto::setInsuranceNumber);
                 binder.bind(healthInsuranceField, PatientDto::getHealthInsurance, PatientDto::setHealthInsurance);
                 binder.bind(titleComboBox, PatientDto::getTitle, PatientDto::setTitle);
-                binder.bind(descriptionField, PatientDto::getDescription, PatientDto::setDescription);
-                binder.bind(addressField, PatientDto::getAddress, PatientDto::setAddress);
+                binder.forField(descriptionField).withValidator(item -> item.isEmpty() || item.trim().length() < 2000,
+                                "Die Beschreibung darf maximal 2000 Zeichen enthalten")
+                                .bind(PatientDto::getDescription, PatientDto::setDescription);
+                binder.forField(addressField).bind(PatientDto::getAddress, PatientDto::setAddress);
+                binder.addValueChangeListener(listener);
                 setValue(patientDto);
         }
 

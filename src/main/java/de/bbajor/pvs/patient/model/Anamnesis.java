@@ -5,11 +5,11 @@ import java.util.List;
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
 @Entity
 public class Anamnesis extends BasicEntity<Integer> {
 

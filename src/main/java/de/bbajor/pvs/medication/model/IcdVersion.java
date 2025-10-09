@@ -4,14 +4,14 @@ import java.sql.Date;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
 @Entity
 public class IcdVersion extends BasicEntity<Integer> {
- 
+
     private String description;
     private Date validFrom;
     private Date validTo;
