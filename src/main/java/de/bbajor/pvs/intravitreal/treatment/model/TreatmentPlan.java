@@ -1,6 +1,7 @@
 package de.bbajor.pvs.intravitreal.treatment.model;
 
 import java.time.LocalDate;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,13 +28,27 @@ public class TreatmentPlan extends BasicEntity<Long> {
     @ManyToOne(fetch = FetchType.EAGER)
     private Patient patient;
     @ManyToOne(fetch = FetchType.EAGER)
-    private Diagnose diagnosis;
+    private Diagnosis diagnosis;
     @OneToOne
     private ClinicalTrial clinicalTrial;
     private String additionalInformation;
-    @OneToMany(mappedBy = "treatmentPlan", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = false)
+    @OneToMany(mappedBy = "treatmentPlan", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, orphanRemoval = false)
     private List<Treatment> treatments = new ArrayList<>();
 
+    public String getFirstName() {
+        return patient.getFirstName();
+    }
 
+    public String getLastName() {
+        return patient.getLastName();
+    }
+
+    public String getHealthInsurance() {
+        return patient.getHealthInsurance().getBillingCarrierName();
+    }
+
+    public LocalDate getBirth() {
+        return patient.getBirth();
+    }
 
 }

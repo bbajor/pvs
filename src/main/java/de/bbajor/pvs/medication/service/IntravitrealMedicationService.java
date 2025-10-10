@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import de.bbajor.pvs.medication.dto.MedicationDto;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.repository.MedicationRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -26,7 +25,7 @@ public class IntravitrealMedicationService {
         return medicationRepository.findById(id);
     }
 
-    public List<MedicationDto> findIntravitrealMedication(String filter) {
+    public List<Medication> findIntravitrealMedication(String filter) {
         Specification<Medication> spec = (root, query, cb) -> {
             String likeFilter = "%" + filter.toLowerCase() + "%";
             List<Predicate> predicates = new ArrayList<>();
@@ -37,7 +36,7 @@ public class IntravitrealMedicationService {
             return cb.or(predicates.toArray(new Predicate[0]));
         };
 
-        return medicationMapper.toMedicationDtoList(medicationRepository.findAll(spec));
+        return medicationRepository.findAll(spec);
     }
 
     public List<Medication> findAll() {
@@ -45,32 +44,24 @@ public class IntravitrealMedicationService {
     }
 
     @Transactional
-    public MedicationDto save(MedicationDto dto) {
-        Medication entityToSave;
-
-        if (dto.getId() == null) {
-            entityToSave = new Medication();
-            medicationMapper.updateEntityFromDto(dto, entityToSave);
+    public Medication save(Medication update) {
+        if (update.getId() == null || update.getId() <= 0) {
+            update.setId(null);
+            return medicationRepository.save(update);
         } else {
-            entityToSave = medicationRepository.getReferenceById(dto.getId());
-            medicationMapper.updateEntityFromDto(dto, entityToSave);
+            Medication medication = medicationRepository.getReferenceById(update.getId());
+            medicationMapper.updateMedication(update, medication);
+            return medicationRepository.save(medication);
         }
-
-        Medication savedEntity = medicationRepository.save(entityToSave);
-        return medicationMapper.toMedicationDto(savedEntity);
     }
 
-    public List<MedicationDto> getMedicationListFavourites() {
-        return medicationMapper.toMedicationDtoList(medicationRepository.findAllByIsFavouriteTrue());
+    public List<Medication> getMedicationListFavourites() {
+        return medicationRepository.findAllByIsFavouriteTrue();
     }
 
     @Transactional
-    public List<MedicationDto> saveAll(List<Medication> medications) {
-        List<MedicationDto> medicationDtos = new ArrayList<>();
-        for (Medication medication : medications) {
-            medicationDtos.add(save(medicationMapper.toMedicationDto(medication)));
-        }
-        return medicationDtos;
+    public List<Medication> saveAll(List<Medication> medications) {
+        return medicationRepository.saveAll(medications);
     }
 
 }

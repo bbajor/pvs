@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
 
 @Component
@@ -16,11 +16,11 @@ public class PatientListPresenter {
     @Autowired
     private PatientPresenter patientDialogPresenter;
 
-    public List<PatientDto> findAll() {
+    public List<Patient> findAll() {
         return patientService.getAll();
     }
 
-    public List<PatientDto> findAllBy(String searchString) {
+    public List<Patient> findAllBy(String searchString) {
         return patientService.findPatients(searchString);
     }
 

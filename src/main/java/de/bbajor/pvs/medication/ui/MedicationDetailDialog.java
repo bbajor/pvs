@@ -13,15 +13,15 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 
 import de.bbajor.pvs.medication.controller.MedicationViewPresenter;
-import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
 
 public class MedicationDetailDialog extends Dialog {
 
-        private Binder<MedicationDto> binder = new Binder<>();
-        private final Consumer<MedicationDto> onSave;
+        private Binder<Medication> binder = new Binder<>();
+        private final Consumer<Medication> onSave;
 
-        public MedicationDetailDialog(MedicationViewPresenter presenter, MedicationDto medication,
-                        Consumer<MedicationDto> onSave) {
+        public MedicationDetailDialog(MedicationViewPresenter presenter, Medication medication,
+                        Consumer<Medication> onSave) {
                 this.onSave = onSave;
 
                 boolean isReadOnly = true;
@@ -94,7 +94,7 @@ public class MedicationDetailDialog extends Dialog {
                                 wirkstoffe, packungsGroessenGruppeVerkaufsabgrenzung);
                 detailLayout.add(amKlassifikationen, 3);
                 detailLayout.setSizeFull();
-                
+
                 detailLayout.setResponsiveSteps(
                                 // Use one column by default
                                 new ResponsiveStep("0", 1),
@@ -108,7 +108,7 @@ public class MedicationDetailDialog extends Dialog {
 
                 Button saveButton = new Button("Ok");
                 saveButton.addClickListener(event -> {
-                        MedicationDto saved = presenter.save(binder.getBean());
+                        Medication saved = presenter.save(binder.getBean());
                         binder.setBean(saved);
                         if (onSave != null) {
                                 onSave.accept(saved);
@@ -122,43 +122,43 @@ public class MedicationDetailDialog extends Dialog {
 
                 getFooter().add(favourite, saveButton, cancelButton);
 
-                binder.forField(nr).bind(MedicationDto::getZulassungsNr, MedicationDto::setZulassungsNr);
-                binder.forField(eingangsnummer).bind(MedicationDto::getEingangsnummer,
-                                MedicationDto::setEingangsnummer);
-                binder.forField(arzneimittelBezeichnung).bind(MedicationDto::getArzneimittelbezeichnung,
-                                MedicationDto::setArzneimittelbezeichnung);
-                binder.forField(darreichungsForm).bind(MedicationDto::getDarreichungsform,
-                                MedicationDto::setDarreichungsform);
-                binder.forField(zielgruppe).bind(MedicationDto::getZielgruppe, MedicationDto::setZielgruppe);
-                binder.forField(anwendungsArt).bind(MedicationDto::getAnwendungsart, MedicationDto::setAnwendungsart);
-                binder.forField(anwendungsGebiete).bind(MedicationDto::getAnwendungsgebiete,
-                                MedicationDto::setAnwendungsgebiete);
-                binder.forField(indikationAtc).bind(MedicationDto::getIndikationAtc, MedicationDto::setIndikationAtc);
-                binder.forField(bescheidDatumZulassung).bind(MedicationDto::getBescheiddatumZulassung,
-                                MedicationDto::setBescheiddatumZulassung);
-                binder.forField(zulassungsStatus).bind(MedicationDto::getZulassungsstatus,
-                                MedicationDto::setZulassungsstatus);
-                binder.forField(zulassungsRegNrOderKennziffer).bind(MedicationDto::getZulassungsRegNrOderKennziffer,
-                                MedicationDto::setZulassungsRegNrOderKennziffer);
-                binder.forField(verkehrsFaehigkeit).bind(MedicationDto::getVerkehrsfaehigkeit,
-                                MedicationDto::setVerkehrsfaehigkeit);
-                binder.forField(parallelImportInformationen).bind(MedicationDto::getParallelimportinformationen,
-                                MedicationDto::setParallelimportinformationen);
-                binder.forField(euVerfahrensNummer).bind(MedicationDto::getEuVerfahrensnummer,
-                                MedicationDto::setEuVerfahrensnummer);
-                binder.forField(zulassungsInhaber).bind(MedicationDto::getZulassungsinhaber,
-                                MedicationDto::setZulassungsinhaber);
-                binder.forField(herstellerEndFreigabe).bind(MedicationDto::getHerstellerEndfreigabe,
-                                MedicationDto::setHerstellerEndfreigabe);
-                binder.forField(vertreiber).bind(MedicationDto::getVertreiber, MedicationDto::setVertreiber);
-                binder.forField(oertlicherVertreter).bind(MedicationDto::getOertlicherVertreter,
-                                MedicationDto::setOertlicherVertreter);
-                binder.forField(wirkstoffe).bind(MedicationDto::getWirkstoffe, MedicationDto::setWirkstoffe);
-                binder.forField(packungsGroessenGruppeVerkaufsabgrenzung).bind(MedicationDto::getPackungsgroessenGruppe,
-                                MedicationDto::setPackungsgroessenGruppe);
-                binder.forField(amKlassifikationen).bind(MedicationDto::getAmKlassifikationen,
-                                MedicationDto::setAmKlassifikationen);
-                binder.forField(favourite).bind(MedicationDto::isFavourite, MedicationDto::setFavourite);
+                binder.forField(nr).bind(Medication::getZulassungsNr, Medication::setZulassungsNr);
+                binder.forField(eingangsnummer).bind(Medication::getEingangsnummer,
+                                Medication::setEingangsnummer);
+                binder.forField(arzneimittelBezeichnung).bind(Medication::getArzneimittelbezeichnung,
+                                Medication::setArzneimittelbezeichnung);
+                binder.forField(darreichungsForm).bind(Medication::getDarreichungsform,
+                                Medication::setDarreichungsform);
+                binder.forField(zielgruppe).bind(Medication::getZielgruppe, Medication::setZielgruppe);
+                binder.forField(anwendungsArt).bind(Medication::getAnwendungsart, Medication::setAnwendungsart);
+                binder.forField(anwendungsGebiete).bind(Medication::getAnwendungsgebiete,
+                                Medication::setAnwendungsgebiete);
+                binder.forField(indikationAtc).bind(Medication::getIndikationAtc, Medication::setIndikationAtc);
+                binder.forField(bescheidDatumZulassung).bind(Medication::getBescheiddatumZulassung,
+                                Medication::setBescheiddatumZulassung);
+                binder.forField(zulassungsStatus).bind(Medication::getZulassungsstatus,
+                                Medication::setZulassungsstatus);
+                binder.forField(zulassungsRegNrOderKennziffer).bind(Medication::getZulassungsRegNrOderKennziffer,
+                                Medication::setZulassungsRegNrOderKennziffer);
+                binder.forField(verkehrsFaehigkeit).bind(Medication::getVerkehrsfaehigkeit,
+                                Medication::setVerkehrsfaehigkeit);
+                binder.forField(parallelImportInformationen).bind(Medication::getParallelimportinformationen,
+                                Medication::setParallelimportinformationen);
+                binder.forField(euVerfahrensNummer).bind(Medication::getEuVerfahrensnummer,
+                                Medication::setEuVerfahrensnummer);
+                binder.forField(zulassungsInhaber).bind(Medication::getZulassungsinhaber,
+                                Medication::setZulassungsinhaber);
+                binder.forField(herstellerEndFreigabe).bind(Medication::getHerstellerEndfreigabe,
+                                Medication::setHerstellerEndfreigabe);
+                binder.forField(vertreiber).bind(Medication::getVertreiber, Medication::setVertreiber);
+                binder.forField(oertlicherVertreter).bind(Medication::getOertlicherVertreter,
+                                Medication::setOertlicherVertreter);
+                binder.forField(wirkstoffe).bind(Medication::getWirkstoffe, Medication::setWirkstoffe);
+                binder.forField(packungsGroessenGruppeVerkaufsabgrenzung).bind(Medication::getPackungsgroessenGruppe,
+                                Medication::setPackungsgroessenGruppe);
+                binder.forField(amKlassifikationen).bind(Medication::getAmKlassifikationen,
+                                Medication::setAmKlassifikationen);
+                binder.forField(favourite).bind(Medication::isFavourite, Medication::setFavourite);
 
                 binder.setBean(medication);
         }

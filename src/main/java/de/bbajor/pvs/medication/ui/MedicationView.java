@@ -34,7 +34,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.medication.controller.MedicationViewPresenter;
-import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.PermitAll;
 
@@ -97,11 +97,11 @@ public class MedicationView extends Main {
         grid.setSelectionMode(SelectionMode.SINGLE);
         grid.addItemDoubleClickListener(event -> {
             MedicationNode medicationNode = event.getItem();
-            if (medicationNode.getDto() != null) {
+            if (medicationNode.getMedication() != null) {
                 MedicationDetailDialog detailDialog = new MedicationDetailDialog(medicationPresenter,
-                        medicationNode.getDto(), updatedDto -> {
+                        medicationNode.getMedication(), updatedDto -> {
                             MedicationNode nodeToRefresh = findById(grid.getTreeData(), null,
-                                    medicationNode.getDto().getId());
+                                    medicationNode.getMedication().getId());
                             if (nodeToRefresh != null) {
                                 TreeData<MedicationNode> treeData = grid.getTreeData();
                                 MedicationNode parent = treeData.getParent(medicationNode);
@@ -189,22 +189,22 @@ public class MedicationView extends Main {
                 .anyMatch(role -> AppRoles.TECH_USER.equals(role) || AppRoles.ADMIN.equals(role));
     }
 
-    private TreeData<MedicationNode> buildTree(List<MedicationDto> drugs) {
+    private TreeData<MedicationNode> buildTree(List<Medication> medications) {
         TreeData<MedicationNode> newTreeData = new TreeData<>();
 
         Map<String, MedicationNode> bezeichnungNodes = new HashMap<>();
 
-        for (MedicationDto dto : drugs) {
+        for (Medication medication : medications) {
 
             // nur einmal anlegen
-            MedicationNode parent = bezeichnungNodes.computeIfAbsent(dto.getArzneimittelbezeichnung(), key -> {
+            MedicationNode parent = bezeichnungNodes.computeIfAbsent(medication.getArzneimittelbezeichnung(), key -> {
                 MedicationNode node = new MedicationNode(key, null); // Zwischenknoten ohne DTO
                 newTreeData.addItem(null, node); // als Root-Item
                 return node;
             });
 
             // Ebene 2: Leaf
-            MedicationNode leaf = new MedicationNode(dto.getWirkstoffe(), dto);
+            MedicationNode leaf = new MedicationNode(medication.getWirkstoffe(), medication);
             if (!newTreeData.contains(leaf)) {
                 newTreeData.addItem(parent, leaf);
             }
@@ -213,8 +213,8 @@ public class MedicationView extends Main {
 
     }
 
-    private void reloadTree(List<MedicationDto> drugs) {
-        TreeData<MedicationNode> newTreeData = buildTree(new ArrayList<>(drugs));
+    private void reloadTree(List<Medication> medication) {
+        TreeData<MedicationNode> newTreeData = buildTree(new ArrayList<>(medication));
         TreeDataProvider<MedicationNode> newProvider = new TreeDataProvider<>(newTreeData);
         grid.setDataProvider(newProvider);
         dataProvider = newProvider; // Referenz aktualisieren
@@ -222,7 +222,7 @@ public class MedicationView extends Main {
 
     private MedicationNode findById(TreeData<MedicationNode> treeData, MedicationNode parent, Long id) {
         for (MedicationNode child : treeData.getChildren(parent)) {
-            if (child.getDto() != null && id.equals(child.getDto().getId())) {
+            if (child.getMedication() != null && id.equals(child.getMedication().getId())) {
                 return child;
             }
             MedicationNode found = findById(treeData, child, id);

@@ -3,6 +3,8 @@ package de.bbajor.pvs.patient.model;
 import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.patient.dto.Salutation;
+import de.bbajor.pvs.patient.dto.Title;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,8 +28,8 @@ import lombok.experimental.Accessors;
 })
 public class Patient extends BasicEntity<Integer> {
 
-    private String salutation;
-    private String title;
+    private Salutation salutation;
+    private Title title;
     @Column(name = "first_name", nullable = false)
     private String firstName;
     @Column(name = "last_name", nullable = false)
@@ -47,5 +49,10 @@ public class Patient extends BasicEntity<Integer> {
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private PatientHistory patientHistory;
     private String description;
+
+    public String getPatientInfo() {
+        return String.format("%s %s, geb. %s, %s",
+                firstName, lastName, birth, healthInsurance);
+    }
 
 }

@@ -13,17 +13,17 @@ import org.springframework.stereotype.Component;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
-import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import jakarta.transaction.Transactional;
 
@@ -41,59 +41,59 @@ public class TreatmentPlanPresenter {
     @Autowired
     private IntravitrealMedicationService medicationService;
 
-    public TreatmentPlanDto loadTreatmentPlanByIdWithFullDetails(Long id) throws NoSuchElementException {
+    public TreatmentPlan loadTreatmentPlanByIdWithFullDetails(Long id) throws NoSuchElementException {
         return treatmentPlanService.loadTreatmentPlanWithFullDetails(id);
     }
 
     @Transactional
-    public TreatmentPlanDto saveTreatmentPlanAndTreatments(TreatmentPlanDto dto, List<TreatmentDto> treatmentDtos) {
-        TreatmentPlanDto saved = treatmentPlanService.saveTreatmentPlan(dto);
+    public TreatmentPlan saveTreatmentPlanAndTreatments(TreatmentPlan dto, List<Treatment> treatmentDtos) {
+        TreatmentPlan saved = treatmentPlanService.saveTreatmentPlan(dto);
         return saveNewTreatments(saved.getId(), treatmentDtos);
     }
 
-    public List<PatientDto> getPatients() {
+    public List<Patient> getPatients() {
         return patientService.getAll();
     }
 
-    public List<MedicationDto> getDrugs() {
+    public List<Medication> getDrugs() {
         return medicationService.getMedicationListFavourites();
     }
 
-    public List<SurgicalCenterDto> getSurgicalCenters() {
+    public List<SurgicalCenter> getSurgicalCenters() {
         return surgicalCenterService.getSurgicalCenters();
     }
 
-    public DiagnosisDto saveDiagnosis(DiagnosisDto newDto) {
+    public Diagnosis saveDiagnosis(Diagnosis newDto) {
         return ivomDiagnosisService.save(newDto);
     }
 
-    public List<SurgicalCenterTimeSlotDto> loadAvailableSurgicalCenterTimeSlots(
-            SurgicalCenterDto selectedSurgicalCenter) {
-        List<SurgicalCenterDto> surgicalCenterDtos = new ArrayList<>();
+    public List<SurgicalCenterTimeSlot> loadAvailableSurgicalCenterTimeSlots(
+            SurgicalCenter selectedSurgicalCenter) {
+        List<SurgicalCenter> surgicalCenterDtos = new ArrayList<>();
         if (selectedSurgicalCenter == null) { // if no specific surgical center has been selected, choose all
             surgicalCenterDtos.addAll(surgicalCenterService.getSurgicalCenters());
         } else {
             surgicalCenterDtos.add(selectedSurgicalCenter);
         }
-        List<SurgicalCenterTimeSlotDto> resultList = new ArrayList<>();
-        for (SurgicalCenterDto surgicalCenter : surgicalCenterDtos) {
+        List<SurgicalCenterTimeSlot> resultList = new ArrayList<>();
+        for (SurgicalCenter surgicalCenter : surgicalCenterDtos) {
             resultList.addAll(surgicalCenter.getAvailableTimeSlots());
         }
         return resultList;
     }
 
-    public Collection<SurgicalCenterTimeSlotDto> getAllTimeSlotsFilteredBy(LocalDate start, TimePeriod period,
+    public Collection<SurgicalCenterTimeSlot> getAllTimeSlotsFilteredBy(LocalDate start, TimePeriod period,
             TimeSlotRepetition repetition,
             Integer surgicalCenterId) {
-        Collection<SurgicalCenterTimeSlotDto> surgicalCenterTimeSlots = surgicalCenterService
+        Collection<SurgicalCenterTimeSlot> surgicalCenterTimeSlots = surgicalCenterService
                 .findAvailableTimeSlotsFilteredBy(start, period, surgicalCenterId);
 
-        List<SurgicalCenterTimeSlotDto> fullyFiltered = new ArrayList<>();
+        List<SurgicalCenterTimeSlot> fullyFiltered = new ArrayList<>();
 
         var end = period.calculateEndDate(start);
         var repeatEveryWeeks = repetition.getRepeatEveryWeeks();
 
-        for (SurgicalCenterTimeSlotDto slot : surgicalCenterTimeSlots) {
+        for (SurgicalCenterTimeSlot slot : surgicalCenterTimeSlots) {
             LocalDate slotDate = slot.getDate();
 
             // nur Slots innerhalb des Zeitraums beachten
@@ -113,35 +113,36 @@ public class TreatmentPlanPresenter {
     }
 
     @Transactional
-    private TreatmentPlanDto saveNewTreatments(Long treatmentPlanId, List<TreatmentDto> treatmentDtos) {
-        List<TreatmentDto> savedTreatments = treatmentPlanService.saveNewTreatmentsForExistingPlan(treatmentDtos, treatmentPlanId);
-        return treatmentPlanService.getTreatmentPlanByIdWithFullDetails(treatmentPlanId);
+    private TreatmentPlan saveNewTreatments(Long treatmentPlanId, List<Treatment> treatments) {
+        List<Treatment> savedTreatments = treatmentPlanService.saveNewTreatmentsForExistingPlan(treatments,
+                treatmentPlanId);
+        return treatmentPlanService.findByIdWithDetails(treatmentPlanId);
     }
 
-    public TreatmentPlanDto getByIdWithFullDetails(Long id) {
-        TreatmentPlanDto treatmentPlan = treatmentPlanService.getTreatmentPlanByIdWithFullDetails(id);
+    public TreatmentPlan getByIdWithFullDetails(Long id) {
+        TreatmentPlan treatmentPlan = treatmentPlanService.findByIdWithDetails(id);
         if (treatmentPlan == null) {
-            return new TreatmentPlanDto();
+            return new TreatmentPlan();
         }
         return treatmentPlan;
     }
 
-    public List<TreatmentDto> getTreatmentDtos(SideOfEye sideOfEye, Long treatmentPlanId) {
+    public List<Treatment> getTreatmentDtos(SideOfEye sideOfEye, Long treatmentPlanId) {
         if (treatmentPlanId == null || treatmentPlanId == -1) {
             return new ArrayList<>();
         }
-        List<TreatmentDto> treatmentSlots = treatmentPlanService.getTreatmentSlotsByTreatmentPlanId(treatmentPlanId);
+        List<Treatment> treatmentSlots = treatmentPlanService.getTreatmentSlots(treatmentPlanId);
         if (sideOfEye != null) {
             treatmentSlots.removeIf(e -> !sideOfEye.asDbString().equals(e.getSideOfEye()));
         }
         return treatmentSlots;
     }
 
-    public Collection<DiagnosisDto> getResaonsForTreatment() {
-        return ivomDiagnosisService.getDiagnosisDtos();
+    public Collection<Diagnosis> getResaonsForTreatment() {
+        return ivomDiagnosisService.getDiagnoses();
     }
 
-    public TreatmentPlanDto save(Long ivomPlanId, List<TreatmentDto> timeSlotsToCreate) {
+    public TreatmentPlan save(Long ivomPlanId, List<Treatment> timeSlotsToCreate) {
         return saveNewTreatments(ivomPlanId, timeSlotsToCreate);
     }
 }

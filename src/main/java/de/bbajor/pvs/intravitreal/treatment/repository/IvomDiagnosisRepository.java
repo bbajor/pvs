@@ -7,13 +7,13 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-import de.bbajor.pvs.intravitreal.treatment.model.Diagnose;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 
 public interface IvomDiagnosisRepository
-        extends JpaRepository<Diagnose, Long>, JpaSpecificationExecutor<Diagnose> {
+        extends JpaRepository<Diagnosis, Long>, JpaSpecificationExecutor<Diagnosis> {
 
-    Slice<Diagnose> findAllBy(Pageable pageable);
+    Slice<Diagnosis> findAllBy(Pageable pageable);
 
-    List<Diagnose> findByName(String name);
+    List<Diagnosis> findByName(String name);
 
 }

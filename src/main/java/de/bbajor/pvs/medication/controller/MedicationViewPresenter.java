@@ -11,11 +11,9 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.medication.dto.MedicationDto;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationImportService;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
-import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterMapper;
 
 @Component
 public class MedicationViewPresenter {
@@ -26,10 +24,8 @@ public class MedicationViewPresenter {
     private IntravitrealMedicationService medicationService;
     @Autowired
     private IntravitrealMedicationImportService importService;
-    @Autowired
-    private SurgicalCenterMapper mapper;
 
-    public List<MedicationDto> findAllBy(String searchString) {
+    public List<Medication> findAllBy(String searchString) {
         return medicationService.findIntravitrealMedication(searchString);
     }
 
@@ -111,13 +107,12 @@ public class MedicationViewPresenter {
         }
     }
 
-    public List<MedicationDto> getAll() {
-        List<Medication> medicationList = new ArrayList<>(medicationService.findAll());
-        return mapper.toMedicationDtoList(medicationList);
+    public List<Medication> getAll() {
+        return medicationService.findAll();
     }
 
-    public MedicationDto save(MedicationDto dto) {
-        return medicationService.save(dto);
+    public Medication save(Medication medication) {
+        return medicationService.save(medication);
     }
 
 }

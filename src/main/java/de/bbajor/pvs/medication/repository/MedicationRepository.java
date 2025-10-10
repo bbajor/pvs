@@ -1,6 +1,6 @@
 package de.bbajor.pvs.medication.repository;
 
-import java.util.Collection;
+import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -14,5 +14,5 @@ public interface MedicationRepository
 
     Slice<Medication> findAllBy(Pageable pageable);
 
-    Collection<Medication> findAllByIsFavouriteTrue();
+    List<Medication> findAllByIsFavouriteTrue();
 }

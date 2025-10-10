@@ -7,7 +7,7 @@ import java.time.LocalTime;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.intravitreal.treatment.dto.State;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -22,7 +22,7 @@ public class TimeSlotConfig {
     private LocalTime endTime;
     private TimeSlotRepetition timeSlotRepetition;
     private TimePeriod timePeriod;
-    private SurgicalCenterDto surgicalCenter;
+    private SurgicalCenter surgicalCenter;
     private State bundesland;
     public boolean isSingleAppointment;
 

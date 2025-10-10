@@ -10,7 +10,7 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.data.binder.ValidationException;
 
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientPresenter;
 
 public class PatientDialog extends Dialog {
@@ -21,17 +21,17 @@ public class PatientDialog extends Dialog {
     private final PatientPresenter presenter;
     private final PatientForm form;
 
-    public PatientDialog(PatientPresenter presenter, PatientDto patientDto) {
+    public PatientDialog(PatientPresenter presenter, Patient patient) {
         this.presenter = presenter;
-        if (patientDto == null) {
-            patientDto = new PatientDto();
+        if (patient == null) {
+            patient = new Patient();
         }
 
         setWidth("800px");
         setHeight("600px");
 
         // Create the components
-        form = new PatientForm(presenter.getHealthInsurances(), patientDto, e -> valueChanged(e));
+        form = new PatientForm(presenter.getHealthInsurances(), patient, e -> valueChanged(e));
 
         var readBtn = new Button("Aus Gesundheitskarte einlesen", event -> {
             try {
@@ -42,7 +42,7 @@ public class PatientDialog extends Dialog {
         });
         readBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
         
-        var saveLbl = patientDto == null || patientDto.getId() == null ? "Erstellen"
+        var saveLbl = patient == null || patient.getId() == null ? "Erstellen"
                 : "Aktualisieren";
         saveButton.setText(saveLbl);
         saveButton.setEnabled(form.isValidateOk());
@@ -58,8 +58,8 @@ public class PatientDialog extends Dialog {
         var cancelBtn = new Button("Abbrechen", event -> close());
 
         // Configure the dialog
-        String title = patientDto == null || patientDto.getId() == null ? "Neuer Patient"
-                : "Patient " + patientDto.toString();
+        String title = patient == null || patient.getId() == null ? "Neuer Patient"
+                : "Patient " + patient.toString();
         setHeaderTitle(title);
         add(form);
         getFooter().add(cancelBtn, readBtn, saveButton);

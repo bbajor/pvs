@@ -2,7 +2,7 @@ package de.bbajor.pvs.surgicalcenter.model;
 
 import java.util.Locale;
 
-import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.patient.model.Address;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
@@ -16,7 +16,7 @@ import lombok.experimental.Accessors;
 @Setter
 @Entity
 @Accessors(chain = true)
-public class SurgicalCenterAddress extends BasicEntity<Long> {
+public class SurgicalCenterAddress extends Address {
 
     private String street;
     private String houseNo;

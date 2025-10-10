@@ -26,24 +26,24 @@ import de.bbajor.pvs.base.ui.component.AddressField;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.base.util.PhoneUtils;
 import de.bbajor.pvs.intravitreal.treatment.ui.TimeSlotConfigForm;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterAddressDto;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterAddress;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotConfig;
 
 public class SurgicalCenterLayout extends HorizontalLayout {
 
-    private final Binder<SurgicalCenterDto> binder = new Binder<>(SurgicalCenterDto.class);
+    private final Binder<SurgicalCenter> binder = new Binder<>(SurgicalCenter.class);
 
     private final TextField unitNameField = new TextField("Name der operativen Einrichtung");
     private final TextField phoneField = new TextField("Telefonnummer");
     private final EmailField emailField = new EmailField("E-Mail");
     private final TextField contactField = new TextField("Name Kontaktperson");
     private final TextField phoneContactField = new TextField("Telefonnummer Kontaktperson");
-    private final AddressField<SurgicalCenterAddressDto> addressForm = new AddressField<>("Adresse",
-            new SurgicalCenterAddressDto());
+    private final AddressField<SurgicalCenterAddress> addressForm = new AddressField<>("Adresse",
+            new SurgicalCenterAddress());
     private TimeSlotConfigForm timeSlotConfigForm = new TimeSlotConfigForm();
-    private final Grid<SurgicalCenterTimeSlotDto> availableTimeSlots = new Grid<>();
+    private final Grid<SurgicalCenterTimeSlot> availableTimeSlots = new Grid<>();
 
     public SurgicalCenterLayout() {
         setSizeFull();
@@ -66,7 +66,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                 .withNullRepresentation("")
                 .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 200,
                         "Bitte geben Sie einen gültigen Namen ein (max. 200 Zeichen)")
-                .bind(SurgicalCenterDto::getName, SurgicalCenterDto::setName);
+                .bind(SurgicalCenter::getName, SurgicalCenter::setName);
 
         binder.forField(addressForm).asRequired().withValidator(
                 address -> address != null && address.getStreet() != null && !address.getStreet().trim().isEmpty()
@@ -75,8 +75,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         && address.getPostalCode() >= 1000
                         && address.getPostalCode() <= 99999
                         && address.getCity() != null && !address.getCity().trim().isEmpty(),
-                "Bitte geben Sie eine gültige Adresse ein").bind(SurgicalCenterDto::getSurgicalCenterAddress,
-                        SurgicalCenterDto::setSurgicalCenterAddress);
+                "Bitte geben Sie eine gültige Adresse ein").bind(SurgicalCenter::getSurgicalCenterAddress,
+                        SurgicalCenter::setSurgicalCenterAddress);
 
         binder.forField(phoneField).withValidator(item -> {
             if (item == null || item.trim().isEmpty()) {
@@ -104,7 +104,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         },
                         formattedValue -> formattedValue)
                 .withNullRepresentation("")
-                .bind(SurgicalCenterDto::getPhone, SurgicalCenterDto::setPhone);
+                .bind(SurgicalCenter::getPhone, SurgicalCenter::setPhone);
 
         binder.forField(emailField)
                 .withNullRepresentation("")
@@ -114,11 +114,11 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                     }
                     return item.trim().length() <= 100 && item.contains("@") && item.contains(".");
                 }, "Bitte geben Sie eine gültige E-Mail-Adresse ein(max. 100 Zeichen)")
-                .bind(SurgicalCenterDto::getEmail, SurgicalCenterDto::setEmail);
+                .bind(SurgicalCenter::getEmail, SurgicalCenter::setEmail);
 
         binder.forField(contactField)
                 .withNullRepresentation("")
-                .bind(SurgicalCenterDto::getContact, SurgicalCenterDto::setContact);
+                .bind(SurgicalCenter::getContact, SurgicalCenter::setContact);
         binder.forField(phoneContactField)
                 .withValidator(item -> {
                     if (item == null || item.trim().isEmpty()) {
@@ -146,7 +146,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         },
                         formattedValue -> formattedValue)
                 .withNullRepresentation("")
-                .bind(SurgicalCenterDto::getPhoneContact, SurgicalCenterDto::setPhoneContact);
+                .bind(SurgicalCenter::getPhoneContact, SurgicalCenter::setPhoneContact);
 
         VerticalLayout detailsLayout = new VerticalLayout();
         detailsLayout.setSizeFull();
@@ -202,15 +202,15 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         add(availableTimeSlotsLayout);
     }
 
-    public void setBean(SurgicalCenterDto dto) {
+    public void setBean(SurgicalCenter dto) {
         binder.setBean(dto);
         if (dto != null && dto.getAvailableTimeSlots() != null) {
             availableTimeSlots.setItems(dto.getAvailableTimeSlots());
         }
     }
 
-    public SurgicalCenterDto getBean() {
-        SurgicalCenterDto surgeryUnitDto = binder.getBean();
+    public SurgicalCenter getBean() {
+        SurgicalCenter surgeryUnitDto = binder.getBean();
         return surgeryUnitDto;
     }
 

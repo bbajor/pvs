@@ -1,7 +1,7 @@
 package de.bbajor.pvs.patient.ui.view;
 
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Patient;
 
 public interface PatientChangeListener {
-    void onPatientChanged(PatientDto patientDto);
+    void onPatientChanged(Patient patient);
 }

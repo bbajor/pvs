@@ -18,22 +18,20 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.util.SideOfEye;
-import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.dto.MedicationDto;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
-import de.bbajor.pvs.patient.dto.PatientDto;
 import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterAddressDto;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterAddress;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import lombok.RequiredArgsConstructor;
 
@@ -83,13 +81,13 @@ public class TestDataInitializer implements CommandLineRunner {
         @Override
         public void run(String... args) {
 
-                List<PatientDto> savedPatients = patientService.saveAll(createRealisticPatients(20));
-                List<MedicationDto> savedMedications = medicationService
+                List<Patient> savedPatients = patientService.saveAll(createRealisticPatients(20));
+                List<Medication> savedMedications = medicationService
                                 .saveAll(createRealisticMedications(MEDICATION_NAMES.length));
-                List<DiagnosisDto> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
+                List<Diagnosis> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
 
                 // Erzeuge OP-Zentren mit Zeitslots für Mittwoch und Freitag
-                List<SurgicalCenterDto> surgicalCenters = createSurgicalCentersWithTimeSlots(
+                List<SurgicalCenter> surgicalCenters = createSurgicalCentersWithTimeSlots(
                                 SURGICAL_CENTER_NAMES.length);
 
                 // Erzeuge 10 Behandlungspläne mit Behandlungen
@@ -182,11 +180,11 @@ public class TestDataInitializer implements CommandLineRunner {
         /**
          * Erstellt Diagnosen basierend auf ICD-Codes
          */
-        private List<DiagnosisDto> createDiagnoses() {
-                List<DiagnosisDto> diagnoses = new ArrayList<>();
+        private List<Diagnosis> createDiagnoses() {
+                List<Diagnosis> diagnoses = new ArrayList<>();
 
                 for (int i = 0; i < DIAGNOSES_ICD.length; i++) {
-                        DiagnosisDto diagnosis = new DiagnosisDto();
+                        Diagnosis diagnosis = new Diagnosis();
                         diagnosis.setName(DIAGNOSES_NAMES[i]);
                         diagnosis.setIcdCode(DIAGNOSES_ICD[i]);
                         diagnosis.setDescription("Diagnose für " + DIAGNOSES_NAMES[i]);
@@ -199,16 +197,16 @@ public class TestDataInitializer implements CommandLineRunner {
         /**
          * Erstellt OP-Zentren mit Zeitslots für Mittwoch und Freitag über 2 Jahre
          */
-        private List<SurgicalCenterDto> createSurgicalCentersWithTimeSlots(int count) {
-                List<SurgicalCenterDto> centers = new ArrayList<>();
+        private List<SurgicalCenter> createSurgicalCentersWithTimeSlots(int count) {
+                List<SurgicalCenter> centers = new ArrayList<>();
                 Random random = new Random();
 
                 for (int i = 0; i < count; i++) {
-                        SurgicalCenterDto center = new SurgicalCenterDto();
+                        SurgicalCenter center = new SurgicalCenter();
                         center.setName(SURGICAL_CENTER_NAMES[i % SURGICAL_CENTER_NAMES.length]);
                         center.setDescription("Zentrum für intravitreale Injektionen");
 
-                        SurgicalCenterAddressDto address = new SurgicalCenterAddressDto();
+                        SurgicalCenterAddress address = new SurgicalCenterAddress();
                         address.setStreet(STREET_NAMES[random.nextInt(STREET_NAMES.length)] + " "
                                         + (1 + random.nextInt(100)));
                         address.setCity(CITIES[random.nextInt(CITIES.length)]);
@@ -217,7 +215,7 @@ public class TestDataInitializer implements CommandLineRunner {
                         center.setSurgicalCenterAddress(address);
 
                         // Generiere Zeitslots für Mittwoch und Freitag über 2 Jahre
-                        List<SurgicalCenterTimeSlotDto> timeSlots = generateTimeSlots(center);
+                        List<SurgicalCenterTimeSlot> timeSlots = generateTimeSlots(center);
                         center.setAvailableTimeSlots(timeSlots);
 
                         // Speichere das Zentrum und die Zeitslots
@@ -231,8 +229,8 @@ public class TestDataInitializer implements CommandLineRunner {
          * Generiert Zeitslots für Mittwoch und Freitag für die nächsten 2 Jahre, 7-9
          * Uhr
          */
-        private List<SurgicalCenterTimeSlotDto> generateTimeSlots(SurgicalCenterDto center) {
-                List<SurgicalCenterTimeSlotDto> timeSlots = new ArrayList<>();
+        private List<SurgicalCenterTimeSlot> generateTimeSlots(SurgicalCenter center) {
+                List<SurgicalCenterTimeSlot> timeSlots = new ArrayList<>();
                 LocalDate startDate = LocalDate.now();
                 LocalDate endDate = startDate.plusYears(2);
 
@@ -241,7 +239,7 @@ public class TestDataInitializer implements CommandLineRunner {
 
                 // Generiere Mittwoch-Slots für 2 Jahre
                 while (wednesday.isBefore(endDate)) {
-                        SurgicalCenterTimeSlotDto wednesdaySlot = new SurgicalCenterTimeSlotDto();
+                        SurgicalCenterTimeSlot wednesdaySlot = new SurgicalCenterTimeSlot();
                         wednesdaySlot.setDate(wednesday);
                         wednesdaySlot.setStartTime(LocalTime.of(7, 0));
                         wednesdaySlot.setEndTime(LocalTime.of(9, 0));
@@ -259,7 +257,7 @@ public class TestDataInitializer implements CommandLineRunner {
 
                 // Generiere Freitag-Slots für 2 Jahre
                 while (friday.isBefore(endDate)) {
-                        SurgicalCenterTimeSlotDto fridaySlot = new SurgicalCenterTimeSlotDto();
+                        SurgicalCenterTimeSlot fridaySlot = new SurgicalCenterTimeSlot();
                         fridaySlot.setDate(friday);
                         fridaySlot.setStartTime(LocalTime.of(7, 0));
                         fridaySlot.setEndTime(LocalTime.of(9, 0));
@@ -282,15 +280,15 @@ public class TestDataInitializer implements CommandLineRunner {
          * Erstellt Behandlungspläne mit zugehörigen Behandlungen
          * Verbesserte Version mit größerer Variabilität
          */
-        private void createTreatmentPlansWithTreatments(int count, List<PatientDto> patients,
-                        List<MedicationDto> medications,
-                        List<DiagnosisDto> diagnoses,
-                        List<SurgicalCenterDto> surgicalCenters) {
+        private void createTreatmentPlansWithTreatments(int count, List<Patient> patients,
+                        List<Medication> medications,
+                        List<Diagnosis> diagnoses,
+                        List<SurgicalCenter> surgicalCenters) {
                 Random random = new Random();
                 LocalDate now = LocalDate.now();
 
                 // Stellen Sie sicher, dass jeder Patient einen eigenen Behandlungsplan hat
-                List<PatientDto> selectedPatients = new ArrayList<>(patients);
+                List<Patient> selectedPatients = new ArrayList<>(patients);
                 // Mische die Patienten, um zufällige Auswahl zu gewährleisten
                 java.util.Collections.shuffle(selectedPatients);
 
@@ -303,24 +301,24 @@ public class TestDataInitializer implements CommandLineRunner {
                         // Wichtig: Hole den Patienten direkt aus der Datenbank, um sicherzustellen,
                         // dass es sich um eine persistierte Entität handelt und nicht um ein
                         // transientes Objekt
-                        PatientDto patientDto = selectedPatients.get(i);
+                        Patient patient = selectedPatients.get(i);
 
                         // Stelle sicher, dass der Patient eine ID hat (also gespeichert ist)
-                        if (patientDto.getId() == null) {
+                        if (patient.getId() == null) {
                                 // Das sollte nicht passieren, da wir die Patienten vorher mit
                                 // patientService.saveAll(patients) gespeichert haben,
                                 // aber zur Sicherheit prüfen wir es
-                                System.out.println("Warnung: Patient " + patientDto.getFirstName() + " "
-                                                + patientDto.getLastName() + " hat keine ID!");
+                                System.out.println("Warnung: Patient " + patient.getFirstName() + " "
+                                                + patient.getLastName() + " hat keine ID!");
                                 continue; // Überspringe diesen Patienten
                         }
 
                         // Erstelle einen individualisierten Behandlungsplan
-                        TreatmentPlanDto plan = new TreatmentPlanDto();
+                        TreatmentPlan plan = new TreatmentPlan();
                         plan.setCreationDate(now.minusDays(random.nextInt(90)));
 
                         // Wähle eine passende Diagnose und stelle sicher, dass sie eine ID hat
-                        DiagnosisDto diagnosis = diagnoses.get(random.nextInt(diagnoses.size()));
+                        Diagnosis diagnosis = diagnoses.get(random.nextInt(diagnoses.size()));
                         if (diagnosis.getId() == null) {
                                 System.out.println("Warnung: Diagnose " + diagnosis.getName() + " hat keine ID!");
                                 continue; // Überspringe diesen Plan
@@ -329,8 +327,8 @@ public class TestDataInitializer implements CommandLineRunner {
 
                         // Personalisiere den Behandlungsplan
                         plan.setDescription("Behandlungsplan für " + diagnosis.getName() + " - "
-                                        + patientDto.getFirstName() + " " + patientDto.getLastName());
-                        plan.setPatient(patientDto);
+                                        + patient.getFirstName() + " " + patient.getLastName());
+                        plan.setPatient(patient);
 
                         // Füge individuelle Informationen hinzu
                         String[] additionalInfos = {
@@ -345,7 +343,7 @@ public class TestDataInitializer implements CommandLineRunner {
                         plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
 
                         // Speichere den Behandlungsplan
-                        TreatmentPlanDto savedPlan;
+                        TreatmentPlan savedPlan;
                         try {
                                 savedPlan = treatmentPlanService.saveTreatmentPlan(plan);
                         } catch (Exception e) {
@@ -355,7 +353,7 @@ public class TestDataInitializer implements CommandLineRunner {
                         } // Wähle 1-3 verschiedene OP-Zentren für diesen Patienten
                           // Manche Patienten bevorzugen immer das gleiche Zentrum, andere wechseln
                         int centerCount = random.nextInt(3) + 1; // 1 bis 3 Zentren
-                        List<SurgicalCenterDto> patientCenters = new ArrayList<>();
+                        List<SurgicalCenter> patientCenters = new ArrayList<>();
 
                         // Wähle zufällige Zentren
                         for (int c = 0; c < centerCount && c < surgicalCenters.size(); c++) {
@@ -368,10 +366,10 @@ public class TestDataInitializer implements CommandLineRunner {
                         // Variable Anzahl von Behandlungen pro Plan (2-12)
                         // Chronische Patienten erhalten mehr Behandlungen
                         int maxTreatments = random.nextInt(11) + 2; // 2 bis 12 Behandlungen
-                        List<TreatmentDto> treatments = new ArrayList<>();
+                        List<Treatment> treatments = new ArrayList<>();
 
                         // Wähle ein bevorzugtes Medikament für diesen Patienten
-                        MedicationDto preferredMedication = medications.get(random.nextInt(medications.size()));
+                        Medication preferredMedication = medications.get(random.nextInt(medications.size()));
                         SideOfEye preferredSideOfEye = EYE_SIDES[random.nextInt(EYE_SIDES.length)];
 
                         // Erstelle die Behandlungen mit einer gewissen Regelmäßigkeit
@@ -380,10 +378,10 @@ public class TestDataInitializer implements CommandLineRunner {
                                 final int treatmentIndex = j;
 
                                 // Wähle ein Zentrum für diese Behandlung
-                                SurgicalCenterDto center = patientCenters.get(random.nextInt(patientCenters.size()));
+                                SurgicalCenter center = patientCenters.get(random.nextInt(patientCenters.size()));
 
                                 // Hole verfügbare Slots für dieses Zentrum
-                                List<SurgicalCenterTimeSlotDto> availableSlots = center.getAvailableTimeSlots()
+                                List<SurgicalCenterTimeSlot> availableSlots = center.getAvailableTimeSlots()
                                                 .stream()
                                                 .filter(slot -> slot.getDate()
                                                                 .isAfter(now.plusDays(treatmentIndex * 14)) && // Behandlungsabstand
@@ -406,20 +404,19 @@ public class TestDataInitializer implements CommandLineRunner {
                                 }
 
                                 // Wähle einen zufälligen verfügbaren Slot
-                                SurgicalCenterTimeSlotDto slot = availableSlots
-                                                .get(random.nextInt(availableSlots.size()));
+                                SurgicalCenterTimeSlot slot = availableSlots.get(random.nextInt(availableSlots.size()));
 
                                 // Erstelle eine neue Behandlung
-                                TreatmentDto treatment = new TreatmentDto();
+                                Treatment treatment = new Treatment();
                                 treatment.setTreatmentPlan(savedPlan);
 
                                 // 80% Wahrscheinlichkeit für bevorzugte Seite, 20% für andere Seite oder
                                 // beidseitig
                                 if (random.nextDouble() < 0.8) {
-                                        treatment.setSideOfEye(preferredSideOfEye.asDbString());
+                                        treatment.setSideOfEye(preferredSideOfEye);
                                 } else {
                                         treatment.setSideOfEye(
-                                                        EYE_SIDES[random.nextInt(EYE_SIDES.length)].asDbString());
+                                                        EYE_SIDES[random.nextInt(EYE_SIDES.length)]);
                                 }
 
                                 treatment.setSurgicalCenterTimeSlot(slot);

@@ -20,19 +20,19 @@ import org.junit.jupiter.api.Test;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.notification.Notification;
 
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientPresenter;
 
 class PatientDialogTest {
 
     private PatientPresenter presenter;
-    private PatientDto patientDto;
+    private Patient patient;
 
     @BeforeEach
     void setUp() {
         presenter = mock(PatientPresenter.class);
         when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
-        patientDto = new PatientDto();
+        patient = new Patient();
     }
 
     @Test
@@ -43,8 +43,8 @@ class PatientDialogTest {
 
     @Test
     void testDialogInitializesWithCorrectTitleForExistingPatient() {
-        patientDto.setId(123);
-        PatientDialog dialog = new PatientDialog(presenter, patientDto);
+        patient.setId(123);
+        PatientDialog dialog = new PatientDialog(presenter, patient);
         assertTrue(dialog.getHeaderTitle().contains("Patient"));
     }
 
@@ -59,8 +59,8 @@ class PatientDialogTest {
 
     @Test
     void testSaveButtonLabelForExistingPatient() throws Exception {
-        patientDto.setId(1);
-        PatientDialog dialog = new PatientDialog(presenter, patientDto);
+        patient.setId(1);
+        PatientDialog dialog = new PatientDialog(presenter, patient);
         var saveButtonField = PatientDialog.class.getDeclaredField("saveButton");
         saveButtonField.setAccessible(true);
         Button saveButton = (Button) saveButtonField.get(dialog);
@@ -90,7 +90,7 @@ class PatientDialogTest {
         formField.setAccessible(true);
         PatientForm form = mock(PatientForm.class);
         when(form.isValidateOk()).thenReturn(true);
-        when(form.getValue()).thenReturn(patientDto);
+        when(form.getValue()).thenReturn(patient);
         formField.set(dialog, form);
 
         // Call save via reflection (private)
@@ -99,7 +99,7 @@ class PatientDialogTest {
         saveMethod.invoke(dialog);
 
         verify(form).writeIfValid();
-        verify(presenter).savePatient(any(PatientDto.class));
+        verify(presenter).savePatient(any(Patient.class));
     }
 
     @Test
@@ -119,7 +119,7 @@ class PatientDialogTest {
             saveMethod.invoke(dialog);
 
             verify(form, never()).writeIfValid();
-            verify(presenter, never()).savePatient(any(PatientDto.class));
+            verify(presenter, never()).savePatient(any(Patient.class));
         }
     }
 

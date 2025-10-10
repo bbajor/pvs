@@ -18,7 +18,7 @@ import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import jakarta.annotation.security.PermitAll;
 
 @Route("ivom")
@@ -32,17 +32,19 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private final Button searchButton = new Button(VaadinIcon.SEARCH.create());
     private final Button createButton = new Button(VaadinIcon.PLUS.create());
     private final Button generateDailyListButton;
-    private final Grid<TreatmentPlanDto> ivomPlanGrid = new Grid<>(TreatmentPlanDto.class, false);
+    private final Grid<TreatmentPlan> ivomPlanGrid = new Grid<>(TreatmentPlan.class, false);
 
     public TreatmentPlanMainView(TreatmentPlanListPresenter ivomListPresenter) {
         this.ivomListPresenter = ivomListPresenter;
 
         createButton.addClickListener(event -> {
-            Optional<TreatmentPlanDto> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
+            Optional<TreatmentPlan> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
                 navigateToDetailView(ivom.get());
             } else {
-                navigateToDetailView(new TreatmentPlanDto().setId(-1L));
+                TreatmentPlan newTreatmentPlan = new TreatmentPlan();
+                newTreatmentPlan.setId(-1L);
+                navigateToDetailView(newTreatmentPlan);
             }
         });
         createButton.getElement().setAttribute("theme", "primary");
@@ -74,24 +76,24 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
     }
 
-    private void navigateToDetailView(TreatmentPlanDto ivomPlanDto) {
+    private void navigateToDetailView(TreatmentPlan treatmentPlan) {
         // TODO Achtung, hier sollte nicht mit der ID-Spalte aus der Datenbank
         // gearbeitet werden, sondern mit einer internen UUID, die nicht zu erraten
         // ist!!!!
-        UI.getCurrent().navigate("ivom/" + ivomPlanDto.getId());
+        UI.getCurrent().navigate("ivom/" + treatmentPlan.getId());
     }
 
     private void configureGrid() {
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getLastName).setHeader("Nachname");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getFirstName).setHeader("Vorname");
-        ivomPlanGrid.addColumn(dto -> DateAndTimeUtils.getGermanDateTimeFormatter().format(dto.getBirth()))
+        ivomPlanGrid.addColumn(TreatmentPlan::getLastName).setHeader("Nachname");
+        ivomPlanGrid.addColumn(TreatmentPlan::getFirstName).setHeader("Vorname");
+        ivomPlanGrid.addColumn(treatmentPlan -> DateAndTimeUtils.getGermanDateTimeFormatter().format(treatmentPlan.getBirth()))
                 .setHeader("Geburtsdatum");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getHealthInsurance).setHeader("Krankenkasse");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getDiagnosis).setHeader("Grund der Behandlung");
-        ivomPlanGrid.addColumn(TreatmentPlanDto::getAdditionalInformation).setHeader("Zusätzliche Informationen");
+        ivomPlanGrid.addColumn(TreatmentPlan::getHealthInsurance).setHeader("Krankenkasse");
+        ivomPlanGrid.addColumn(TreatmentPlan::getDiagnosis).setHeader("Grund der Behandlung");
+        ivomPlanGrid.addColumn(TreatmentPlan::getAdditionalInformation).setHeader("Zusätzliche Informationen");
         ivomPlanGrid.setSizeFull();
         ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {
-            TreatmentPlanDto ivomDto = event.getValue();
+            TreatmentPlan ivomDto = event.getValue();
             if (ivomDto != null) {
                 navigateToDetailView(ivomDto);
             }
@@ -105,7 +107,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     }
 
     public void refresh(String searchString) {
-        List<TreatmentPlanDto> ivomList = ivomListPresenter.findAllBy(searchString);
+        List<TreatmentPlan> ivomList = ivomListPresenter.findAllBy(searchString);
         ivomPlanGrid.setItems(ivomList);
     }
 

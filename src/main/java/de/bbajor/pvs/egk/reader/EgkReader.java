@@ -10,7 +10,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.base.dto.AddressDto;
 import de.bbajor.pvs.egk.config.EgkToolProperties;
 import de.bbajor.pvs.egk.model.AbrechnenderKostentraeger;
 import de.bbajor.pvs.egk.model.Kostentraeger;
@@ -23,8 +22,9 @@ import de.bbajor.pvs.egk.model.personal.Adresse;
 import de.bbajor.pvs.egk.model.personal.Person;
 import de.bbajor.pvs.egk.model.personal.UcPersoenlicheVersichertenDatenXml;
 import de.bbajor.pvs.egk.model.personal.VersicherterPersoenlich;
-import de.bbajor.pvs.patient.dto.HealthInsuranceDto;
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Address;
+import de.bbajor.pvs.patient.model.HealthInsurance;
+import de.bbajor.pvs.patient.model.Patient;
 
 @Component
 public class EgkReader {
@@ -48,7 +48,7 @@ public class EgkReader {
         this.properties = properties;
     }
 
-    public PatientDto readPatientFromCard() throws Exception {
+    public Patient readPatientFromCard() throws Exception {
         // egk-tool muss im PATH oder Pfad angegeben sein
         ProcessBuilder pb = new ProcessBuilder(properties.getToolPath(), "--pd");
         pb.redirectErrorStream(true);
@@ -82,33 +82,32 @@ public class EgkReader {
         return mapToDto(persoenlicheVersichertenDatenXml);
     }
 
-    @SuppressWarnings("null")
-    private static PatientDto mapToDto(UcPersoenlicheVersichertenDatenXml data) {
+    private static Patient mapToDto(UcPersoenlicheVersichertenDatenXml data) {
         VersicherterPersoenlich v = data.getVersicherter();
         Person p = v.getPerson();
         Adresse adr = p.getStrassenAdresse();
 
-        PatientDto dto = new PatientDto();
-        dto.setInsuranceNumber(v.getVersichertenId());
-        dto.setFirstName(p.getVorname());
-        dto.setLastName(p.getNachname());
-        dto.setBirth(p.getGeburtsdatum());
-        dto.setGender(p.getGeschlecht());
+        Patient patient = new Patient();
+        patient.setInsuranceNumber(v.getVersichertenId());
+        patient.setFirstName(p.getVorname());
+        patient.setLastName(p.getNachname());
+        patient.setBirth(p.getGeburtsdatum());
+        patient.setGender(p.getGeschlecht());
 
-        AddressDto addressDto = new AddressDto();
+        Address address = new Address();
         try {
-            addressDto.setStreet(adr == null ? "" : adr.getStrasse())
+            address.setStreet(adr == null ? "" : adr.getStrasse())
                     .setHouseNo(adr == null ? "" : adr.getHausnummer())
                     .setPostalCode(adr == null ? 00000 : Integer.parseInt(adr.getPostleitzahl()))
                     .setCity(adr == null ? "" : adr.getOrt());
-            addressDto.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()).getCountry());
+            address.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()).getCountry());
         } catch (NullPointerException e) {
             LOG.warn("Land in Adresse nicht gesetzt");
         } catch (NumberFormatException e) {
             LOG.warn("Fehler beim Parsen der Postleitzahl von String zu Integer", e);
         }
-        dto.setAddress(addressDto);
-        return dto;
+        patient.setAddress(address);
+        return patient;
     }
 
     public static Locale toLocale(String egkCode) {
@@ -119,7 +118,7 @@ public class EgkReader {
         return Locale.of("", iso);
     }
 
-    public HealthInsuranceDto readHealthInsuranceFromCard() throws Exception {
+    public HealthInsurance readHealthInsuranceFromCard() throws Exception {
         // egk-tool muss im PATH oder Pfad angegeben sein
         ProcessBuilder pb = new ProcessBuilder(properties.getToolPath(), "--vd");
         pb.redirectErrorStream(true);
@@ -153,16 +152,16 @@ public class EgkReader {
         return mapToDto(allgemeineVersichertendatenXml);
     }
 
-    private static HealthInsuranceDto mapToDto(UC_AllgemeineVersicherungsdatenXML data) {
+    private static HealthInsurance mapToDto(UC_AllgemeineVersicherungsdatenXML data) {
 
         assert (data != null);
 
         Versicherter v = data.getVersicherter();
         if (v == null || v.getVersicherungsschutz() == null) {
-            return new HealthInsuranceDto();
+            return new HealthInsurance();
         }
 
-        HealthInsuranceDto dto = new HealthInsuranceDto();
+        HealthInsurance dto = new HealthInsurance();
         Versicherungsschutz vs = v.getVersicherungsschutz();
         dto.setInsuranceStart(vs.getBeginn());
 
