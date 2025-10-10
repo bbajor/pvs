@@ -5,7 +5,6 @@ import java.util.Locale;
 import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.BinderValidationStatus;
@@ -13,9 +12,9 @@ import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
 
-import de.bbajor.pvs.base.dto.AddressDto;
+import de.bbajor.pvs.patient.model.Address;
 
-public class AddressField<T extends AddressDto> extends AbstractCompositeField<FormLayout, AddressField<T>, T> {
+public class AddressField<T extends Address> extends AbstractCompositeField<FormLayout, AddressField<T>, T> {
 
     private final Binder<T> binder = new Binder<>();
     private final TextField streetField = new TextField("Straße");
@@ -46,21 +45,21 @@ public class AddressField<T extends AddressDto> extends AbstractCompositeField<F
         binder.forField(streetField)
                 .asRequired("Straße darf nicht leer sein")
                 .withValidator(new StringLengthValidator("Straße muss mind. 2 Zeichen haben", 2, null))
-                .bind(AddressDto::getStreet, AddressDto::setStreet);
+                .bind(Address::getStreet, Address::setStreet);
 
         binder.forField(houseNoField)
                 .asRequired("Hausnummer darf nicht leer sein")
-                .bind(AddressDto::getHouseNo, AddressDto::setHouseNo);
+                .bind(Address::getHouseNo, Address::setHouseNo);
 
         binder.forField(zipCodeField)
                 .asRequired("PLZ darf nicht leer sein")
                 .withValidator(plz -> plz != null && plz >= 1000 && plz <= 99999,
                         "Bitte eine gültige Postleitzahl angeben")
-                .bind(AddressDto::getPostalCode, AddressDto::setPostalCode);
+                .bind(Address::getPostalCode, Address::setPostalCode);
 
         binder.forField(cityField)
                 .asRequired("Stadt darf nicht leer sein")
-                .bind(AddressDto::getCity, AddressDto::setCity);
+                .bind(Address::getCity, Address::setCity);
 
         binder.forField(countryCodeBox)
                 .asRequired("Land auswählen").bind(

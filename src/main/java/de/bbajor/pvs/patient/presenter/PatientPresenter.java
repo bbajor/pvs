@@ -8,19 +8,18 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.egk.reader.EgkReader;
-import de.bbajor.pvs.intravitreal.treatment.dto.DiagnosisDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
-import de.bbajor.pvs.patient.dto.HealthInsuranceDto;
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.HealthInsuranceService;
 import de.bbajor.pvs.patient.service.PatientMapper;
 import de.bbajor.pvs.patient.service.PatientService;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import jakarta.transaction.Transactional;
 
@@ -46,59 +45,58 @@ public class PatientPresenter {
     private PatientMapper patientMapper;
 
     @Transactional
-    public PatientDto savePatient(PatientDto dtoToSave) {
-        if (dtoToSave.getId() != null) {
-            Patient existingPatient = patientService.findEntityById(dtoToSave.getId());
-            patientMapper.updateEntityFromDto(dtoToSave, existingPatient);
+    public Patient savePatient(Patient update) {
+        if (update.getId() != null) {
+            Patient existingPatient = patientService.findEntityById(update.getId());
+            patientMapper.updatePatientEntity(update, existingPatient);
             return patientService.save(existingPatient);
         } else {
-            Patient newEntity = patientMapper.toEntity(dtoToSave);
-            if (newEntity.getAddress() != null) {
-                newEntity.getAddress().setId(null);
+            if (update.getAddress() != null) {
+                update.getAddress().setId(null);
             }
-            if (newEntity.getHealthInsurance() != null && newEntity.getHealthInsurance().getId() != null) {
-                newEntity.setHealthInsurance(healthInsuranceService.findById(newEntity.getHealthInsurance()));
+            if (update.getHealthInsurance() != null && update.getHealthInsurance().getId() != null) {
+                update.setHealthInsurance(healthInsuranceService.findById(update.getHealthInsurance()));
             }
-            return patientService.save(newEntity);
+            return patientService.save(update);
         }
     }
 
-    public PatientDto readDataFromEgk() throws Exception {
-        PatientDto patientDto = egkReader.readPatientFromCard();
-        HealthInsuranceDto healthInsurance = egkReader.readHealthInsuranceFromCard();
+    public Patient readDataFromEgk() throws Exception {
+        Patient patientDto = egkReader.readPatientFromCard();
+        HealthInsurance healthInsurance = egkReader.readHealthInsuranceFromCard();
         patientDto.setHealthInsurance(healthInsurance);
         return patientDto;
     }
 
-    public List<PatientDto> getPatients() {
-        return patientService.findAll();
+    public List<Patient> getPatients() {
+        return patientService.getAll();
     }
 
-    public List<HealthInsuranceDto> getHealthInsurances() {
+    public List<HealthInsurance> getHealthInsurances() {
         return healthInsuranceService.findAll();
     }
 
-    public List<MedicationDto> getDrugs() {
+    public List<Medication> getDrugs() {
         return ivomDrugService.getMedicationListFavourites();
     }
 
-    public TreatmentPlanDto findById(Long id) {
+    public TreatmentPlan findById(Long id) {
         return treatmentPlanService.loadTreatmentPlanWithFullDetails(id);
     }
 
-    public TreatmentPlanDto saveTreatmentPlan(TreatmentPlanDto treatmentPlan) {
+    public TreatmentPlan saveTreatmentPlan(TreatmentPlan treatmentPlan) {
         return treatmentPlanService.saveTreatmentPlan(treatmentPlan);
     }
 
-    public List<SurgicalCenterDto> getSurgicalCenterList() {
+    public List<SurgicalCenter> getSurgicalCenterList() {
         return surgicalCenterService.findAll();
     }
 
-    public DiagnosisDto saveDiagnosis(DiagnosisDto dto) {
-        return ivomDiagnosisService.save(dto);
+    public Diagnosis saveDiagnosis(Diagnosis diagnosis) {
+        return ivomDiagnosisService.save(diagnosis);
     }
 
-    public Collection<DiagnosisDto> getDiagnoses() {
-        return ivomDiagnosisService.getDiagnosisDtos();
+    public Collection<Diagnosis> getDiagnoses() {
+        return ivomDiagnosisService.getDiagnoses();
     }
 }

@@ -12,14 +12,13 @@ import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
 
-import de.bbajor.pvs.base.util.SideOfEye;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 
 public class DailyTreatmentsDialog extends Dialog {
 
-    private final TreeGrid<TreatmentDto> grid = new TreeGrid<>();
+    private final TreeGrid<Treatment> grid = new TreeGrid<>();
 
-    public DailyTreatmentsDialog(List<TreatmentDto> content) {
+    public DailyTreatmentsDialog(List<Treatment> content) {
         setHeight("1200px");
         setWidth("1400px");
         setHeaderTitle("Wochenliste vom " + LocalDate.now() + " bis " + LocalDate.now().plusDays(7));
@@ -31,12 +30,12 @@ public class DailyTreatmentsDialog extends Dialog {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("E dd.MM.yyyy", Locale.GERMAN);
         grid.addColumn(treatment -> treatment.getDate().format(formatter)).setHeader("Datum");
         grid.addColumn(treatment -> treatment.getPatientInfo()).setHeader("Patient");
-        grid.addColumn(treatment -> SideOfEye.byDbString(treatment.getSideOfEye())).setHeader("Zu behandelndes Auge");
+        grid.addColumn(treatment -> treatment.getSideOfEye()).setHeader("Zu behandelndes Auge");
         grid.addColumn(treatment -> treatment.getMedication().getArzneimittelbezeichnung()).setHeader("Medikament")
                 .setWidth("200px");
         grid.addColumn(treatment -> treatment.getAdditionalInfo()).setHeader("Zusätzliche Informationen");
 
-        TreeData<TreatmentDto> data = new TreeData<>();
+        TreeData<Treatment> data = new TreeData<>();
         data.addItems(null, content);
         grid.setDataProvider(new TreeDataProvider<>(data));
         add(grid);

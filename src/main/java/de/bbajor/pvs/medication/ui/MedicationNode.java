@@ -2,51 +2,51 @@ package de.bbajor.pvs.medication.ui;
 
 import java.util.Objects;
 
-import de.bbajor.pvs.medication.dto.MedicationDto;
+import de.bbajor.pvs.medication.model.Medication;
 
 public class MedicationNode {
     private final String label;
-    private final MedicationDto dto; // nur bei Leaf-Knoten gefüllt
+    private final Medication medication; // nur bei Leaf-Knoten gefüllt
 
     public MedicationNode(String label) {
         this(label, null);
     }
 
-    public MedicationNode(String label, MedicationDto dto) {
+    public MedicationNode(String label, Medication medication) {
         this.label = label != null ? label : "";
-        this.dto = dto;
+        this.medication = medication;
     }
 
     public String getLabel() {
-        return dto == null ? label : getArzneimittelbezeichnung();
+        return medication == null ? label : getArzneimittelbezeichnung();
     }
 
-    public MedicationDto getDto() {
-        return dto;
+    public Medication getMedication() {
+        return medication;
     }
 
     public String getArzneimittelbezeichnung() {
-        return dto != null ? dto.getArzneimittelbezeichnung() : "";
+        return medication != null ? medication.getArzneimittelbezeichnung() : "";
     }
 
     public String getWirkstoffe() {
-        return dto != null ? dto.getWirkstoffe() : "";
+        return medication != null ? medication.getWirkstoffe() : "";
     }
 
     public String getAnwendungsgebiete() {
-        return dto != null ? dto.getAnwendungsgebiete() : "";
+        return medication != null ? medication.getAnwendungsgebiete() : "";
     }
 
     public String getZulassungsinhaber() {
-        return dto != null ? dto.getZulassungsinhaber() : "";
+        return medication != null ? medication.getZulassungsinhaber() : "";
     }
 
     public String getEingangsnummer() {
-        return dto != null ? dto.getEingangsnummer() : "";
+        return medication != null ? medication.getEingangsnummer() : "";
     }
 
     public boolean isFavourite() {
-        return dto == null ? false : dto.isFavourite();
+        return medication == null ? false : medication.isFavourite();
     }
 
     @Override
@@ -63,20 +63,20 @@ public class MedicationNode {
         MedicationNode other = (MedicationNode) o;
         // uniqueness über label + optional DTO-ID
         return Objects.equals(label, other.label) &&
-                Objects.equals(dto != null ? dto.getId() : null,
-                        other.dto != null ? other.dto.getId() : null);
+                Objects.equals(medication != null ? medication.getId() : null,
+                        other.medication != null ? other.medication.getId() : null);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(label, dto != null ? dto.getId() : null);
+        return Objects.hash(label, medication != null ? medication.getId() : null);
     }
 
     public boolean isContainsSearchTerm(String term) {
-        return dto != null && (dto.getArzneimittelbezeichnung().toLowerCase().contains(term)
-                || (dto.getVertreiber() != null && dto.getVertreiber().toLowerCase().contains(term))
-                || (dto.getWirkstoffe() != null && dto.getWirkstoffe().toLowerCase().contains(term))
-                || (dto.getAdditionalNotes() != null && dto.getAdditionalNotes().toLowerCase().contains(term))
-                || (dto.getZulassungsNr() != null && dto.getZulassungsNr().toLowerCase().contains(term)));
+        return medication != null && (medication.getArzneimittelbezeichnung().toLowerCase().contains(term)
+                || (medication.getVertreiber() != null && medication.getVertreiber().toLowerCase().contains(term))
+                || (medication.getWirkstoffe() != null && medication.getWirkstoffe().toLowerCase().contains(term))
+                || (medication.getAdditionalNotes() != null && medication.getAdditionalNotes().toLowerCase().contains(term))
+                || (medication.getZulassungsNr() != null && medication.getZulassungsNr().toLowerCase().contains(term)));
     }
 }

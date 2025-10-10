@@ -6,8 +6,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentDto;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 
 @Component
@@ -18,20 +18,20 @@ public class TreatmentPlanListPresenter {
     @Autowired
     private TreatmentPlanPresenter treatmentPlanPresenter;
 
-    public List<TreatmentDto> generateWeeklyList() {
+    public List<Treatment> generateWeeklyList() {
         return treatmentPlanService.generateWeeklyList(LocalDate.now());
     }
 
-    public List<TreatmentPlanDto> findAllBy(String searchString) {
-        return treatmentPlanService.getTreatmentPlans(searchString);
+    public List<TreatmentPlan> findAllBy(String searchString) {
+        return treatmentPlanService.findTreatmentPlans(searchString);
     }
 
-    public TreatmentPlanDto saveNewTreatments(Long ivomPlanId, List<TreatmentDto> timeSlotsToCreate) {
+    public TreatmentPlan saveNewTreatments(Long ivomPlanId, List<Treatment> timeSlotsToCreate) {
         return treatmentPlanPresenter.save(ivomPlanId, timeSlotsToCreate);
     }
 
-    public List<TreatmentPlanDto> findAll() {
-        return treatmentPlanService.getTreatmentPlans();
+    public List<TreatmentPlan> findAll() {
+        return treatmentPlanService.findAll();
     }
 
 }

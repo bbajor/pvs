@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -24,5 +25,12 @@ public class SurgicalCenterTimeSlot extends BasicEntity<Long> {
     private SurgicalCenter surgicalCenter;
     private boolean isAvailable;
     private boolean isApproved;
+
+    @Transient
+    private long patientCount;
+
+    public long getPatientCount() {
+        return patientCount;
+    }
 
 }

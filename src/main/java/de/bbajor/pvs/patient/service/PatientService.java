@@ -2,6 +2,7 @@ package de.bbajor.pvs.patient.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.patient.dto.PatientDto;
 import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
@@ -30,7 +30,7 @@ public class PatientService {
     @Autowired
     private PatientMapper mapper;
 
-    public List<PatientDto> findPatients(String filter) {
+    public List<Patient> findPatients(String filter) {
 
         if (StringUtils.isEmpty(filter)) {
             return getAll();
@@ -54,10 +54,10 @@ public class PatientService {
             return cb.or(predicates.toArray(new Predicate[0]));
         };
 
-        return mapper.toPatientDtoList(patientRepository.findAll(spec));
+        return patientRepository.findAll(spec);
     }
 
-    public PatientDto save(Patient patient) {
+    public Patient save(Patient patient) {
         if (patient == null) {
             return null;
         }
@@ -100,7 +100,7 @@ public class PatientService {
                     HealthInsurance savedHealthInsurance = healthInsuranceRepository.save(healthInsurance);
                     patient.setHealthInsurance(savedHealthInsurance);
                 }
-                mapper.updateEntityFromEntity(patient, existingPatient);
+                mapper.updatePatientEntity(patient, existingPatient);
                 saved = patientRepository.save(existingPatient);
             }
         } else {
@@ -113,28 +113,24 @@ public class PatientService {
                 patient.setAddress(savedAddress);
             }
             if (patient.getHealthInsurance() != null) {
-                    HealthInsurance healthInsurance = patient.getHealthInsurance();
-                    if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
-                        healthInsurance.setId(null);
-                    }
-                    HealthInsurance savedHealthInsurance = healthInsuranceRepository.save(healthInsurance);
-                    patient.setHealthInsurance(savedHealthInsurance);
+                HealthInsurance healthInsurance = patient.getHealthInsurance();
+                if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
+                    healthInsurance.setId(null);
                 }
+                HealthInsurance savedHealthInsurance = healthInsuranceRepository.save(healthInsurance);
+                patient.setHealthInsurance(savedHealthInsurance);
+            }
             saved = patientRepository.save(patient);
         }
-        return mapper.toDto(saved);
+        return saved;
     }
 
-    public List<PatientDto> findAll() {
-        return mapper.toPatientDtoList(patientRepository.findAll());
+    public Patient findById(Integer id) {
+        return id == null ? null : patientRepository.findById(id).orElseThrow();
     }
 
-    public PatientDto findById(Integer id) {
-        return id == null ? null : mapper.toDto(patientRepository.findById(id).get());
-    }
-
-    public List<PatientDto> getAll() {
-        return mapper.toPatientDtoList(patientRepository.findAll());
+    public List<Patient> getAll() {
+        return patientRepository.findAll();
     }
 
     public Patient findEntityById(Integer id) {
@@ -145,12 +141,9 @@ public class PatientService {
     }
 
     @Transactional
-    public List<PatientDto> saveAll(List<Patient> patients) {
-        List<PatientDto> patientDtos = new ArrayList<>();
-        for (Patient patient : patients) {
-            patientDtos.add(save(patient));
-        }
-        return patientDtos;
+    public List<Patient> saveAll(List<Patient> patients) {
+        Objects.requireNonNull(patients);
+        return patientRepository.saveAll(patients);
     }
 
 }

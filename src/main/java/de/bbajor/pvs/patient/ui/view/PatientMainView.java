@@ -22,7 +22,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
-import de.bbajor.pvs.patient.dto.PatientDto;
+import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientListPresenter;
 import jakarta.annotation.security.PermitAll;
 
@@ -33,7 +33,7 @@ import jakarta.annotation.security.PermitAll;
 public class PatientMainView extends Main implements PatientChangeListener {
 
     private final PatientListPresenter patientListPresenter;
-    private Grid<PatientDto> patientGrid;
+    private Grid<Patient> patientGrid;
 
     private final DateTimeFormatter germanFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
 
@@ -43,7 +43,7 @@ public class PatientMainView extends Main implements PatientChangeListener {
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
         setSizeFull();
 
-        Button newPatientButton = new Button("Patienten anlegen", event -> openPatientDialog(new PatientDto()));
+        Button newPatientButton = new Button("Patienten anlegen", event -> openPatientDialog(new Patient()));
         newPatientButton.setIcon(VaadinIcon.USER.create());
         newPatientButton.getElement().setAttribute("theme", "primary");
 
@@ -55,16 +55,16 @@ public class PatientMainView extends Main implements PatientChangeListener {
         if (patientGrid != null) {
             remove(patientGrid);
         }
-        patientGrid = new Grid<>(PatientDto.class, false);
-        Grid.Column<PatientDto> lastNameColumn = patientGrid.addColumn(PatientDto::getLastName).setHeader("Nachname");
-        Grid.Column<PatientDto> firstNameColumn = patientGrid.addColumn(PatientDto::getFirstName).setHeader("Vorname");
-        Grid.Column<PatientDto> birthColumn = patientGrid
+        patientGrid = new Grid<>(Patient.class, false);
+        Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(Patient::getLastName).setHeader("Nachname");
+        Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(Patient::getFirstName).setHeader("Vorname");
+        Grid.Column<Patient> birthColumn = patientGrid
                 .addColumn(dto -> dto != null && dto.getBirth() != null ? germanFormatter.format(dto.getBirth()) : "-")
                 .setHeader("Geburtsdatum");
-        Grid.Column<PatientDto> insuranceColumn = patientGrid.addColumn(PatientDto::getHealthInsurance)
+        Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(Patient::getHealthInsurance)
                 .setHeader("Krankenkasse");
 
-        GridListDataView<PatientDto> dataView = patientGrid.setItems(patientListPresenter.findAll());
+        GridListDataView<Patient> dataView = patientGrid.setItems(patientListPresenter.findAll());
         PatientFilter patientFilter = new PatientFilter(dataView);
         patientGrid.getHeaderRows().clear();
         HeaderRow headerRow = patientGrid.appendHeaderRow();
@@ -80,7 +80,7 @@ public class PatientMainView extends Main implements PatientChangeListener {
 
         patientGrid.setSizeFull();
         patientGrid.asSingleSelect().addValueChangeListener(event -> {
-            PatientDto patientDto = event.getValue();
+            Patient patientDto = event.getValue();
             if (patientDto != null) {
                 openPatientDialog(patientDto);
             }
@@ -89,14 +89,14 @@ public class PatientMainView extends Main implements PatientChangeListener {
         add(patientGrid);
     }
 
-    private void openPatientDialog(PatientDto dto) {
+    private void openPatientDialog(Patient dto) {
         PatientDialog dialog = new PatientDialog(patientListPresenter.getDialogPresenter(), dto);
         dialog.addChangeListener(this);
         dialog.open();
     }
 
     @Override
-    public void onPatientChanged(PatientDto patientDto) {
+    public void onPatientChanged(Patient patientDto) {
         configureGrid();
     }
 
@@ -121,14 +121,14 @@ public class PatientMainView extends Main implements PatientChangeListener {
     }
 
     private static class PatientFilter {
-        private final GridListDataView<PatientDto> dataView;
+        private final GridListDataView<Patient> dataView;
 
         private String lastName;
         private String firstName;
         private String birth;
         private String insuranceId;
 
-        public PatientFilter(GridListDataView<PatientDto> dataView) {
+        public PatientFilter(GridListDataView<Patient> dataView) {
             this.dataView = dataView;
             this.dataView.addFilter(this::test);
         }
@@ -153,7 +153,7 @@ public class PatientMainView extends Main implements PatientChangeListener {
             this.dataView.refreshAll();
         }
 
-        public boolean test(PatientDto patient) {
+        public boolean test(Patient patient) {
             boolean matchesFirstName = matches(patient.getFirstName(), firstName);
             boolean matchesLastName = matches(patient.getLastName(), lastName);
             boolean matchesBirth = matches(patient != null && patient.getBirth() != null

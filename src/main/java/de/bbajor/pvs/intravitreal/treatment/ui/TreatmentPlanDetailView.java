@@ -16,7 +16,7 @@ import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import jakarta.annotation.security.PermitAll;
 
 @Route(value = "ivom/:id", layout = MainLayout.class)
@@ -33,24 +33,24 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     private final TreatmentPlanPresenter treatmentPlanPresenter;
     private final TreatmentPlanLayout treatmentPlanLayout;
     
-    private TreatmentPlanDto treatmentPlanDto;
+    private TreatmentPlan treatmentPlan;
 
     public TreatmentPlanDetailView(TreatmentPlanPresenter ivomDialogPresenter) {
         this.treatmentPlanPresenter = ivomDialogPresenter;
         setSizeFull();
 
-        treatmentPlanLayout = new TreatmentPlanLayout(ivomDialogPresenter, treatmentPlanDto);
+        treatmentPlanLayout = new TreatmentPlanLayout(ivomDialogPresenter, treatmentPlan);
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
 
         createButton.addClickListener(event -> {
-            TreatmentPlanDto treatmentPlan = treatmentPlanLayout.getTreatmentPlanDto();
+            TreatmentPlan treatmentPlan = treatmentPlanLayout.getCurrent();
             if (treatmentPlan.getId() == -1) {
                 treatmentPlan.setId(null);
             }
 
-            TreatmentPlanDto saved = ivomDialogPresenter.saveTreatmentPlanAndTreatments(treatmentPlan,
+            TreatmentPlan saved = ivomDialogPresenter.saveTreatmentPlanAndTreatments(treatmentPlan,
                     treatmentPlanLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("ivom/" + saved.getId());
 
@@ -80,18 +80,18 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         try {
             Long id = Long.valueOf(idParameter.get());
             if (-1 == id) {
-                TreatmentPlanDto newDto = new TreatmentPlanDto();
-                newDto.setId(id);
-                treatmentPlanLayout.setTreatmentPlan(newDto);
-                this.treatmentPlanDto = newDto;
+                TreatmentPlan newTreatmentPlan = new TreatmentPlan();
+                newTreatmentPlan.setId(id);
+                treatmentPlanLayout.setCurrent(newTreatmentPlan);
+                this.treatmentPlan = newTreatmentPlan;
             } else {
-                TreatmentPlanDto dto = treatmentPlanPresenter.getByIdWithFullDetails(id);
-                if (dto == null) {
+                TreatmentPlan existingTreatmentPlan = treatmentPlanPresenter.getByIdWithFullDetails(id);
+                if (existingTreatmentPlan == null) {
                     event.forwardTo(TreatmentPlanMainView.class);
                     return;
                 }
-                treatmentPlanLayout.setTreatmentPlan(dto);
-                this.treatmentPlanDto = dto;
+                treatmentPlanLayout.setCurrent(existingTreatmentPlan);
+                this.treatmentPlan = existingTreatmentPlan;
             }
             updateCreateButton();
         } catch (NumberFormatException nfe) {
@@ -100,8 +100,8 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     }
 
     private void updateCreateButton() {
-        boolean isNewTreatmentPlan = treatmentPlanDto == null || treatmentPlanDto.getId() == null
-                || treatmentPlanDto.getId() == -1;
+        boolean isNewTreatmentPlan = treatmentPlan == null || treatmentPlan.getId() == null
+                || treatmentPlan.getId() == -1;
         createButton.setText(isNewTreatmentPlan ? "Erstellen" : "Aktualisieren");
     }
 

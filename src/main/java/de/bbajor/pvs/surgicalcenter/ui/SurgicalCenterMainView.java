@@ -13,7 +13,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.presenter.SurgicalCenterListPresenter;
 import jakarta.annotation.security.PermitAll;
 
@@ -24,7 +24,7 @@ import jakarta.annotation.security.PermitAll;
 public class SurgicalCenterMainView extends Main {
 
     private final SurgicalCenterListPresenter presenter;
-    private final Grid<SurgicalCenterDto> grid = new Grid<>(SurgicalCenterDto.class, false);
+    private final Grid<SurgicalCenter> grid = new Grid<>(SurgicalCenter.class, false);
     private final TextField searchField = new TextField();
     private final Button searchButton = new Button(VaadinIcon.SEARCH.create());
     private final Button createButton = new Button(VaadinIcon.FILE_ADD.create());
@@ -33,7 +33,7 @@ public class SurgicalCenterMainView extends Main {
         this.presenter = presenter;
 
         createButton.addClickListener(event -> {
-            SurgicalCenterDto dto = new SurgicalCenterDto();
+            SurgicalCenter dto = new SurgicalCenter();
             dto.setId(Integer.valueOf(-1));
             navigateToDetailView(dto);
         });
@@ -60,29 +60,29 @@ public class SurgicalCenterMainView extends Main {
     }
 
     private void filterGrid(String searchTerm) {
-        //TODO filtern über eine FilterRow im Grid
+        // TODO filtern über eine FilterRow im Grid
     }
 
-    private void navigateToDetailView(SurgicalCenterDto surgicalCenterDto) {
+    private void navigateToDetailView(SurgicalCenter surgicalCenter) {
         // TODO Achtung, hier sollte nicht mit der ID-Spalte aus der Datenbank
         // gearbeitet werden, sondern mit einer internen UUID, die nicht zu erraten
         // ist!!!!
-        UI.getCurrent().navigate("surgicalcenter/" + surgicalCenterDto.getId());
+        UI.getCurrent().navigate("surgicalcenter/" + surgicalCenter.getId());
     }
 
     private void configureGrid() {
         grid.setSelectionMode(SelectionMode.SINGLE);
-        grid.addColumn(SurgicalCenterDto::toString).setHeader("Operative Einrichtung");
-        grid.addColumn(SurgicalCenterDto::getSurgicalCenterAddress).setHeader("Adresse");
-        grid.addColumn(SurgicalCenterDto::getPhone).setHeader("Telefonnummer");
-        grid.addColumn(SurgicalCenterDto::getEmail).setHeader("E-Mail");
-        grid.addColumn(SurgicalCenterDto::getContact).setHeader("Name Kontaktperson");
-        grid.addColumn(SurgicalCenterDto::getPhoneContact).setHeader("Telefonnummer der Kontaktperson");
+        grid.addColumn(SurgicalCenter::toString).setHeader("Operative Einrichtung");
+        grid.addColumn(SurgicalCenter::getSurgicalCenterAddress).setHeader("Adresse");
+        grid.addColumn(SurgicalCenter::getPhone).setHeader("Telefonnummer");
+        grid.addColumn(SurgicalCenter::getEmail).setHeader("E-Mail");
+        grid.addColumn(SurgicalCenter::getContact).setHeader("Name Kontaktperson");
+        grid.addColumn(SurgicalCenter::getPhoneContact).setHeader("Telefonnummer der Kontaktperson");
         grid.setSizeFull();
         grid.setItems(presenter.getAll());
 
         grid.asSingleSelect().addValueChangeListener(event -> {
-            SurgicalCenterDto surgicalCenterDto = event.getValue();
+            SurgicalCenter surgicalCenterDto = event.getValue();
             if (surgicalCenterDto != null) {
                 navigateToDetailView(surgicalCenterDto);
             }

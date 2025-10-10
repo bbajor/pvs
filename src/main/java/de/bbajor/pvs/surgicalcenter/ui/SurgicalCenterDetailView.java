@@ -14,7 +14,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.presenter.SurgicalCenterListPresenter;
 import jakarta.annotation.security.PermitAll;
 
@@ -35,8 +35,8 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
         buttonBar.setWidthFull();
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-            SurgicalCenterDto surgeryUnit = surgicalCenterLayout.getBean();
-            if(surgeryUnit.getId() == -1) {
+            SurgicalCenter surgeryUnit = surgicalCenterLayout.getBean();
+            if (surgeryUnit.getId() == -1) {
                 surgeryUnit.setId(null);
             }
             surgicalCenterListPresenter.save(surgeryUnit, surgicalCenterLayout.getTimeSlotsToCreate());
@@ -69,11 +69,11 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
         try {
             Integer id = Integer.valueOf(idParameter.get());
             if (-1 == id) {
-                SurgicalCenterDto newDto = new SurgicalCenterDto();
+                SurgicalCenter newDto = new SurgicalCenter();
                 newDto.setId(id);
                 surgicalCenterLayout.setBean(newDto);
             } else {
-                SurgicalCenterDto dto = surgicalCenterListPresenter.getById(id);
+                SurgicalCenter dto = surgicalCenterListPresenter.getById(id);
                 if (dto == null) {
                     event.forwardTo(SurgicalCenterMainView.class);
                     return;

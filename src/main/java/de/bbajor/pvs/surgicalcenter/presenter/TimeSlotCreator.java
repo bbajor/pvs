@@ -11,13 +11,13 @@ import java.util.List;
 import de.bbajor.pvs.base.util.HolidayUtils;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.intravitreal.treatment.dto.State;
-import de.bbajor.pvs.surgicalcenter.dto.SurgicalCenterTimeSlotDto;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 
 public class TimeSlotCreator {
 
-    public static List<SurgicalCenterTimeSlotDto> createTimeSlots(TimeSlotConfig timeSlotConfig) {
+    public static List<SurgicalCenterTimeSlot> createTimeSlots(TimeSlotConfig timeSlotConfig) {
 
-        List<SurgicalCenterTimeSlotDto> resultList = new ArrayList<>();
+        List<SurgicalCenterTimeSlot> resultList = new ArrayList<>();
         if (timeSlotConfig == null || timeSlotConfig.getDayOfWeek() == null
                 || timeSlotConfig.getStartTime() == null || timeSlotConfig.getEndTime() == null
                 || timeSlotConfig.getPeriodStartDate() == null || timeSlotConfig.getTimePeriod() == null
@@ -44,7 +44,7 @@ public class TimeSlotCreator {
         while (!currentDate.isAfter(periodEnd)) {
 
             if (!HolidayUtils.isHoliday(currentDate, bundesland) && !HolidayUtils.isWeekend(currentDate)) {
-                SurgicalCenterTimeSlotDto timeSlotDto = new SurgicalCenterTimeSlotDto()
+                SurgicalCenterTimeSlot timeSlotDto = new SurgicalCenterTimeSlot()
                         .setDescription(timeSlotConfig.getDescription())
                         .setDate(currentDate)
                         .setStartTime(startTime)
@@ -62,18 +62,18 @@ public class TimeSlotCreator {
         return resultList;
     }
 
-    public static Collection<SurgicalCenterTimeSlotDto> getNewInvalidTimeSlots(
-            List<SurgicalCenterTimeSlotDto> availableTimeSlots,
-            List<SurgicalCenterTimeSlotDto> newTimeSlots) {
+    public static Collection<SurgicalCenterTimeSlot> getNewInvalidTimeSlots(
+            List<SurgicalCenterTimeSlot> availableTimeSlots,
+            List<SurgicalCenterTimeSlot> newTimeSlots) {
 
-        Collection<SurgicalCenterTimeSlotDto> invalidSlots = new ArrayList<>();
+        Collection<SurgicalCenterTimeSlot> invalidSlots = new ArrayList<>();
         if (availableTimeSlots == null || availableTimeSlots.isEmpty() || newTimeSlots == null
                 || newTimeSlots.isEmpty()) {
             return invalidSlots;
         }
 
-        for (SurgicalCenterTimeSlotDto availableTimeSlot : availableTimeSlots) {
-            for (SurgicalCenterTimeSlotDto newTimeSlot : newTimeSlots) {
+        for (SurgicalCenterTimeSlot availableTimeSlot : availableTimeSlots) {
+            for (SurgicalCenterTimeSlot newTimeSlot : newTimeSlots) {
                 if (availableTimeSlot.getDate().isEqual(newTimeSlot.getDate())
                         && isTimeCollision(availableTimeSlot, newTimeSlot)) {
                     invalidSlots.add(newTimeSlot);
@@ -83,21 +83,21 @@ public class TimeSlotCreator {
         return invalidSlots;
     }
 
-    private static boolean isTimeCollision(SurgicalCenterTimeSlotDto availableTimeSlot,
-            SurgicalCenterTimeSlotDto newTimeSlot) {
+    private static boolean isTimeCollision(SurgicalCenterTimeSlot availableTimeSlot,
+            SurgicalCenterTimeSlot newTimeSlot) {
         return isHasSameHourAndMinute(availableTimeSlot, newTimeSlot)
                 || isLocalTimeInAvailableSlot(availableTimeSlot, newTimeSlot.getStartTime())
                 || isLocalTimeInAvailableSlot(availableTimeSlot, newTimeSlot.getEndTime());
     }
 
-    private static boolean isLocalTimeInAvailableSlot(SurgicalCenterTimeSlotDto availableTimeSlot,
+    private static boolean isLocalTimeInAvailableSlot(SurgicalCenterTimeSlot availableTimeSlot,
             LocalTime newSlotStart) {
         return newSlotStart.isAfter(availableTimeSlot.getStartTime())
                 && newSlotStart.isBefore(availableTimeSlot.getEndTime());
     }
 
-    private static boolean isHasSameHourAndMinute(SurgicalCenterTimeSlotDto availableTimeSlot,
-            SurgicalCenterTimeSlotDto newTimeSlot) {
+    private static boolean isHasSameHourAndMinute(SurgicalCenterTimeSlot availableTimeSlot,
+            SurgicalCenterTimeSlot newTimeSlot) {
         return availableTimeSlot.getStartTime().getHour() == newTimeSlot.getStartTime().getHour()
                 && availableTimeSlot.getEndTime().getHour() == newTimeSlot.getEndTime().getHour()
                 && availableTimeSlot.getStartTime().getMinute() == newTimeSlot.getStartTime().getMinute()

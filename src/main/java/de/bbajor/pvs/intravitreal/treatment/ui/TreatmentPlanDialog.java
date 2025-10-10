@@ -7,17 +7,17 @@ import com.vaadin.flow.component.dialog.Dialog;
 
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
-import de.bbajor.pvs.intravitreal.treatment.dto.TreatmentPlanDto;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 
 public class TreatmentPlanDialog extends Dialog {
 
     private List<TreatmentPlanChangeListener> listeners;
 
-    public TreatmentPlanDialog(TreatmentPlanPresenter dialogPresenter, TreatmentPlanDto dto) {
+    public TreatmentPlanDialog(TreatmentPlanPresenter dialogPresenter, TreatmentPlan treatmentPlan) {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(true);
 
-        TreatmentPlanLayout treatmentPlanForm = new TreatmentPlanLayout(dialogPresenter, dto);
+        TreatmentPlanLayout treatmentPlanForm = new TreatmentPlanLayout(dialogPresenter, treatmentPlan);
         add(treatmentPlanForm);
     }
 
