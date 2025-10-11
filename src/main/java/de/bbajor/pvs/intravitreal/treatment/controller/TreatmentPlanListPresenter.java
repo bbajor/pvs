@@ -18,8 +18,8 @@ public class TreatmentPlanListPresenter {
     @Autowired
     private TreatmentPlanPresenter treatmentPlanPresenter;
 
-    public List<Treatment> generateWeeklyList() {
-        return treatmentPlanService.generateWeeklyList(LocalDate.now());
+    public List<Treatment> generateWeekList(LocalDate startDate) {
+        return treatmentPlanService.generateWeekList(startDate);
     }
 
     public List<TreatmentPlan> findAllBy(String searchString) {

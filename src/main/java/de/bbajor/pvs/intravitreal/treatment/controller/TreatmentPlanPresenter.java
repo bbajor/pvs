@@ -46,9 +46,9 @@ public class TreatmentPlanPresenter {
     }
 
     @Transactional
-    public TreatmentPlan saveTreatmentPlanAndTreatments(TreatmentPlan dto, List<Treatment> treatmentDtos) {
-        TreatmentPlan saved = treatmentPlanService.saveTreatmentPlan(dto);
-        return saveNewTreatments(saved.getId(), treatmentDtos);
+    public TreatmentPlan saveTreatmentPlanAndTreatments(TreatmentPlan treatmentPlan, List<Treatment> newTreatments) {
+        TreatmentPlan saved = treatmentPlanService.saveTreatmentPlan(treatmentPlan);
+        return saveNewTreatments(saved.getId(), newTreatments);
     }
 
     public List<Patient> getPatients() {
@@ -69,17 +69,7 @@ public class TreatmentPlanPresenter {
 
     public List<SurgicalCenterTimeSlot> loadAvailableSurgicalCenterTimeSlots(
             SurgicalCenter selectedSurgicalCenter) {
-        List<SurgicalCenter> surgicalCenterDtos = new ArrayList<>();
-        if (selectedSurgicalCenter == null) { // if no specific surgical center has been selected, choose all
-            surgicalCenterDtos.addAll(surgicalCenterService.getSurgicalCenters());
-        } else {
-            surgicalCenterDtos.add(selectedSurgicalCenter);
-        }
-        List<SurgicalCenterTimeSlot> resultList = new ArrayList<>();
-        for (SurgicalCenter surgicalCenter : surgicalCenterDtos) {
-            resultList.addAll(surgicalCenter.getAvailableTimeSlots());
-        }
-        return resultList;
+        return surgicalCenterService.findByIdWithDetails(selectedSurgicalCenter.getId()).getAvailableTimeSlots();
     }
 
     public Collection<SurgicalCenterTimeSlot> getAllTimeSlotsFilteredBy(LocalDate start, TimePeriod period,
@@ -133,7 +123,7 @@ public class TreatmentPlanPresenter {
         }
         List<Treatment> treatmentSlots = treatmentPlanService.getTreatmentSlots(treatmentPlanId);
         if (sideOfEye != null) {
-            treatmentSlots.removeIf(e -> !sideOfEye.asDbString().equals(e.getSideOfEye()));
+            treatmentSlots.removeIf(e -> !sideOfEye.equals(e.getSideOfEye()));
         }
         return treatmentSlots;
     }

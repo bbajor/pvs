@@ -49,7 +49,7 @@ public class SurgicalCenterListPresenter {
             newTimeSlots.removeAll(invalidSlots);
             LOG.debug("Found " + invalidSlots.size() + " invalid TimeSlots, that had to be removed before saving...");
         }
-
+        LOG.debug("Saving SurgicalCenter with " + newTimeSlots.size() + " TimeSlots...");
         surgicalCenterService.saveTimeSlotsAndSurgicalCenter(newTimeSlots, surgicalCenterDto);
     }
 

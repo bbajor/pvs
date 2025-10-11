@@ -8,8 +8,6 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import de.bbajor.pvs.intravitreal.treatment.dto.State;
-
 class HolidayUtilsTest {
 
     @Test

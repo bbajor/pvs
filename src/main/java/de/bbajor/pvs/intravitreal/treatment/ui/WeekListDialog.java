@@ -14,11 +14,11 @@ import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 
-public class DailyTreatmentsDialog extends Dialog {
+public class WeekListDialog extends Dialog {
 
     private final TreeGrid<Treatment> grid = new TreeGrid<>();
 
-    public DailyTreatmentsDialog(List<Treatment> content) {
+    public WeekListDialog(WeekListConfig config) {
         setHeight("1200px");
         setWidth("1400px");
         setHeaderTitle("Wochenliste vom " + LocalDate.now() + " bis " + LocalDate.now().plusDays(7));
@@ -36,7 +36,7 @@ public class DailyTreatmentsDialog extends Dialog {
         grid.addColumn(treatment -> treatment.getAdditionalInfo()).setHeader("Zusätzliche Informationen");
 
         TreeData<Treatment> data = new TreeData<>();
-        data.addItems(null, content);
+        data.addItems(null, config.getTreatmentsOfWeek());
         grid.setDataProvider(new TreeDataProvider<>(data));
         add(grid);
 

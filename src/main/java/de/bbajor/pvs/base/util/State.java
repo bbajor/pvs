@@ -1,4 +1,4 @@
-package de.bbajor.pvs.intravitreal.treatment.dto;
+package de.bbajor.pvs.base.util;
 
 public enum State {
 
