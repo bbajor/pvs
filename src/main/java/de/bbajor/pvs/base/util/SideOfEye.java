@@ -24,7 +24,7 @@ public enum SideOfEye {
         return null;
     }
 
-    public String asDbString() {
+    public String toDbString() {
         return dbString;
     }
 

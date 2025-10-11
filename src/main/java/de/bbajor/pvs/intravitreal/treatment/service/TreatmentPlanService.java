@@ -94,7 +94,7 @@ public class TreatmentPlanService {
     }
 
     @Transactional(readOnly = true)
-    public List<Treatment> generateWeeklyList(LocalDate startDate) {
+    public List<Treatment> generateWeekList(LocalDate startDate) {
         LocalDate monday = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate endOfWeek = monday.plusDays(6);
         return treatmentRepository
@@ -164,8 +164,8 @@ public class TreatmentPlanService {
         treatmentPlanMapper.updateTreatmentPlan(update, current);
 
         // Save the treatment plan first
-        TreatmentPlan savedTreatmentPlan = treatmentPlanRepository.save(current);
-
+        TreatmentPlan saved = treatmentPlanRepository.save(current);
+ 
         // 2. Create and save new treatments linked to the treatment plan
         List<Treatment> treatmentEntityList = new ArrayList<>();
         for (Treatment treatment : update.getTreatments()) {
@@ -176,7 +176,7 @@ public class TreatmentPlanService {
             Medication medication = medicationRepository.getReferenceById(treatment.getMedication().getId());
             treatmentToSave.setSurgicalCenterTimeSlot(surgicalCenterTimeSlot);
             treatmentToSave.setMedication(medication);
-            treatmentToSave.setTreatmentPlan(savedTreatmentPlan);
+            treatmentToSave.setTreatmentPlan(saved);
             treatmentEntityList.add(treatmentToSave);
         }
 
@@ -184,7 +184,7 @@ public class TreatmentPlanService {
         treatmentRepository.saveAll(treatmentEntityList);
 
         // Refresh the treatment plan to get the updated state with treatments
-        TreatmentPlan savedTreatmentPlanDto = findByIdWithDetails(savedTreatmentPlan.getId());
+        TreatmentPlan savedTreatmentPlanDto = findByIdWithDetails(saved.getId());
         return savedTreatmentPlanDto;
     }
 

@@ -24,9 +24,9 @@ import com.vaadin.flow.data.binder.ValidationResult;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 
 import de.bbajor.pvs.base.util.DayOfWeekItemLabelGenerator;
+import de.bbajor.pvs.base.util.State;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
-import de.bbajor.pvs.intravitreal.treatment.dto.State;
 import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotConfig;
 
 @Component

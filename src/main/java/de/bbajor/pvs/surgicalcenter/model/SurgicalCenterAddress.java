@@ -42,4 +42,10 @@ public class SurgicalCenterAddress extends Address {
             this.country = locale.getCountry();
         }
     }
+
+    @Override
+    public String toString() {
+        return street + " " + houseNo + ", " + postalCode + " " + city
+                + (locale != null ? " (" + locale.getDisplayCountry() + ")" : "");
+    }
 }

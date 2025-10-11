@@ -1,5 +1,8 @@
 package de.bbajor.pvs.intravitreal.treatment.ui;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,8 +57,11 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
         generateDailyListButton = new Button("Wochenliste anzeigen",
                 event -> {
-                    DailyTreatmentsDialog dailyTreatmentsDialog = new DailyTreatmentsDialog(
-                            ivomListPresenter.generateWeeklyList());
+                    LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                    LocalDate endOfWeek = monday.plusDays(6);
+                    WeekListConfig config = new WeekListConfig(ivomListPresenter.generateWeekList(monday), monday,
+                            endOfWeek);
+                    WeekListDialog dailyTreatmentsDialog = new WeekListDialog(config);
                     dailyTreatmentsDialog.open();
                 });
         generateDailyListButton
@@ -86,7 +92,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private void configureGrid() {
         ivomPlanGrid.addColumn(TreatmentPlan::getLastName).setHeader("Nachname");
         ivomPlanGrid.addColumn(TreatmentPlan::getFirstName).setHeader("Vorname");
-        ivomPlanGrid.addColumn(treatmentPlan -> DateAndTimeUtils.getGermanDateTimeFormatter().format(treatmentPlan.getBirth()))
+        ivomPlanGrid
+                .addColumn(
+                        treatmentPlan -> DateAndTimeUtils.getGermanDateTimeFormatter().format(treatmentPlan.getBirth()))
                 .setHeader("Geburtsdatum");
         ivomPlanGrid.addColumn(TreatmentPlan::getHealthInsurance).setHeader("Krankenkasse");
         ivomPlanGrid.addColumn(TreatmentPlan::getDiagnosis).setHeader("Grund der Behandlung");

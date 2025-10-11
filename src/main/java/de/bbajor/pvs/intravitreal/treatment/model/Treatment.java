@@ -4,8 +4,10 @@ import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.SideOfEye;
+import de.bbajor.pvs.base.util.SideOfEyeConverter;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -21,8 +23,9 @@ import lombok.experimental.Accessors;
 public class Treatment extends BasicEntity<Long> {
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "treatment_plan_id", nullable = false)
+    @JoinColumn(name = "treatment_plan_id")
     private TreatmentPlan treatmentPlan;
+    @Convert(converter = SideOfEyeConverter.class)
     private SideOfEye sideOfEye;
     @ManyToOne(fetch = FetchType.EAGER)
     private SurgicalCenterTimeSlot surgicalCenterTimeSlot;

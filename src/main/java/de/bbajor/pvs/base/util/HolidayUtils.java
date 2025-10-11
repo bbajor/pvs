@@ -5,8 +5,6 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
-import de.bbajor.pvs.intravitreal.treatment.dto.State;
-
 public class HolidayUtils {
 
     public static Set<LocalDate> getHolidaysForYear(int year, State bl) {

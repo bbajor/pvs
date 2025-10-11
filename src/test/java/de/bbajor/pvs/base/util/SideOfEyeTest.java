@@ -32,8 +32,8 @@ public class SideOfEyeTest {
 
     @Test
     public void testAsDbString() {
-        assertEquals("l", SideOfEye.LEFT.asDbString());
-        assertEquals("r", SideOfEye.RIGHT.asDbString());
+        assertEquals("l", SideOfEye.LEFT.toDbString());
+        assertEquals("r", SideOfEye.RIGHT.toDbString());
     }
 
     @Test

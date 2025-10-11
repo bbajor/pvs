@@ -29,4 +29,9 @@ public class SurgicalCenter extends BasicEntity<Integer> {
     @OneToMany(mappedBy = "surgicalCenter", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private List<SurgicalCenterTimeSlot> availableTimeSlots;
 
+    @Override
+    public String toString() {
+        return name + (description != null && !description.isBlank() ? " (" + description + ")" : "") + ", "
+                + (surgicalCenterAddress != null ? surgicalCenterAddress.toString() : "");
+    }
 }

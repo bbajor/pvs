@@ -29,16 +29,16 @@ public interface SurgicalCenterTimeSlotRepository
                         SurgicalCenter surgicalCenter, Sort sort);
 
         @Query("""
-                                        select ts from SurgicalCenterTimeSlot ts
+                                        select new de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot(
+                                            ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
+                                            ts.surgicalCenter, ts.isAvailable, ts.isApproved, count(t) as patientCount
+                                        )
+                                        from SurgicalCenterTimeSlot ts
+                                        left join Treatment t on t.surgicalCenterTimeSlot = ts
                                         where ts.surgicalCenter.id = :id
+                                        group by ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
+                                                 ts.surgicalCenter, ts.isAvailable, ts.isApproved
                                         order by ts.date asc, ts.startTime asc
                         """)
         List<SurgicalCenterTimeSlot> findBySurgicalCenterIdWithTreatmentCount(Integer id);
-
-        @Query("""
-                                        select count(t)
-                                        from Treatment t
-                                        where t.surgicalCenterTimeSlot.id = :timeSlotId
-                        """)
-        int getPatientCount(Long timeSlotId);
 }
