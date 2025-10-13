@@ -135,4 +135,8 @@ public class TreatmentPlanPresenter {
     public TreatmentPlan save(Long ivomPlanId, List<Treatment> timeSlotsToCreate) {
         return saveNewTreatments(ivomPlanId, timeSlotsToCreate);
     }
+
+    public Collection<Medication> getFavouriteMedications() {
+        return medicationService.getMedicationListFavourites();
+    }
 }

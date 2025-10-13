@@ -41,4 +41,17 @@ public interface SurgicalCenterTimeSlotRepository
                                         order by ts.date asc, ts.startTime asc
                         """)
         List<SurgicalCenterTimeSlot> findBySurgicalCenterIdWithTreatmentCount(Integer id);
+
+        @Query("""
+                        SELECT ts FROM SurgicalCenterTimeSlot ts
+                        LEFT JOIN FETCH ts.surgicalCenter sc
+                        WHERE ts.id NOT IN :timeSlotIds
+                        AND EXISTS (
+                            SELECT t FROM Treatment t
+                            WHERE t.surgicalCenterTimeSlot = ts
+                            AND t.approvalDate is NULL
+                        )
+                """)
+        List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(
+                List<Long> timeSlotIds);
 }

@@ -1,8 +1,12 @@
 package de.bbajor.pvs.taskmanagement.ui.view;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
-import de.bbajor.pvs.taskmanagement.domain.Task;
-import de.bbajor.pvs.taskmanagement.service.TaskService;
+import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
+
+import java.time.Clock;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.Optional;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -15,26 +19,21 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
+
+import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.taskmanagement.domain.Task;
+import de.bbajor.pvs.taskmanagement.service.TaskService;
 import jakarta.annotation.security.PermitAll;
 
-import java.time.Clock;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
-import java.util.Optional;
-
-import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
-
 @Route("aufgabenliste")
-@PageTitle("Aufgabenliste")
-@Menu(order = 0, icon = "vaadin:clipboard-check", title = "Aufgabenliste")
+@PageTitle("Zurückliegende Behandlungen die noch überprüft werden müssen")
+@Menu(order = 0, icon = "vaadin:clipboard-check", title = "Zu überprüfende Behandlungen")
 @PermitAll
 public class TaskListView extends Main {
 
     private final TaskService taskService;
     final TextField description;
     final DatePicker dueDate;
-    final Button createBtn;
-    final Button deleteBtn;
     final Grid<Task> taskGrid;
 
     public TaskListView(TaskService taskService, Clock clock) {
@@ -50,9 +49,6 @@ public class TaskListView extends Main {
         dueDate.setPlaceholder("Fälligkeitsdatum");
         dueDate.setAriaLabel("Fälligkeitsdatum der Aufgabe");
 
-        createBtn = new Button("Erstellen", event -> createTask());
-        createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
         var dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withZone(clock.getZone())
                 .withLocale(getLocale());
         var dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(getLocale());
@@ -65,40 +61,14 @@ public class TaskListView extends Main {
         taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
         taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
         taskGrid.setSizeFull();
-
-        deleteBtn = new Button("Löschen", event -> deleteTask());
-        deleteBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-         taskGrid.addSelectionListener(e -> {
-            var selected = e.getFirstSelectedItem();
-            deleteBtn.setEnabled(selected.isPresent());
-        });
         taskGrid.getStyle().set("min-height", "10em");
-        deleteBtn.setEnabled(false);
 
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
-        add(new ViewToolbar("Aufgabenliste", ViewToolbar.group(description, dueDate, createBtn, deleteBtn)));
+        add(new ViewToolbar("Aufgabenliste", ViewToolbar.group(description, dueDate)));
         add(taskGrid);
-    }
-
-    private void deleteTask() {
-        taskGrid.getSelectionModel().getFirstSelectedItem().ifPresent(task -> {
-            taskService.deleteTask(task.getId());
-            taskGrid.getDataProvider().refreshAll();
-            Notification.show("Aufgabe gelöscht", 3000, Notification.Position.BOTTOM_END)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        });
-}
-
-    private void createTask() {
-        taskService.createTask(description.getValue(), dueDate.getValue());
-        taskGrid.getDataProvider().refreshAll();
-        description.clear();
-        dueDate.clear();
-        Notification.show("Aufgabe hinzugefügt", 3000, Notification.Position.BOTTOM_END)
-                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
     }
 
 }

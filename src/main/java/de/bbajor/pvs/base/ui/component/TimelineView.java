@@ -7,7 +7,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import org.springframework.context.ApplicationContext;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -16,7 +20,12 @@ import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
+import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
+import de.bbajor.pvs.intravitreal.treatment.ui.TreatmentDetailDialog;
+
 public class TimelineView extends VerticalLayout {
+
+    private static final Logger LOG = Logger.getLogger(TimelineView.class.getName());
 
     private final Scroller scroller;
     private final HorizontalLayout timelineLayout;
@@ -24,12 +33,15 @@ public class TimelineView extends VerticalLayout {
 
     private List<TimeLineCardConfig> itemList = new ArrayList<>();
     private boolean isOnlyShowFutureAndPresentCards = false;
-
-    // NEU: Separate Attribute für Start- und Enddatum der leeren Timeline
     private LocalDate startOfTreatmentPlan = LocalDate.now();
+    private final ApplicationContext context;
 
-    public TimelineView() {
-        // UI-Komponenten nur einmal initialisieren
+    public TimelineView(ApplicationContext context) {
+        addClassName("timeline-view");
+        Objects.requireNonNull(context);
+
+        this.context = context;
+
         timelineLayout = new HorizontalLayout();
         timelineLayout.setWidthFull();
 
@@ -66,7 +78,7 @@ public class TimelineView extends VerticalLayout {
      * Einstellungen neu aufbaut.
      */
     public void refresh() {
-        System.out.println("refresh called: " + itemList.size());
+        LOG.info("refresh called: " + itemList.size());
         timelineLayout.removeAll();
         configToComponentMap.clear();
 
@@ -101,7 +113,7 @@ public class TimelineView extends VerticalLayout {
      * ist.
      */
     private List<TimeLineCardConfig> prepareItemsForRendering() {
-        itemList.add(new TimeLineCardConfig("Start", startOfTreatmentPlan));
+        itemList.add(new TimeLineCardConfig().setFirst(true).setFirstDate(startOfTreatmentPlan));
 
         if (isOnlyShowFutureAndPresentCards) {
             return this.itemList.stream()
@@ -153,7 +165,26 @@ public class TimelineView extends VerticalLayout {
         TimeLineCard card = new TimeLineCard(config, t -> {
             itemList.remove(t);
             refresh(); // Statt manuell Komponenten zu entfernen, einfach die View neu aufbauen
-        });
+        },
+                t2 -> {
+                    // Hier können Sie die Logik für den Klick-Handler hinzufügen
+                    TreatmentDetailDialog dialog = new TreatmentDetailDialog(t2.getTreatment(),
+                            context.getBean(TreatmentPlanService.class));
+                    dialog.open();
+                });
+
+        LocalDate now = LocalDate.now();
+        if (config.isFirst()) {
+            card.addClassName("start");
+        } else {
+            if (config.getTreatmentDate().isBefore(now)) {
+                card.addClassName("past");
+            } else if (config.getTreatmentDate().isAfter(now)) {
+                card.addClassName("future");
+            } else {
+                card.addClassName("current");
+            }
+        }
         return card;
     }
 }

@@ -1,4 +1,4 @@
-package de.bbajor.pvs.base;
+package de.bbajor.pvs.base.config;
 
 import org.mapstruct.MapperConfig;
 import org.mapstruct.MappingInheritanceStrategy;

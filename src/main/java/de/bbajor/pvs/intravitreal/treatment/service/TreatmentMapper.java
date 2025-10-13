@@ -4,7 +4,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-import de.bbajor.pvs.base.BaseMapperConfig;
+import de.bbajor.pvs.base.config.BaseMapperConfig;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.patient.service.PatientMapper;
 

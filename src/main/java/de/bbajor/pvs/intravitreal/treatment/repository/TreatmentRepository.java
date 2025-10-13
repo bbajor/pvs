@@ -17,8 +17,8 @@ public interface TreatmentRepository
                         inner join fetch t.treatmentPlan tp
                         left join fetch t.medication m
                         left join fetch t.surgicalCenterTimeSlot ts
+                        left join fetch ts.surgicalCenter sc
                         where tp.id = :id
-                        and t.treatmentPlan is not null
                         order by ts.date asc
                         """)
         List<Treatment> findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(Long id);
