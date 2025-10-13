@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.springframework.context.ApplicationContext;
+
 import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.accordion.AccordionPanel;
 import com.vaadin.flow.component.button.Button;
@@ -57,29 +59,24 @@ public class TreatmentPlanLayout extends VerticalLayout {
             "Bevorzugten Behandlungsort auswählen");
     private final Button filterTimeSlotsButton = new Button("Verfügbare Termine anzeigen");
     private final Grid<SurgicalCenterTimeSlot> timeSlotGrid = new Grid<>();
-
-    // Behandlungsverlauf linkes Auge
-    private final TimelineView timeLineViewLeftEye = new TimelineView();
-
-    // Behandlungsverlauf linkes Auge
-    private final TimelineView timeLineViewRightEye = new TimelineView();
-
-    // Notizen
+    private final TimelineView timeLineViewLeftEye;
+    private final TimelineView timeLineViewRightEye;
     private final TextArea additionalInformation = new TextArea("Notizen");
-
     private final TabSheet tabSheet = new TabSheet();
-
     private final TreatmentPlanPresenter presenter;
-
     private TreatmentPlan current;
 
-    public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan) {
+    public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan,
+            ApplicationContext context) {
         this.presenter = presenter;
         this.current = treatmentPlan;
 
         setSizeFull();
 
         add(tabSheet);
+
+        timeLineViewLeftEye = new TimelineView(context);
+        timeLineViewRightEye = new TimelineView(context);
 
         patientSelectComboBox.setItems(presenter.getPatients());
         patientSelectComboBox.addValueChangeListener(event -> {
@@ -219,17 +216,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
             List<Treatment> treatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, treatmentPlanId);
             for (Treatment treatment : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig()
-                        .setSideOfEye(treatment.getSideOfEye())
-                        .setLocationInfo(treatment.getSurgicalCenterString())
-                        .setTreatmentDate(treatment.getSurgicalCenterTimeSlot().getDate())
-                        .setAdditionalInfo(treatment.getAdditionalInfo())
-                        .setStartTime(treatment.getSurgicalCenterTimeSlot().getStartTime());
+                        .setTreatment(treatment);
                 rightEyeTreatments.add(config);
             }
+            timeLineViewRightEye.setStartOfTreatmentPlan(
+                    current != null ? current.getCreationDate() : LocalDate.now());
+            timeLineViewRightEye.setItems(rightEyeTreatments);
         }
-        timeLineViewRightEye.setStartOfTreatmentPlan(
-                current != null ? current.getCreationDate() : LocalDate.now());
-        timeLineViewRightEye.setItems(rightEyeTreatments);
     }
 
     private void initializeGeneralDetailsTab() {
@@ -267,17 +260,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
             List<Treatment> treatments = presenter.getTreatmentDtos(SideOfEye.LEFT, treatmentPlanId);
             for (Treatment treatment : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig()
-                        .setTreatmentDate(treatment.getSurgicalCenterTimeSlot().getDate())
-                        .setAdditionalInfo(treatment.getAdditionalInfo())
-                        .setSideOfEye(treatment.getSideOfEye())
-                        .setLocationInfo(treatment.getSurgicalCenterString())
-                        .setStartTime(treatment.getSurgicalCenterTimeSlot().getStartTime());
+                        .setTreatment(treatment);
                 leftEyeTreatments.add(config);
             }
+            timeLineViewLeftEye.setStartOfTreatmentPlan(
+                    current != null ? current.getCreationDate() : LocalDate.now());
+            timeLineViewLeftEye.setItems(leftEyeTreatments);
         }
-        timeLineViewLeftEye.setStartOfTreatmentPlan(
-                current != null ? current.getCreationDate() : LocalDate.now());
-        timeLineViewLeftEye.setItems(leftEyeTreatments);
     }
 
     public TreatmentPlan getCurrent() {

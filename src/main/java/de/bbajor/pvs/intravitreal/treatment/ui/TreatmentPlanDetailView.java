@@ -2,7 +2,9 @@ package de.bbajor.pvs.intravitreal.treatment.ui;
 
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -32,14 +34,15 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
 
     private final TreatmentPlanPresenter treatmentPlanPresenter;
     private final TreatmentPlanLayout treatmentPlanLayout;
-    
     private TreatmentPlan treatmentPlan;
+    private final ApplicationContext context;
 
-    public TreatmentPlanDetailView(TreatmentPlanPresenter ivomDialogPresenter) {
-        this.treatmentPlanPresenter = ivomDialogPresenter;
+    public TreatmentPlanDetailView(TreatmentPlanPresenter treatmenPlanPresenter, ApplicationContext context) {
+        this.treatmentPlanPresenter = treatmenPlanPresenter;
+        this.context = context;
         setSizeFull();
 
-        treatmentPlanLayout = new TreatmentPlanLayout(ivomDialogPresenter, treatmentPlan);
+        treatmentPlanLayout = new TreatmentPlanLayout(treatmenPlanPresenter, treatmentPlan, context);
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
@@ -50,7 +53,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                 treatmentPlan.setId(null);
             }
 
-            TreatmentPlan saved = ivomDialogPresenter.saveTreatmentPlanAndTreatments(treatmentPlan,
+            TreatmentPlan saved = treatmenPlanPresenter.saveTreatmentPlanAndTreatments(treatmentPlan,
                     treatmentPlanLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("ivom/" + saved.getId());
 

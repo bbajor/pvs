@@ -234,8 +234,11 @@ public class TestDataInitializer implements CommandLineRunner {
                 LocalDate startDate = LocalDate.now();
                 LocalDate endDate = startDate.plusYears(2);
 
+                // Starte 6 Monate in der Vergangenheit
+                LocalDate startDateWithHistory = startDate.minusMonths(6);
+                
                 // Finde den ersten Mittwoch
-                LocalDate wednesday = startDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.WEDNESDAY));
+                LocalDate wednesday = startDateWithHistory.with(TemporalAdjusters.nextOrSame(DayOfWeek.WEDNESDAY));
 
                 // Generiere Mittwoch-Slots für 2 Jahre
                 while (wednesday.isBefore(endDate)) {
@@ -244,7 +247,8 @@ public class TestDataInitializer implements CommandLineRunner {
                         wednesdaySlot.setStartTime(LocalTime.of(7, 0));
                         wednesdaySlot.setEndTime(LocalTime.of(9, 0));
                         wednesdaySlot.setSurgicalCenter(center);
-                        wednesdaySlot.setAvailable(true);
+                        // Slots in der Vergangenheit sind nicht mehr verfügbar
+                        wednesdaySlot.setAvailable(wednesday.isAfter(startDate));
                         wednesdaySlot.setApproved(true);
                         wednesdaySlot.setDescription("Regulärer Mittwoch-Termin");
                         timeSlots.add(wednesdaySlot);
@@ -262,7 +266,8 @@ public class TestDataInitializer implements CommandLineRunner {
                         fridaySlot.setStartTime(LocalTime.of(7, 0));
                         fridaySlot.setEndTime(LocalTime.of(9, 0));
                         fridaySlot.setSurgicalCenter(center);
-                        fridaySlot.setAvailable(true);
+                        // Slots in der Vergangenheit sind nicht mehr verfügbar
+                        fridaySlot.setAvailable(friday.isAfter(startDate));
                         fridaySlot.setApproved(true);
                         fridaySlot.setDescription("Regulärer Freitag-Termin");
                         timeSlots.add(fridaySlot);
@@ -380,21 +385,21 @@ public class TestDataInitializer implements CommandLineRunner {
                                 // Wähle ein Zentrum für diese Behandlung
                                 SurgicalCenter center = patientCenters.get(random.nextInt(patientCenters.size()));
 
-                                // Hole verfügbare Slots für dieses Zentrum
+                                // Hole Slots für dieses Zentrum
                                 List<SurgicalCenterTimeSlot> availableSlots = center.getAvailableTimeSlots()
                                                 .stream()
-                                                .filter(slot -> slot.getDate()
-                                                                .isAfter(now.plusDays(treatmentIndex * 14)) && // Behandlungsabstand
-                                                // etwa
-                                                // 14
-                                                // Tage
-                                                                slot.getDate().isBefore(
-                                                                                now.plusDays(treatmentIndex * 14 + 10))
-                                                                && // Flexibilität
-                                                                   // von
-                                                                   // 10
-                                                                   // Tagen
-                                                                slot.isAvailable())
+                                                .filter(slot -> {
+                                                    // Stelle sicher, dass der Slot nach dem Erstellungsdatum des Plans liegt
+                                                    LocalDate planCreationDate = plan.getCreationDate();
+                                                    
+                                                    // Behandlungen ab Planstart im 14-Tage-Rhythmus
+                                                    return slot.getDate()
+                                                            .isAfter(planCreationDate.plusDays(treatmentIndex * 14)) &&
+                                                           slot.getDate()
+                                                            .isBefore(planCreationDate.plusDays(treatmentIndex * 14 + 10)) &&
+                                                           // Für historische Slots (vor heute) muss available nicht geprüft werden
+                                                           (slot.getDate().isBefore(now) || slot.isAvailable());
+                                                })
                                                 .limit(5) // Nur die ersten 5 passenden Slots betrachten
                                                 .collect(Collectors.toList());
 

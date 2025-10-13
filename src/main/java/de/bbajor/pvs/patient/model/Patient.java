@@ -3,6 +3,7 @@ package de.bbajor.pvs.patient.model;
 import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.patient.dto.Salutation;
 import de.bbajor.pvs.patient.dto.Title;
 import jakarta.persistence.CascadeType;
@@ -52,7 +53,7 @@ public class Patient extends BasicEntity<Integer> {
 
     public String getPatientInfo() {
         return String.format("%s %s, geb. %s, %s",
-                firstName, lastName, birth, healthInsurance);
+                firstName, lastName, DateAndTimeUtils.getGermanDateTimeFormatter().format(birth), healthInsurance);
     }
 
 }

@@ -1,9 +1,8 @@
 package de.bbajor.pvs.base.ui.component;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 
-import de.bbajor.pvs.base.util.SideOfEye;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,22 +14,21 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class TimeLineCardConfig {
 
-    private SideOfEye sideOfEye;
-    private String additionalInfo;
-    private LocalDate treatmentDate;
-    private LocalTime startTime;
-    private String locationInfo;
-    private boolean isSelected;
+    private Treatment treatment;
+    private LocalDate firstDate;
     private boolean isFirst;
 
     public String getAdditionalInfo() {
-        return additionalInfo == null ? "" : additionalInfo;
+        return treatment != null && treatment.getAdditionalInfo() != null ? treatment.getAdditionalInfo() : "";
     }
 
-    public TimeLineCardConfig(String additionalInfo, LocalDate emptyTimelineStartDate) {
-        this.additionalInfo = additionalInfo;
-        this.treatmentDate = emptyTimelineStartDate;
-        this.isSelected = false;
-        this.isFirst = true;
+    public boolean isApproved() {
+        return treatment != null && treatment.getApprovalDate() != null;
+    }
+
+    public LocalDate getTreatmentDate() {
+        return treatment != null && treatment.getSurgicalCenterTimeSlot() != null
+                ? treatment.getSurgicalCenterTimeSlot().getDate()
+                : firstDate;
     }
 }

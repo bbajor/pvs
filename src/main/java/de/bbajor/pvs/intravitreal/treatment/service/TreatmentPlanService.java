@@ -211,4 +211,8 @@ public class TreatmentPlanService {
 
         return saved;
     }
+
+    public List<Medication> getFavouriteMedications() {
+        return medicationRepository.findAllByIsFavouriteTrue();
+    }
 }

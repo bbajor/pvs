@@ -128,4 +128,8 @@ public class SurgicalCenterService {
         return timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(surgicalCenterId);
     }
 
+    public List<SurgicalCenterTimeSlot> getNewTimeSlotsContainingNotApprovedTreatments(List<Long> timeSlotIds) {
+        return timeSlotRepository.findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(timeSlotIds);
+    }
+
 }
