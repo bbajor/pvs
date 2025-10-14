@@ -12,6 +12,7 @@ import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Paragraph;
 
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 
@@ -22,25 +23,48 @@ public class TimeLineCard extends Card {
         Objects.requireNonNull(config);
         addClassName("timeline-card");
 
-        if (!config.isFirst()) {
+        LocalDate now = LocalDate.now();
 
+        if (!config.isFirst()) {
+            if (config.getTreatmentDate().isBefore(now)) {
+                addClassName("past");
+            } else if (config.getTreatmentDate().isAfter(now)) {
+                addClassName("future");
+            } else {
+                addClassName("current");
+            }
             SurgicalCenterTimeSlot timeSlot = config.getTreatment().getSurgicalCenterTimeSlot();
             LocalDate treatmentDate = timeSlot.getDate();
             String wochentagString = treatmentDate.getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
-            setTitle(new Div(("Behandlung am: ") + treatmentDate.toString()));
+            setTitle(
+                    new Div(("Behandlung am: ") + DateAndTimeUtils.getGermanDateTimeFormatter().format(treatmentDate)));
             setSubtitle(new Div("Wochentag: " + wochentagString));
-            String additionalInfo = config.getAdditionalInfo();
-            if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
-                add(new Paragraph(additionalInfo));
-            }
 
             if (!config.isFirst()) {
-                LocalTime startTime = timeSlot.getStartTime();
-                String locationInfo = timeSlot.getSurgicalCenter().toString();
                 SideOfEye sideOfEye = config.getTreatment().getSideOfEye();
+                String sideOfEyeText = "";
+                if (treatmentDate.isAfter(now)) {
+                    sideOfEyeText = "Geplantes ";
+                } else if (treatmentDate.isEqual(now)) {
+                    LocalTime nowTime = LocalTime.now();
+                    if (timeSlot.getStartTime().isAfter(nowTime)) {
+                        sideOfEyeText = "Geplantes ";
+                    } else {
+                        sideOfEyeText = "Heutiges ";
+                    }
+                } else {
+                    sideOfEyeText = "Behandeltes ";
+                }
+                sideOfEyeText += "Auge: ";
+                add(new Paragraph(sideOfEyeText + sideOfEye.toString()));
+                String locationInfo = timeSlot.getSurgicalCenter().getName();
+                add(new Paragraph("Behandlungsort: " + locationInfo));
+                LocalTime startTime = timeSlot.getStartTime();
                 add(new Paragraph("Uhrzeit: " + startTime.toString()));
-                add(new Paragraph("Ort: " + locationInfo));
-                add(new Paragraph(sideOfEye.toString()));
+                String additionalInfo = config.getAdditionalInfo();
+                if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
+                    add(new Paragraph(additionalInfo));
+                }
                 if (timeSlot.getDate().isAfter(LocalDate.now()) && !config.isApproved() && onDelete != null) {
                     Button delete = new Button("löschen", e -> onDelete.accept(config));
                     delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -53,13 +77,15 @@ public class TimeLineCard extends Card {
                 }
             }
         } else {
-            setTitle(new Div("In Behandlung seit: " + config.getFirstDate()));
+            setTitle(new Div("In Behandlung seit: "
+                    + DateAndTimeUtils.getGermanDateTimeFormatter().format(config.getFirstDate())));
             String wochentagString = config.getFirstDate().getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
             setSubtitle(new Div("Wochentag: " + wochentagString));
             String additionalInfo = config.getAdditionalInfo();
             if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                 add(new Paragraph(additionalInfo));
             }
+            addClassName("start");
         }
         // Styling (optional)
         getStyle().set("border", "1px solid #ddd");

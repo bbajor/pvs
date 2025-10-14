@@ -6,8 +6,11 @@ import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.patient.dto.Salutation;
 import de.bbajor.pvs.patient.dto.Title;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
@@ -37,7 +40,14 @@ public class Patient extends BasicEntity<Integer> {
     private String lastName;
     @Column(name = "birth", nullable = false)
     private LocalDate birth;
-    @ManyToOne(cascade = CascadeType.MERGE, fetch = FetchType.EAGER)
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "street", column = @Column(name = "patient_street")),
+            @AttributeOverride(name = "houseNo", column = @Column(name = "patient_house_no")),
+            @AttributeOverride(name = "postlCode", column = @Column(name = "patient_postal_code")),
+            @AttributeOverride(name = "city", column = @Column(name = "patient_city")),
+            @AttributeOverride(name = "country", column = @Column(name = "patient_country"))
+    })
     private Address address;
     private String gender;
     private String phone;
@@ -51,7 +61,8 @@ public class Patient extends BasicEntity<Integer> {
     private PatientHistory patientHistory;
     private String description;
 
-    public String getPatientInfo() {
+    @Override
+    public String toString() {
         return String.format("%s %s, geb. %s, %s",
                 firstName, lastName, DateAndTimeUtils.getGermanDateTimeFormatter().format(birth), healthInsurance);
     }

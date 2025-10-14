@@ -1,4 +1,4 @@
-package de.bbajor.pvs.intravitreal.treatment.ui;
+package de.bbajor.pvs.surgicalcenter.ui;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;

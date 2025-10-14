@@ -16,4 +16,8 @@ public class Diagnosis extends BasicEntity<Long> {
     private String icdCode;
     private String description;
 
+    @Override
+    public String toString() {
+        return name + (icdCode != null && !icdCode.isBlank() ? " (ICD: " + icdCode + ")" : "");
+    }
 }

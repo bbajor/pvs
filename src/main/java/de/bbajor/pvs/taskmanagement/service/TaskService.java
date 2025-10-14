@@ -2,17 +2,16 @@ package de.bbajor.pvs.taskmanagement.service;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
@@ -48,7 +47,7 @@ public class TaskService {
     }
 
     @Transactional
-    public void createDailyTask() {
+    public void createDailyTaskIfAny() {
         // 1. Find all timeslots containing not approved treatments until today
         List<Long> timeSlotIds = new ArrayList<>();
         List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(LocalDate.now(clock));
@@ -56,10 +55,13 @@ public class TaskService {
         List<SurgicalCenterTimeSlot> newTimeSlotsforNewTasks = surgicalCenterService
                 .getNewTimeSlotsContainingNotApprovedTreatments(timeSlotIds);
         newTimeSlotsforNewTasks.forEach(ts -> {
-            String description = "Behandlung im OP-Zeitfenster am " + ts.getDate() + " um " + ts.getStartTime() + " im "
-                    + ts.getSurgicalCenter().getName() + " ist noch nicht freigegeben.";
-            createTask(description, ts.getDate().withDayOfMonth(ts.getDate().getDayOfMonth() + 7)
-                    .with(LocalDateTime.now(clock).toLocalTime()), ts);
+            String description = "Behandlungen vom "
+                    + DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate()) + " um " + ts.getStartTime()
+                    + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden."
+                    + ts.getSurgicalCenter().getName() + " ist noch nicht überprüft worden.";
+            // Setze das Datum eine Woche in die Zukunft
+            LocalDate dueDate = ts.getDate().plusDays(7);
+            createTask(description, dueDate, ts);
         });
     }
 

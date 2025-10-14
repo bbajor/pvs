@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -30,7 +31,6 @@ import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
-import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterAddress;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import lombok.RequiredArgsConstructor;
@@ -92,6 +92,10 @@ public class TestDataInitializer implements CommandLineRunner {
 
                 // Erzeuge 10 Behandlungspläne mit Behandlungen
                 createTreatmentPlansWithTreatments(10, savedPatients, savedMedications, diagnosisDtos, surgicalCenters);
+
+                // Erstelle einen abgelaufenen TimeSlot mit nicht genehmigten Behandlungen für Task-Testing
+                createPastTimeSlotsWithUnapprovedTreatments(savedPatients.subList(0, 3), surgicalCenters.get(0),
+                        savedMedications.get(0), diagnosisDtos.get(0));
         }
 
         /**
@@ -137,14 +141,12 @@ public class TestDataInitializer implements CommandLineRunner {
                                 .supply(field(Address::getCity), () -> CITIES[random.nextInt(CITIES.length)])
                                 .supply(field(Address::getPostalCode),
                                                 () -> 10000 + random.nextInt(90000))
-                                .supply(field(Address::getCountry), () -> "Deutschland")
+                                .supply(field(Address::getCountry), () -> Locale.GERMANY)
                                 .supply(field(HealthInsurance::getCostCarrierName), () -> {
                                         String[] insurances = { "TK", "AOK", "Barmer", "DAK", "BKK", "IKK", "KKH",
                                                         "Debeka" };
                                         return insurances[random.nextInt(insurances.length)];
                                 })
-                                .ignore(field(Address::getId))
-                                .ignore(field(Address::getVersion))
                                 .ignore(field(HealthInsurance::getId))
                                 .ignore(field(HealthInsurance::getVersion))
                                 .ignore(field(Patient::getPatientHistory))
@@ -197,6 +199,44 @@ public class TestDataInitializer implements CommandLineRunner {
         /**
          * Erstellt OP-Zentren mit Zeitslots für Mittwoch und Freitag über 2 Jahre
          */
+        private void createPastTimeSlotsWithUnapprovedTreatments(List<Patient> patients, SurgicalCenter center,
+                Medication medication, Diagnosis diagnosis) {
+                
+                // Erstelle einen TimeSlot der gerade abgelaufen ist
+                LocalDate yesterday = LocalDate.now().minusDays(1);
+                SurgicalCenterTimeSlot pastTimeSlot = new SurgicalCenterTimeSlot()
+                        .setDate(yesterday)
+                        .setStartTime(LocalTime.of(14, 0))
+                        .setEndTime(LocalTime.of(16, 0))
+                        .setSurgicalCenter(center)
+                        .setDescription("Test TimeSlot für Tasks")
+                        .setAvailable(true)  // Da wir den Slot für Treatments verwenden
+                        .setApproved(true);  // Der Slot selbst ist genehmigt
+
+                // TimeSlot speichern
+                SurgicalCenter savedCenter = surgicalCenterService.saveTimeSlotsAndSurgicalCenter(List.of(pastTimeSlot), center);
+                pastTimeSlot = savedCenter.getAvailableTimeSlots().get(0); // Da wir nur einen TimeSlot gespeichert haben
+
+                // Erstelle für jeden Patienten ein Treatment ohne ApprovalDate
+                for (Patient patient : patients) {
+                        TreatmentPlan plan = new TreatmentPlan()
+                                .setPatient(patient)
+                                .setDescription("Testplan für unapproved Treatments")
+                                .setDiagnosis(diagnosis)
+                                .setCreationDate(LocalDate.now());
+
+                        Treatment treatment = new Treatment()
+                                .setSurgicalCenterTimeSlot(pastTimeSlot)
+                                .setMedication(medication)
+                                .setSideOfEye(SideOfEye.LEFT);  // Oder random zwischen LEFT/RIGHT
+                        // Kein ApprovalDate setzen, damit es als unapproved gilt
+
+                        plan.setTreatments(List.of(treatment));
+                        treatment.setTreatmentPlan(plan);  // Bidirektionale Beziehung setzen
+                        treatmentPlanService.saveTreatmentPlan(plan);
+                }
+        }
+
         private List<SurgicalCenter> createSurgicalCentersWithTimeSlots(int count) {
                 List<SurgicalCenter> centers = new ArrayList<>();
                 Random random = new Random();
@@ -206,13 +246,13 @@ public class TestDataInitializer implements CommandLineRunner {
                         center.setName(SURGICAL_CENTER_NAMES[i % SURGICAL_CENTER_NAMES.length]);
                         center.setDescription("Zentrum für intravitreale Injektionen");
 
-                        SurgicalCenterAddress address = new SurgicalCenterAddress();
+                        Address address = new Address();
                         address.setStreet(STREET_NAMES[random.nextInt(STREET_NAMES.length)] + " "
                                         + (1 + random.nextInt(100)));
                         address.setCity(CITIES[random.nextInt(CITIES.length)]);
                         address.setPostalCode(10000 + random.nextInt(90000));
-                        address.setCountry("Deutschland");
-                        center.setSurgicalCenterAddress(address);
+                        address.setCountry(Locale.GERMANY);
+                        center.setAddress(address);
 
                         // Generiere Zeitslots für Mittwoch und Freitag über 2 Jahre
                         List<SurgicalCenterTimeSlot> timeSlots = generateTimeSlots(center);

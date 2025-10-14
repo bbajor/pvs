@@ -35,11 +35,11 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
         buttonBar.setWidthFull();
         Button createButton = new Button("Erstellen");
         createButton.addClickListener(event -> {
-            SurgicalCenter surgeryUnit = surgicalCenterLayout.getBean();
-            if (surgeryUnit.getId() == -1) {
-                surgeryUnit.setId(null);
+            SurgicalCenter surgicalCenter = surgicalCenterLayout.getBean();
+            if (surgicalCenter.getId() == -1) {
+                surgicalCenter.setId(null);
             }
-            surgicalCenterListPresenter.save(surgeryUnit, surgicalCenterLayout.getTimeSlotsToCreate());
+            surgicalCenterListPresenter.save(surgicalCenter, surgicalCenterLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("surgicalcenter");
 
         });

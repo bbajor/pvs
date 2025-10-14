@@ -3,10 +3,13 @@ package de.bbajor.pvs.patient.ui.view;
 import java.util.List;
 
 import com.vaadin.flow.component.AbstractCompositeField;
+import com.vaadin.flow.component.accordion.Accordion;
+import com.vaadin.flow.component.accordion.AccordionPanel;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep;
+import com.vaadin.flow.component.html.NativeLabel;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
@@ -32,7 +35,7 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         private final ComboBox<HealthInsurance> healthInsuranceField = new ComboBox<>("Krankenversicherung");
         private final TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
-        private final TextArea descriptionField = new TextArea("Zusätzliche Informationen");
+        private final TextArea descriptionField = new TextArea();
         private final AddressField<Address> addressField = new AddressField<>(new Address());
         private final TextField phoneField = new TextField("Telefonnummer");
         private final TextField emailField = new TextField("E-Mail");
@@ -48,28 +51,57 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                 descriptionField.setWidthFull();
                 descriptionField.setHeight("150px");
 
-                // Configure the form
+                // Persönliche Daten
+                FormLayout personalDataLayout = new FormLayout();
+                personalDataLayout.setWidthFull();
+                personalDataLayout.setMinColumns(3);
+                personalDataLayout.add(salutationComboBox);
+                personalDataLayout.add(titleComboBox);
+                personalDataLayout.add(firstNameField);
+                personalDataLayout.add(lastNameField);
+                personalDataLayout.add(birthDateField);
+                AccordionPanel personalPanel = new AccordionPanel("Persönliche Daten", personalDataLayout);
+                personalPanel.setOpened(true);
+                personalPanel.setWidthFull();
+
+                // Kontaktdaten
+                FormLayout contactDataLayout = new FormLayout();
+                contactDataLayout.setWidthFull();
+                contactDataLayout.add(addressField,2);
+                contactDataLayout.add(phoneField);
+                contactDataLayout.add(emailField);
+                AccordionPanel contactPanel = new AccordionPanel("Kontaktdaten", contactDataLayout);
+                contactPanel.setOpened(true);
+                contactPanel.setWidthFull();
+
+                // Versicherungsdaten
+                FormLayout insuranceDataLayout = new FormLayout();
+                insuranceDataLayout.setWidthFull();
+                insuranceDataLayout.add(healthInsuranceField);
+                insuranceDataLayout.add(healthInsuranceNumberField);
+                AccordionPanel insurancePanel = new AccordionPanel("Versicherungsdaten", insuranceDataLayout);
+                insurancePanel.setOpened(true);
+                insurancePanel.setWidthFull();
+
+                // Zusätzliche Informationen
+                FormLayout additionalInfoLayout = new FormLayout();
+                additionalInfoLayout.setWidthFull();
+                additionalInfoLayout.add(descriptionField, 2); // Über volle Breite
+                AccordionPanel additionalPanel = new AccordionPanel("Zusätzliche Informationen", additionalInfoLayout);
+                additionalPanel.setOpened(true);
+                additionalPanel.setWidthFull();
+
+                // Description Feld soll die verfügbare Höhe nutzen
+                descriptionField.setMinHeight("150px");
+                descriptionField.setMaxHeight("300px");
+
+                // Hauptformular konfigurieren
                 var formLayout = getContent();
-
-                formLayout.add(salutationComboBox);
-                formLayout.add(titleComboBox);
-                formLayout.add(firstNameField);
-                formLayout.add(lastNameField);
-                formLayout.add(birthDateField);
-                formLayout.add(addressField);
-                formLayout.add(phoneField);
-                formLayout.add(emailField);
-                formLayout.add(healthInsuranceField);
-                formLayout.add(healthInsuranceNumberField);
-                formLayout.add(descriptionField, 2);
-
-                formLayout.setResponsiveSteps(
-                                // Use one column by default
-                                new ResponsiveStep("0", 1),
-                                // Use two columns, if the layout's width exceeds 320px
-                                new ResponsiveStep("320px", 2),
-                                // Use three columns, if the layout's width exceeds 500px
-                                new ResponsiveStep("500px", 3));
+                formLayout.setWidthFull();
+                formLayout.add(new Accordion().add(personalPanel), 2);
+                formLayout.add(new Accordion().add(contactPanel), 2);
+                formLayout.add(new Accordion().add(insurancePanel), 2);
+                formLayout.add(new Accordion().add(additionalPanel), 2);
 
                 binder.forField(firstNameField).asRequired("Bitte geben Sie einen gültigen Vornamen ein")
                                 .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 100,

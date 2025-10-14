@@ -1,6 +1,7 @@
 package de.bbajor.pvs.surgicalcenter.repository;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -54,4 +55,10 @@ public interface SurgicalCenterTimeSlotRepository
                 """)
         List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(
                 List<Long> timeSlotIds);
+
+        boolean existsBySurgicalCenterAndDateAndStartTimeAndEndTime(
+                SurgicalCenter surgicalCenter,
+                LocalDate date,
+                LocalTime startTime,
+                LocalTime endTime);
 }

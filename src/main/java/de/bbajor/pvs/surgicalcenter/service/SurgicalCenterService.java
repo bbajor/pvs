@@ -44,11 +44,6 @@ public class SurgicalCenterService {
         if (entityToSave.getId() != null && entityToSave.getId() == 0L) {
             entityToSave.setId(null);
         }
-        if (entityToSave.getSurgicalCenterAddress() != null &&
-                (entityToSave.getSurgicalCenterAddress().getId() == null
-                        || entityToSave.getSurgicalCenterAddress().getId() == 0L)) {
-            entityToSave.getSurgicalCenterAddress().setId(null);
-        }
         return surgicalCenterRepository.save(entityToSave);
     }
 
@@ -63,8 +58,13 @@ public class SurgicalCenterService {
         }
 
         SurgicalCenter savedSurgicalCenter = surgicalCenterRepository.getReferenceById(surgicalCenter.getId());
-        newTimeSlots.forEach(e -> e.setSurgicalCenter(savedSurgicalCenter));
-        return timeSlotRepository.saveAll(newTimeSlots);
+        List<SurgicalCenterTimeSlot> uniqueTimeSlots = newTimeSlots.stream()
+            .filter(slot -> !timeSlotRepository.existsBySurgicalCenterAndDateAndStartTimeAndEndTime(
+                savedSurgicalCenter, slot.getDate(), slot.getStartTime(), slot.getEndTime()))
+            .peek(e -> e.setSurgicalCenter(savedSurgicalCenter))
+            .toList();
+            
+        return timeSlotRepository.saveAll(uniqueTimeSlots);
     }
 
     @Transactional
@@ -116,10 +116,20 @@ public class SurgicalCenterService {
     public SurgicalCenter saveTimeSlotsAndSurgicalCenter(List<SurgicalCenterTimeSlot> newTimeSlots,
             SurgicalCenter surgicalCenter) {
         Objects.requireNonNull(surgicalCenter);
+        
+        // Clear the availableTimeSlots to prevent cascading saves
+        if (surgicalCenter.getAvailableTimeSlots() != null) {
+            surgicalCenter.setAvailableTimeSlots(Collections.emptyList());
+        }
 
+        // Save the surgical center first without any time slots
         SurgicalCenter savedEntity = surgicalCenterRepository.save(surgicalCenter);
+        
+        // Now save the time slots separately and update the surgical center's reference
         List<SurgicalCenterTimeSlot> savedTimeSlots = saveTimeSlotsForExistingSurgicalCenter(newTimeSlots,
                 savedEntity);
+        savedEntity.setAvailableTimeSlots(savedTimeSlots);
+        
         return surgicalCenterRepository.getReferenceById(savedEntity.getId());
     }
 

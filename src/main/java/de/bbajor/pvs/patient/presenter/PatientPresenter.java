@@ -51,9 +51,6 @@ public class PatientPresenter {
             patientMapper.updatePatientEntity(update, existingPatient);
             return patientService.save(existingPatient);
         } else {
-            if (update.getAddress() != null) {
-                update.getAddress().setId(null);
-            }
             if (update.getHealthInsurance() != null && update.getHealthInsurance().getId() != null) {
                 update.setHealthInsurance(healthInsuranceService.findById(update.getHealthInsurance()));
             }
