@@ -25,13 +25,13 @@ public class TimeSlotTaskScheduler {
     @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Berlin")
     public void runDaily() {
         LOG.info("Täglicher Task-Job gestartet");
-        taskService.createDailyTask();
+        taskService.createDailyTaskIfAny();
     }
 
     // 2. Läuft beim Start der Anwendung einmal
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
         LOG.info("Anwendung gestartet — Initial-Task wird angelegt");
-        taskService.createDailyTask();
+        taskService.createDailyTaskIfAny();
     }
 }

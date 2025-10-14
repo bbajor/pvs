@@ -17,7 +17,6 @@ public interface SurgicalCenterRepository
     Slice<SurgicalCenter> findAllBy(Pageable pageable);
 
     @Query("SELECT DISTINCT sc FROM SurgicalCenter sc " +
-            "LEFT JOIN FETCH sc.surgicalCenterAddress " +
             "LEFT JOIN FETCH sc.availableTimeSlots scts " +
             "WHERE sc.id = :id " +
             "ORDER BY scts.date ASC")

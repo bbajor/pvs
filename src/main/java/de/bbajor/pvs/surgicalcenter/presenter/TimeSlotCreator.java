@@ -48,7 +48,8 @@ public class TimeSlotCreator {
                         .setDescription(timeSlotConfig.getDescription())
                         .setDate(currentDate)
                         .setStartTime(startTime)
-                        .setEndTime(endTime);
+                        .setEndTime(endTime)
+                        .setSurgicalCenter(timeSlotConfig.getSurgicalCenter());
                 resultList.add(timeSlotDto);
             }
 

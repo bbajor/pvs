@@ -10,11 +10,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.repository.HealthInsuranceRepository;
-import de.bbajor.pvs.patient.repository.PatientAddressRepository;
 import de.bbajor.pvs.patient.repository.PatientRepository;
 import jakarta.persistence.criteria.Predicate;
 
@@ -23,8 +21,6 @@ public class PatientService {
 
     @Autowired
     private PatientRepository patientRepository;
-    @Autowired
-    private PatientAddressRepository addressRepository;
     @Autowired
     private HealthInsuranceRepository healthInsuranceRepository;
     @Autowired
@@ -65,14 +61,6 @@ public class PatientService {
         if (patient.getId() != null) {
             if (patient.getId() <= 0) {
                 patient.setId(null);
-                if (patient.getAddress() != null) {
-                    Address address = patient.getAddress();
-                    if (address.getId() != null && address.getId() <= 0) {
-                        address.setId(null);
-                    }
-                    Address savedAddress = addressRepository.save(address);
-                    patient.setAddress(savedAddress);
-                }
                 if (patient.getHealthInsurance() != null) {
                     HealthInsurance healthInsurance = patient.getHealthInsurance();
                     if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
@@ -84,14 +72,6 @@ public class PatientService {
                 saved = patientRepository.save(patient);
             } else {
                 Patient existingPatient = patientRepository.getReferenceById(patient.getId());
-                if (patient.getAddress() != null) {
-                    Address address = patient.getAddress();
-                    if (address.getId() != null && address.getId() <= 0) {
-                        address.setId(null);
-                    }
-                    Address savedAddress = addressRepository.save(address);
-                    patient.setAddress(savedAddress);
-                }
                 if (patient.getHealthInsurance() != null) {
                     HealthInsurance healthInsurance = patient.getHealthInsurance();
                     if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {
@@ -104,14 +84,6 @@ public class PatientService {
                 saved = patientRepository.save(existingPatient);
             }
         } else {
-            if (patient.getAddress() != null) {
-                Address address = patient.getAddress();
-                if (address.getId() != null && address.getId() <= 0) {
-                    address.setId(null);
-                }
-                Address savedAddress = addressRepository.save(address);
-                patient.setAddress(savedAddress);
-            }
             if (patient.getHealthInsurance() != null) {
                 HealthInsurance healthInsurance = patient.getHealthInsurance();
                 if (healthInsurance.getId() != null && healthInsurance.getId() <= 0) {

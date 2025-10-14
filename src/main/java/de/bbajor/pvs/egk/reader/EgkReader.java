@@ -100,7 +100,7 @@ public class EgkReader {
                     .setHouseNo(adr == null ? "" : adr.getHausnummer())
                     .setPostalCode(adr == null ? 00000 : Integer.parseInt(adr.getPostleitzahl()))
                     .setCity(adr == null ? "" : adr.getOrt());
-            address.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()).getCountry());
+            address.setCountry(EgkReader.toLocale(adr.getLand().getWohnsitzlaendercode()));
         } catch (NullPointerException e) {
             LOG.warn("Land in Adresse nicht gesetzt");
         } catch (NumberFormatException e) {

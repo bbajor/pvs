@@ -17,6 +17,7 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
@@ -25,9 +26,8 @@ import com.vaadin.flow.data.renderer.TextRenderer;
 import de.bbajor.pvs.base.ui.component.AddressField;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.base.util.PhoneUtils;
-import de.bbajor.pvs.intravitreal.treatment.ui.TimeSlotConfigForm;
+import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
-import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterAddress;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotConfig;
 
@@ -40,8 +40,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     private final EmailField emailField = new EmailField("E-Mail");
     private final TextField contactField = new TextField("Name Kontaktperson");
     private final TextField phoneContactField = new TextField("Telefonnummer Kontaktperson");
-    private final AddressField<SurgicalCenterAddress> addressForm = new AddressField<>("Adresse",
-            new SurgicalCenterAddress());
+    private final AddressField<Address> addressForm = new AddressField<>("Adresse",
+            new Address());
     private TimeSlotConfigForm timeSlotConfigForm = new TimeSlotConfigForm();
     private final Grid<SurgicalCenterTimeSlot> availableTimeSlots = new Grid<>();
 
@@ -75,8 +75,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         && address.getPostalCode() >= 1000
                         && address.getPostalCode() <= 99999
                         && address.getCity() != null && !address.getCity().trim().isEmpty(),
-                "Bitte geben Sie eine gültige Adresse ein").bind(SurgicalCenter::getSurgicalCenterAddress,
-                        SurgicalCenter::setSurgicalCenterAddress);
+                "Bitte geben Sie eine gültige Adresse ein").bind(SurgicalCenter::getAddress,
+                        SurgicalCenter::setAddress);
 
         binder.forField(phoneField).withValidator(item -> {
             if (item == null || item.trim().isEmpty()) {
@@ -148,8 +148,13 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                 .withNullRepresentation("")
                 .bind(SurgicalCenter::getPhoneContact, SurgicalCenter::setPhoneContact);
 
+        TabSheet tabSheet = new TabSheet();
+        tabSheet.setSizeFull();
+
+        // Create Details Tab Content
         VerticalLayout detailsLayout = new VerticalLayout();
         detailsLayout.setSizeFull();
+        detailsLayout.setPadding(true);
 
         FormLayout form = new FormLayout();
         form.setSizeFull();
@@ -169,15 +174,19 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         addressAccordion.setOpened(true);
         detailsLayout.add(addressAccordion);
 
+        // Create TimeSlots Tab Content
+        VerticalLayout timeSlotsLayout = new VerticalLayout();
+        timeSlotsLayout.setSizeFull();
+        timeSlotsLayout.setPadding(true);
+
         AccordionPanel timeSlotCreationAccordion = new AccordionPanel("OP-Slot hinzufügen", timeSlotConfigForm);
         timeSlotCreationAccordion.addThemeVariants(DetailsVariant.SMALL);
         timeSlotCreationAccordion.setOpened(true);
-        detailsLayout.add(timeSlotCreationAccordion);
-        add(detailsLayout);
-
+        timeSlotsLayout.add(timeSlotCreationAccordion);
+        
         VerticalLayout availableTimeSlotsLayout = new VerticalLayout();
         availableTimeSlotsLayout.setSizeFull();
-        availableTimeSlotsLayout.setMinHeight("800px");
+        availableTimeSlotsLayout.setMinHeight("600px");
         availableTimeSlotsLayout.add(new Div("Vorhandene Zeitslots"));
         availableTimeSlots.addColumn(dto -> DateAndTimeUtils.getGermanDateTimeFormatter().format(dto.getDate()))
                 .setHeader("Datum");
@@ -198,8 +207,13 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         availableTimeSlots.addColumn(dto -> dto.getPatientCount()).setHeader("Anzahl Patienten");
         availableTimeSlots.setSizeFull();
         availableTimeSlotsLayout.add(availableTimeSlots);
+        timeSlotsLayout.add(availableTimeSlotsLayout);
 
-        add(availableTimeSlotsLayout);
+        // Add tabs to TabSheet
+        tabSheet.add("Stammdaten", detailsLayout);
+        tabSheet.add("OP-Slots", timeSlotsLayout);
+
+        add(tabSheet);
     }
 
     public void setBean(SurgicalCenter dto) {
@@ -210,8 +224,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     }
 
     public SurgicalCenter getBean() {
-        SurgicalCenter surgeryUnitDto = binder.getBean();
-        return surgeryUnitDto;
+        SurgicalCenter surgicalCenter = binder.getBean();
+        return surgicalCenter;
     }
 
     public List<TimeSlotConfig> getTimeSlotsToCreate() {

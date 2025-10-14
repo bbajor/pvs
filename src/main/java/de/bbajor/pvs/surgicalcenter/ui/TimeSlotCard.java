@@ -1,4 +1,4 @@
-package de.bbajor.pvs.intravitreal.treatment.ui;
+package de.bbajor.pvs.surgicalcenter.ui;
 
 import com.vaadin.flow.component.card.Card;
 

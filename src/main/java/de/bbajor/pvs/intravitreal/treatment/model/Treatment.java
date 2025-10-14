@@ -50,6 +50,6 @@ public class Treatment extends BasicEntity<Long> {
     }
 
     public String getPatientInfo() {
-        return treatmentPlan.getPatient().getPatientInfo();
+        return treatmentPlan.getPatient().toString();
     }
 }

@@ -105,6 +105,9 @@ public class TimelineView extends VerticalLayout {
 
             prev = current;
         }
+
+        // Markiere die nächste Behandlung und scrolle dorthin
+        updateNextTreatmentStatus();
     }
 
     /**
@@ -172,19 +175,50 @@ public class TimelineView extends VerticalLayout {
                             context.getBean(TreatmentPlanService.class));
                     dialog.open();
                 });
+        return card;
+    }
 
+    /**
+     * Findet die nächste anstehende Behandlung und scrollt zu ihr
+     */
+    private void scrollToNextTreatment() {
         LocalDate now = LocalDate.now();
-        if (config.isFirst()) {
-            card.addClassName("start");
-        } else {
-            if (config.getTreatmentDate().isBefore(now)) {
-                card.addClassName("past");
-            } else if (config.getTreatmentDate().isAfter(now)) {
-                card.addClassName("future");
-            } else {
-                card.addClassName("current");
+        
+        // Finde die nächste Behandlung
+        TimeLineCardConfig nextTreatment = itemList.stream()
+            .filter(item -> !item.isFirst()) // Ignoriere den Start-Marker
+            .filter(item -> item.getTreatmentDate() != null)
+            .min(Comparator.comparing(item -> {
+                long daysUntil = ChronoUnit.DAYS.between(now, item.getTreatmentDate());
+                // Vergangene Behandlungen werden mit einem sehr hohen Wert versehen
+                return daysUntil < 0 ? Long.MAX_VALUE : daysUntil;
+            }))
+            .orElse(null);
+
+        if (nextTreatment != null) {
+            TimeLineCard card = configToComponentMap.get(nextTreatment);
+            if (card != null) {
+                // Markiere die Karte als "next"
+                card.addClassName("next");
+                
+                // Scrolle zur nächsten Behandlung (mit etwas Verzögerung für die Animation)
+                card.getElement().executeJs(
+                    "setTimeout(() => {" +
+                    "  const card = this;" +
+                    "  card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });" +
+                    "}, 500);");
             }
         }
-        return card;
+    }
+
+    /**
+     * Aktualisiert den nächsten Behandlungs-Status für alle Karten
+     */
+    private void updateNextTreatmentStatus() {
+        // Entferne zuerst alle "next" Klassen
+        configToComponentMap.values().forEach(card -> card.removeClassName("next"));
+        
+        // Scrolle zur nächsten Behandlung
+        scrollToNextTreatment();
     }
 }

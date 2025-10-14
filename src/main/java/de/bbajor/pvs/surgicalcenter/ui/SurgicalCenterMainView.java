@@ -73,7 +73,7 @@ public class SurgicalCenterMainView extends Main {
     private void configureGrid() {
         grid.setSelectionMode(SelectionMode.SINGLE);
         grid.addColumn(SurgicalCenter::toString).setHeader("Operative Einrichtung");
-        grid.addColumn(SurgicalCenter::getSurgicalCenterAddress).setHeader("Adresse");
+        grid.addColumn(SurgicalCenter::getAddress).setHeader("Adresse");
         grid.addColumn(SurgicalCenter::getPhone).setHeader("Telefonnummer");
         grid.addColumn(SurgicalCenter::getEmail).setHeader("E-Mail");
         grid.addColumn(SurgicalCenter::getContact).setHeader("Name Kontaktperson");

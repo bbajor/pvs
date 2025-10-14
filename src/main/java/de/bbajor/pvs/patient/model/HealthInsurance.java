@@ -24,4 +24,12 @@ public class HealthInsurance extends BasicEntity<Integer> {
     private String costCarrierCountryCode; // Länderkürzel des Kostenträgers
     private String costCarrierId; // Kostenträgernummer
     private String costCarrierName; // Kostenträger
+
+    @Override
+    public String toString() {
+        return costCarrierName != null ? costCarrierName
+                : "Unbekannte Krankenkasse" + billingCarrierName != null
+                        ? " (" + billingCarrierName + ")"
+                        : "";
+    }
 }

@@ -1,7 +1,5 @@
 package de.bbajor.pvs.base.ui.component;
 
-import java.util.Locale;
-
 import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
@@ -62,9 +60,7 @@ public class AddressField<T extends Address> extends AbstractCompositeField<Form
                 .bind(Address::getCity, Address::setCity);
 
         binder.forField(countryCodeBox)
-                .asRequired("Land auswählen").bind(
-                        dto -> dto.getCountry() == null ? null : Locale.of("", dto.getCountry()), // String → Locale
-                        (dto, locale) -> dto.setCountry(locale == null ? null : locale.getCountry()));
+                .asRequired("Land auswählen").bind(Address::getCountry, Address::setCountry);
 
         // Änderungen weiterleiten
         binder.addValueChangeListener(e -> {

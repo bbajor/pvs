@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Optional;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -31,44 +32,64 @@ import jakarta.annotation.security.PermitAll;
 @PermitAll
 public class TaskListView extends Main {
 
-    private final TaskService taskService;
-    final TextField description;
-    final DatePicker dueDate;
-    final Grid<Task> taskGrid;
+        private final TaskService taskService;
+        private final Button refreshButton;
+        final TextField description;
+        final DatePicker dueDate;
+        final Grid<Task> taskGrid;
 
-    public TaskListView(TaskService taskService, Clock clock) {
-        this.taskService = taskService;
+        public TaskListView(TaskService taskService, Clock clock) {
+                this.taskService = taskService;
 
-        description = new TextField();
-        description.setPlaceholder("Was möchten Sie erledigen?");
-        description.setAriaLabel("Beschreibung der Aufgabe");
-        description.setMaxLength(Task.DESCRIPTION_MAX_LENGTH);
-        description.setMinWidth("20em");
+                description = new TextField();
+                description.setPlaceholder("Was möchten Sie erledigen?");
+                description.setAriaLabel("Beschreibung der Aufgabe");
+                description.setMaxLength(Task.DESCRIPTION_MAX_LENGTH);
+                description.setMinWidth("20em");
 
-        dueDate = new DatePicker();
-        dueDate.setPlaceholder("Fälligkeitsdatum");
-        dueDate.setAriaLabel("Fälligkeitsdatum der Aufgabe");
+                dueDate = new DatePicker();
+                dueDate.setPlaceholder("Fälligkeitsdatum");
+                dueDate.setAriaLabel("Fälligkeitsdatum der Aufgabe");
 
-        var dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withZone(clock.getZone())
-                .withLocale(getLocale());
-        var dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(getLocale());
+                var dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+                                .withZone(clock.getZone())
+                                .withLocale(getLocale());
+                var dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(getLocale());
 
-        taskGrid = new Grid<>();
-        taskGrid.setItems(query -> taskService.list(toSpringPageRequest(query)).stream());
-        taskGrid.addColumn(Task::getDescription).setHeader("Beschreibung");
-        taskGrid.addColumn(task -> Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie"))
-                .setHeader("Fälligkeitsdatum");
-        taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
-        taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
-        taskGrid.setSizeFull();
-        taskGrid.getStyle().set("min-height", "10em");
+                taskGrid = new Grid<>();
+                taskGrid.setItems(query -> taskService.list(toSpringPageRequest(query)).stream());
+                taskGrid.addColumn(Task::getDescription).setHeader("Beschreibung");
+                taskGrid.addColumn(
+                                task -> Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie"))
+                                .setHeader("Fälligkeitsdatum");
+                taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
+                taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
+                taskGrid.setSizeFull();
+                taskGrid.getStyle().set("min-height", "10em");
 
-        setSizeFull();
-        addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                refreshButton = new Button("Aktualisieren");
+                refreshButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+                refreshButton.addClickListener(e -> {
+                        try {
+                                taskService.createDailyTaskIfAny();
+                                taskGrid.setItems(query -> taskService.list(toSpringPageRequest(query)).stream());
+                                Notification.show("Aufgabenliste aktualisiert")
+                                                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                        } catch (Exception ex) {
+                                Notification.show("Fehler beim Aktualisieren der Aufgabenliste: " + ex.getMessage(),
+                                                5000,
+                                                Notification.Position.MIDDLE)
+                                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                        }
+                });
 
-        add(new ViewToolbar("Aufgabenliste", ViewToolbar.group(description, dueDate)));
-        add(taskGrid);
-    }
+                setSizeFull();
+                addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
+                                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+
+                add(new ViewToolbar("Aufgabenliste", ViewToolbar.group(description, dueDate, refreshButton),
+                                ViewToolbar.group(taskGrid)));
+                add(taskGrid);
+        }
 
 }

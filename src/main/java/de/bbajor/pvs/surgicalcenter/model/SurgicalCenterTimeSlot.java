@@ -6,7 +6,9 @@ import java.time.LocalTime;
 import de.bbajor.pvs.base.domain.BasicEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,6 +19,9 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 @NoArgsConstructor
+@Table(uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"surgicalCenter_id", "date", "startTime", "endTime"})
+})
 public class SurgicalCenterTimeSlot extends BasicEntity<Long> {
 
     private String description;
