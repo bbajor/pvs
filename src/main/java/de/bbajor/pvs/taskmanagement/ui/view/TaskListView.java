@@ -17,7 +17,6 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
@@ -29,6 +28,7 @@ import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
+import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
 import jakarta.annotation.security.PermitAll;
 
 @Route("aufgabenliste")
@@ -40,6 +40,7 @@ public class TaskListView extends Main {
         private final TaskService taskService;
         private final TreatmentRepository treatmentRepository;
         private final AuthenticationContext authenticationContext;
+        private final TreatmentReportService reportService;
         private final Button refreshButton;
         final TextField description;
         final DatePicker dueDate;
@@ -48,10 +49,12 @@ public class TaskListView extends Main {
         final Button toggleCompleted;
         private boolean hideCompleted = false;
 
-        public TaskListView(TaskService taskService, TreatmentRepository treatmentRepository, AuthenticationContext authenticationContext, Clock clock) {
+        public TaskListView(TaskService taskService, TreatmentRepository treatmentRepository, AuthenticationContext authenticationContext, 
+                TreatmentReportService reportService, Clock clock) {
                 this.taskService = taskService;
                 this.treatmentRepository = treatmentRepository;
                 this.authenticationContext = authenticationContext;
+                this.reportService = reportService;
 
                 description = new TextField();
                 description.setPlaceholder("Was möchten Sie erledigen?");
@@ -80,14 +83,14 @@ public class TaskListView extends Main {
                 taskGrid.addColumn(task -> Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie"))
                                 .setHeader("Fälligkeitsdatum");
                 taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
-                taskGrid.addClassNameGenerator(task -> task.isCompleted() ? "row-completed" : "");
+                taskGrid.setPartNameGenerator(task -> task.isCompleted() ? "row-completed" : "");
                 taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
                 taskGrid.setSizeFull();
                 taskGrid.getStyle().set("min-height", "10em");
                 taskGrid.addItemDoubleClickListener(ev -> {
                         Task t = ev.getItem();
                         TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
-                                        this.authenticationContext);
+                                        this.authenticationContext, this.reportService);
                         dialog.open();
                 });
 
@@ -119,9 +122,8 @@ public class TaskListView extends Main {
                 addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
-                HorizontalLayout controls = ViewToolbar.group(description, dueDate, filterText, toggleCompleted, refreshButton);
-                add(new ViewToolbar("Aufgabenliste", controls,
-                                ViewToolbar.group(taskGrid)));
+                Component controls = ViewToolbar.group(description, dueDate, filterText, toggleCompleted, refreshButton);
+                add(new ViewToolbar("Aufgabenliste", controls));
                 add(taskGrid);
                 refreshGrid();
         }

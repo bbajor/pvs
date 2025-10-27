@@ -36,7 +36,16 @@ build/
 !.vscode/
 !.vscode/launch.json
 
-# Vaadin 24 generated files
+### Gradle ###
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/.gradle/
+!**/src/test/**/.gradle/
+
+### Build output ###
+bin/
+
+### Vaadin 24 generated files ###
 src/main/frontend/generated/
 src/main/frontend/generated/**/*
 src/main/bundles/
@@ -46,3 +55,6 @@ tsconfig.json
 package-lock.json
 package.json
 vite.config.ts
+
+### IDE generated files ###
+.copilot-plugin
