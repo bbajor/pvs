@@ -18,10 +18,9 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
-import com.vaadin.flow.component.orderedlayout.Scroller;
-import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
+import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
@@ -141,6 +140,21 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private void initializeTreatmentAppointmentOverviewTab() {
         VerticalLayout timeLineLayout = new VerticalLayout();
         timeLineLayout.setSizeFull();
+        // Orientation toggle controls both timelines
+        RadioButtonGroup<TimelineView.Orientation> orientationToggle = new RadioButtonGroup<>();
+        orientationToggle.setLabel("Ausrichtung");
+        orientationToggle.setItems(TimelineView.Orientation.HORIZONTAL, TimelineView.Orientation.VERTICAL);
+        orientationToggle.setValue(TimelineView.Orientation.HORIZONTAL);
+        orientationToggle.setItemLabelGenerator(item ->
+                item == TimelineView.Orientation.HORIZONTAL ? "Horizontal" : "Vertikal");
+        orientationToggle.addValueChangeListener(e -> {
+            TimelineView.Orientation o = e.getValue();
+            timeLineViewLeftEye.setOrientation(o);
+            timeLineViewRightEye.setOrientation(o);
+        });
+        timeLineLayout.add(orientationToggle);
+        timeLineViewLeftEye.setOrientation(TimelineView.Orientation.HORIZONTAL);
+        timeLineViewRightEye.setOrientation(TimelineView.Orientation.HORIZONTAL);
         initializeTimeLineLeftEye(timeLineLayout);
         initializeTimeLineRightEye(timeLineLayout);
         tabSheet.add("Behandlungsübersicht", timeLineLayout);
@@ -197,13 +211,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeTimeLineRightEye(VerticalLayout timeLineLayout) {
         // rechtes Auge
-        Scroller scrollerRight = new Scroller(timeLineViewRightEye);
-        scrollerRight.setScrollDirection(ScrollDirection.HORIZONTAL);
-        scrollerRight.setWidthFull();
-        scrollerRight.setHeight("300px");
+        timeLineViewRightEye.setTimelineHeight("300px");
         Accordion accordionRight = new Accordion();
         accordionRight.setWidthFull();
-        AccordionPanel accordionPanelRight = accordionRight.add("Behandlungsverlauf rechtes Auge", scrollerRight);
+        AccordionPanel accordionPanelRight = accordionRight.add("Behandlungsverlauf rechtes Auge", timeLineViewRightEye);
         accordionPanelRight.setOpened(true);
         accordionPanelRight.getElement().getStyle().set("width", "100%");
         timeLineLayout.add(accordionPanelRight);
@@ -241,13 +252,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeTimeLineLeftEye(VerticalLayout timeLineLayout) {
         // linkes Auge
-        Scroller scrollerLeft = new Scroller(timeLineViewLeftEye);
-        scrollerLeft.setScrollDirection(ScrollDirection.HORIZONTAL);
-        scrollerLeft.setWidthFull();
-        scrollerLeft.setHeight("300px");
+        timeLineViewLeftEye.setTimelineHeight("300px");
         Accordion accordionLeft = new Accordion();
         accordionLeft.setWidthFull();
-        AccordionPanel accordionPanelLeft = accordionLeft.add("Behandlungsverlauf linkes Auge", scrollerLeft);
+        AccordionPanel accordionPanelLeft = accordionLeft.add("Behandlungsverlauf linkes Auge", timeLineViewLeftEye);
         accordionPanelLeft.setOpened(true);
         accordionPanelLeft.getElement().getStyle().set("width", "100%");
         timeLineLayout.add(accordionPanelLeft);
