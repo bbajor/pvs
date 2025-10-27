@@ -8,6 +8,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
 
@@ -15,11 +16,12 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
 
     @Query("""
             SELECT t FROM Task t
-            WHERE EXISTS (
+            WHERE t.timeSlot.date <= :now
+            AND EXISTS (
                 SELECT 1 FROM Treatment tr
                 WHERE tr.surgicalCenterTimeSlot = t.timeSlot
                 AND tr.approvalDate is NULL
             )
             """)
-    List<Task> getTasksWhereExistsNotApprovedTreatment(LocalDate now);
+    List<Task> getTasksWhereExistsNotApprovedTreatment(@Param("now") LocalDate now);
 }
