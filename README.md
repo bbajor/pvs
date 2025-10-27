@@ -1,5 +1,10 @@
 # PVS (Praxis-Verwaltungs-System)
 
+## Lizenzierung
+- Code steht unter Business Source License 1.1 (BUSL-1.1) mit Parametern in `LICENSE.md`.
+- Interner Betrieb in eigenen Praxen erlaubt; Angebot als SaaS nur mit separater Hosting-Lizenz (`HOSTING-LIZENZ-DE.md`).
+- Change Date: 2028-10-27 → Wechsel auf Apache-2.0.
+
 ## Prerequisites
 
 - Java 17 or higher
@@ -78,5 +83,7 @@ pvs/
 
 ## Links
 - [GitHub Repository](https://github.com/bbajor/pvs)
+- [Hosting-Lizenz (DE)](./HOSTING-LIZENZ-DE.md)
+- [BUSL 1.1 Text](https://mariadb.com/bsl11/)
 - [Vaadin Documentation](https://vaadin.com/docs)
 - [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)
