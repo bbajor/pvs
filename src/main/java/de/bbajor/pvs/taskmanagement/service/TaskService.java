@@ -51,14 +51,18 @@ public class TaskService {
         // 1. Find all timeslots containing not approved treatments until today
         List<Long> timeSlotIds = new ArrayList<>();
         List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(LocalDate.now(clock));
-        tasks.forEach(e -> timeSlotIds.add(e.getId()));
+        // Collect the time slot IDs from the tasks, not the task IDs
+        tasks.stream()
+                .map(Task::getTimeSlot)
+                .filter(ts -> ts != null && ts.getId() != null)
+                .map(SurgicalCenterTimeSlot::getId)
+                .forEach(timeSlotIds::add);
         List<SurgicalCenterTimeSlot> newTimeSlotsforNewTasks = surgicalCenterService
                 .getNewTimeSlotsContainingNotApprovedTreatments(timeSlotIds);
         newTimeSlotsforNewTasks.forEach(ts -> {
             String description = "Behandlungen vom "
                     + DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate()) + " um " + ts.getStartTime()
-                    + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden."
-                    + ts.getSurgicalCenter().getName() + " ist noch nicht überprüft worden.";
+                    + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden.";
             // Setze das Datum eine Woche in die Zukunft
             LocalDate dueDate = ts.getDate().plusDays(7);
             createTask(description, dueDate, ts);

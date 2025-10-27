@@ -213,9 +213,17 @@ public class TestDataInitializer implements CommandLineRunner {
                         .setAvailable(true)  // Da wir den Slot für Treatments verwenden
                         .setApproved(true);  // Der Slot selbst ist genehmigt
 
-                // TimeSlot speichern
-                SurgicalCenter savedCenter = surgicalCenterService.saveTimeSlotsAndSurgicalCenter(List.of(pastTimeSlot), center);
-                pastTimeSlot = savedCenter.getAvailableTimeSlots().get(0); // Da wir nur einen TimeSlot gespeichert haben
+                // TimeSlot speichern und den gespeicherten Slot anhand der eindeutigen Felder ermitteln,
+                // statt blind den ersten Eintrag zu verwenden
+                SurgicalCenter savedCenter = surgicalCenterService
+                        .saveTimeSlotsAndSurgicalCenter(List.of(pastTimeSlot), center);
+                pastTimeSlot = savedCenter.getAvailableTimeSlots().stream()
+                        .filter(ts -> ts.getDate().equals(yesterday)
+                                && ts.getStartTime().equals(LocalTime.of(14, 0))
+                                && ts.getEndTime().equals(LocalTime.of(16, 0)))
+                        .findFirst()
+                        .orElse(savedCenter.getAvailableTimeSlots().isEmpty() ? pastTimeSlot
+                                : savedCenter.getAvailableTimeSlots().get(0));
 
                 // Erstelle für jeden Patienten ein Treatment ohne ApprovalDate
                 for (Patient patient : patients) {

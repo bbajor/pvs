@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.repository.MedicationRepository;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class IntravitrealMedicationService {

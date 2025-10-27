@@ -139,6 +139,9 @@ public class SurgicalCenterService {
     }
 
     public List<SurgicalCenterTimeSlot> getNewTimeSlotsContainingNotApprovedTreatments(List<Long> timeSlotIds) {
+        if (timeSlotIds == null || timeSlotIds.isEmpty()) {
+            return timeSlotRepository.findAllContainingNotApprovedTreatments();
+        }
         return timeSlotRepository.findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(timeSlotIds);
     }
 
