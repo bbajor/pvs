@@ -331,7 +331,8 @@ public class TimelineView extends VerticalLayout {
         }
 
         // Update root element orientation classes (for CSS hooks)
-        getElement().getClassList().remove("horizontal", "vertical");
+        getElement().getClassList().remove("horizontal");
+        getElement().getClassList().remove("vertical");
         getElement().getClassList().add(orientation == Orientation.HORIZONTAL ? "horizontal" : "vertical");
 
         // Ensure scrollbar space is reserved and visible
@@ -342,11 +343,11 @@ public class TimelineView extends VerticalLayout {
         int delta = -400; // px
         if (orientation == Orientation.HORIZONTAL) {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
                 delta);
         } else {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
                 delta);
         }
     }
@@ -355,11 +356,11 @@ public class TimelineView extends VerticalLayout {
         int delta = 400; // px
         if (orientation == Orientation.HORIZONTAL) {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
                 delta);
         } else {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
                 delta);
         }
     }

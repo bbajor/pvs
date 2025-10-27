@@ -1,10 +1,10 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /workspace
 COPY . .
-RUN chmod +x mvnw && ./mvnw -q -DskipTests -Dspotless.check.skip package
+RUN ./gradlew --no-daemon -q clean bootJar
 
 FROM eclipse-temurin:21-jre
-# Copy Spring Boot fat jar built by Gradle
-COPY build/libs/*.jar app.jar
+WORKDIR /app
+COPY --from=builder /workspace/build/libs/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

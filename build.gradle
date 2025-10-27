@@ -50,6 +50,10 @@ dependencies {
     implementation 'org.apache.commons:commons-csv:1.14.1'
     implementation 'org.apache.ant:ant:1.10.6'
 
+    // Flyway for database migrations
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
 
@@ -81,9 +85,9 @@ spotless {
         toggleOffOn()
         eclipse().configFile "$rootDir/eclipse-formatter.xml"
     }
-    format 'typescript', {
+    format('typescript') {
         target 'src/main/frontend/**/*.ts', 'src/main/frontend/**/*.tsx'
-        exclude 'src/main/frontend/generated/**'
-        prettier().configFile("$rootDir/.prettierrc.json").prettierVersion('3.3.3')
+        targetExclude 'src/main/frontend/generated/**'
+        prettier().configFile("$rootDir/.prettierrc.json")
     }
 }
