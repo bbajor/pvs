@@ -1,0 +1,33 @@
+server:
+  port: ${PORT:8080}
+
+logging:
+  level:
+    "org.atmosphere": warn
+
+vaadin:
+  launch-browser: true
+  allowed-packages: "com.vaadin,org.vaadin,com.flowingcode,de.bbajor.pvs"
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: false
+        type: trace
+  servlet:
+    multipart:
+      enabled: false
+      max-file-size: 50MB
+      max-request-size: 100MB
+  profiles:
+    active: dev
+
+egk:
+  tool-path: "C:/Program Files/OpenSC Project/OpenSC/tools/egk-tool.exe"
+
+domain:
+  bundesland: NI

@@ -56,6 +56,17 @@ public interface SurgicalCenterTimeSlotRepository
         List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(
                 List<Long> timeSlotIds);
 
+        @Query("""
+                        SELECT ts FROM SurgicalCenterTimeSlot ts
+                        LEFT JOIN FETCH ts.surgicalCenter sc
+                        WHERE EXISTS (
+                            SELECT t FROM Treatment t
+                            WHERE t.surgicalCenterTimeSlot = ts
+                            AND t.approvalDate is NULL
+                        )
+                """)
+        List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatments();
+
         boolean existsBySurgicalCenterAndDateAndStartTimeAndEndTime(
                 SurgicalCenter surgicalCenter,
                 LocalDate date,

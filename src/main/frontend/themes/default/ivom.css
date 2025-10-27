@@ -49,3 +49,88 @@
     transform: scale(1.01) !important;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
 }
+
+/* TimelineView container and scroller styling */
+.timeline-view {
+  position: relative;
+}
+
+.timeline-view.horizontal .timeline-scroller {
+  overflow-x: scroll !important; /* always show */
+  overflow-y: hidden !important;
+}
+
+.timeline-view.vertical .timeline-scroller {
+  overflow-y: scroll !important; /* always show */
+  overflow-x: hidden !important;
+}
+
+.timeline-scroller {
+  --scrollbar-size: 16px;
+  /* Firefox */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(0, 0, 0, 0.35) rgba(0,0,0,0.06);
+}
+
+/* WebKit scrollbars */
+.timeline-scroller::-webkit-scrollbar {
+  height: var(--scrollbar-size);
+  width: var(--scrollbar-size);
+  background: rgba(0,0,0,0.06);
+}
+
+.timeline-scroller::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  border: 3px solid rgba(255,255,255,0.6);
+}
+
+.timeline-scroller::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.06);
+}
+
+/* Always reserve space for scrollbar to keep it visible and avoid layout shift */
+.timeline-scroller {
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Scroll buttons */
+.timeline-scroll-button {
+  background: transparent;
+}
+.timeline-view.horizontal .timeline-scroll-button {
+  min-width: 44px;
+}
+.timeline-view.vertical .timeline-scroll-button {
+  width: 100%;
+}
+
+/* Ensure styling also targets the internal scrollable part of <vaadin-scroller> */
+vaadin-scroller.timeline-scroller::part(content) {
+  /* Always reserve and show scrollbar */
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Force scrollbars visible on the inner content depending on orientation */
+.timeline-view.horizontal vaadin-scroller.timeline-scroller::part(content) {
+  overflow-x: scroll;
+  overflow-y: hidden;
+}
+.timeline-view.vertical vaadin-scroller.timeline-scroller::part(content) {
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+
+/* WebKit scrollbar styling for inner content */
+vaadin-scroller.timeline-scroller::part(content)::-webkit-scrollbar {
+  height: var(--scrollbar-size, 16px);
+  width: var(--scrollbar-size, 16px);
+}
+vaadin-scroller.timeline-scroller::part(content)::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  border: 3px solid rgba(255,255,255,0.6);
+}
+vaadin-scroller.timeline-scroller::part(content)::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.06);
+}
