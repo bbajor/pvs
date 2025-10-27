@@ -1,0 +1,64 @@
+version: "3.9"
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pvs-app:latest
+    container_name: pvs-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_URL=jdbc:postgresql://db-app:5432/pvs
+      - DB_USER=pvs
+      - DB_PASSWORD=pvs
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db-app
+      - kbv-service
+    networks:
+      - pvs-net
+  db-app:
+    image: postgres:16-alpine
+    container_name: pvs-app-db
+    environment:
+      - POSTGRES_DB=pvs
+      - POSTGRES_USER=pvs
+      - POSTGRES_PASSWORD=pvs
+    ports:
+      - "5432:5432"
+    volumes:
+      - pvs_app_pg:/var/lib/postgresql/data
+    networks:
+      - pvs-net
+  kbv-db:
+    image: postgres:16-alpine
+    container_name: pvs-kbv-db
+    environment:
+      - POSTGRES_DB=kbv
+      - POSTGRES_USER=kbv
+      - POSTGRES_PASSWORD=kbv
+    ports:
+      - "5433:5432"
+    volumes:
+      - pvs_kbv_pg:/var/lib/postgresql/data
+    networks:
+      - pvs-net
+  kbv-service:
+    build:
+      context: ./kbv-masterdata-service
+      dockerfile: Dockerfile
+    image: kbv-masterdata-service:latest
+    container_name: pvs-kbv-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+    depends_on:
+      - kbv-db
+    networks:
+      - pvs-net
+networks:
+  pvs-net:
+    driver: bridge
+volumes:
+  pvs_app_pg:
+  pvs_kbv_pg:

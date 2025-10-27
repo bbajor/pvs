@@ -1,0 +1,3 @@
+-- Initial Flyway migration placeholder. Replace with real DDL when ready.
+-- This file exists to enable Flyway in dev and docker profiles.
+-- For now, leave schema management primarily to JPA during development iterations if needed.
