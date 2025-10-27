@@ -14,6 +14,8 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
 
     Slice<Task> findAllBy(Pageable pageable);
 
+    Slice<Task> findAllByCompleted(boolean completed, Pageable pageable);
+
     @Query("""
             SELECT t FROM Task t
             WHERE t.timeSlot.date <= :now
