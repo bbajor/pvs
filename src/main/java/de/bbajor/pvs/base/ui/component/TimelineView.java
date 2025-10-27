@@ -212,8 +212,16 @@ public class TimelineView extends VerticalLayout {
     private TimeLineCard createCard(TimeLineCardConfig config) {
         // Das Entfernen aus der Liste sollte auch ein Neuzeichnen auslösen
         TimeLineCard card = new TimeLineCard(config, t -> {
+            // Try to delete via service (secured by roles)
+            try {
+                if (t.getTreatment() != null && t.getTreatment().getId() != null) {
+                    context.getBean(TreatmentPlanService.class).deleteTreatment(t.getTreatment().getId());
+                }
+            } catch (Exception ex) {
+                // ignore to keep UI responsive; server will enforce permissions
+            }
             itemList.remove(t);
-            refresh(); // Statt manuell Komponenten zu entfernen, einfach die View neu aufbauen
+            refresh();
         },
                 t2 -> {
                     // Hier können Sie die Logik für den Klick-Handler hinzufügen
