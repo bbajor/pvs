@@ -36,4 +36,11 @@ public interface TreatmentRepository
         List<Treatment> findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(LocalDate startDate,
                         LocalDate endDate);
 
+        @Query("""
+                        select t from Treatment t
+                        where t.surgicalCenterTimeSlot.id = :timeSlotId
+                        order by t.surgicalCenterTimeSlot.date asc
+                        """)
+        List<Treatment> findByTimeSlotId(Long timeSlotId);
+
 }

@@ -14,9 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.repository.MedicationRepository;
 import de.bbajor.pvs.patient.model.Patient;
@@ -24,6 +26,9 @@ import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import de.bbajor.pvs.security.CurrentUser;
+import de.bbajor.pvs.security.AppUserInfo;
 
 @Service
 public class TreatmentPlanService {
@@ -40,7 +45,11 @@ public class TreatmentPlanService {
     @Autowired
     private TreatmentRepository treatmentRepository;
     @Autowired
+    private TreatmentAuditLogRepository auditLogRepository;
+    @Autowired
     private MedicationRepository medicationRepository;
+    @Autowired
+    private CurrentUser currentUser;
 
     @Autowired
     private TreatmentPlanMapper treatmentPlanMapper;
@@ -189,6 +198,7 @@ public class TreatmentPlanService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('DOCTOR')")
     public List<Treatment> saveNewTreatmentsForExistingPlan(List<Treatment> treatmentsToCreate,
             Long treatmentPlanId) {
 
@@ -201,6 +211,20 @@ public class TreatmentPlanService {
         // Save all treatments in a single batch operation
         List<Treatment> saved = treatmentRepository.saveAll(treatmentsToCreate);
 
+        // Audit creation
+        var actor = currentUser.get().orElse(null);
+        saved.forEach(t -> {
+            TreatmentAuditLog log = new TreatmentAuditLog();
+            log.setTreatment(t);
+            log.setActionType(TreatmentAuditLog.ActionType.CREATE);
+            log.setActionTimestamp(java.time.LocalDateTime.now());
+            if (actor != null) {
+                log.setActorUserId(actor.getUserId().toString());
+                log.setActorUserName(actor.getPreferredUsername());
+            }
+            auditLogRepository.save(log);
+        });
+
         // Update the treatments collection in the treatment plan
         if (treatmentPlan.getTreatments() == null) {
             treatmentPlan.setTreatments(new ArrayList<>(saved));
@@ -210,6 +234,23 @@ public class TreatmentPlanService {
         treatmentPlanRepository.save(treatmentPlan);
 
         return saved;
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('DOCTOR')")
+    public void deleteTreatment(Long treatmentId) {
+        Treatment existing = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
+        treatmentRepository.delete(existing);
+        TreatmentAuditLog log = new TreatmentAuditLog();
+        log.setTreatment(existing);
+        log.setActionType(TreatmentAuditLog.ActionType.DELETE);
+        log.setActionTimestamp(java.time.LocalDateTime.now());
+        currentUser.get().ifPresent(actor -> {
+            log.setActorUserId(actor.getUserId().toString());
+            log.setActorUserName(actor.getPreferredUsername());
+        });
+        auditLogRepository.save(log);
     }
 
     public List<Medication> getFavouriteMedications() {

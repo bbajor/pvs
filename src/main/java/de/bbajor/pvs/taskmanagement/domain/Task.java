@@ -2,6 +2,7 @@ package de.bbajor.pvs.taskmanagement.domain;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.jspecify.annotations.Nullable;
 
@@ -33,4 +34,10 @@ public class Task extends BasicEntity<Long> {
 
     @OneToOne(fetch = FetchType.EAGER)
     private SurgicalCenterTimeSlot timeSlot;
+
+    // Completion/approval state
+    private boolean completed;
+    private LocalDateTime completedAt;
+    private String completedByUserId;
+    private String completedByUserName;
 }
