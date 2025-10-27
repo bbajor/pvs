@@ -36,9 +36,11 @@ build/
 !.vscode/
 !.vscode/launch.json
 
-# Vaadin 24 generated files
+### Gradle ###
+.gradle/
+
+# Vaadin generated files
 src/main/frontend/generated/
-src/main/frontend/generated/**/*
 src/main/bundles/
 vite.generated.ts
 types.d.ts
