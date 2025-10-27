@@ -32,6 +32,9 @@ build/
 
 ### VS Code ###
 .vscode/
+# Keep the launch configuration in version control
+!.vscode/
+!.vscode/launch.json
 
 # Vaadin 24 generated files
 src/main/frontend/generated/

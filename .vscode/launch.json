@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Debug Spring Boot (Gradle)",
+      "request": "launch",
+      "mainClass": "de.bbajor.pvs.Application",
+      "projectName": "pvs-app",
+      "vmArgs": "-Dspring.profiles.active=dev",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "java",
+      "name": "Debug (explicit classpath)",
+      "request": "launch",
+      "mainClass": "de.bbajor.pvs.Application",
+      "classPaths": [
+        "${workspaceFolder}/build/classes/java/main",
+        "${workspaceFolder}/build/resources/main"
+      ],
+      "modulePaths": [],
+      "vmArgs": "-Dspring.profiles.active=dev",
+      "console": "integratedTerminal"
+    }
+  ]
+}
