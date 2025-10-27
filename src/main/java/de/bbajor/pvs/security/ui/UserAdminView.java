@@ -15,6 +15,8 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
+import java.util.stream.Collectors;
+
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
@@ -62,7 +64,8 @@ public class UserAdminView extends VerticalLayout {
         grid.addColumn(UserRow::role).setHeader("Rolle");
         grid.addColumn(ur -> ur.enabled() ? "Ja" : "Nein").setHeader("Aktiv");
         grid.setItems(userAccountRepository.findAll().stream()
-                .map(ua -> new UserRow(ua.getUsername(), String.join(", ", ua.getRoles()), ua.isEnabled())));
+                .map(ua -> new UserRow(ua.getUsername(), String.join(", ", ua.getRoles()), ua.isEnabled()))
+                .collect(Collectors.toList()));
         grid.setSizeFull();
 
         formLayout.add(usernameField, passwordField, roleSelect, enabledCheckbox);
@@ -84,7 +87,8 @@ public class UserAdminView extends VerticalLayout {
             }
             userAccountRepository.save(ua);
             grid.setItems(userAccountRepository.findAll().stream()
-                    .map(u -> new UserRow(u.getUsername(), String.join(", ", u.getRoles()), u.isEnabled())));
+                    .map(u -> new UserRow(u.getUsername(), String.join(", ", u.getRoles()), u.isEnabled()))
+                    .collect(Collectors.toList()));
         });
         HorizontalLayout actions = new HorizontalLayout(saveButton, cancelButton);
         VerticalLayout detailLayout = new VerticalLayout(formLayout, actions);

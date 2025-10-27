@@ -18,7 +18,6 @@ import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import de.bbajor.pvs.taskmanagement.domain.Task;
@@ -140,12 +139,22 @@ public class TaskService {
         if (completed == null) {
             return taskRepository.findAllBy(pageable).toList();
         }
-        return taskRepository.findAllByCompleted(completed.booleanValue(), pageable).toList();
+        return taskRepository.findAllByCompleted(completed, pageable).toList();
     }
 
     @Transactional
     public void deleteTask(Long id) {
         taskRepository.deleteById(id);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('DOCTOR')")
+    public void updateTreatmentAdditionalInfo(Long treatmentId, String additionalInfo) {
+        Objects.requireNonNull(treatmentId);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        treatment.setAdditionalInfo(additionalInfo);
+        treatmentRepository.save(treatment);
     }
 
 }
