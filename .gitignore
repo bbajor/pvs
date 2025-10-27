@@ -39,6 +39,8 @@ build/
 ### Gradle ###
 .gradle/
 
+bin/
+
 # Vaadin generated files
 src/main/frontend/generated/
 src/main/bundles/
