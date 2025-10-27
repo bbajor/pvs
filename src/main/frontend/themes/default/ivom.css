@@ -44,6 +44,14 @@
     z-index: 1 !important;
 }
 
+/* Task grid styling for completed toggle */
+.row-completed {
+  opacity: 0.6;
+}
+.hide-completed .row-completed {
+  display: none;
+}
+
 /* Hover-Effekt */
 .timeline-card:hover {
     transform: scale(1.01) !important;

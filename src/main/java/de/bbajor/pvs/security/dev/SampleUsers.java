@@ -105,7 +105,7 @@ public final class SampleUsers {
          */
         static DevUser ADMIN = DevUser.builder().preferredUsername(ADMIN_USERNAME).fullName("Alice Administrator")
                         .userId(ADMIN_ID).password(SAMPLE_PASSWORD).email("alice@example.com")
-                        .roles(AppRoles.ADMIN, AppRoles.USER)
+                        .roles(AppRoles.ADMIN, AppRoles.OWNER, AppRoles.USER, AppRoles.DOCTOR)
                         .build();
 
         /**
@@ -136,7 +136,8 @@ public final class SampleUsers {
          */
         static final DevUser USER = DevUser.builder().preferredUsername(USER_USERNAME).fullName("Ursula User")
                         .userId(USER_ID).password(SAMPLE_PASSWORD).email("ursula@example.com")
-                        .roles(AppRoles.USER, AppRoles.TECH_USER).build();
+                        .roles(AppRoles.USER, AppRoles.TECH_USER, AppRoles.MEDICAL_STAFF)
+                        .build();
 
         /**
          * An unmodifiable list containing all sample users.

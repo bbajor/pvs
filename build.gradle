@@ -48,6 +48,8 @@ dependencies {
 
     implementation 'org.apache.commons:commons-csv:1.14.1'
     implementation 'org.apache.ant:ant:1.10.6'
+    
+    implementation 'org.apache.pdfbox:pdfbox:3.0.1'
 
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
