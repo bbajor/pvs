@@ -16,10 +16,12 @@ public class KbvImportRunner implements CommandLineRunner {
   private static final Logger log = LoggerFactory.getLogger(KbvImportRunner.class);
   private final KbvImportProperties properties;
   private final KbvZipDownloader downloader;
+  private final KbvXmlImporter importer;
 
-  public KbvImportRunner(KbvImportProperties properties, KbvZipDownloader downloader) {
+  public KbvImportRunner(KbvImportProperties properties, KbvZipDownloader downloader, KbvXmlImporter importer) {
     this.properties = properties;
     this.downloader = downloader;
+    this.importer = importer;
   }
 
   @Override
@@ -30,7 +32,9 @@ public class KbvImportRunner implements CommandLineRunner {
     }
     try {
       log.info("Starting KBV download of {} urls to {}", properties.getZipUrls().size(), properties.getTargetDir());
-      downloader.downloadAll(properties.getZipUrls(), Path.of(properties.getTargetDir()));
+      var target = Path.of(properties.getTargetDir());
+      downloader.downloadAll(properties.getZipUrls(), target);
+      importer.importFromDirectory(target);
     } catch (IOException e) {
       log.error("KBV download failed", e);
     }
