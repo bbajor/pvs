@@ -1,0 +1,38 @@
+name: Deploy to Dev (Render)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+
+      - name: Deploy to Render (Dev)
+        uses: johnbeynon/render-deploy@v1.1.2
+        with:
+          service-id: ${{ secrets.RENDER_DEV_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+
