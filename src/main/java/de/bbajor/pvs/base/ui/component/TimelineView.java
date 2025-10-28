@@ -268,12 +268,34 @@ public class TimelineView extends VerticalLayout {
                 // Markiere die Karte als "next"
                 card.addClassName("next");
                 
-                // Scrolle zur nächsten Behandlung (mit etwas Verzögerung für die Animation)
-                card.getElement().executeJs(
-                    "setTimeout(() => {" +
-                    "  const card = this;" +
-                    "  card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });" +
-                    "}, 500);");
+                // Scrolle nur innerhalb des Scrollers zur nächsten Behandlung (nicht die gesamte View)
+                if (orientation == Orientation.HORIZONTAL) {
+                    scroller.getElement().executeJs(
+                        "setTimeout(() => {" +
+                        "  const scroller = this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this;" +
+                        "  const card = $0;" +
+                        "  if (scroller && card) {" +
+                        "    const cardRect = card.getBoundingClientRect();" +
+                        "    const scrollerRect = scroller.getBoundingClientRect();" +
+                        "    const scrollLeft = scroller.scrollLeft + cardRect.left - scrollerRect.left - (scrollerRect.width / 2) + (cardRect.width / 2);" +
+                        "    scroller.scrollTo({ left: scrollLeft, behavior: 'smooth' });" +
+                        "  }" +
+                        "}, 500);",
+                        card.getElement());
+                } else {
+                    scroller.getElement().executeJs(
+                        "setTimeout(() => {" +
+                        "  const scroller = this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this;" +
+                        "  const card = $0;" +
+                        "  if (scroller && card) {" +
+                        "    const cardRect = card.getBoundingClientRect();" +
+                        "    const scrollerRect = scroller.getBoundingClientRect();" +
+                        "    const scrollTop = scroller.scrollTop + cardRect.top - scrollerRect.top - (scrollerRect.height / 2) + (cardRect.height / 2);" +
+                        "    scroller.scrollTo({ top: scrollTop, behavior: 'smooth' });" +
+                        "  }" +
+                        "}, 500);",
+                        card.getElement());
+                }
             }
         }
     }
