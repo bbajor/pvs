@@ -22,6 +22,8 @@ import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.CurrentUser;
 import jakarta.annotation.security.PermitAll;
 
 @Route("ivom")
@@ -31,14 +33,16 @@ import jakarta.annotation.security.PermitAll;
 public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeListener {
 
     private final TreatmentPlanListPresenter ivomListPresenter;
+    private final CurrentUser currentUser;
     private final TextField searchField = new TextField();
     private final Button searchButton = new Button(VaadinIcon.SEARCH.create());
     private final Button createButton = new Button(VaadinIcon.PLUS.create());
     private final Button generateDailyListButton;
     private final Grid<TreatmentPlan> ivomPlanGrid = new Grid<>(TreatmentPlan.class, false);
 
-    public TreatmentPlanMainView(TreatmentPlanListPresenter ivomListPresenter) {
+    public TreatmentPlanMainView(TreatmentPlanListPresenter ivomListPresenter, CurrentUser currentUser) {
         this.ivomListPresenter = ivomListPresenter;
+        this.currentUser = currentUser;
 
         createButton.addClickListener(event -> {
             Optional<TreatmentPlan> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
@@ -51,6 +55,18 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             }
         });
         createButton.getElement().setAttribute("theme", "primary");
+        
+        // Button nur für berechtigte Rollen aktivieren
+        boolean canBook = currentUser.get()
+                .map(user -> user.getAuthorities().stream()
+                        .anyMatch(auth -> auth.getAuthority().equals("ROLE_" + AppRoles.ADMIN) ||
+                                auth.getAuthority().equals("ROLE_" + AppRoles.DOCTOR) ||
+                                auth.getAuthority().equals("ROLE_" + AppRoles.TECH_USER)))
+                .orElse(false);
+        createButton.setEnabled(canBook);
+        if (!canBook) {
+            createButton.setTooltipText("Sie benötigen die Rolle ADMIN, DOCTOR oder TECH_USER, um Termine zu buchen");
+        }
 
         searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
         searchField.setWidthFull();

@@ -12,11 +12,13 @@ import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.spring.security.AuthenticationContext;
-import com.vaadin.flow.server.StreamResource;
+
+import org.springframework.security.access.AccessDeniedException;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
@@ -201,36 +203,74 @@ public class TaskReviewDialog extends Dialog {
         nextButton.setEnabled(index < treatments.size() - 1);
         
         Button approveSelected = new Button("Approbieren", e -> {
-            String user = authenticationContext.getPrincipalName().orElse("unknown");
-            String userId = user;
-            taskService.approveTreatment(treatment.getId(), userId, user, false);
-            saveAdditionalInfo(treatment, additionalInfoField.getValue());
-            Notification.show("Behandlung approbiert");
-            reloadTreatments();
-            
-            // Navigate to next treatment if available, otherwise stay on current
-            if (index < treatments.size() - 1) {
-                showTreatmentDetail(index + 1);
-            } else {
-                showTreatmentDetail(index);
+            try {
+                String user = authenticationContext.getPrincipalName().orElse("unknown");
+                String userId = user;
+                taskService.approveTreatment(treatment.getId(), userId, user, false);
+                saveAdditionalInfo(treatment, additionalInfoField.getValue());
+                Notification.show("Behandlung approbiert");
+                reloadTreatments();
+                
+                // Navigate to next treatment if available, otherwise go back to overview
+                if (index < treatments.size() - 1) {
+                    showTreatmentDetail(index + 1);
+                } else {
+                    showOverview();
+                }
+            } catch (AccessDeniedException ex) {
+                Notification errorNotification = new Notification(
+                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu approbieren. " +
+                    "Bitte wenden Sie sich an einen berechtigten Benutzer (z.B. einen Arzt).",
+                    10000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            } catch (Exception ex) {
+                Notification errorNotification = new Notification(
+                    "Fehler beim Approbieren der Behandlung: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
             }
         });
         approveSelected.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         approveSelected.setEnabled(!task.isCompleted());
         
         Button approveSecond = new Button("Als Zweitprüfer bestätigen", e -> {
-            String user = authenticationContext.getPrincipalName().orElse("unknown");
-            String userId = user;
-            taskService.approveTreatment(treatment.getId(), userId, user, true);
-            saveAdditionalInfo(treatment, additionalInfoField.getValue());
-            Notification.show("Zweitprüfung durchgeführt");
-            reloadTreatments();
-            
-            // Navigate to next treatment if available, otherwise stay on current
-            if (index < treatments.size() - 1) {
-                showTreatmentDetail(index + 1);
-            } else {
-                showTreatmentDetail(index);
+            try {
+                String user = authenticationContext.getPrincipalName().orElse("unknown");
+                String userId = user;
+                taskService.approveTreatment(treatment.getId(), userId, user, true);
+                saveAdditionalInfo(treatment, additionalInfoField.getValue());
+                Notification.show("Zweitprüfung durchgeführt");
+                reloadTreatments();
+                
+                // Navigate to next treatment if available, otherwise go back to overview
+                if (index < treatments.size() - 1) {
+                    showTreatmentDetail(index + 1);
+                } else {
+                    showOverview();
+                }
+            } catch (AccessDeniedException ex) {
+                Notification errorNotification = new Notification(
+                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu approbieren. " +
+                    "Bitte wenden Sie sich an einen berechtigten Benutzer (z.B. einen Arzt).",
+                    10000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            } catch (Exception ex) {
+                Notification errorNotification = new Notification(
+                    "Fehler bei der Zweitprüfung: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
             }
         });
         approveSecond.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
