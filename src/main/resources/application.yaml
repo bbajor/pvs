@@ -10,14 +10,6 @@ vaadin:
   allowed-packages: "com.vaadin,org.vaadin,com.flowingcode,de.bbajor.pvs"
 
 spring:
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: false
-        type: trace
   servlet:
     multipart:
       enabled: true

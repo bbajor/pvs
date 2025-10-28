@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.ai.config.AiProperties;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "ai.whisper.local.enabled", havingValue = "true", matchIfMissing = false)
 public class WhisperInstallationService {
 
     private static final Logger LOG = LogManager.getLogger(WhisperInstallationService.class);

@@ -49,7 +49,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 @Configuration
 @Import({ VaadinAwareSecurityContextHolderStrategyConfiguration.class })
-@ConditionalOnMissingBean(ControlCenterSecurityConfig.class)
+@ConditionalOnMissingBean({ControlCenterSecurityConfig.class, de.bbajor.pvs.security.prod.ProdSecurityConfig.class})
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "spring.profiles.active",
+    havingValue = "dev",
+    matchIfMissing = true  // Default to dev if no profile is set
+)
 class DevSecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(DevSecurityConfig.class);
