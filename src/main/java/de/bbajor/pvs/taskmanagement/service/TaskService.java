@@ -44,6 +44,15 @@ public class TaskService {
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER') or hasRole('SYSTEM')")
     public void createTask(String description, @Nullable LocalDate dueDate, SurgicalCenterTimeSlot timeSlot) {
+        createTaskInternal(description, dueDate, timeSlot);
+    }
+
+    /**
+     * Internal method for creating tasks without security checks.
+     * Used by scheduled tasks and other internal operations.
+     */
+    @Transactional
+    public void createTaskInternal(String description, @Nullable LocalDate dueDate, SurgicalCenterTimeSlot timeSlot) {
         if ("fail".equals(description)) {
             throw new RuntimeException("This is for testing the error handler");
         }
@@ -58,6 +67,15 @@ public class TaskService {
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER') or hasRole('SYSTEM')")
     public void createDailyTaskIfAny() {
+        createDailyTaskIfAnyInternal();
+    }
+
+    /**
+     * Internal method for creating daily tasks without security checks.
+     * Used by scheduled tasks and startup listeners.
+     */
+    @Transactional
+    public void createDailyTaskIfAnyInternal() {
         // 1. Find all timeslots containing not approved treatments until today
         List<Long> timeSlotIds = new ArrayList<>();
         List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(LocalDate.now(clock));
@@ -75,7 +93,7 @@ public class TaskService {
                     + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden.";
             // Setze das Datum eine Woche in die Zukunft
             LocalDate dueDate = ts.getDate().plusDays(7);
-            createTask(description, dueDate, ts);
+            createTaskInternal(description, dueDate, ts);
         });
     }
 

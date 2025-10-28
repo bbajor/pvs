@@ -57,11 +57,16 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         createButton.getElement().setAttribute("theme", "primary");
         
         // Button nur für berechtigte Rollen aktivieren
-        boolean canBook = currentUser.get()
-                .map(user -> user.getAuthorities().stream()
-                        .anyMatch(auth -> auth.getAuthority().equals("ROLE_" + AppRoles.ADMIN) ||
-                                auth.getAuthority().equals("ROLE_" + AppRoles.DOCTOR) ||
-                                auth.getAuthority().equals("ROLE_" + AppRoles.TECH_USER)))
+        boolean canBook = currentUser.getPrincipal()
+                .map(principal -> {
+                    return principal.getAuthorities().stream()
+                            .anyMatch(auth -> {
+                                String authority = auth.getAuthority();
+                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
+                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
+                            });
+                })
                 .orElse(false);
         createButton.setEnabled(canBook);
         if (!canBook) {

@@ -52,11 +52,16 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         buttonBar.setWidthFull();
         
         // Prüfe, ob Benutzer berechtigt ist, Termine zu buchen
-        boolean canBook = currentUser.get()
-                .map(user -> user.getAuthorities().stream()
-                        .anyMatch(auth -> auth.getAuthority().equals("ROLE_" + AppRoles.ADMIN) ||
-                                auth.getAuthority().equals("ROLE_" + AppRoles.DOCTOR) ||
-                                auth.getAuthority().equals("ROLE_" + AppRoles.TECH_USER)))
+        boolean canBook = currentUser.getPrincipal()
+                .map(principal -> {
+                    return principal.getAuthorities().stream()
+                            .anyMatch(auth -> {
+                                String authority = auth.getAuthority();
+                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
+                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
+                            });
+                })
                 .orElse(false);
 
         createButton.addClickListener(event -> {
@@ -127,11 +132,16 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         createButton.setText(isNewTreatmentPlan ? "Erstellen" : "Aktualisieren");
         
         // Berechtigung prüfen
-        boolean canBook = currentUser.get()
-                .map(user -> user.getAuthorities().stream()
-                        .anyMatch(auth -> auth.getAuthority().equals("ROLE_" + AppRoles.ADMIN) ||
-                                auth.getAuthority().equals("ROLE_" + AppRoles.DOCTOR) ||
-                                auth.getAuthority().equals("ROLE_" + AppRoles.TECH_USER)))
+        boolean canBook = currentUser.getPrincipal()
+                .map(principal -> {
+                    return principal.getAuthorities().stream()
+                            .anyMatch(auth -> {
+                                String authority = auth.getAuthority();
+                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
+                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
+                            });
+                })
                 .orElse(false);
         createButton.setEnabled(canBook);
     }

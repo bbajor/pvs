@@ -28,7 +28,6 @@ import jakarta.annotation.security.RolesAllowed;
 
 @Route("praxis")
 @PageTitle("Eigene Praxisdaten")
-@Menu(order = 99, icon = "vaadin:building", title = "Eigene Praxisdaten")
 @RolesAllowed({ AppRoles.ADMIN, AppRoles.DOCTOR, AppRoles.TECH_USER, AppRoles.OWNER })
 public class PracticeView extends Main {
 

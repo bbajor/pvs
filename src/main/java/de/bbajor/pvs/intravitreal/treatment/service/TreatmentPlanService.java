@@ -124,6 +124,15 @@ public class TreatmentPlanService {
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
     public TreatmentPlan saveTreatmentPlan(TreatmentPlan update) throws NoSuchElementException {
+        return saveTreatmentPlanInternal(update);
+    }
+
+    /**
+     * Internal method for saving treatment plans without security checks.
+     * Used by test data initialization and other internal operations.
+     */
+    @Transactional
+    public TreatmentPlan saveTreatmentPlanInternal(TreatmentPlan update) throws NoSuchElementException {
         // 1. save treatmentplan without treatments
         TreatmentPlan current;
         if (update.getId() != null) {
@@ -201,6 +210,16 @@ public class TreatmentPlanService {
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
     public List<Treatment> saveNewTreatmentsForExistingPlan(List<Treatment> treatmentsToCreate,
+            Long treatmentPlanId) {
+        return saveNewTreatmentsForExistingPlanInternal(treatmentsToCreate, treatmentPlanId);
+    }
+
+    /**
+     * Internal method for saving treatments without security checks.
+     * Used by test data initialization and other internal operations.
+     */
+    @Transactional
+    public List<Treatment> saveNewTreatmentsForExistingPlanInternal(List<Treatment> treatmentsToCreate,
             Long treatmentPlanId) {
 
         // Get the treatment plan by ID, ensuring it exists

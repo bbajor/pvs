@@ -40,7 +40,6 @@ import jakarta.annotation.security.RolesAllowed;
 
 @Route("ivom-drugs")
 @PageTitle("Medikamente")
-@Menu(order = 3, icon = "vaadin:drop", title = "Medikamentendatenbank")
 @RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 public class MedicationView extends Main {
 

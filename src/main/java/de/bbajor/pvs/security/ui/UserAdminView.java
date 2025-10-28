@@ -28,7 +28,6 @@ import jakarta.annotation.security.RolesAllowed;
 @Route("admin/users")
 @RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 @PageTitle("Benutzerverwaltung")
-@Menu(order = 6, icon = "vaadin:cog-o", title = "Benutzerverwaltung")
 public class UserAdminView extends VerticalLayout {
 
     // Placeholder/sample UI for role visibility; actual persistence can be added later
