@@ -353,6 +353,7 @@ public class TimelineView extends VerticalLayout {
             // Sicherstellen, dass Scroller die verfügbare Breite nutzt
             scroller.setWidthFull();
             scroller.setMinWidth("0px");
+            scroller.setMaxWidth("100%"); // Maximal Container-Breite
             
             // Buttons sollten nicht schrumpfen
             prevButton.getStyle().set("flex-grow", "0");
@@ -362,16 +363,25 @@ public class TimelineView extends VerticalLayout {
             
             add(container);
         } else {
+            // Bei vertikaler Orientierung: Scroller als Container mit fixierten Buttons außen
             VerticalLayout container = new VerticalLayout();
             container.setSpacing(false);
             container.setPadding(false);
             container.setSizeFull();
             container.setDefaultHorizontalComponentAlignment(VerticalLayout.Alignment.STRETCH);
+            
+            // Buttons außerhalb des Scrollers, damit sie immer sichtbar bleiben
+            prevButton.setFlexGrow(0);
+            prevButton.getStyle().set("flex-shrink", "0");
+            nextButton.setFlexGrow(0);
+            nextButton.getStyle().set("flex-shrink", "0");
+            
             container.add(prevButton);
             container.add(scroller);
             container.add(nextButton);
             container.expand(scroller); // Scroller soll verfügbaren Platz nutzen
             scroller.setHeightFull(); // Volle verfügbare Höhe
+            scroller.setMaxHeight("100%"); // Maximaler Höhe begrenzen
             add(container);
         }
     }
@@ -392,14 +402,14 @@ public class TimelineView extends VerticalLayout {
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_RIGHT));
         } else {
             timelineLayout.getStyle().set("flex-direction", "column");
-            timelineLayout.getStyle().set("height", "max-content");
+            timelineLayout.getStyle().set("height", "max-content"); // Content kann höher sein als Container
             timelineLayout.getStyle().set("min-height", "100%");
             timelineLayout.getStyle().set("width", "100%"); // Volle Breite bei vertikal
             scroller.setScrollDirection(ScrollDirection.VERTICAL);
-            scroller.getStyle().set("overflow-y", "auto");
+            scroller.getStyle().set("overflow-y", "scroll"); // Immer Scrollbar anzeigen
             scroller.getStyle().set("overflow-x", "hidden");
             scroller.getStyle().set("width", "100%");
-            scroller.getStyle().set("flex-grow", "1"); // Nutze verfügbaren Platz
+            // Höhe wird vom Container bestimmt, nicht hier gesetzt
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_UP));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_DOWN));
         }
