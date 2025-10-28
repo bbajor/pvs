@@ -371,9 +371,9 @@ public class TimelineView extends VerticalLayout {
             container.setDefaultHorizontalComponentAlignment(VerticalLayout.Alignment.STRETCH);
             
             // Buttons außerhalb des Scrollers, damit sie immer sichtbar bleiben
-            prevButton.setFlexGrow(0);
+            prevButton.getStyle().set("flex-grow", "0");
             prevButton.getStyle().set("flex-shrink", "0");
-            nextButton.setFlexGrow(0);
+            nextButton.getStyle().set("flex-grow", "0");
             nextButton.getStyle().set("flex-shrink", "0");
             
             container.add(prevButton);
