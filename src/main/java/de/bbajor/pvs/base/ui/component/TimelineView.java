@@ -372,8 +372,10 @@ public class TimelineView extends VerticalLayout {
         // Update timeline content flex direction
         if (orientation == Orientation.HORIZONTAL) {
             timelineLayout.getStyle().set("flex-direction", "row");
-            timelineLayout.getStyle().set("width", "max-content");
+            timelineLayout.getStyle().set("width", "max-content"); // Content kann breiter sein als Container
             timelineLayout.getStyle().set("min-width", "100%");
+            // Entferne max-width Beschränkung, damit Content breiter werden kann
+            timelineLayout.getStyle().remove("max-width");
             scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
             scroller.getStyle().set("overflow-x", "scroll"); // Immer Scrollbar anzeigen
             scroller.getStyle().set("overflow-y", "hidden");
@@ -388,6 +390,7 @@ public class TimelineView extends VerticalLayout {
             scroller.getStyle().set("overflow-y", "auto");
             scroller.getStyle().set("overflow-x", "hidden");
             scroller.getStyle().set("width", "100%");
+            scroller.getStyle().set("height", "100%"); // Nutze volle verfügbare Höhe
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_UP));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_DOWN));
         }
