@@ -1,0 +1,51 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME:}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    fail-on-missing-locations: true
+    repair-on-migrate: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,flyway,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+  health:
+    db:
+      enabled: true
+
+logging:
+  level:
+    root: WARN
+    de.bbajor.pvs: INFO
+    org.flywaydb: WARN
+    org.springframework.web: WARN
+
+vaadin:
+  production-mode: true
+
+ai:
+  whisper:
+    local:
+      enabled: ${WHISPER_ENABLED:false}
+

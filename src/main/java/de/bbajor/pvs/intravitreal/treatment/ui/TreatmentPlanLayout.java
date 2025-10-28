@@ -71,8 +71,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
         this.current = treatmentPlan;
 
         setSizeFull();
-
+        // overflow entfernt - erlaube Scrollen wenn nötig
+        
         add(tabSheet);
+        expand(tabSheet);
+        tabSheet.setSizeFull(); // TabSheet soll volle Größe nutzen
 
         timeLineViewLeftEye = new TimelineView(context);
         timeLineViewRightEye = new TimelineView(context);
@@ -142,7 +145,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineLayout.setSizeFull();
         timeLineLayout.setPadding(false);
         timeLineLayout.setSpacing(false);
-        timeLineLayout.getStyle().set("overflow", "hidden"); // Prevent scroll on tab sheet
+        // Kein overflow hidden - erlaube Scrollen wenn nötig
         
         // Orientation toggle controls both timelines
         RadioButtonGroup<TimelineView.Orientation> orientationToggle = new RadioButtonGroup<>();
@@ -170,45 +173,44 @@ public class TreatmentPlanLayout extends VerticalLayout {
     }
     
     private void updateTimelineLayout(VerticalLayout timeLineLayout, TimelineView.Orientation orientation) {
-        // Remove existing timeline accordions
+        // Remove existing timeline accordions and eyesContainer
         timeLineLayout.getChildren()
-                .filter(child -> child.getClass().getSimpleName().equals("Accordion"))
+                .filter(child -> {
+                    String className = child.getClass().getSimpleName();
+                    return className.equals("Accordion") || className.equals("VerticalLayout");
+                })
+                .filter(child -> {
+                    // Behalte nur den orientationToggle - er ist das erste Child nach dem Toggle
+                    return timeLineLayout.indexOf(child) > 0;
+                })
+                .collect(java.util.stream.Collectors.toList())
                 .forEach(timeLineLayout::remove);
         
-        // Check if treatments exist for each eye
-        boolean hasRightEye = current != null && hasTreatmentsForEye(SideOfEye.RIGHT);
-        boolean hasLeftEye = current != null && hasTreatmentsForEye(SideOfEye.LEFT);
-        
-        if (!hasRightEye && !hasLeftEye) {
-            // No treatments for either eye
-            return;
-        }
+        // Immer Timeline anzeigen, auch wenn noch keine Behandlungen existieren
+        // Beide Augen immer anzeigen (auch wenn noch keine Behandlungen existieren)
         
         if (orientation == TimelineView.Orientation.VERTICAL) {
             // Vertical: show eyes side by side
             VerticalLayout eyesContainer = new VerticalLayout();
             eyesContainer.setWidthFull();
+            eyesContainer.setHeightFull(); // Volle Höhe nutzen
             eyesContainer.setPadding(false);
             eyesContainer.setSpacing(false);
             eyesContainer.getStyle().set("display", "flex");
             eyesContainer.getStyle().set("flex-direction", "row");
+            // overflow entfernt - jeder TimelineView scrollt sich selbst
             
-            if (hasRightEye) {
-                initializeTimeLineRightEye(eyesContainer); // OD (rechts vom Patienten = links in UI)
-            }
-            if (hasLeftEye) {
-                initializeTimeLineLeftEye(eyesContainer);  // OS (links vom Patienten = rechts in UI)
-            }
+            // Immer beide Augen anzeigen, auch wenn noch keine Behandlungen existieren
+            initializeTimeLineRightEye(eyesContainer); // OD (rechts vom Patienten = links in UI)
+            initializeTimeLineLeftEye(eyesContainer);  // OS (links vom Patienten = rechts in UI)
             
             timeLineLayout.add(eyesContainer);
+            timeLineLayout.expand(eyesContainer); // Container soll verfügbaren Platz nutzen
         } else {
             // Horizontal: show vertically stacked
-            if (hasRightEye) {
-                initializeTimeLineRightEye(timeLineLayout); // OD (rechts vom Patienten = links in UI)
-            }
-            if (hasLeftEye) {
-                initializeTimeLineLeftEye(timeLineLayout);  // OS (links vom Patienten = rechts in UI)
-            }
+            // Immer beide Augen anzeigen, auch wenn noch keine Behandlungen existieren
+            initializeTimeLineRightEye(timeLineLayout); // OD (rechts vom Patienten = links in UI)
+            initializeTimeLineLeftEye(timeLineLayout);  // OS (links vom Patienten = rechts in UI)
         }
     }
     
@@ -271,17 +273,22 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeTimeLineRightEye(VerticalLayout timeLineLayout) {
         // rechtes Auge mit medizinisch korrekter Darstellung (rechts = links vom Patienten)
-        timeLineViewRightEye.setTimelineHeight("300px");
+        timeLineViewRightEye.setTimelineHeight(null); // Keine feste Höhe - nutze verfügbaren Platz
         timeLineViewRightEye.addClassName("right-eye-timeline");
         timeLineViewRightEye.getStyle().set("background-color", "#E3F2FD"); // Blue tint
         Accordion accordionRight = new Accordion();
         accordionRight.setWidthFull();
-        accordionRight.getStyle().set("overflow", "hidden"); // Prevent scroll on accordion level
+        accordionRight.setHeightFull(); // Volle Höhe nutzen
+        // overflow entfernt - Scrolling soll in der TimelineView passieren
         AccordionPanel accordionPanelRight = accordionRight.add("Behandlungsverlauf rechtes Auge (OD)", timeLineViewRightEye);
         accordionPanelRight.setOpened(true);
-        accordionPanelRight.getElement().getStyle().set("width", "100%");
-        accordionPanelRight.getElement().getStyle().set("overflow", "hidden"); // No scroll on panel, only in TimelineView
+        accordionPanelRight.setWidthFull();
+        timeLineViewRightEye.setSizeFull(); // TimelineView soll volle Größe nutzen
+        // overflow entfernt - Scrolling soll in der TimelineView passieren
         timeLineLayout.add(accordionRight);
+        if (timeLineLayout instanceof VerticalLayout) {
+            ((VerticalLayout) timeLineLayout).expand(accordionRight); // Accordion soll verfügbaren Platz nutzen
+        }
         setRightEyeTreatmentHistory(current == null ? null : current.getId());
     }
 
@@ -294,10 +301,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
                         .setTreatment(treatment);
                 rightEyeTreatments.add(config);
             }
-            timeLineViewRightEye.setStartOfTreatmentPlan(
-                    current != null ? current.getCreationDate() : LocalDate.now());
-            timeLineViewRightEye.setItems(rightEyeTreatments);
         }
+        // Auch bei null (neuer Plan) initialisieren - zeigt dann wenigstens Start-Marker
+        timeLineViewRightEye.setStartOfTreatmentPlan(
+                current != null && current.getCreationDate() != null 
+                        ? current.getCreationDate() 
+                        : LocalDate.now());
+        timeLineViewRightEye.setItems(rightEyeTreatments);
     }
 
     private void initializeGeneralDetailsTab() {
@@ -316,17 +326,22 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeTimeLineLeftEye(VerticalLayout timeLineLayout) {
         // linkes Auge mit medizinisch korrekter Darstellung (links = rechts vom Patienten)
-        timeLineViewLeftEye.setTimelineHeight("300px");
+        timeLineViewLeftEye.setTimelineHeight(null); // Keine feste Höhe - nutze verfügbaren Platz
         timeLineViewLeftEye.addClassName("left-eye-timeline");
         timeLineViewLeftEye.getStyle().set("background-color", "#FFF3E0"); // Orange tint
         Accordion accordionLeft = new Accordion();
         accordionLeft.setWidthFull();
-        accordionLeft.getStyle().set("overflow", "hidden"); // Prevent scroll on accordion level
+        accordionLeft.setHeightFull(); // Volle Höhe nutzen
+        // overflow entfernt - Scrolling soll in der TimelineView passieren
         AccordionPanel accordionPanelLeft = accordionLeft.add("Behandlungsverlauf linkes Auge (OS)", timeLineViewLeftEye);
         accordionPanelLeft.setOpened(true);
-        accordionPanelLeft.getElement().getStyle().set("width", "100%");
-        accordionPanelLeft.getElement().getStyle().set("overflow", "hidden"); // No scroll on panel, only in TimelineView
+        accordionPanelLeft.setWidthFull();
+        timeLineViewLeftEye.setSizeFull(); // TimelineView soll volle Größe nutzen
+        // overflow entfernt - Scrolling soll in der TimelineView passieren
         timeLineLayout.add(accordionLeft);
+        if (timeLineLayout instanceof VerticalLayout) {
+            ((VerticalLayout) timeLineLayout).expand(accordionLeft); // Accordion soll verfügbaren Platz nutzen
+        }
         setLeftEyeTreatmentHistory(current == null ? null : current.getId());
     }
 
@@ -339,10 +354,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
                         .setTreatment(treatment);
                 leftEyeTreatments.add(config);
             }
-            timeLineViewLeftEye.setStartOfTreatmentPlan(
-                    current != null ? current.getCreationDate() : LocalDate.now());
-            timeLineViewLeftEye.setItems(leftEyeTreatments);
         }
+        // Auch bei null (neuer Plan) initialisieren - zeigt dann wenigstens Start-Marker
+        timeLineViewLeftEye.setStartOfTreatmentPlan(
+                current != null && current.getCreationDate() != null 
+                        ? current.getCreationDate() 
+                        : LocalDate.now());
+        timeLineViewLeftEye.setItems(leftEyeTreatments);
     }
 
     public TreatmentPlan getCurrent() {
@@ -356,11 +374,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
         List<Treatment> timeSlotsToCreate = new ArrayList<>();
         Set<SurgicalCenterTimeSlot> selectedSlots = timeSlotGrid.getSelectedItems();
         for (SurgicalCenterTimeSlot timeSlot : selectedSlots) {
-            Treatment timeSlotToCreate = new Treatment()
-                    .setSideOfEye(sideOfEye.getValue())
-                    .setMedication(medicationComboBox.getValue())
-                    .setSurgicalCenterTimeSlot(timeSlot)
-                    .setTreatmentPlan(current);
+            Treatment timeSlotToCreate = new Treatment();
+            timeSlotToCreate.setSideOfEye(sideOfEye.getValue());
+            timeSlotToCreate.setMedication(medicationComboBox.getValue());
+            timeSlotToCreate.setSurgicalCenterTimeSlot(timeSlot);
+            timeSlotToCreate.setTreatmentPlan(current);
             timeSlotsToCreate.add(timeSlotToCreate);
         }
         return timeSlotsToCreate;

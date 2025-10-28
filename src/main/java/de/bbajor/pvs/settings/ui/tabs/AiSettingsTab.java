@@ -15,6 +15,8 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -26,6 +28,7 @@ import de.bbajor.pvs.settings.ui.WhisperInstallationDialog;
 import lombok.RequiredArgsConstructor;
 
 @Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
 public class AiSettingsTab extends VerticalLayout {
 
@@ -100,7 +103,9 @@ public class AiSettingsTab extends VerticalLayout {
         remoteApiUrl.addValueChangeListener(e -> aiProperties.getWhisper().getRemote().setApiUrl(e.getValue()));
 
         remoteApiKey = new PasswordField("API-Key");
-        remoteApiKey.setValue(aiProperties.getWhisper().getRemote().getApiKey());
+        String apiKey = aiProperties.getWhisper().getRemote().getApiKey();
+        // PasswordField unterstützt keine null-Werte - leeren String verwenden
+        remoteApiKey.setValue(apiKey != null ? apiKey : "");
         remoteApiKey.addValueChangeListener(e -> aiProperties.getWhisper().getRemote().setApiKey(e.getValue()));
 
         monthlyQuota = new IntegerField("Monatliches Quota");

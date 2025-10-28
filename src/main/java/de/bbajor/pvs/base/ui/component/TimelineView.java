@@ -19,7 +19,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
@@ -51,6 +50,13 @@ public class TimelineView extends VerticalLayout {
         Objects.requireNonNull(context);
 
         this.context = context;
+        
+        // Verhindere Overflow in der Root-Komponente - Scrolling passiert im Scroller
+        setWidthFull();
+        getStyle().set("overflow-x", "hidden");
+        getStyle().set("overflow-y", "hidden");
+        getStyle().set("max-width", "100%"); // Stelle sicher, dass nicht breiter als Container
+        getStyle().set("max-height", "100%"); // Stelle sicher, dass nicht höher als Container
 
         // Buttons to scroll timeline
         prevButton = new Button(new Icon(VaadinIcon.ANGLE_LEFT));
@@ -66,18 +72,21 @@ public class TimelineView extends VerticalLayout {
         // Container for timeline content
         timelineLayout = new Div();
         timelineLayout.addClassName("timeline-content");
-        timelineLayout.setWidthFull();
+        // Nicht setWidthFull() - Content sollte auf Basis der Kinder skaliert werden
         timelineLayout.getStyle().set("display", "flex");
         timelineLayout.getStyle().set("align-items", "center");
         timelineLayout.getStyle().set("padding", "20px 0");
         timelineLayout.getStyle().set("flex-wrap", "nowrap");
         timelineLayout.getStyle().set("gap", "20px");
+        timelineLayout.getStyle().set("min-width", "100%"); // Mindestens Container-Breite
+        timelineLayout.getStyle().set("flex-shrink", "0"); // Verhindere Schrumpfen
+        timelineLayout.getStyle().set("width", "max-content"); // Breite basierend auf Content
 
         // Scroller hosting the timeline
         scroller = new Scroller(timelineLayout);
         scroller.addClassName("timeline-scroller");
         scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
-        scroller.setWidthFull();
+        // Keine feste Breite hier setzen - wird vom Layout bestimmt
 
         // Build outer layout based on current orientation
         rebuildOuterLayout();
@@ -105,7 +114,7 @@ public class TimelineView extends VerticalLayout {
      * Einstellungen neu aufbaut.
      */
     public void refresh() {
-        LOG.info("refresh called: " + itemList.size());
+        LOG.info(() -> String.format("refresh called: %d items", itemList.size()));
         timelineLayout.removeAll();
         configToComponentMap.clear();
 
@@ -261,12 +270,34 @@ public class TimelineView extends VerticalLayout {
                 // Markiere die Karte als "next"
                 card.addClassName("next");
                 
-                // Scrolle zur nächsten Behandlung (mit etwas Verzögerung für die Animation)
-                card.getElement().executeJs(
-                    "setTimeout(() => {" +
-                    "  const card = this;" +
-                    "  card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });" +
-                    "}, 500);");
+                // Scrolle nur innerhalb des Scrollers zur nächsten Behandlung (nicht die gesamte View)
+                if (orientation == Orientation.HORIZONTAL) {
+                    scroller.getElement().executeJs(
+                        "setTimeout(() => {" +
+                        "  const scroller = this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this;" +
+                        "  const card = $0;" +
+                        "  if (scroller && card) {" +
+                        "    const cardRect = card.getBoundingClientRect();" +
+                        "    const scrollerRect = scroller.getBoundingClientRect();" +
+                        "    const scrollLeft = scroller.scrollLeft + cardRect.left - scrollerRect.left - (scrollerRect.width / 2) + (cardRect.width / 2);" +
+                        "    scroller.scrollTo({ left: scrollLeft, behavior: 'smooth' });" +
+                        "  }" +
+                        "}, 500);",
+                        card.getElement());
+                } else {
+                    scroller.getElement().executeJs(
+                        "setTimeout(() => {" +
+                        "  const scroller = this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this;" +
+                        "  const card = $0;" +
+                        "  if (scroller && card) {" +
+                        "    const cardRect = card.getBoundingClientRect();" +
+                        "    const scrollerRect = scroller.getBoundingClientRect();" +
+                        "    const scrollTop = scroller.scrollTop + cardRect.top - scrollerRect.top - (scrollerRect.height / 2) + (cardRect.height / 2);" +
+                        "    scroller.scrollTo({ top: scrollTop, behavior: 'smooth' });" +
+                        "  }" +
+                        "}, 500);",
+                        card.getElement());
+                }
             }
         }
     }
@@ -299,28 +330,60 @@ public class TimelineView extends VerticalLayout {
 
     /**
      * Setzt die sichtbare Höhe des internen Scrollers (z.B. "300px").
+     * Wenn null übergeben wird, nutzt der Scroller den verfügbaren Platz.
      */
     public void setTimelineHeight(String height) {
-        scroller.setHeight(height);
+        if (height != null) {
+            scroller.setHeight(height);
+        } else {
+            scroller.setHeightFull(); // Nutze verfügbaren Platz
+        }
     }
 
     private void rebuildOuterLayout() {
         removeAll();
         if (orientation == Orientation.HORIZONTAL) {
+            // Buttons außerhalb des Scrollers, damit sie immer sichtbar bleiben
             HorizontalLayout container = new HorizontalLayout(prevButton, scroller, nextButton);
             container.setWidthFull();
             container.setAlignItems(Alignment.CENTER);
+            container.setSpacing(false);
+            container.setPadding(false);
             container.expand(scroller);
+            
+            // Sicherstellen, dass Scroller die verfügbare Breite nutzt
+            scroller.setWidthFull();
+            scroller.setMinWidth("0px");
+            scroller.setMaxWidth("100%"); // Maximal Container-Breite
+            
+            // Buttons sollten nicht schrumpfen
+            prevButton.getStyle().set("flex-grow", "0");
+            prevButton.getStyle().set("flex-shrink", "0");
+            nextButton.getStyle().set("flex-grow", "0");
+            nextButton.getStyle().set("flex-shrink", "0");
+            
             add(container);
         } else {
+            // Bei vertikaler Orientierung: Scroller als Container mit fixierten Buttons außen
             VerticalLayout container = new VerticalLayout();
             container.setSpacing(false);
             container.setPadding(false);
-            container.setWidthFull();
-            container.setDefaultHorizontalComponentAlignment(Alignment.STRETCH);
+            container.setSizeFull();
+            container.setDefaultHorizontalComponentAlignment(VerticalLayout.Alignment.STRETCH);
+            
+            // Buttons außerhalb des Scrollers, damit sie immer sichtbar bleiben
+            prevButton.getStyle().set("flex-grow", "0");
+            prevButton.getStyle().set("flex-shrink", "0");
+            nextButton.getStyle().set("flex-grow", "0");
+            nextButton.getStyle().set("flex-shrink", "0");
+            
             container.add(prevButton);
             container.add(scroller);
             container.add(nextButton);
+            container.expand(scroller); // Scroller soll verfügbaren Platz nutzen
+            scroller.setHeightFull(); // Volle verfügbare Höhe
+            // Wichtig: Scroller muss eine maximale Höhe haben, damit er scrollt statt zu wachsen
+            scroller.getStyle().set("max-height", "100%");
             add(container);
         }
     }
@@ -328,22 +391,28 @@ public class TimelineView extends VerticalLayout {
     private void applyOrientationStylesAndBehavior() {
         // Update timeline content flex direction
         if (orientation == Orientation.HORIZONTAL) {
-                    timelineLayout.getStyle().set("flex-direction", "row");
-        timelineLayout.getStyle().set("width", "max-content");
-        timelineLayout.getStyle().set("min-width", "100%");
-        scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
-        scroller.getStyle().set("overflow-x", "auto");
-        scroller.getStyle().set("overflow-y", "hidden");
+            timelineLayout.getStyle().set("flex-direction", "row");
+            timelineLayout.getStyle().set("width", "max-content"); // Content kann breiter sein als Container
+            timelineLayout.getStyle().set("min-width", "100%");
+            // Entferne max-width Beschränkung, damit Content breiter werden kann
+            timelineLayout.getStyle().remove("max-width");
+            scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
+            scroller.getStyle().set("overflow-x", "scroll"); // Immer Scrollbar anzeigen
+            scroller.getStyle().set("overflow-y", "hidden");
             // Update button icons
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_LEFT));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_RIGHT));
         } else {
             timelineLayout.getStyle().set("flex-direction", "column");
-            timelineLayout.getStyle().set("height", "max-content");
+            timelineLayout.getStyle().set("height", "max-content"); // Content kann höher sein als Container
             timelineLayout.getStyle().set("min-height", "100%");
+            timelineLayout.getStyle().set("width", "100%"); // Volle Breite bei vertikal
             scroller.setScrollDirection(ScrollDirection.VERTICAL);
-            scroller.getStyle().set("overflow-y", "auto");
+            scroller.getStyle().set("overflow-y", "scroll"); // Immer Scrollbar anzeigen
             scroller.getStyle().set("overflow-x", "hidden");
+            scroller.getStyle().set("width", "100%");
+            // Wichtig: Scroller muss eine maximale Höhe haben für vertikales Scrollen
+            scroller.getStyle().set("max-height", "100%");
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_UP));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_DOWN));
         }

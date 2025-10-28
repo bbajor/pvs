@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    de.bbajor.pvs: DEBUG
+
+ai:
+  whisper:
+    local:
+      enabled: true
+
