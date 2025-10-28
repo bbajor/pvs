@@ -1,5 +1,7 @@
 package de.bbajor.pvs.settings.ui.tabs;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import com.vaadin.flow.component.html.Anchor;
@@ -9,6 +11,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 
 @Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class UserSettingsTab extends VerticalLayout {
 
     public UserSettingsTab(UserAccountRepository userAccountRepository) {
