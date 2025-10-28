@@ -71,7 +71,7 @@
 .timeline-content {
   flex-shrink: 0 !important;
   min-width: max-content; /* Mindestens so breit wie der Content */
-  max-width: max-content;
+  /* max-width entfernt - Content kann breiter sein als Container für horizontales Scrollen */
   box-sizing: border-box;
 }
 
