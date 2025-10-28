@@ -347,7 +347,7 @@ public class TestDataInitializer implements CommandLineRunner {
 
                         plan.setTreatments(List.of(treatment));
                         treatment.setTreatmentPlan(plan);  // Bidirektionale Beziehung setzen
-                        treatmentPlanService.saveTreatmentPlan(plan);
+                        treatmentPlanService.saveTreatmentPlanInternal(plan);
                 }
         }
 
@@ -501,10 +501,10 @@ public class TestDataInitializer implements CommandLineRunner {
                         };
                         plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
 
-                        // Speichere den Behandlungsplan
+                        // Speichere den Behandlungsplan (nutze interne Methode ohne Security-Check für Testdaten)
                         TreatmentPlan savedPlan;
                         try {
-                                savedPlan = treatmentPlanService.saveTreatmentPlan(plan);
+                                savedPlan = treatmentPlanService.saveTreatmentPlanInternal(plan);
                         } catch (Exception e) {
                                 System.out.println("Fehler beim Speichern des Behandlungsplans: " + e.getMessage());
                                 e.printStackTrace();
@@ -608,7 +608,7 @@ public class TestDataInitializer implements CommandLineRunner {
                         // Speichere die Behandlungen, falls welche erstellt wurden
                         if (!treatments.isEmpty()) {
                                 try {
-                                        treatmentPlanService.saveNewTreatmentsForExistingPlan(treatments,
+                                        treatmentPlanService.saveNewTreatmentsForExistingPlanInternal(treatments,
                                                         savedPlan.getId());
                                 } catch (Exception e) {
                                         System.out.println("Fehler beim Speichern der Behandlungen: " + e.getMessage());
