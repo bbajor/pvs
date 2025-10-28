@@ -26,15 +26,16 @@ import com.vaadin.flow.spring.security.AuthenticationContext;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
-import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 
 @Route("aufgabenliste")
 @PageTitle("Zurückliegende Behandlungen die noch überprüft werden müssen")
 @Menu(order = 0, icon = "vaadin:clipboard-check", title = "Zu überprüfende Behandlungen")
-@PermitAll
+@RolesAllowed({ AppRoles.ADMIN, AppRoles.DOCTOR, AppRoles.OWNER })
 public class TaskListView extends Main {
 
         private final TaskService taskService;

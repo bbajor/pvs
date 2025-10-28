@@ -122,6 +122,7 @@ public class TreatmentPlanService {
     }
 
     @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
     public TreatmentPlan saveTreatmentPlan(TreatmentPlan update) throws NoSuchElementException {
         // 1. save treatmentplan without treatments
         TreatmentPlan current;
@@ -198,6 +199,7 @@ public class TreatmentPlanService {
     }
 
     @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
     public List<Treatment> saveNewTreatmentsForExistingPlan(List<Treatment> treatmentsToCreate,
             Long treatmentPlanId) {
 
@@ -240,7 +242,7 @@ public class TreatmentPlanService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
     public void deleteTreatment(Long treatmentId) {
         Treatment existing = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));

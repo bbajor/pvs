@@ -13,14 +13,15 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.presenter.SurgicalCenterListPresenter;
-import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 
 @Route("surgicalcenter")
 @PageTitle("Operationszentren")
 @Menu(order = 4, icon = "vaadin:building", title = "Operationszentren")
-@PermitAll
+@RolesAllowed({ AppRoles.TECH_USER, AppRoles.ADMIN, AppRoles.OWNER })
 public class SurgicalCenterMainView extends Main {
 
     private final SurgicalCenterListPresenter presenter;
