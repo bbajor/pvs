@@ -230,10 +230,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
                         .setTreatment(treatment);
                 rightEyeTreatments.add(config);
             }
-            timeLineViewRightEye.setStartOfTreatmentPlan(
-                    current != null ? current.getCreationDate() : LocalDate.now());
-            timeLineViewRightEye.setItems(rightEyeTreatments);
         }
+        // Auch bei null (neuer Plan) initialisieren - zeigt dann wenigstens Start-Marker
+        timeLineViewRightEye.setStartOfTreatmentPlan(
+                current != null && current.getCreationDate() != null 
+                        ? current.getCreationDate() 
+                        : LocalDate.now());
+        timeLineViewRightEye.setItems(rightEyeTreatments);
     }
 
     private void initializeGeneralDetailsTab() {
@@ -271,10 +274,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
                         .setTreatment(treatment);
                 leftEyeTreatments.add(config);
             }
-            timeLineViewLeftEye.setStartOfTreatmentPlan(
-                    current != null ? current.getCreationDate() : LocalDate.now());
-            timeLineViewLeftEye.setItems(leftEyeTreatments);
         }
+        // Auch bei null (neuer Plan) initialisieren - zeigt dann wenigstens Start-Marker
+        timeLineViewLeftEye.setStartOfTreatmentPlan(
+                current != null && current.getCreationDate() != null 
+                        ? current.getCreationDate() 
+                        : LocalDate.now());
+        timeLineViewLeftEye.setItems(leftEyeTreatments);
     }
 
     public TreatmentPlan getCurrent() {
@@ -288,11 +294,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
         List<Treatment> timeSlotsToCreate = new ArrayList<>();
         Set<SurgicalCenterTimeSlot> selectedSlots = timeSlotGrid.getSelectedItems();
         for (SurgicalCenterTimeSlot timeSlot : selectedSlots) {
-            Treatment timeSlotToCreate = new Treatment()
-                    .setSideOfEye(sideOfEye.getValue())
-                    .setMedication(medicationComboBox.getValue())
-                    .setSurgicalCenterTimeSlot(timeSlot)
-                    .setTreatmentPlan(current);
+            Treatment timeSlotToCreate = new Treatment();
+            timeSlotToCreate.setSideOfEye(sideOfEye.getValue());
+            timeSlotToCreate.setMedication(medicationComboBox.getValue());
+            timeSlotToCreate.setSurgicalCenterTimeSlot(timeSlot);
+            timeSlotToCreate.setTreatmentPlan(current);
             timeSlotsToCreate.add(timeSlotToCreate);
         }
         return timeSlotsToCreate;

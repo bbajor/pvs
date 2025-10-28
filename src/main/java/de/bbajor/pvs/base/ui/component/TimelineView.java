@@ -19,7 +19,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
@@ -51,6 +50,11 @@ public class TimelineView extends VerticalLayout {
         Objects.requireNonNull(context);
 
         this.context = context;
+        
+        // Verhindere horizontales Overflow in der Root-Komponente
+        setWidthFull();
+        getStyle().set("overflow-x", "hidden");
+        getStyle().set("overflow-y", "hidden");
 
         // Buttons to scroll timeline
         prevButton = new Button(new Icon(VaadinIcon.ANGLE_LEFT));
@@ -66,12 +70,14 @@ public class TimelineView extends VerticalLayout {
         // Container for timeline content
         timelineLayout = new Div();
         timelineLayout.addClassName("timeline-content");
-        timelineLayout.setWidthFull();
+        // Nicht setWidthFull() - Content sollte auf Basis der Kinder skaliert werden
         timelineLayout.getStyle().set("display", "flex");
         timelineLayout.getStyle().set("align-items", "center");
         timelineLayout.getStyle().set("padding", "20px 0");
         timelineLayout.getStyle().set("flex-wrap", "nowrap");
         timelineLayout.getStyle().set("gap", "20px");
+        timelineLayout.getStyle().set("min-width", "100%"); // Mindestens Container-Breite
+        timelineLayout.getStyle().set("flex-shrink", "0"); // Verhindere Schrumpfen
 
         // Scroller hosting the timeline
         scroller = new Scroller(timelineLayout);
@@ -105,7 +111,7 @@ public class TimelineView extends VerticalLayout {
      * Einstellungen neu aufbaut.
      */
     public void refresh() {
-        LOG.info("refresh called: " + itemList.size());
+        LOG.info(() -> String.format("refresh called: %d items", itemList.size()));
         timelineLayout.removeAll();
         configToComponentMap.clear();
 
@@ -143,15 +149,21 @@ public class TimelineView extends VerticalLayout {
      * ist.
      */
     private List<TimeLineCardConfig> prepareItemsForRendering() {
-        itemList.add(new TimeLineCardConfig().setFirst(true).setFirstDate(startOfTreatmentPlan));
+        List<TimeLineCardConfig> itemsToRender = new ArrayList<>(this.itemList);
+        
+        // Füge Start-Marker hinzu, falls noch nicht vorhanden
+        boolean hasFirstMarker = itemsToRender.stream().anyMatch(TimeLineCardConfig::isFirst);
+        if (!hasFirstMarker) {
+            itemsToRender.add(new TimeLineCardConfig().setFirst(true).setFirstDate(startOfTreatmentPlan));
+        }
 
         if (isOnlyShowFutureAndPresentCards) {
-            return this.itemList.stream()
-                    .filter(item -> !item.getTreatmentDate().isBefore(LocalDate.now()))
+            return itemsToRender.stream()
+                    .filter(item -> item.getTreatmentDate() == null || !item.getTreatmentDate().isBefore(LocalDate.now()))
                     .collect(Collectors.toList());
         }
 
-        return new ArrayList<>(this.itemList); // Eine Kopie zurückgeben, um die Originalliste nicht zu verändern
+        return itemsToRender;
     }
 
     private Div createLineBetween(TimeLineCardConfig prev, TimeLineCardConfig current) {
@@ -295,7 +307,7 @@ public class TimelineView extends VerticalLayout {
         if (orientation == Orientation.HORIZONTAL) {
             HorizontalLayout container = new HorizontalLayout(prevButton, scroller, nextButton);
             container.setWidthFull();
-            container.setAlignItems(Alignment.CENTER);
+            container.setAlignItems(HorizontalLayout.Alignment.CENTER);
             container.expand(scroller);
             add(container);
         } else {
@@ -303,7 +315,7 @@ public class TimelineView extends VerticalLayout {
             container.setSpacing(false);
             container.setPadding(false);
             container.setWidthFull();
-            container.setDefaultHorizontalComponentAlignment(Alignment.STRETCH);
+            container.setDefaultHorizontalComponentAlignment(VerticalLayout.Alignment.STRETCH);
             container.add(prevButton);
             container.add(scroller);
             container.add(nextButton);
@@ -316,22 +328,25 @@ public class TimelineView extends VerticalLayout {
         if (orientation == Orientation.HORIZONTAL) {
             timelineLayout.getStyle().set("flex-direction", "row");
             scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
-            scroller.getStyle().set("overflow-x", "scroll");
+            scroller.getStyle().set("overflow-x", "auto"); // auto statt scroll - nur anzeigen wenn nötig
             scroller.getStyle().set("overflow-y", "hidden");
+            scroller.getStyle().set("width", "100%");
             // Update button icons
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_LEFT));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_RIGHT));
         } else {
             timelineLayout.getStyle().set("flex-direction", "column");
             scroller.setScrollDirection(ScrollDirection.VERTICAL);
-            scroller.getStyle().set("overflow-y", "scroll");
+            scroller.getStyle().set("overflow-y", "auto");
             scroller.getStyle().set("overflow-x", "hidden");
+            scroller.getStyle().set("width", "100%");
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_UP));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_DOWN));
         }
 
         // Update root element orientation classes (for CSS hooks)
-        getElement().getClassList().remove("horizontal", "vertical");
+        getElement().getClassList().remove("horizontal");
+        getElement().getClassList().remove("vertical");
         getElement().getClassList().add(orientation == Orientation.HORIZONTAL ? "horizontal" : "vertical");
 
         // Ensure scrollbar space is reserved and visible
@@ -342,11 +357,11 @@ public class TimelineView extends VerticalLayout {
         int delta = -400; // px
         if (orientation == Orientation.HORIZONTAL) {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
                 delta);
         } else {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
                 delta);
         }
     }
@@ -355,11 +370,11 @@ public class TimelineView extends VerticalLayout {
         int delta = 400; // px
         if (orientation == Orientation.HORIZONTAL) {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ left: $0, behavior: 'smooth' })",
                 delta);
         } else {
             scroller.getElement().executeJs(
-                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\"content\\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
+                "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
                 delta);
         }
     }
