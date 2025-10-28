@@ -60,7 +60,13 @@ class DevSecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http.with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(DevLoginView.LOGIN_PATH))
+        // Configure API endpoints first, before Vaadin configurer applies anyRequest()
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/ai/**").permitAll());
+        
+        // Then apply Vaadin security configuration (which will add anyRequest().authenticated())
+        return http
+                .with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(DevLoginView.LOGIN_PATH))
                 .build();
     }
 
