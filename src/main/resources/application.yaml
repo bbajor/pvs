@@ -26,8 +26,9 @@ spring:
   profiles:
     active: dev
 
+# eGK tool path. Defaults differ on Windows vs. Linux; override via ENV or profile
 egk:
-  tool-path: "C:/Program Files/OpenSC Project/OpenSC/tools/egk-tool.exe"
+  tool-path: ${EGK_TOOL_PATH:/usr/bin/egk-tool}
 
 domain:
   bundesland: NI

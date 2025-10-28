@@ -18,4 +18,6 @@ public interface PatientMapper {
     @Mapping(target = "version", ignore = true)
     void updatePatientEntity(Patient source, @MappingTarget Patient target);
 
+    // Defensive null-safe mapping helpers can be added here later if needed
+
 }

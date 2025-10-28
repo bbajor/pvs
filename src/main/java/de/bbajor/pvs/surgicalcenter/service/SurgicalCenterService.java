@@ -41,7 +41,7 @@ public class SurgicalCenterService {
 
     @Transactional
     public SurgicalCenter saveSurgicalCenter(SurgicalCenter entityToSave) {
-        if (entityToSave.getId() != null && entityToSave.getId() == 0L) {
+        if (entityToSave.getId() != null && entityToSave.getId() == 0) {
             entityToSave.setId(null);
         }
         return surgicalCenterRepository.save(entityToSave);

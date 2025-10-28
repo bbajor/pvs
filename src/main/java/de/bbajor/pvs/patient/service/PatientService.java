@@ -42,9 +42,11 @@ public class PatientService {
             // cb.like(cb.lower(root.get("healthInsuranceCard")), likeFilter)
             ));
             try {
-                Integer birthFilter = Integer.parseInt(filter);
-                predicates.add(cb.equal(root.get("birth"), birthFilter));
-            } catch (NumberFormatException ignored) {
+                // Parse as ISO date (yyyy-MM-dd) for filtering by birth date
+                java.time.LocalDate birthDate = java.time.LocalDate.parse(filter);
+                predicates.add(cb.equal(root.get("birth"), birthDate));
+            } catch (Exception ignored) {
+                // Not a date; ignore
             }
 
             return cb.or(predicates.toArray(new Predicate[0]));

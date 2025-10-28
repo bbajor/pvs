@@ -93,9 +93,9 @@ public class TreatmentPlanService {
                     cb.like(cb.lower(root.get("patient").get("lastName")), likeFilter)));
             // TODO add more fields like name of health insurance, ivom type etc.
             try {
-                Integer birthFilter = Integer.parseInt(filter);
-                predicates.add(cb.equal(root.get("birth"), birthFilter));
-            } catch (NumberFormatException ignored) {
+                java.time.LocalDate birthDate = java.time.LocalDate.parse(filter);
+                predicates.add(cb.equal(root.get("birth"), birthDate));
+            } catch (Exception ignored) {
             }
             return cb.or(predicates.toArray(new Predicate[0]));
         };

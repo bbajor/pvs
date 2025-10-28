@@ -36,19 +36,21 @@ public class TreatmentPlan extends BasicEntity<Long> {
     private List<Treatment> treatments = new ArrayList<>();
 
     public String getFirstName() {
-        return patient.getFirstName();
+        return patient != null ? patient.getFirstName() : null;
     }
 
     public String getLastName() {
-        return patient.getLastName();
+        return patient != null ? patient.getLastName() : null;
     }
 
     public String getHealthInsurance() {
-        return patient.getHealthInsurance().getBillingCarrierName();
+        return patient != null && patient.getHealthInsurance() != null
+                ? patient.getHealthInsurance().getBillingCarrierName()
+                : null;
     }
 
     public LocalDate getBirth() {
-        return patient.getBirth();
+        return patient != null ? patient.getBirth() : null;
     }
 
 }

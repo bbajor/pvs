@@ -3,6 +3,8 @@ plugins {
     id 'org.springframework.boot' version '3.5.6'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'com.vaadin' version '24.8.3'
+    // SBOM generation
+    id 'org.cyclonedx.bom' version '1.10.0'
 }
 
 group = 'de.bbajor.pvs'
@@ -46,6 +48,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+    // REST/web endpoints for microservice-style APIs
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
     implementation 'org.apache.commons:commons-csv:1.14.1'
     implementation 'org.apache.ant:ant:1.10.6'
     
@@ -75,5 +80,18 @@ dependencies {
 
 vaadin {
     // default configuration; prepare/build frontend tasks available
+}
+
+// Generate SBOMs as a separate step to avoid circular task dependencies
+// Run with: ./gradlew cyclonedxBom
+
+cyclonedxBom {
+    includeConfigs = ["runtimeClasspath", "compileClasspath"]
+    skipConfigs = ["testCompileClasspath", "testRuntimeClasspath"]
+    projectType = "application"
+    schemaVersion = "1.5"
+    destination = file("${buildDir}/sbom")
+    outputName = "sbom"
+    outputFormat = "json"
 }
 

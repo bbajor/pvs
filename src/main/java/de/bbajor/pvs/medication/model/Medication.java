@@ -40,7 +40,7 @@ public class Medication extends BasicEntity<Long> {
     private String indikationAtc;
 
     @Column(length = 50)
-    private String BescheiddatumZulassung;
+    private String bescheiddatumZulassung;
 
     @Column(length = 100)
     private String zulassungsstatus;

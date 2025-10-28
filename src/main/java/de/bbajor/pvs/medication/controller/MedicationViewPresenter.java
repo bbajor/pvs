@@ -48,10 +48,16 @@ public class MedicationViewPresenter {
 
             // Debug: Headers und erste Zeile ausgeben
             Iterable<CSVRecord> records = csvFormat.parse(in);
-            records.iterator().next();
-            CSVRecord firstRecord = records.iterator().next();
-
-            LOGGER.debug("Headers gefunden: " + String.join(", ", firstRecord.getParser().getHeaderNames()));
+            var iterator = records.iterator();
+            if (!iterator.hasNext()) {
+                throw new RuntimeException("CSV enthält keine Datenzeilen");
+            }
+            CSVRecord firstRecord = iterator.next();
+            try {
+                LOGGER.debug("Headers gefunden: " + String.join(", ", firstRecord.getParser().getHeaderNames()));
+            } catch (Exception ignored) {
+                // older Commons CSV may not expose parser from record; ignore
+            }
             LOGGER.debug("Erste Zeile: " + firstRecord.toString());
 
             List<Medication> newMedicationEntityList = new ArrayList<>();

@@ -20,34 +20,39 @@ public class TimeLineCard extends Card {
 
     public TimeLineCard(TimeLineCardConfig config, Consumer<TimeLineCardConfig> onDelete,
             Consumer<TimeLineCardConfig> onClick) {
-        Objects.requireNonNull(config);
+        if (config == null) {
+            return;
+        }
         addClassName("timeline-card");
 
         LocalDate now = LocalDate.now();
 
         if (!config.isFirst()) {
-            if (config.getTreatmentDate().isBefore(now)) {
+            if (config.getTreatmentDate() != null && config.getTreatmentDate().isBefore(now)) {
                 addClassName("past");
-            } else if (config.getTreatmentDate().isAfter(now)) {
+            } else if (config.getTreatmentDate() != null && config.getTreatmentDate().isAfter(now)) {
                 addClassName("future");
             } else {
                 addClassName("current");
             }
-            SurgicalCenterTimeSlot timeSlot = config.getTreatment().getSurgicalCenterTimeSlot();
-            LocalDate treatmentDate = timeSlot.getDate();
+            SurgicalCenterTimeSlot timeSlot = config.getTreatment() != null ? config.getTreatment().getSurgicalCenterTimeSlot() : null;
+            LocalDate treatmentDate = timeSlot != null ? timeSlot.getDate() : null;
+            if (treatmentDate == null) {
+                return;
+            }
             String wochentagString = treatmentDate.getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
             setTitle(
                     new Div(("Behandlung am: ") + DateAndTimeUtils.getGermanDateTimeFormatter().format(treatmentDate)));
             setSubtitle(new Div("Wochentag: " + wochentagString));
 
             if (!config.isFirst()) {
-                SideOfEye sideOfEye = config.getTreatment().getSideOfEye();
+                SideOfEye sideOfEye = config.getTreatment() != null ? config.getTreatment().getSideOfEye() : null;
                 String sideOfEyeText = "";
                 if (treatmentDate.isAfter(now)) {
                     sideOfEyeText = "Geplantes ";
                 } else if (treatmentDate.isEqual(now)) {
                     LocalTime nowTime = LocalTime.now();
-                    if (timeSlot.getStartTime().isAfter(nowTime)) {
+                    if (timeSlot.getStartTime() != null && timeSlot.getStartTime().isAfter(nowTime)) {
                         sideOfEyeText = "Geplantes ";
                     } else {
                         sideOfEyeText = "Heutiges ";
@@ -56,11 +61,11 @@ public class TimeLineCard extends Card {
                     sideOfEyeText = "Behandeltes ";
                 }
                 sideOfEyeText += "Auge: ";
-                add(new Paragraph(sideOfEyeText + sideOfEye.toString()));
-                String locationInfo = timeSlot.getSurgicalCenter().getName();
-                add(new Paragraph("Behandlungsort: " + locationInfo));
+                add(new Paragraph(sideOfEye != null ? sideOfEyeText + sideOfEye.toString() : sideOfEyeText));
+                String locationInfo = timeSlot.getSurgicalCenter() != null ? timeSlot.getSurgicalCenter().toString() : "";
+                add(new Paragraph("Ort: " + locationInfo));
                 LocalTime startTime = timeSlot.getStartTime();
-                add(new Paragraph("Uhrzeit: " + startTime.toString()));
+                add(new Paragraph("Uhrzeit: " + (startTime != null ? startTime.toString() : "-")));
                 String additionalInfo = config.getAdditionalInfo();
                 if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                     add(new Paragraph(additionalInfo));
@@ -77,9 +82,13 @@ public class TimeLineCard extends Card {
                 }
             }
         } else {
+            LocalDate firstDate = config.getFirstDate();
+            if (firstDate == null) {
+                firstDate = LocalDate.now();
+            }
             setTitle(new Div("In Behandlung seit: "
-                    + DateAndTimeUtils.getGermanDateTimeFormatter().format(config.getFirstDate())));
-            String wochentagString = config.getFirstDate().getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
+                    + DateAndTimeUtils.getGermanDateTimeFormatter().format(firstDate)));
+            String wochentagString = firstDate.getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
             setSubtitle(new Div("Wochentag: " + wochentagString));
             String additionalInfo = config.getAdditionalInfo();
             if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {

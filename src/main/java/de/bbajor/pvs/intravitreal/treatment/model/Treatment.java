@@ -56,10 +56,12 @@ public class Treatment extends BasicEntity<Long> {
     }
 
     public LocalDate getDate() {
-        return surgicalCenterTimeSlot.getDate();
+        return surgicalCenterTimeSlot != null ? surgicalCenterTimeSlot.getDate() : null;
     }
 
     public String getPatientInfo() {
-        return treatmentPlan.getPatient().toString();
+        return treatmentPlan != null && treatmentPlan.getPatient() != null
+                ? treatmentPlan.getPatient().toString()
+                : "";
     }
 }
