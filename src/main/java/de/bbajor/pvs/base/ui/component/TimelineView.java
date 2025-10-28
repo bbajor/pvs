@@ -51,11 +51,12 @@ public class TimelineView extends VerticalLayout {
 
         this.context = context;
         
-        // Verhindere horizontales Overflow in der Root-Komponente
+        // Verhindere Overflow in der Root-Komponente - Scrolling passiert im Scroller
         setWidthFull();
         getStyle().set("overflow-x", "hidden");
         getStyle().set("overflow-y", "hidden");
         getStyle().set("max-width", "100%"); // Stelle sicher, dass nicht breiter als Container
+        getStyle().set("max-height", "100%"); // Stelle sicher, dass nicht höher als Container
 
         // Buttons to scroll timeline
         prevButton = new Button(new Icon(VaadinIcon.ANGLE_LEFT));
@@ -381,7 +382,8 @@ public class TimelineView extends VerticalLayout {
             container.add(nextButton);
             container.expand(scroller); // Scroller soll verfügbaren Platz nutzen
             scroller.setHeightFull(); // Volle verfügbare Höhe
-            // Max-Höhe wird durch expand() und setHeightFull() automatisch begrenzt
+            // Wichtig: Scroller muss eine maximale Höhe haben, damit er scrollt statt zu wachsen
+            scroller.getStyle().set("max-height", "100%");
             add(container);
         }
     }
@@ -409,7 +411,8 @@ public class TimelineView extends VerticalLayout {
             scroller.getStyle().set("overflow-y", "scroll"); // Immer Scrollbar anzeigen
             scroller.getStyle().set("overflow-x", "hidden");
             scroller.getStyle().set("width", "100%");
-            // Höhe wird vom Container bestimmt, nicht hier gesetzt
+            // Wichtig: Scroller muss eine maximale Höhe haben für vertikales Scrollen
+            scroller.getStyle().set("max-height", "100%");
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_UP));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_DOWN));
         }
