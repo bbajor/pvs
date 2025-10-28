@@ -53,11 +53,20 @@
 /* TimelineView container and scroller styling */
 .timeline-view {
   position: relative;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
+/* Timeline content - sollte auf Basis der Kinder skalieren */
+.timeline-content {
+  flex-shrink: 0 !important;
+  min-width: max-content; /* Mindestens so breit wie der Content */
 }
 
 .timeline-view.horizontal .timeline-scroller {
-  overflow-x: scroll !important; /* always show */
+  overflow-x: auto !important; /* auto - nur anzeigen wenn nötig */
   overflow-y: hidden !important;
+  width: 100%;
 }
 
 .timeline-view.vertical .timeline-scroller {
@@ -113,7 +122,7 @@ vaadin-scroller.timeline-scroller::part(content) {
 
 /* Force scrollbars visible on the inner content depending on orientation */
 .timeline-view.horizontal vaadin-scroller.timeline-scroller::part(content) {
-  overflow-x: scroll;
+  overflow-x: auto;
   overflow-y: hidden;
 }
 .timeline-view.vertical vaadin-scroller.timeline-scroller::part(content) {
