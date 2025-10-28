@@ -63,12 +63,16 @@
   position: relative;
   overflow-x: hidden !important;
   overflow-y: hidden !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* Timeline content - sollte auf Basis der Kinder skalieren */
 .timeline-content {
   flex-shrink: 0 !important;
   min-width: max-content; /* Mindestens so breit wie der Content */
+  max-width: max-content;
+  box-sizing: border-box;
 }
 
 .timeline-view.horizontal .timeline-scroller {

@@ -55,6 +55,7 @@ public class TimelineView extends VerticalLayout {
         setWidthFull();
         getStyle().set("overflow-x", "hidden");
         getStyle().set("overflow-y", "hidden");
+        getStyle().set("max-width", "100%"); // Stelle sicher, dass nicht breiter als Container
 
         // Buttons to scroll timeline
         prevButton = new Button(new Icon(VaadinIcon.ANGLE_LEFT));

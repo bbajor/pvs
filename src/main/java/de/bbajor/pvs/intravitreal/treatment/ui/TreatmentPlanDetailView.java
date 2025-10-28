@@ -45,8 +45,12 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         this.context = context;
         this.currentUser = currentUser;
         setSizeFull();
+        // Verhindere horizontales Scrollen der gesamten View
+        getStyle().set("overflow-x", "hidden");
+        getStyle().set("overflow-y", "hidden");
 
         treatmentPlanLayout = new TreatmentPlanLayout(treatmenPlanPresenter, treatmentPlan, context);
+        treatmentPlanLayout.setSizeFull();
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();

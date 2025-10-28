@@ -71,8 +71,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
         this.current = treatmentPlan;
 
         setSizeFull();
-
+        // Verhindere Scrollen auf diesem Layout-Level
+        getStyle().set("overflow", "hidden");
+        
         add(tabSheet);
+        expand(tabSheet);
 
         timeLineViewLeftEye = new TimelineView(context);
         timeLineViewRightEye = new TimelineView(context);
