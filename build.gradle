@@ -83,7 +83,7 @@ dependencies {
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     
     // Test-Timeouts
-    timeout = Duration.ofMinutes(10)
+    timeout = java.time.Duration.ofMinutes(10)
     
     // Test-Reports optimieren
     reports {
