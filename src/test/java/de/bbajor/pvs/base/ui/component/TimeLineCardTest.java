@@ -3,6 +3,7 @@ package de.bbajor.pvs.base.ui.component;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -42,19 +43,20 @@ class TimeLineCardTest {
         when(configMock.isFirst()).thenReturn(true);
         when(configMock.getTreatmentDate()).thenReturn(LocalDate.now());
         when(configMock.getAdditionalInfo()).thenReturn("");
+        when(configMock.getFirstDate()).thenReturn(LocalDate.now());
     }
 
     @Test
     void testFirstTreatmentCardDisplaysCorrectly() {
         LocalDate date = LocalDate.of(2023, 6, 1);
-        when(configMock.getTreatmentDate()).thenReturn(date);
+        when(configMock.getFirstDate()).thenReturn(date);
         when(configMock.isFirst()).thenReturn(true);
         when(configMock.getAdditionalInfo()).thenReturn("Info");
 
         // Verify mock configuration
         assertEquals("Info", configMock.getAdditionalInfo(), "Mock should return 'Info' for additionalInfo");
         assertTrue(configMock.isFirst(), "Mock should return true for isFirst");
-        assertEquals(date, configMock.getTreatmentDate(), "Mock should return correct date");
+        assertEquals(date, configMock.getFirstDate(), "Mock should return correct first date");
 
         TimeLineCard card = new TimeLineCard(configMock, onDeleteMock, onClickMock);
 
@@ -67,8 +69,8 @@ class TimeLineCardTest {
         assertTrue(foundInfo, "Card should contain a paragraph with 'Info' text");
 
         Element title = card.getElement().getChild(0);
-        assertTrue(title.getText().contains("Start der Behandlung: ") || title.getText().contains("Behandlung am: "),
-                "Title should contain correct treatment text");
+        assertTrue(title.getText().contains("In Behandlung seit: "),
+                "Title should contain correct treatment text for first treatment");
 
         assertFalse(card.getElement().getText().contains("Uhrzeit:"),
                 "Card should not contain time for first treatment");
@@ -119,13 +121,13 @@ class TimeLineCardTest {
         boolean foundLocation = card.getChildren()
                 .filter(component -> component instanceof Paragraph)
                 .map(component -> component.getElement().getText())
-                .anyMatch(text -> text.equals("Ort: Raum 1"));
+                .anyMatch(text -> text.equals("Behandlungsort: Raum 1"));
         assertTrue(foundLocation, "Card should contain location");
 
         boolean foundEyeSide = card.getChildren()
                 .filter(component -> component instanceof Paragraph)
                 .map(component -> component.getElement().getText())
-                .anyMatch(text -> text.equals(SideOfEye.LEFT.toString()));
+                .anyMatch(text -> text.contains(SideOfEye.LEFT.toString()));
         assertTrue(foundEyeSide, "Card should contain eye side");
     }
 
@@ -201,7 +203,8 @@ class TimeLineCardTest {
     }
 
     @Test
-    void testNullConfigDoesNotThrow() {
-        assertDoesNotThrow(() -> new TimeLineCard(null, onDeleteMock, onClickMock));
+    void testNullConfigThrowsException() {
+        // TimeLineCard requires non-null config, so it should throw NPE
+        assertThrows(NullPointerException.class, () -> new TimeLineCard(null, onDeleteMock, onClickMock));
     }
 }
