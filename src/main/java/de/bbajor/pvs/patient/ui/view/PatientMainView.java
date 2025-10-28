@@ -20,6 +20,9 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
+import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
+import de.bbajor.pvs.ai.service.ExtractionClient;
+import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.patient.model.Patient;
@@ -33,12 +36,17 @@ import jakarta.annotation.security.PermitAll;
 public class PatientMainView extends Main implements PatientChangeListener {
 
     private final PatientListPresenter patientListPresenter;
+    private final VoiceTranscriptionService transcriptionService;
+    private final ExtractionOrchestrator extractionOrchestrator;
     private Grid<Patient> patientGrid;
 
     private final DateTimeFormatter germanFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
 
-    public PatientMainView(PatientListPresenter patientListPresenter) {
+    public PatientMainView(PatientListPresenter patientListPresenter, VoiceTranscriptionService transcriptionService, ExtractionOrchestrator extractionOrchestrator) {
         this.patientListPresenter = patientListPresenter;
+        this.transcriptionService = transcriptionService;
+        this.extractionOrchestrator = extractionOrchestrator;
+        
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
         setSizeFull();
@@ -90,7 +98,8 @@ public class PatientMainView extends Main implements PatientChangeListener {
     }
 
     private void openPatientDialog(Patient dto) {
-        PatientDialog dialog = new PatientDialog(patientListPresenter.getDialogPresenter(), dto);
+        PatientDialog dialog = new PatientDialog(patientListPresenter.getDialogPresenter(), dto, 
+                new ExtractionClient(extractionOrchestrator), transcriptionService);
         dialog.addChangeListener(this);
         dialog.open();
     }

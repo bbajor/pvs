@@ -36,12 +36,11 @@ import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.medication.controller.MedicationViewPresenter;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.security.AppRoles;
-import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 
 @Route("ivom-drugs")
 @PageTitle("Medikamente")
-@Menu(order = 3, icon = "vaadin:drop", title = "Medikamentendatenbank")
-@PermitAll
+@RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 public class MedicationView extends Main {
 
     private final TreeGrid<MedicationNode> grid = new TreeGrid<>();
