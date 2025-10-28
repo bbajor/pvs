@@ -76,9 +76,10 @@
 }
 
 .timeline-view.horizontal .timeline-scroller {
-  overflow-x: auto !important; /* auto - nur anzeigen wenn nötig */
+  overflow-x: scroll !important; /* scroll - immer sichtbar machen für bessere UX */
   overflow-y: hidden !important;
   width: 100%;
+  max-width: 100%;
 }
 
 .timeline-view.vertical .timeline-scroller {
