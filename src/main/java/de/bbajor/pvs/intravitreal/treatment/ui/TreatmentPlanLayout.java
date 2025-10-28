@@ -272,7 +272,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeTimeLineRightEye(VerticalLayout timeLineLayout) {
         // rechtes Auge mit medizinisch korrekter Darstellung (rechts = links vom Patienten)
-        timeLineViewRightEye.setTimelineHeight("300px");
+        timeLineViewRightEye.setTimelineHeight(null); // Keine feste Höhe - nutze verfügbaren Platz
         timeLineViewRightEye.addClassName("right-eye-timeline");
         timeLineViewRightEye.getStyle().set("background-color", "#E3F2FD"); // Blue tint
         Accordion accordionRight = new Accordion();
@@ -320,7 +320,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void initializeTimeLineLeftEye(VerticalLayout timeLineLayout) {
         // linkes Auge mit medizinisch korrekter Darstellung (links = rechts vom Patienten)
-        timeLineViewLeftEye.setTimelineHeight("300px");
+        timeLineViewLeftEye.setTimelineHeight(null); // Keine feste Höhe - nutze verfügbaren Platz
         timeLineViewLeftEye.addClassName("left-eye-timeline");
         timeLineViewLeftEye.getStyle().set("background-color", "#FFF3E0"); // Orange tint
         Accordion accordionLeft = new Accordion();
