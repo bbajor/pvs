@@ -9,12 +9,14 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import de.bbajor.pvs.security.AppRoles;
@@ -24,16 +26,17 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 
 @Route("admin/users")
-@RolesAllowed({ AppRoles.TECH_USER, AppRoles.OWNER })
+@RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 @PageTitle("Benutzerverwaltung")
 @Menu(order = 6, icon = "vaadin:cog-o", title = "Benutzerverwaltung")
-@PermitAll
 public class UserAdminView extends VerticalLayout {
 
     // Placeholder/sample UI for role visibility; actual persistence can be added later
     private final Grid<UserRow> grid = new Grid<>(UserRow.class, false);
     private final FormLayout formLayout = new FormLayout();
     private final TextField usernameField = new TextField("Benutzername");
+    private final TextField fullNameField = new TextField("Vollständiger Name");
+    private final EmailField emailField = new EmailField("E-Mail");
     private final PasswordField passwordField = new PasswordField("Passwort");
     private final Select<String> roleSelect = new Select<>();
     private final Checkbox enabledCheckbox = new Checkbox("Aktiv");
@@ -41,6 +44,7 @@ public class UserAdminView extends VerticalLayout {
     private final Button cancelButton = new Button("Abbrechen");
 
     private final UserAccountRepository userAccountRepository;
+    private UserAccount selectedUser;
 
     public UserAdminView(UserAccountRepository userAccountRepository) {
         this.userAccountRepository = userAccountRepository;
@@ -61,35 +65,28 @@ public class UserAdminView extends VerticalLayout {
         roleSelect.setEmptySelectionAllowed(false);
 
         grid.addColumn(UserRow::username).setHeader("Benutzername");
+        grid.addColumn(UserRow::fullName).setHeader("Name");
+        grid.addColumn(UserRow::email).setHeader("E-Mail");
         grid.addColumn(UserRow::role).setHeader("Rolle");
         grid.addColumn(ur -> ur.enabled() ? "Ja" : "Nein").setHeader("Aktiv");
-        grid.setItems(userAccountRepository.findAll().stream()
-                .map(ua -> new UserRow(ua.getUsername(), String.join(", ", ua.getRoles()), ua.isEnabled()))
-                .collect(Collectors.toList()));
-        grid.setSizeFull();
+        updateGrid();
 
-        formLayout.add(usernameField, passwordField, roleSelect, enabledCheckbox);
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        saveButton.addClickListener(e -> {
-            String username = usernameField.getValue();
-            String role = roleSelect.getValue();
-            boolean enabled = enabledCheckbox.getValue();
-            if (username == null || role == null) {
-                return;
+        grid.asSingleSelect().addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                editUser(e.getValue());
+            } else {
+                clearForm();
             }
-            UserAccount ua = userAccountRepository.findByUsername(username).orElseGet(UserAccount::new);
-            ua.setUsername(username);
-            ua.getRoles().clear();
-            ua.getRoles().add(role);
-            ua.setEnabled(enabled);
-            if (ua.getPasswordHash() == null || ua.getPasswordHash().isEmpty()) {
-                ua.setPasswordHash("{noop}" + (passwordField.getValue() == null ? "" : passwordField.getValue()));
-            }
-            userAccountRepository.save(ua);
-            grid.setItems(userAccountRepository.findAll().stream()
-                    .map(u -> new UserRow(u.getUsername(), String.join(", ", u.getRoles()), u.isEnabled()))
-                    .collect(Collectors.toList()));
         });
+
+        formLayout.add(usernameField, fullNameField, emailField, passwordField, roleSelect, enabledCheckbox);
+        
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.addClickListener(e -> saveUser());
+        
+        cancelButton.addClickListener(e -> clearForm());
+        
+        clearForm();
         HorizontalLayout actions = new HorizontalLayout(saveButton, cancelButton);
         VerticalLayout detailLayout = new VerticalLayout(formLayout, actions);
         detailLayout.setWidth("400px");
@@ -104,7 +101,85 @@ public class UserAdminView extends VerticalLayout {
         expand(split);
     }
 
-    public record UserRow(String username, String role, boolean enabled) {}
+    public record UserRow(String username, String fullName, String email, String role, boolean enabled) {
+        public static UserRow from(UserAccount ua) {
+            return new UserRow(
+                    ua.getUsername(),
+                    ua.getFullName() != null ? ua.getFullName() : "",
+                    ua.getEmail() != null ? ua.getEmail() : "",
+                    String.join(", ", ua.getRoles()),
+                    ua.isEnabled()
+            );
+        }
+    }
+
+    private void updateGrid() {
+        grid.setItems(userAccountRepository.findAll().stream()
+                .map(UserRow::from)
+                .collect(Collectors.toList()));
+    }
+
+    private void editUser(UserRow userRow) {
+        UserAccount userAccount = userAccountRepository.findByUsername(userRow.username())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userRow.username()));
+        selectedUser = userAccount;
+        
+        usernameField.setValue(userAccount.getUsername());
+        fullNameField.setValue(userAccount.getFullName() != null ? userAccount.getFullName() : "");
+        emailField.setValue(userAccount.getEmail() != null ? userAccount.getEmail() : "");
+        passwordField.clear();
+        roleSelect.setValue(userAccount.getRoles().isEmpty() ? null : userAccount.getRoles().iterator().next());
+        enabledCheckbox.setValue(userAccount.isEnabled());
+    }
+
+    private void saveUser() {
+        String username = usernameField.getValue();
+        String role = roleSelect.getValue();
+        
+        if (username == null || username.isEmpty() || role == null) {
+            return;
+        }
+
+        UserAccount userAccount = selectedUser != null && selectedUser.getId() != null
+                ? selectedUser
+                : userAccountRepository.findByUsername(username).orElseGet(UserAccount::new);
+        
+        userAccount.setUsername(username);
+        userAccount.setFullName(fullNameField.getValue());
+        userAccount.setEmail(emailField.getValue());
+        userAccount.getRoles().clear();
+        userAccount.getRoles().add(role);
+        userAccount.setEnabled(enabledCheckbox.getValue());
+        
+        // Set userId if not set
+        if (userAccount.getUserId() == null || userAccount.getUserId().isEmpty()) {
+            userAccount.setUserId(UUID.randomUUID().toString());
+        }
+        
+        // Update password only if provided
+        String password = passwordField.getValue();
+        if (password != null && !password.isEmpty()) {
+            userAccount.setPasswordHash("{noop}" + password);
+        } else if (userAccount.getPasswordHash() == null || userAccount.getPasswordHash().isEmpty()) {
+            // Set default password if none exists
+            userAccount.setPasswordHash("{noop}123");
+        }
+        
+        userAccountRepository.save(userAccount);
+        updateGrid();
+        clearForm();
+    }
+
+    private void clearForm() {
+        selectedUser = null;
+        usernameField.clear();
+        fullNameField.clear();
+        emailField.clear();
+        passwordField.clear();
+        roleSelect.clear();
+        enabledCheckbox.setValue(true);
+        grid.deselectAll();
+    }
 
     // private final Grid<User> grid = new Grid<>(User.class, false);
     // private final FormLayout formLayout = new FormLayout();
