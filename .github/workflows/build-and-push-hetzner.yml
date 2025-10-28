@@ -37,11 +37,22 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Setup Gradle Build Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Build with Gradle
-        run: ./gradlew bootJar --no-daemon
+        run: ./gradlew bootJar --no-daemon --build-cache --parallel
 
       - name: Run tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test --no-daemon --build-cache --parallel
 
       - name: Determine stage
         id: stage

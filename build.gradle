@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.6'
+    id 'org.springframework.boot' version '3.5.7'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'com.vaadin' version '24.8.3'
 }
@@ -75,6 +75,62 @@ dependencies {
 
  tasks.withType(Test).configureEach {
     useJUnitPlatform()
+    
+    // Test-Caching aktivieren
+    outputs.cacheIf { true }
+    
+    // Test-Parallelisierung für schnellere Ausführung
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+    
+    // Test-Timeouts
+    timeout = Duration.ofMinutes(10)
+    
+    // Test-Reports optimieren
+    reports {
+        junitXml.required = true
+        html.required = false // Schneller ohne HTML-Reports
+    }
+}
+
+// Java-Compilation optimieren
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.incremental = true
+    options.compilerArgs.add('-parameters')
+    
+    // Caching für Compilation
+    inputs.property("javaVersion", sourceCompatibility)
+}
+
+// Annotation Processing optimieren
+tasks.withType(JavaCompile).configureEach {
+    options.annotationProcessorPath = configurations.annotationProcessor
+}
+
+// Jar-Task optimieren
+tasks.withType(Jar).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// BootJar optimieren (für Spring Boot)
+tasks.named('bootJar') {
+    enabled = true
+    archiveFileName = "${project.name}-${project.version}.jar"
+    
+    // Layered Jars für Docker-Caching
+    layered {
+        enabled = true
+    }
+}
+
+// Dependency-Cache optimieren
+configurations.all {
+    // Resolution-Strategie für schnellere Dependency-Resolution
+    resolutionStrategy {
+        cacheChangingModulesFor(0, 'seconds')
+        cacheDynamicVersionsFor(0, 'seconds')
+        preferProjectModules()
+    }
 }
 
 vaadin {
