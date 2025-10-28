@@ -79,6 +79,7 @@ public class TimelineView extends VerticalLayout {
         timelineLayout.getStyle().set("gap", "20px");
         timelineLayout.getStyle().set("min-width", "100%"); // Mindestens Container-Breite
         timelineLayout.getStyle().set("flex-shrink", "0"); // Verhindere Schrumpfen
+        timelineLayout.getStyle().set("width", "max-content"); // Breite basierend auf Content
 
         // Scroller hosting the timeline
         scroller = new Scroller(timelineLayout);
@@ -359,11 +360,13 @@ public class TimelineView extends VerticalLayout {
             VerticalLayout container = new VerticalLayout();
             container.setSpacing(false);
             container.setPadding(false);
-            container.setWidthFull();
+            container.setSizeFull();
             container.setDefaultHorizontalComponentAlignment(VerticalLayout.Alignment.STRETCH);
             container.add(prevButton);
             container.add(scroller);
             container.add(nextButton);
+            container.expand(scroller); // Scroller soll verfügbaren Platz nutzen
+            scroller.setHeightFull(); // Volle verfügbare Höhe
             add(container);
         }
     }
@@ -386,11 +389,12 @@ public class TimelineView extends VerticalLayout {
             timelineLayout.getStyle().set("flex-direction", "column");
             timelineLayout.getStyle().set("height", "max-content");
             timelineLayout.getStyle().set("min-height", "100%");
+            timelineLayout.getStyle().set("width", "100%"); // Volle Breite bei vertikal
             scroller.setScrollDirection(ScrollDirection.VERTICAL);
             scroller.getStyle().set("overflow-y", "auto");
             scroller.getStyle().set("overflow-x", "hidden");
             scroller.getStyle().set("width", "100%");
-            scroller.getStyle().set("height", "100%"); // Nutze volle verfügbare Höhe
+            scroller.getStyle().set("flex-grow", "1"); // Nutze verfügbaren Platz
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_UP));
             nextButton.setIcon(new Icon(VaadinIcon.ANGLE_DOWN));
         }
