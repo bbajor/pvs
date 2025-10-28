@@ -146,6 +146,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineLayout.setPadding(false);
         timeLineLayout.setSpacing(false);
         timeLineLayout.getStyle().set("overflow", "hidden"); // Prevent scroll on tab sheet
+        timeLineLayout.getStyle().set("overflow-y", "auto"); // Erlaube vertikales Scrollen innerhalb der Timeline
         
         // Orientation toggle controls both timelines
         RadioButtonGroup<TimelineView.Orientation> orientationToggle = new RadioButtonGroup<>();
@@ -173,19 +174,21 @@ public class TreatmentPlanLayout extends VerticalLayout {
     }
     
     private void updateTimelineLayout(VerticalLayout timeLineLayout, TimelineView.Orientation orientation) {
-        // Remove existing timeline accordions
+        // Remove existing timeline accordions and eyesContainer
         timeLineLayout.getChildren()
-                .filter(child -> child.getClass().getSimpleName().equals("Accordion"))
+                .filter(child -> {
+                    String className = child.getClass().getSimpleName();
+                    return className.equals("Accordion") || className.equals("VerticalLayout");
+                })
+                .filter(child -> {
+                    // Behalte nur den orientationToggle - er ist das erste Child nach dem Toggle
+                    return timeLineLayout.indexOf(child) > 0;
+                })
+                .collect(java.util.stream.Collectors.toList())
                 .forEach(timeLineLayout::remove);
         
-        // Check if treatments exist for each eye
-        boolean hasRightEye = current != null && hasTreatmentsForEye(SideOfEye.RIGHT);
-        boolean hasLeftEye = current != null && hasTreatmentsForEye(SideOfEye.LEFT);
-        
-        if (!hasRightEye && !hasLeftEye) {
-            // No treatments for either eye
-            return;
-        }
+        // Immer Timeline anzeigen, auch wenn noch keine Behandlungen existieren
+        // Beide Augen immer anzeigen (auch wenn noch keine Behandlungen existieren)
         
         if (orientation == TimelineView.Orientation.VERTICAL) {
             // Vertical: show eyes side by side
@@ -195,23 +198,18 @@ public class TreatmentPlanLayout extends VerticalLayout {
             eyesContainer.setSpacing(false);
             eyesContainer.getStyle().set("display", "flex");
             eyesContainer.getStyle().set("flex-direction", "row");
+            eyesContainer.getStyle().set("overflow", "hidden");
             
-            if (hasRightEye) {
-                initializeTimeLineRightEye(eyesContainer); // OD (rechts vom Patienten = links in UI)
-            }
-            if (hasLeftEye) {
-                initializeTimeLineLeftEye(eyesContainer);  // OS (links vom Patienten = rechts in UI)
-            }
+            // Immer beide Augen anzeigen, auch wenn noch keine Behandlungen existieren
+            initializeTimeLineRightEye(eyesContainer); // OD (rechts vom Patienten = links in UI)
+            initializeTimeLineLeftEye(eyesContainer);  // OS (links vom Patienten = rechts in UI)
             
             timeLineLayout.add(eyesContainer);
         } else {
             // Horizontal: show vertically stacked
-            if (hasRightEye) {
-                initializeTimeLineRightEye(timeLineLayout); // OD (rechts vom Patienten = links in UI)
-            }
-            if (hasLeftEye) {
-                initializeTimeLineLeftEye(timeLineLayout);  // OS (links vom Patienten = rechts in UI)
-            }
+            // Immer beide Augen anzeigen, auch wenn noch keine Behandlungen existieren
+            initializeTimeLineRightEye(timeLineLayout); // OD (rechts vom Patienten = links in UI)
+            initializeTimeLineLeftEye(timeLineLayout);  // OS (links vom Patienten = rechts in UI)
         }
     }
     
