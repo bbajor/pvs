@@ -84,7 +84,7 @@ public class TimelineView extends VerticalLayout {
         scroller = new Scroller(timelineLayout);
         scroller.addClassName("timeline-scroller");
         scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
-        scroller.setWidthFull();
+        // Keine feste Breite hier setzen - wird vom Layout bestimmt
 
         // Build outer layout based on current orientation
         rebuildOuterLayout();
@@ -345,8 +345,14 @@ public class TimelineView extends VerticalLayout {
             container.expand(scroller);
             
             // Sicherstellen, dass Scroller die verfügbare Breite nutzt
-            scroller.setWidth(null);
+            scroller.setWidthFull();
             scroller.setMinWidth("0px");
+            
+            // Buttons sollten nicht schrumpfen
+            prevButton.getStyle().set("flex-grow", "0");
+            prevButton.getStyle().set("flex-shrink", "0");
+            nextButton.getStyle().set("flex-grow", "0");
+            nextButton.getStyle().set("flex-shrink", "0");
             
             add(container);
         } else {
@@ -369,7 +375,7 @@ public class TimelineView extends VerticalLayout {
             timelineLayout.getStyle().set("width", "max-content");
             timelineLayout.getStyle().set("min-width", "100%");
             scroller.setScrollDirection(ScrollDirection.HORIZONTAL);
-            scroller.getStyle().set("overflow-x", "auto");
+            scroller.getStyle().set("overflow-x", "scroll"); // Immer Scrollbar anzeigen
             scroller.getStyle().set("overflow-y", "hidden");
             // Update button icons
             prevButton.setIcon(new Icon(VaadinIcon.ANGLE_LEFT));
