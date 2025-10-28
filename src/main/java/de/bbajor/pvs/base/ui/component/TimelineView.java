@@ -381,7 +381,7 @@ public class TimelineView extends VerticalLayout {
             container.add(nextButton);
             container.expand(scroller); // Scroller soll verfügbaren Platz nutzen
             scroller.setHeightFull(); // Volle verfügbare Höhe
-            scroller.setMaxHeight("100%"); // Maximaler Höhe begrenzen
+            // Max-Höhe wird durch expand() und setHeightFull() automatisch begrenzt
             add(container);
         }
     }
