@@ -314,11 +314,30 @@ public class TimelineView extends VerticalLayout {
     private void rebuildOuterLayout() {
         removeAll();
         if (orientation == Orientation.HORIZONTAL) {
-            HorizontalLayout container = new HorizontalLayout(prevButton, scroller, nextButton);
-            container.setWidthFull();
-            container.setAlignItems(HorizontalLayout.Alignment.CENTER);
-            container.expand(scroller);
-            add(container);
+            // Container für Scroller mit relativem Positioning für Overlay-Buttons
+            Div scrollerContainer = new Div(scroller);
+            scrollerContainer.setWidthFull();
+            scrollerContainer.getStyle().set("position", "relative");
+            
+            // Buttons als Overlay positionieren
+            prevButton.getStyle().set("position", "absolute");
+            prevButton.getStyle().set("left", "0");
+            prevButton.getStyle().set("top", "50%");
+            prevButton.getStyle().set("transform", "translateY(-50%)");
+            prevButton.getStyle().set("z-index", "10");
+            prevButton.getStyle().set("background", "rgba(255, 255, 255, 0.9)");
+            prevButton.getStyle().set("box-shadow", "0 2px 8px rgba(0,0,0,0.2)");
+            
+            nextButton.getStyle().set("position", "absolute");
+            nextButton.getStyle().set("right", "0");
+            nextButton.getStyle().set("top", "50%");
+            nextButton.getStyle().set("transform", "translateY(-50%)");
+            nextButton.getStyle().set("z-index", "10");
+            nextButton.getStyle().set("background", "rgba(255, 255, 255, 0.9)");
+            nextButton.getStyle().set("box-shadow", "0 2px 8px rgba(0,0,0,0.2)");
+            
+            scrollerContainer.add(prevButton, nextButton);
+            add(scrollerContainer);
         } else {
             VerticalLayout container = new VerticalLayout();
             container.setSpacing(false);

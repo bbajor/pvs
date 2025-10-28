@@ -121,6 +121,7 @@
 }
 .timeline-view.horizontal .timeline-scroll-button {
   min-width: 44px;
+  pointer-events: auto !important; /* Sicherstellen, dass Buttons klickbar bleiben */
 }
 .timeline-view.vertical .timeline-scroll-button {
   width: 100%;
