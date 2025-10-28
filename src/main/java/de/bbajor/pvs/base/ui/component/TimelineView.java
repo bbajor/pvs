@@ -329,9 +329,14 @@ public class TimelineView extends VerticalLayout {
 
     /**
      * Setzt die sichtbare Höhe des internen Scrollers (z.B. "300px").
+     * Wenn null übergeben wird, nutzt der Scroller den verfügbaren Platz.
      */
     public void setTimelineHeight(String height) {
-        scroller.setHeight(height);
+        if (height != null) {
+            scroller.setHeight(height);
+        } else {
+            scroller.setHeightFull(); // Nutze verfügbaren Platz
+        }
     }
 
     private void rebuildOuterLayout() {
