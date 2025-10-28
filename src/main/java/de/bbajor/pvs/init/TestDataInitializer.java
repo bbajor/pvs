@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import org.instancio.Instancio;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.base.util.SideOfEye;
@@ -30,6 +31,11 @@ import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
+import de.bbajor.pvs.practice.model.Practice;
+import de.bbajor.pvs.practice.service.PracticeService;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
@@ -46,6 +52,9 @@ public class TestDataInitializer implements CommandLineRunner {
         private final IntravitrealMedicationService medicationService;
         private final SurgicalCenterService surgicalCenterService;
         private final IvomDiagnosisService diagnosisService;
+        private final UserAccountRepository userAccountRepository;
+        private final PasswordEncoder passwordEncoder;
+        private final PracticeService practiceService;
 
         // Realistische Werte für die Testdaten
         private static final String[] MEDICATION_NAMES = {
@@ -81,6 +90,12 @@ public class TestDataInitializer implements CommandLineRunner {
         @Override
         public void run(String... args) {
 
+                // Erstelle Testuser aus SampleUsers
+                createTestUsers();
+
+                // Erstelle Praxisdaten
+                createPracticeData();
+
                 List<Patient> savedPatients = patientService.saveAll(createRealisticPatients(20));
                 List<Medication> savedMedications = medicationService
                                 .saveAll(createRealisticMedications(MEDICATION_NAMES.length));
@@ -96,6 +111,97 @@ public class TestDataInitializer implements CommandLineRunner {
                 // Erstelle einen abgelaufenen TimeSlot mit nicht genehmigten Behandlungen für Task-Testing
                 createPastTimeSlotsWithUnapprovedTreatments(savedPatients.subList(0, 3), surgicalCenters.get(0),
                         savedMedications.get(0), diagnosisDtos.get(0));
+        }
+
+        /**
+         * Erstellt die Testuser für verschiedene Rollen in der Datenbank
+         */
+        private void createTestUsers() {
+                String testPassword = "123";
+
+                // Test-Admin User (umbenannt, da SampleUsers.ADMIN_USERNAME bereits existiert)
+                createUserIfNotExists("test-admin", testPassword, "Test Administrator", "test-admin@example.com",
+                                UUID.randomUUID().toString(), AppRoles.ADMIN, AppRoles.OWNER, AppRoles.USER,
+                                AppRoles.DOCTOR);
+
+                // Test-User (umbenannt, da SampleUsers.USER_USERNAME bereits existiert)
+                createUserIfNotExists("test-user", testPassword, "Test Benutzer", "test-user@example.com",
+                                UUID.randomUUID().toString(), AppRoles.USER, AppRoles.TECH_USER, AppRoles.MEDICAL_STAFF);
+
+                // Doctor User
+                createUserIfNotExists("test-doctor", testPassword, "Dr. Test Arzt", "test-doctor@example.com",
+                                UUID.randomUUID().toString(), AppRoles.DOCTOR, AppRoles.USER);
+
+                // Tech User
+                createUserIfNotExists("test-tech", testPassword, "Test Techniker", "test-tech@example.com",
+                                UUID.randomUUID().toString(), AppRoles.TECH_USER, AppRoles.USER);
+
+                // Medical Staff
+                createUserIfNotExists("test-medical", testPassword, "Test Medizinisches Personal", "test-medical@example.com",
+                                UUID.randomUUID().toString(), AppRoles.MEDICAL_STAFF, AppRoles.USER);
+
+                // Owner
+                createUserIfNotExists("test-owner", testPassword, "Test Praxisinhaber", "test-owner@example.com",
+                                UUID.randomUUID().toString(), AppRoles.OWNER, AppRoles.USER);
+        }
+
+        /**
+         * Hilfsmethode zum Erstellen von Benutzern
+         */
+        private void createUserIfNotExists(String username, String password, String fullName, String email,
+                        String userId, String... roles) {
+                if (userAccountRepository.findByUsername(username).isEmpty()) {
+                        UserAccount user = new UserAccount();
+                        user.setUsername(username);
+                        user.setPasswordHash(passwordEncoder.encode(password));
+                        user.setFullName(fullName);
+                        user.setEmail(email);
+                        user.setUserId(userId);
+                        user.setEnabled(true);
+                        for (String role : roles) {
+                                user.getRoles().add(role);
+                        }
+                        userAccountRepository.save(user);
+                }
+        }
+
+        /**
+         * Erstellt beispielhafte Praxisdaten
+         */
+        private void createPracticeData() {
+                // Prüfe, ob bereits Praxisdaten existieren
+                if (practiceService.getPractice() != null) {
+                        return; // Praxisdaten bereits vorhanden, keine erneute Erstellung
+                }
+
+                Practice practice = new Practice();
+                practice.setPracticeName("Augenarztpraxis Muster");
+                practice.setStreet("Hauptstraße");
+                practice.setHouseNumber("42");
+                practice.setPostalCode("10115");
+                practice.setCity("Berlin");
+                practice.setCountry("Deutschland");
+
+                // Praxisinhaber
+                practice.setOwnerTitle("Dr. med.");
+                practice.setOwnerName("Max Mustermann");
+
+                // Deutsche Gesundheitswesen-Identifikatoren
+                // LANR: 9-stellige Lebenslange Arztnummer
+                // BSNR: 9-stellige Betriebsstättennummer
+                practice.setLanr("123456789");
+                practice.setBsnr("987654321");
+
+                // Kontaktinformationen
+                practice.setPhone("+49 30 12345678");
+                practice.setFax("+49 30 12345679");
+                practice.setEmail("praxis@augenarzt-muster.de");
+
+                // Zusatzinformationen
+                practice.setAdditionalInfo(
+                                "Beispielpraxis für die Entwicklungsumgebung. Spezialisiert auf Netzhauterkrankungen und intravitreale Injektionen.");
+
+                practiceService.savePractice(practice);
         }
 
         /**

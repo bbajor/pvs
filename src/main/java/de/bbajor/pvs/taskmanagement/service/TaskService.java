@@ -22,11 +22,9 @@ import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.domain.TaskRepository;
-import jakarta.annotation.security.PermitAll;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @Service
-@PermitAll
 public class TaskService {
 
     @Autowired
@@ -44,6 +42,7 @@ public class TaskService {
     private Clock clock;
 
     @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER') or hasRole('SYSTEM')")
     public void createTask(String description, @Nullable LocalDate dueDate, SurgicalCenterTimeSlot timeSlot) {
         if ("fail".equals(description)) {
             throw new RuntimeException("This is for testing the error handler");
@@ -57,6 +56,7 @@ public class TaskService {
     }
 
     @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER') or hasRole('SYSTEM')")
     public void createDailyTaskIfAny() {
         // 1. Find all timeslots containing not approved treatments until today
         List<Long> timeSlotIds = new ArrayList<>();
@@ -80,7 +80,7 @@ public class TaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public void approveTreatment(Long treatmentId, String actorUserId, String actorUserName, boolean secondApproval) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
@@ -130,11 +130,13 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public List<Task> list(Pageable pageable) {
         return taskRepository.findAllBy(pageable).toList();
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public List<Task> listByCompleted(Boolean completed, Pageable pageable) {
         if (completed == null) {
             return taskRepository.findAllBy(pageable).toList();

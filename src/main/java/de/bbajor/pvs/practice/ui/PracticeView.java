@@ -1,9 +1,12 @@
 package de.bbajor.pvs.practice.ui;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Main;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -17,14 +20,16 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.base.util.PhoneUtils;
 import de.bbajor.pvs.practice.model.Practice;
 import de.bbajor.pvs.practice.service.PracticeService;
-import jakarta.annotation.security.PermitAll;
+import de.bbajor.pvs.security.AppRoles;
+import jakarta.annotation.security.RolesAllowed;
 
 @Route("praxis")
 @PageTitle("Eigene Praxisdaten")
 @Menu(order = 99, icon = "vaadin:building", title = "Eigene Praxisdaten")
-@PermitAll
+@RolesAllowed({ AppRoles.ADMIN, AppRoles.DOCTOR, AppRoles.TECH_USER, AppRoles.OWNER })
 public class PracticeView extends Main {
 
     private final PracticeService practiceService;
@@ -35,7 +40,7 @@ public class PracticeView extends Main {
     private TextField houseNumber;
     private TextField postalCode;
     private TextField city;
-    private TextField country;
+    private TextField countryField;
     private TextField ownerName;
     private TextField ownerTitle;
     private TextField lanr;
@@ -102,30 +107,125 @@ public class PracticeView extends Main {
         city.setWidthFull();
         practiceLayout.add(postalCode, city);
         
-        TextField country = new TextField("Land");
-        country.setWidthFull();
-        practiceLayout.add(country, 2);
+        countryField = new TextField("Land");
+        countryField.setWidthFull();
+        practiceLayout.add(countryField, 2);
         
         phone = new TextField("Telefon");
         phone.setWidthFull();
+        phone.setPrefixComponent(new Button(new Icon(VaadinIcon.PHONE), e -> {
+            if (phone.getValue() != null && !phone.getValue().isEmpty()) {
+                UI.getCurrent().getPage().open("tel:" + phone.getValue(), "_self");
+            }
+        }));
+        
         fax = new TextField("Fax");
         fax.setWidthFull();
+        fax.setPrefixComponent(new Icon(VaadinIcon.PRINT));
         practiceLayout.add(phone, fax);
         
         email = new EmailField("E-Mail");
         email.setWidthFull();
+        Button emailButton = new Button(new Icon(VaadinIcon.ENVELOPE), e -> {
+            if (email.getValue() != null && !email.getValue().isEmpty()) {
+                UI.getCurrent().getPage().open("mailto:" + email.getValue(), "_self");
+            }
+        });
+        email.setPrefixComponent(emailButton);
         practiceLayout.add(email, 2);
         
-        // Bind fields
-        binder.bind(practiceName, Practice::getPracticeName, Practice::setPracticeName);
-        binder.bind(street, Practice::getStreet, Practice::setStreet);
-        binder.bind(houseNumber, Practice::getHouseNumber, Practice::setHouseNumber);
-        binder.bind(postalCode, Practice::getPostalCode, Practice::setPostalCode);
-        binder.bind(city, Practice::getCity, Practice::setCity);
-        binder.bind(country, Practice::getCountry, Practice::setCountry);
-        binder.bind(phone, Practice::getPhone, Practice::setPhone);
-        binder.bind(fax, Practice::getFax, Practice::setFax);
-        binder.bind(email, Practice::getEmail, Practice::setEmail);
+        // Bind fields with validation
+        binder.forField(practiceName).asRequired("Praxisname ist erforderlich")
+                .withNullRepresentation("")
+                .bind(Practice::getPracticeName, Practice::setPracticeName);
+        
+        binder.forField(street).withNullRepresentation("")
+                .bind(Practice::getStreet, Practice::setStreet);
+        
+        binder.forField(houseNumber).withNullRepresentation("")
+                .bind(Practice::getHouseNumber, Practice::setHouseNumber);
+        
+        binder.forField(postalCode).withNullRepresentation("")
+                .withValidator(item -> item == null || item.trim().isEmpty() || 
+                    (item.trim().matches("\\d{5}")), "Postleitzahl muss 5-stellig sein")
+                .bind(Practice::getPostalCode, Practice::setPostalCode);
+        
+        binder.forField(city).withNullRepresentation("")
+                .bind(Practice::getCity, Practice::setCity);
+        
+        binder.forField(countryField).withNullRepresentation("")
+                .bind(Practice::getCountry, Practice::setCountry);
+        
+        // Phone validation
+        binder.forField(phone)
+                .withNullRepresentation("")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true;
+                    }
+                    return item.trim().length() <= 50;
+                }, "Bitte geben Sie eine gültige Telefonnummer ein (max. 50 Zeichen)")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true;
+                    }
+                    try {
+                        String formatted = PhoneUtils.formatPhoneNumber(item);
+                        return formatted.matches("\\+49[1-9][0-9]{8,14}");
+                    } catch (Exception e) {
+                        return false;
+                    }
+                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein (Format: +49...)")
+                .withConverter(
+                        rawValue -> {
+                            if (rawValue == null || rawValue.trim().isEmpty()) {
+                                return null;
+                            }
+                            return PhoneUtils.formatPhoneNumber(rawValue);
+                        },
+                        formattedValue -> formattedValue)
+                .bind(Practice::getPhone, Practice::setPhone);
+        
+        // Fax validation
+        binder.forField(fax)
+                .withNullRepresentation("")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true;
+                    }
+                    return item.trim().length() <= 50;
+                }, "Bitte geben Sie eine gültige Faxnummer ein (max. 50 Zeichen)")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true;
+                    }
+                    try {
+                        String formatted = PhoneUtils.formatPhoneNumber(item);
+                        return formatted.matches("\\+49[1-9][0-9]{8,14}");
+                    } catch (Exception e) {
+                        return false;
+                    }
+                }, "Bitte geben Sie eine gültige deutsche Faxnummer ein (Format: +49...)")
+                .withConverter(
+                        rawValue -> {
+                            if (rawValue == null || rawValue.trim().isEmpty()) {
+                                return null;
+                            }
+                            return PhoneUtils.formatPhoneNumber(rawValue);
+                        },
+                        formattedValue -> formattedValue)
+                .bind(Practice::getFax, Practice::setFax);
+        
+        // Email validation
+        binder.forField(email)
+                .withNullRepresentation("")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true;
+                    }
+                    return item.trim().length() <= 100 && item.contains("@") && item.contains(".");
+                }, "Bitte geben Sie eine gültige E-Mail-Adresse ein (max. 100 Zeichen)")
+                .bind(Practice::getEmail, Practice::setEmail);
         
         layout.add(practiceLayout);
         
@@ -153,16 +253,55 @@ public class PracticeView extends Main {
         
         lanr = new TextField("LANR");
         lanr.setWidthFull();
-        lanr.setHelperText("Leistungserbringer-Abrechnungsnummer");
+        lanr.setHelperText("Lebenslange Arztnummer (9-stellig)");
+        lanr.setPrefixComponent(new Icon(VaadinIcon.USER));
         
         bsnr = new TextField("BSNR");
         bsnr.setWidthFull();
-        bsnr.setHelperText("Betriebsstättennummer");
+        bsnr.setHelperText("Betriebsstättennummer (9-stellig)");
+        bsnr.setPrefixComponent(new Icon(VaadinIcon.BUILDING));
         
         identifierLayout.add(lanr, bsnr);
         
-        binder.bind(lanr, Practice::getLanr, Practice::setLanr);
-        binder.bind(bsnr, Practice::getBsnr, Practice::setBsnr);
+        // LANR validation: 9-stellige Nummer
+        binder.forField(lanr)
+                .withNullRepresentation("")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true; // LANR ist optional
+                    }
+                    String clean = item.trim().replaceAll("\\s", ""); // Entferne Leerzeichen
+                    return clean.matches("\\d{9}");
+                }, "LANR muss eine 9-stellige Nummer sein")
+                .withConverter(
+                        rawValue -> {
+                            if (rawValue == null || rawValue.trim().isEmpty()) {
+                                return null;
+                            }
+                            return rawValue.trim().replaceAll("\\s", "");
+                        },
+                        formattedValue -> formattedValue)
+                .bind(Practice::getLanr, Practice::setLanr);
+        
+        // BSNR validation: 9-stellige Nummer
+        binder.forField(bsnr)
+                .withNullRepresentation("")
+                .withValidator(item -> {
+                    if (item == null || item.trim().isEmpty()) {
+                        return true; // BSNR ist optional
+                    }
+                    String clean = item.trim().replaceAll("\\s", ""); // Entferne Leerzeichen
+                    return clean.matches("\\d{9}");
+                }, "BSNR muss eine 9-stellige Nummer sein")
+                .withConverter(
+                        rawValue -> {
+                            if (rawValue == null || rawValue.trim().isEmpty()) {
+                                return null;
+                            }
+                            return rawValue.trim().replaceAll("\\s", "");
+                        },
+                        formattedValue -> formattedValue)
+                .bind(Practice::getBsnr, Practice::setBsnr);
         
         layout.add(identifierLayout);
         
