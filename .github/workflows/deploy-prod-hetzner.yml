@@ -84,12 +84,18 @@ jobs:
             docker-compose -f docker-compose.production.yml up -d pvs-prod
             
             # Wait for health check
-            sleep 30
-            if ! curl -f http://localhost:8080/actuator/health; then
-              echo "Health check failed - rolling back"
+            echo "⏳ Waiting for application to start..."
+            sleep 60
+            
+            # Health check via container
+            if ! docker exec pvs-prod curl -f http://localhost:8080/actuator/health 2>/dev/null; then
+              echo "❌ Health check failed - rolling back..."
               docker-compose -f docker-compose.production.yml restart pvs-prod
+              sleep 30
               exit 1
             fi
+            
+            echo "✅ Health check passed!"
             
             # Clean up old images
             docker image prune -f

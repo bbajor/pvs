@@ -40,6 +40,10 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     // In-memory DB for local development (fixes missing JDBC driver)
     runtimeOnly 'com.h2database:h2'
+    
+    // Flyway for database migrations
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'

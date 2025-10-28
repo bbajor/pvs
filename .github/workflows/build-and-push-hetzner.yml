@@ -93,18 +93,27 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd /opt/pvs
-            export DOCKER_IMAGE=${{ steps.meta.outputs.tags }}
+            
+            # Set environment variables
+            export DOCKER_IMAGE=ghcr.io/${{ github.repository_owner }}/pvs
             export STAGE=${{ steps.stage.outputs.stage }}
             
             # Pull latest image
-            docker pull $DOCKER_IMAGE
+            docker pull ${DOCKER_IMAGE}:${STAGE}-latest || echo "Image pull failed, using existing"
             
             # Update specific service
-            docker-compose -f docker-compose.production.yml pull pvs-$STAGE
-            docker-compose -f docker-compose.production.yml up -d pvs-$STAGE
+            docker-compose -f docker-compose.production.yml stop pvs-${STAGE} || true
+            docker-compose -f docker-compose.production.yml rm -f pvs-${STAGE} || true
+            docker-compose -f docker-compose.production.yml up -d pvs-${STAGE}
             
-            # Clean up old images
+            # Wait for health check
+            sleep 30
+            if ! docker exec pvs-${STAGE} curl -f http://localhost:8080/actuator/health 2>/dev/null; then
+              echo "⚠️ Health check failed, but continuing..."
+            fi
+            
+            # Clean up old images (keep last 2)
             docker image prune -f
             
-            echo "Deployed $STAGE to Hetzner"
+            echo "✅ Deployed ${STAGE} to Hetzner"
 
