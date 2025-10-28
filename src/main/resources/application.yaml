@@ -20,7 +20,7 @@ spring:
         type: trace
   servlet:
     multipart:
-      enabled: false
+      enabled: true
       max-file-size: 50MB
       max-request-size: 100MB
   profiles:
@@ -31,3 +31,23 @@ egk:
 
 domain:
   bundesland: NI
+
+ai:
+  whisper:
+    local:
+      enabled: true
+      host: localhost
+      port: 9000
+      auto-install: true
+      python-path: "python"
+      use-docker: true
+      docker-image: "pvs-whisper:latest"
+      docker-compose-path: "docker/whisper/docker-compose.yml"
+    remote:
+      enabled: true
+      provider: "aleph-alpha"
+      api-url: "https://api.aleph-alpha.com/complete"
+      api-key: ${AI_API_KEY:}
+      monthly-quota: 1000
+  extraction:
+    confidence-threshold: 0.7

@@ -71,4 +71,19 @@ public final class AppRoles {
      * </p>
      */
     public static final String TECH_USER = "TECH_USER";
+
+    /**
+     * Role for medical doctors with permission to approve and modify treatments.
+     */
+    public static final String DOCTOR = "DOCTOR";
+
+    /**
+     * Role for medical staff (non-doctor) personnel.
+     */
+    public static final String MEDICAL_STAFF = "MEDICAL_STAFF";
+
+    /**
+     * Role for the practice owner.
+     */
+    public static final String OWNER = "OWNER";
 }
