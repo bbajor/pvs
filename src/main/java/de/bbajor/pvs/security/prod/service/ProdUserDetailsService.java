@@ -56,7 +56,7 @@ public class ProdUserDetailsService implements UserDetailsService {
                 .accountExpired(false)
                 .accountLocked(false)
                 .credentialsExpired(false)
-                .disabled(!account.getEnabled())
+                .disabled(!account.isEnabled())
                 .build();
     }
 }
