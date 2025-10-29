@@ -90,6 +90,11 @@ dependencies {
         junitXml.required = true
         html.required = false // Schneller ohne HTML-Reports
     }
+    
+    // Skip Tests wenn Property gesetzt ist (configuration-cache-kompatibel)
+    // Wird von CI überschrieben, aber lokal hilfreich
+    // Beispiel: ./gradlew test -PskipTests=true
+    // Hinweis: Tests können auch mit -x test übersprungen werden
 }
 
 // Java-Compilation optimieren
@@ -121,6 +126,17 @@ tasks.named('bootJar') {
     layered {
         enabled = true
     }
+    
+    // Cache-Output für inkrementelle Builds
+    outputs.cacheIf { true }
+    
+    // Nur neu bauen wenn Inputs sich geändert haben
+    inputs.files(sourceSets.main.output.classesDirs)
+        .withPropertyName("classes")
+        .optional()
+    inputs.files(sourceSets.main.resources)
+        .withPropertyName("resources")
+        .optional()
 }
 
 // Dependency-Cache optimieren

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database für lokale Entwicklung
   postgres-dev:
@@ -12,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
     ports:
-      - "127.0.0.1:5432:5432"  # Nur lokal erreichbar
+      - "127.0.0.1:5434:5432"  # Nur lokal erreichbar (Port 5434 wegen lokalem PostgreSQL auf 5432)
     volumes:
       - postgres-dev-data:/var/lib/postgresql/data
     networks:

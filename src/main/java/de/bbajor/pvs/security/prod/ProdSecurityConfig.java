@@ -2,10 +2,10 @@ package de.bbajor.pvs.security.prod;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -39,9 +39,8 @@ import de.bbajor.pvs.security.prod.service.ProdUserDetailsService;
 @EnableWebSecurity
 @Configuration
 @Import({ VaadinAwareSecurityContextHolderStrategyConfiguration.class })
-@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression(
-    "'${spring.profiles.active:dev}'.equals('test') || '${spring.profiles.active:dev}'.equals('prod')"
-)
+@Profile({"test", "prod"})
+@org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(de.bbajor.pvs.security.controlcenter.ControlCenterSecurityConfig.class)
 public class ProdSecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(ProdSecurityConfig.class);
