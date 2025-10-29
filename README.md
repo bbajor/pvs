@@ -58,6 +58,54 @@ To build for production:
 mvn clean package -Pproduction
 ```
 
+## Branching-Strategie
+
+Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Production:
+
+### Branches
+
+- **`dev`**: Entwicklungs-Branch für lokale Entwicklung
+  - **Schnelles Testing**: `./gradlew bootRun` mit H2 In-Memory (keine Docker benötigt)
+  - **Realistisches Testing**: `docker-compose.dev.yml` mit PostgreSQL Container
+  - Läuft nur lokal auf Entwickler-Maschinen
+  - Auto-Build & Push Docker Image bei Push zu GitHub (für lokales Docker-Setup)
+  - Keine Server-Deployment (Ressourcen & Sicherheit)
+
+- **`test`**: Staging-Branch für realistisches Testing auf Server
+  - Verwendet PostgreSQL mit persistenter Datenbank auf Hetzner
+  - Daten bleiben über Deployments hinweg erhalten
+  - Auto-CI & Build bei Push (Docker Image wird gebaut)
+  - **Manuelles Deployment** über GitHub Actions (nur nach erfolgreichen Tests)
+  - **Nur über VPN erreichbar** auf Hetzner Server
+
+- **`master`**: Production-ready Code
+  - Nur stabile Releases nach ausgiebigem Testing
+  - Verwendet PostgreSQL Production-Datenbank
+  - Manuelles Deployment über GitHub Actions
+  - Öffentlich erreichbar über Traefik/HTTPS
+
+### Workflow
+
+```
+feature/* → dev → test → master
+```
+
+1. **Feature-Entwicklung**: Neue Features werden als Feature-Branches von `dev` abgezweigt
+2. **Pull Request zu `dev`**: Feature-Branch wird in `dev` gemergt nach Review
+3. **Testing in `test`**: Nach erfolgreicher Validierung wird `dev` in `test` gemergt
+4. **Production Release**: Nach finaler Validierung wird `test` in `master` gemergt
+
+### Wichtige Regeln
+
+- ✅ **Merge-Richtung**: Immer nur in eine Richtung mergen (dev→test→master), nie zurück
+- ✅ **Hotfixes**: Bei dringenden Fixes von `master` abzweigen, dann in alle Branches zurückmergen
+- ✅ **Version Tags**: Bei jedem Merge zu `master` ein neues Version-Tag erstellen (v0.1.1, v0.2.0, etc.)
+- ✅ **Branch Protection**: `master` erfordert Pull Request Reviews und erfolgreiche CI-Tests
+
+### Aktuelle Versionen
+
+- **Production**: `v0.1.0` (getaggt am master Branch)
+
 ## Troubleshooting
 
 ### eGK Card Reading Issues

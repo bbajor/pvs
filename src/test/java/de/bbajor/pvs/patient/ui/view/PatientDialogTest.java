@@ -36,6 +36,7 @@ class PatientDialogTest {
         patient = new Patient();
         patient.setFirstName("Test");
         patient.setLastName("Patient");
+        patient.setBirth(java.time.LocalDate.of(1990, 1, 1)); // Required for toString()
     }
 
     @Test

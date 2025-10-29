@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - develop
+      - test
   workflow_dispatch:
     inputs:
       stage:
@@ -59,8 +59,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "stage=${{ github.event.inputs.stage }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
-            echo "stage=dev" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/test" ]; then
+            echo "stage=test" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            echo "stage=prod" >> $GITHUB_OUTPUT
           else
             echo "stage=test" >> $GITHUB_OUTPUT
           fi

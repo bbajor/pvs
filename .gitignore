@@ -46,8 +46,15 @@ build/
 bin/
 
 ### Vaadin 24 generated files ###
+# All generated frontend files
 src/main/frontend/generated/
 src/main/frontend/generated/**/*
+src/main/frontend/generated/**/*.js
+src/main/frontend/generated/**/*.ts
+src/main/frontend/generated/**/*.d.ts
+src/main/frontend/generated/**/*.jsx
+src/main/frontend/generated/**/*.tsx
+src/main/frontend/generated/**/*.css
 src/main/bundles/
 vite.generated.ts
 types.d.ts
@@ -90,6 +97,7 @@ ssh_key*
 .env.*.local
 .env.production
 .env.development
+docker-compose.dev.env
 secrets.yaml
 secrets.yml
 *.secret
