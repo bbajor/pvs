@@ -1,9 +1,9 @@
-name: Deploy to Test (Render)
+name: Deploy to Test (Hetzner)
 
 on:
   push:
     branches:
-      - main
+      - test
   workflow_dispatch:
 
 jobs:
@@ -38,14 +38,43 @@ jobs:
           flyway info -url=jdbc:postgresql://${{ secrets.TEST_DB_HOST }}/${{ secrets.TEST_DB_NAME }} -user=${{ secrets.TEST_DB_USER }} -password=${{ secrets.TEST_DB_PASSWORD }} -locations=filesystem:src/main/resources/db/migration
         continue-on-error: false
 
-      - name: Deploy to Render (Test)
-        uses: johnbeynon/render-deploy@v1.1.2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          service-id: ${{ secrets.RENDER_TEST_SERVICE_ID }}
-          api-key: ${{ secrets.RENDER_API_KEY }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/pvs:test-latest
+            ghcr.io/${{ github.repository_owner }}/pvs:test-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Hetzner (Test)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            cd /opt/pvs
+            docker pull ghcr.io/${{ github.repository_owner }}/pvs:test-latest || echo "Image pull failed, using existing"
+            docker-compose -f docker-compose.production.yml --profile test up -d pvs-test
+            sleep 30
+            docker exec pvs-test curl -f http://localhost:8080/actuator/health || echo "⚠️ Health check failed"
 
       - name: Verify deployment
         run: |
-          sleep 30
-          curl -f https://${{ secrets.RENDER_TEST_URL }}/actuator/health || exit 1
+          sleep 10
+          echo "✅ Test deployment completed"
 

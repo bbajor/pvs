@@ -58,6 +58,50 @@ To build for production:
 mvn clean package -Pproduction
 ```
 
+## Branching-Strategie
+
+Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Production:
+
+### Branches
+
+- **`dev`**: Entwicklungs-Branch für schnelles Testing
+  - Verwendet H2 In-Memory Datenbank (keine Persistenz)
+  - Ideal für lokale Entwicklung und schnelle Experimente
+  - Auto-Deployment zu Hetzner bei Push (nur intern erreichbar)
+
+- **`test`**: Staging-Branch für realistisches Testing
+  - Verwendet PostgreSQL mit persistenter Datenbank
+  - Daten bleiben über Deployments hinweg erhalten
+  - Auto-Deployment zu Hetzner bei Push (nur intern erreichbar)
+
+- **`master`**: Production-ready Code
+  - Nur stabile Releases nach ausgiebigem Testing
+  - Verwendet PostgreSQL Production-Datenbank
+  - Manuelles Deployment über GitHub Actions
+  - Öffentlich erreichbar über Traefik/HTTPS
+
+### Workflow
+
+```
+feature/* → dev → test → master
+```
+
+1. **Feature-Entwicklung**: Neue Features werden als Feature-Branches von `dev` abgezweigt
+2. **Pull Request zu `dev`**: Feature-Branch wird in `dev` gemergt nach Review
+3. **Testing in `test`**: Nach erfolgreicher Validierung wird `dev` in `test` gemergt
+4. **Production Release**: Nach finaler Validierung wird `test` in `master` gemergt
+
+### Wichtige Regeln
+
+- ✅ **Merge-Richtung**: Immer nur in eine Richtung mergen (dev→test→master), nie zurück
+- ✅ **Hotfixes**: Bei dringenden Fixes von `master` abzweigen, dann in alle Branches zurückmergen
+- ✅ **Version Tags**: Bei jedem Merge zu `master` ein neues Version-Tag erstellen (v0.1.1, v0.2.0, etc.)
+- ✅ **Branch Protection**: `master` erfordert Pull Request Reviews und erfolgreiche CI-Tests
+
+### Aktuelle Versionen
+
+- **Production**: `v0.1.0` (getaggt am master Branch)
+
 ## Troubleshooting
 
 ### eGK Card Reading Issues
