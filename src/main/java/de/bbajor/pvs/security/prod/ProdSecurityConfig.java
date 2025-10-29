@@ -40,7 +40,7 @@ import de.bbajor.pvs.security.prod.service.ProdUserDetailsService;
 @Configuration
 @Import({ VaadinAwareSecurityContextHolderStrategyConfiguration.class })
 @org.springframework.boot.autoconfigure.condition.ConditionalOnExpression(
-    "${spring.profiles.active:dev} == 'test' || ${spring.profiles.active:dev} == 'prod'"
+    "'${spring.profiles.active:dev}'.equals('test') || '${spring.profiles.active:dev}'.equals('prod')"
 )
 public class ProdSecurityConfig {
 
