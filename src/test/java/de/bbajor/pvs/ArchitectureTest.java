@@ -57,9 +57,9 @@ class ArchitectureTest {
     @Test
     void there_should_not_be_circular_dependencies_between_feature_packages() {
         // Allow cycles in security and base packages as they are shared infrastructure
-        slices().matching(BASE_PACKAGE + ".(*)..")
-                .excluding(BASE_PACKAGE + ".security..")
-                .excluding(BASE_PACKAGE + ".base..")
+        // Only check feature packages (exclude security and base via matching pattern)
+        // Pattern matches: de.bbajor.pvs.(feature_name).. but excludes security and base
+        slices().matching(BASE_PACKAGE + ".(patient|medication|taskmanagement|ivomplan|surgicalcenter|init)..")
                 .should().beFreeOfCycles().check(importedClasses);
     }
 

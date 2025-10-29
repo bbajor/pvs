@@ -20,6 +20,15 @@
 - Pragmatisch, nicht dogmatisch
 - Code sollte sich wie ein gutes Gespräch lesen - klar, prägnant, ohne unnötigen Fluff
 
+## Build & Test vor Commit - KRITISCH! 🔨
+- **VOR JEDEM GIT-PUSH**: IMMER lokal bauen und testen
+  - ✅ **Build prüfen**: `./gradlew build --no-daemon` muss erfolgreich durchlaufen
+  - ✅ **Tests prüfen**: `./gradlew test --no-daemon` muss erfolgreich durchlaufen
+  - ✅ **Compiler-Fehler beheben**: Keine fehlerhaften Commits pushen
+  - ❌ **NIE pushen wenn**: Build fehlschlägt, Tests fehlschlagen, Compiler-Fehler vorhanden
+  - 💡 **Warum**: Verhindert sinnfreie Builds auf GitHub Actions und spart Ressourcen
+  - 🎯 **Ziel**: "Alles muss grün sein" bevor überhaupt gepusht wird
+
 ## Security & Sensible Daten - KRITISCH! 🔒
 - **VOR JEDEM GIT-COMMIT**: IMMER prüfen, ob der zu committende Content sensible Daten enthält
 - **Nie ins Repository**: Private Keys, Passwörter, API-Keys, Tokens, Credentials, Datenbankverbindungsstrings mit Passwörtern
