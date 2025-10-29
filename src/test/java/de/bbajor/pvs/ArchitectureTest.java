@@ -58,7 +58,8 @@ class ArchitectureTest {
     void there_should_not_be_circular_dependencies_between_feature_packages() {
         // Allow cycles in security and base packages as they are shared infrastructure
         slices().matching(BASE_PACKAGE + ".(*)..")
-                .excluding(BASE_PACKAGE + ".security..", BASE_PACKAGE + ".base..")
+                .excluding(BASE_PACKAGE + ".security..")
+                .excluding(BASE_PACKAGE + ".base..")
                 .should().beFreeOfCycles().check(importedClasses);
     }
 
