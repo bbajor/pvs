@@ -136,7 +136,7 @@ tasks.named('bootJar') {
     inputs.files(sourceSets.main.output.classesDirs)
         .withPropertyName("classes")
         .optional()
-    inputs.file("${buildDir}/resources/main")
+    inputs.files(sourceSets.main.resources)
         .withPropertyName("resources")
         .optional()
 }
