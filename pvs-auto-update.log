@@ -1,0 +1,87 @@
+﻿[2025-10-29 15:31:36] [INFO] === PVS Auto-Update gestartet ===
+[2025-10-29 15:31:36] [INFO] Verzeichnis: D:\workspace\pvs
+[2025-10-29 15:31:36] [INFO] Pruefe auf neues dev Image: ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:31:36] [OK] Docker verfÃ¼gbar
+[2025-10-29 15:31:36] [INFO] Docker Login fÃ¼r private Image...
+[2025-10-29 15:31:36] [WARN] Docker Login fehlgeschlagen: Error response from daemon: Get "https://ghcr.io/v2/": denied: denied
+[2025-10-29 15:31:36] [INFO] Versuche Image-Pull ohne vorherigen Login...
+[2025-10-29 15:31:36] [INFO] Pulling neues Image...
+[2025-10-29 15:31:40] [INFO] Pull Output: dev-latest: Pulling from bbajor/pvs
+Digest: sha256:a059232a2ae583327391e9bf62c509d0af5e98375f8024fbb919a7d27946c224
+Status: Image is up to date for ghcr.io/bbajor/pvs:dev-latest
+ghcr.io/bbajor/pvs:dev-latest
+
+[2025-10-29 15:31:40] [OK] Bereits neueste Version installiert (Image-ID: a059232a2ae5)
+[2025-10-29 15:31:40] [INFO] === Auto-Update beendet (keine Aenderung) ===
+[2025-10-29 15:32:05] [INFO] === PVS Auto-Update gestartet ===
+[2025-10-29 15:32:05] [INFO] Verzeichnis: D:\workspace\pvs
+[2025-10-29 15:32:05] [INFO] Pruefe auf neues dev Image: ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:32:05] [OK] Docker verfÃ¼gbar
+[2025-10-29 15:32:05] [INFO] Docker Login fÃ¼r private Image...
+[2025-10-29 15:32:05] [WARN] Docker Login fehlgeschlagen: Error response from daemon: Get "https://ghcr.io/v2/": denied: denied
+[2025-10-29 15:32:05] [INFO] Versuche Image-Pull ohne vorherigen Login...
+[2025-10-29 15:32:05] [INFO] Pulling neues Image...
+[2025-10-29 15:32:06] [INFO] Pull Output: dev-latest: Pulling from bbajor/pvs
+Digest: sha256:a059232a2ae583327391e9bf62c509d0af5e98375f8024fbb919a7d27946c224
+Status: Image is up to date for ghcr.io/bbajor/pvs:dev-latest
+ghcr.io/bbajor/pvs:dev-latest
+
+[2025-10-29 15:32:06] [OK] Bereits neueste Version installiert (Image-ID: a059232a2ae5)
+[2025-10-29 15:32:06] [INFO] === Auto-Update beendet (keine Aenderung) ===
+[2025-10-29 15:33:00] [INFO] === PVS Auto-Update gestartet ===
+[2025-10-29 15:33:00] [INFO] Verzeichnis: D:\workspace\pvs
+[2025-10-29 15:33:00] [INFO] Pruefe auf neues dev Image: ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:33:00] [OK] Docker verfÃ¼gbar
+[2025-10-29 15:33:00] [INFO] Docker Login fÃ¼r private Image...
+[2025-10-29 15:33:01] [WARN] Docker Login fehlgeschlagen: Error response from daemon: Get "https://ghcr.io/v2/": denied: denied
+[2025-10-29 15:33:01] [INFO] Versuche Image-Pull ohne vorherigen Login...
+[2025-10-29 15:33:01] [INFO] Pulling neues Image...
+[2025-10-29 15:33:02] [INFO] Pull Output: dev-latest: Pulling from bbajor/pvs
+Digest: sha256:a059232a2ae583327391e9bf62c509d0af5e98375f8024fbb919a7d27946c224
+Status: Image is up to date for ghcr.io/bbajor/pvs:dev-latest
+ghcr.io/bbajor/pvs:dev-latest
+
+[2025-10-29 15:33:02] [OK] Bereits neueste Version installiert (Image-ID: a059232a2ae5)
+[2025-10-29 15:33:02] [WARN] Container laufen nicht - starte Container trotzdem...
+[2025-10-29 15:33:02] [INFO] Starte Deployment...
+[2025-10-29 15:33:02] [INFO] Setze PVS_DEV_IMAGE=ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:33:02] [INFO] Stoppe alte Container...
+[2025-10-29 15:34:35] [INFO] === PVS Auto-Update gestartet ===
+[2025-10-29 15:34:35] [INFO] Verzeichnis: D:\workspace\pvs
+[2025-10-29 15:34:35] [INFO] Pruefe auf neues dev Image: ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:34:35] [OK] Docker verfÃ¼gbar
+[2025-10-29 15:34:35] [INFO] Docker Login fÃ¼r private Image...
+[2025-10-29 15:34:36] [WARN] Docker Login fehlgeschlagen: Error response from daemon: Get "https://ghcr.io/v2/": denied: denied
+[2025-10-29 15:34:36] [INFO] Versuche Image-Pull ohne vorherigen Login...
+[2025-10-29 15:34:36] [INFO] Pulling neues Image...
+[2025-10-29 15:34:37] [INFO] Pull Output: dev-latest: Pulling from bbajor/pvs
+Digest: sha256:a059232a2ae583327391e9bf62c509d0af5e98375f8024fbb919a7d27946c224
+Status: Image is up to date for ghcr.io/bbajor/pvs:dev-latest
+ghcr.io/bbajor/pvs:dev-latest
+
+[2025-10-29 15:34:37] [OK] Bereits neueste Version installiert (Image-ID: a059232a2ae5)
+[2025-10-29 15:34:37] [WARN] Container laufen nicht - starte Container trotzdem...
+[2025-10-29 15:34:37] [INFO] Starte Deployment...
+[2025-10-29 15:34:37] [INFO] Setze PVS_DEV_IMAGE=ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:34:37] [INFO] Stoppe alte Container...
+[2025-10-29 15:34:39] [INFO] Nutze docker-compose.dev.env fÃ¼r Deployment
+[2025-10-29 15:34:39] [INFO] Fuehre aus: docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d --force-recreate
+[2025-10-29 15:34:49] [INFO] === PVS Auto-Update gestartet ===
+[2025-10-29 15:34:49] [INFO] Verzeichnis: D:\workspace\pvs
+[2025-10-29 15:34:49] [INFO] Pruefe auf neues dev Image: ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:34:49] [OK] Docker verfÃ¼gbar
+[2025-10-29 15:34:49] [INFO] Docker Login fÃ¼r private Image...
+[2025-10-29 15:34:50] [WARN] Docker Login fehlgeschlagen: Error response from daemon: Get "https://ghcr.io/v2/": denied: denied
+[2025-10-29 15:34:50] [INFO] Versuche Image-Pull ohne vorherigen Login...
+[2025-10-29 15:34:50] [INFO] Pulling neues Image...
+[2025-10-29 15:34:54] [INFO] Pull Output: dev-latest: Pulling from bbajor/pvs
+Digest: sha256:a059232a2ae583327391e9bf62c509d0af5e98375f8024fbb919a7d27946c224
+Status: Image is up to date for ghcr.io/bbajor/pvs:dev-latest
+ghcr.io/bbajor/pvs:dev-latest
+
+[2025-10-29 15:34:55] [INFO] Container-Status:  von  laufen
+[2025-10-29 15:34:55] [OK] Bereits neueste Version installiert (Image-ID: a059232a2ae5)
+[2025-10-29 15:34:55] [WARN] Container laufen nicht - starte Container trotzdem...
+[2025-10-29 15:34:55] [INFO] Starte Deployment...
+[2025-10-29 15:34:55] [INFO] Setze PVS_DEV_IMAGE=ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 15:34:55] [INFO] Stoppe alte Container...

@@ -98,3 +98,76 @@
 - **Build-Artefakte**: `build/`, `target/`, `bin/`, `.gradle/`, `node_modules/` sollten in `.gitignore` sein
 - **Vorsicht ist besser als Nachsicht** - lieber einmal zu viel warnen als sensible Daten ins Netz zu bringen! 🚨
 
+## Documentation Sync vor Commit - KRITISCH! 📚
+- **VOR JEDEM GIT-COMMIT**: IMMER prüfen, ob README.md und relevante Dokumentation aktualisiert werden müssen
+- **Prinzip**: Code-Änderungen müssen in der Dokumentation reflektiert werden - sonst wird's für andere (und dich selbst später 😅) verwirrend
+- **Zu prüfende Änderungen**:
+  - **Build-System & Dependencies**:
+    - ✅ Neue Dependencies hinzugefügt? → README.md `Prerequisites` aktualisieren
+    - ✅ Build-Kommandos geändert? → README.md `Development`/`Production Build` Sektionen anpassen
+    - ✅ Gradle vs. Maven geändert? → README.md entsprechend aktualisieren
+  - **Projektstruktur**:
+    - ✅ Neue Verzeichnisse/Module hinzugefügt? → README.md `Project Structure` aktualisieren
+    - ✅ Wichtige Config-Dateien verschoben? → README.md und relevante Docs anpassen
+  - **Features & Funktionalität**:
+    - ✅ Neue Features/Module hinzugefügt? → README.md Feature-Sektion prüfen/ergänzen
+    - ✅ Neue Scripts/Workflows erstellt? → README.md `Scripts` Sektion aktualisieren
+    - ✅ Deployment-Prozess geändert? → `docs/deployment/` entsprechende Dateien aktualisieren
+  - **Konfiguration**:
+    - ✅ Config-Parameter geändert/neu hinzugefügt? → README.md `Getting Started` oder Config-Docs aktualisieren
+    - ✅ Environment-Variablen neu hinzugefügt? → README.md und Deployment-Docs aktualisieren
+    - ✅ Profil-Struktur geändert? → README.md Branching/Deployment-Sektionen anpassen
+  - **Workflows & Prozesse**:
+    - ✅ GitHub Actions Workflows geändert? → `docs/deployment/` entsprechende Workflow-Docs aktualisieren
+    - ✅ Branching-Strategie geändert? → README.md `Branching-Strategie` und `docs/deployment/BRANCH_STRATEGY.md` prüfen
+    - ✅ Deployment-Prozess geändert? → Alle relevanten Deployment-Docs in `docs/deployment/` aktualisieren
+  - **API & Integration**:
+    - ✅ Neue externe Dependencies/APIs hinzugefügt? → README.md `Prerequisites` oder `Links` aktualisieren
+    - ✅ API-Endpoints geändert? → API-Dokumentation prüfen/aktualisieren
+  - **Scripts & Utilities**:
+    - ✅ Neue Scripts erstellt? → README.md `Scripts` Sektion ergänzen
+    - ✅ Script-Parameter/Verhalten geändert? → README.md oder entsprechende Script-Docs aktualisieren
+- **Prüf-Strategie für Commits**:
+  1. **Geänderte Dateien analysieren**: Welche Code-Änderungen wurden gemacht?
+  2. **Dokumentations-Impact bestimmen**:
+     - Welche README/Docs-Sektionen könnten betroffen sein?
+     - Gibt es bestehende Docs zu diesem Bereich? (z.B. in `docs/deployment/`, `docs/security/`)
+  3. **Abgleich durchführen**:
+     - README.md auf veraltete/widersprüchliche Infos prüfen
+     - Spezifische Docs in `docs/` auf Konsistenz prüfen
+     - Projektstruktur in README.md vs. tatsächliche Struktur vergleichen
+  4. **Aktualisierung vorschlagen**:
+     - Konkrete Sektionen benennen, die aktualisiert werden müssen
+     - Vorschläge für Formulierungen/Inhalte machen
+     - Links zwischen README.md und spezifischen Docs prüfen/aktualisieren
+- **Wenn Dokumentations-Updates nötig sind**:
+  1. **SOFORT dokumentieren** - nicht "nachher machen", sonst vergisst man's 😅
+  2. **Konkrete Änderungen vorschlagen**: 
+     - Welche Sektion genau?
+     - Was muss geändert werden?
+     - Gibt es Beispiele aus dem Code?
+  3. **Konsistenz prüfen**:
+     - README.md vs. spezifische Docs müssen konsistent sein
+     - Keine widersprüchlichen Infos zwischen README.md und `docs/` Dateien
+  4. **Vollständigkeit prüfen**:
+     - Neue Features sollten in README.md erwähnt sein
+     - Neue Scripts sollten dokumentiert sein
+     - Deployment-Änderungen sollten in entsprechenden Docs stehen
+- **Wichtige Dokumentations-Dateien**:
+  - `README.md` - Hauptdokumentation, Einstiegspunkt
+  - `docs/deployment/README.md` - Deployment-Übersicht
+  - `docs/deployment/BRANCH_STRATEGY.md` - Branching-Info
+  - `docs/deployment/LOCAL_DEV_SETUP.md` - Lokales Setup
+  - `docs/REPOSITORY_STRUCTURE.md` - Projektstruktur
+  - `SCHNELLSTART.md` - Quick Start (falls vorhanden)
+- **Prüf-Beispiele**:
+  - Code-Änderung: `build.gradle` Dependency hinzugefügt → README.md `Prerequisites` prüfen
+  - Code-Änderung: Neues Script `scripts/local/xyz.ps1` → README.md `Scripts` Sektion ergänzen
+  - Code-Änderung: `application.yaml` neues Profil → README.md `Branching-Strategie` oder Deployment-Docs prüfen
+  - Code-Änderung: Neue `docs/deployment/XYZ.md` erstellt → README.md `Dokumentation` Sektion ergänzen
+- **Warum wichtig**: 
+  - 💡 Andere Entwickler (und du selbst in 3 Monaten) verstehen die Codebase schneller
+  - 🎯 Neue Features sind nutzbar, wenn sie dokumentiert sind
+  - 📝 Deployment-Prozesse funktionieren nur, wenn Docs aktuell sind
+  - 🚨 Nichts ist frustrierender als veraltete Dokumentation! 🤦‍♂️
+
