@@ -90,6 +90,13 @@ dependencies {
         junitXml.required = true
         html.required = false // Schneller ohne HTML-Reports
     }
+    
+    // Skip Tests wenn keine Änderungen (für schnellere Builds)
+    // Wird von CI überschrieben, aber lokal hilfreich
+    onlyIf { 
+        !project.hasProperty('skipTests') || 
+        !project.property('skipTests').toBoolean()
+    }
 }
 
 // Java-Compilation optimieren
@@ -121,6 +128,17 @@ tasks.named('bootJar') {
     layered {
         enabled = true
     }
+    
+    // Cache-Output für inkrementelle Builds
+    outputs.cacheIf { true }
+    
+    // Nur neu bauen wenn Inputs sich geändert haben
+    inputs.files(sourceSets.main.output.classesDirs)
+        .withPropertyName("classes")
+        .optional()
+    inputs.file("${buildDir}/resources/main")
+        .withPropertyName("resources")
+        .optional()
 }
 
 // Dependency-Cache optimieren
