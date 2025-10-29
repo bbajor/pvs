@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - dev
       - test
   workflow_dispatch:
     inputs:
@@ -60,14 +59,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "stage=${{ github.event.inputs.stage }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref }}" == "refs/heads/dev" ]; then
-            echo "stage=dev" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" == "refs/heads/test" ]; then
             echo "stage=test" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" == "refs/heads/master" ]; then
             echo "stage=prod" >> $GITHUB_OUTPUT
           else
-            echo "stage=dev" >> $GITHUB_OUTPUT
+            echo "stage=test" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx

@@ -64,10 +64,11 @@ Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Produ
 
 ### Branches
 
-- **`dev`**: Entwicklungs-Branch für schnelles Testing
-  - Verwendet H2 In-Memory Datenbank (keine Persistenz)
-  - Ideal für lokale Entwicklung und schnelle Experimente
-  - Auto-Deployment zu Hetzner bei Push (nur intern erreichbar)
+- **`dev`**: Entwicklungs-Branch für lokale Entwicklung
+  - Verwendet PostgreSQL in lokalem Docker-Container
+  - Läuft nur lokal auf Entwickler-Maschinen
+  - Keine Server-Deployment (Ressourcen & Sicherheit)
+  - Auto-CI bei Push (Build & Test nur)
 
 - **`test`**: Staging-Branch für realistisches Testing
   - Verwendet PostgreSQL mit persistenter Datenbank

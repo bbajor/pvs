@@ -90,6 +90,7 @@ ssh_key*
 .env.*.local
 .env.production
 .env.development
+docker-compose.dev.env
 secrets.yaml
 secrets.yml
 *.secret
