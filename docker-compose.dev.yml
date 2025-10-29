@@ -25,11 +25,17 @@ services:
 
   # PVS Application (lokale Entwicklung)
   pvs-app-dev:
+    image: ${PVS_DEV_IMAGE:-ghcr.io/bbajor/pvs:dev-latest}
     build:
       context: .
       dockerfile: Dockerfile
     container_name: pvs-app-dev-local
     restart: unless-stopped
+    labels:
+      # Watchtower: Automatisches Update aktivieren (optional)
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Prüfe nur dieses Image
+      - "com.centurylinklabs.watchtower.monitor-only=true"
     environment:
       SPRING_PROFILES_ACTIVE: dev
       PORT: 8080

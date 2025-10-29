@@ -1,0 +1,46 @@
+name: Deploy Dev to Local Machine
+
+on:
+  workflow_run:
+    workflows: ["Dev Branch CI & Build"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy-local:
+    name: Deploy to Local Machine
+    runs-on: ubuntu-latest
+    # Nur deployen wenn Build erfolgreich war
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Deploy to Local via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.LOCAL_MACHINE_HOST }}
+          username: ${{ secrets.LOCAL_MACHINE_USER }}
+          key: ${{ secrets.LOCAL_MACHINE_SSH_KEY }}
+          port: ${{ secrets.LOCAL_MACHINE_SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.LOCAL_MACHINE_PVS_PATH || '~/pvs' }}
+            
+            echo "🔄 Pulling latest dev image..."
+            docker pull ghcr.io/${{ github.repository_owner }}/pvs:dev-latest || {
+              echo "⚠️ Image pull fehlgeschlagen, baue lokal"
+              docker-compose -f docker-compose.dev.yml build pvs-app-dev
+            }
+            
+            echo "🔄 Deploying dev environment..."
+            docker-compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d
+            
+            echo "⏳ Warte auf Health Check..."
+            sleep 30
+            
+            if docker-compose -f docker-compose.dev.yml ps | grep -q "Up (healthy)"; then
+              echo "✅ Deployment erfolgreich"
+            else
+              echo "⚠️ Deployment abgeschlossen, prüfe Logs:"
+              docker-compose -f docker-compose.dev.yml logs --tail=20
+            fi
+
