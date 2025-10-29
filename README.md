@@ -65,15 +65,18 @@ Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Produ
 ### Branches
 
 - **`dev`**: Entwicklungs-Branch für lokale Entwicklung
-  - Verwendet PostgreSQL in lokalem Docker-Container
+  - **Schnelles Testing**: `./gradlew bootRun` mit H2 In-Memory (keine Docker benötigt)
+  - **Realistisches Testing**: `docker-compose.dev.yml` mit PostgreSQL Container
   - Läuft nur lokal auf Entwickler-Maschinen
+  - Auto-Build & Push Docker Image bei Push zu GitHub (für lokales Docker-Setup)
   - Keine Server-Deployment (Ressourcen & Sicherheit)
-  - Auto-CI bei Push (Build & Test nur)
 
-- **`test`**: Staging-Branch für realistisches Testing
-  - Verwendet PostgreSQL mit persistenter Datenbank
+- **`test`**: Staging-Branch für realistisches Testing auf Server
+  - Verwendet PostgreSQL mit persistenter Datenbank auf Hetzner
   - Daten bleiben über Deployments hinweg erhalten
-  - Auto-Deployment zu Hetzner bei Push (nur intern erreichbar)
+  - Auto-CI & Build bei Push (Docker Image wird gebaut)
+  - **Manuelles Deployment** über GitHub Actions (nur nach erfolgreichen Tests)
+  - **Nur über VPN erreichbar** auf Hetzner Server
 
 - **`master`**: Production-ready Code
   - Nur stabile Releases nach ausgiebigem Testing
