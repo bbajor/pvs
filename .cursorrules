@@ -20,3 +20,72 @@
 - Pragmatisch, nicht dogmatisch
 - Code sollte sich wie ein gutes Gespräch lesen - klar, prägnant, ohne unnötigen Fluff
 
+## Security & Sensible Daten - KRITISCH! 🔒
+- **VOR JEDEM GIT-COMMIT**: IMMER prüfen, ob der zu committende Content sensible Daten enthält
+- **Nie ins Repository**: Private Keys, Passwörter, API-Keys, Tokens, Credentials, Datenbankverbindungsstrings mit Passwörtern
+- **Autogenerierte Daten der Entwicklungsumgebung**: Build-Artefakte, generierte Dateien, IDEs-spezifische Konfigurationen
+  - Verzeichnisse wie `build/`, `target/`, `bin/`, `node_modules/`, `.gradle/`, `.idea/`, `.vscode/` (außer geteilte Workspace-Settings)
+  - Generierte Quellen: `generated-sources/`, `generated-test-sources/`
+  - Compiler-Outputs: `.class`, `*.jar` (außer wenn explizit gewünscht)
+  - Lock-Files können committed werden, wenn sie Teil des Dependency-Managements sind (z.B. `package-lock.json`, `gradle.lockfile`)
+- **Environment-spezifische Security-Regeln** (unterscheide zwischen dev/test/prod):
+  - **DEV (`application-dev.yaml`, `@Profile("dev")`)**:
+    - ✅ **Erlaubt**: Test-Credentials wie `SampleUsers` (Passwort "123"), `TestDataInitializer` mit Test-Usern
+    - ✅ **Erlaubt**: Hardcodierte H2-Datenbank-URLs (`jdbc:h2:mem:testdb`)
+    - ✅ **Erlaubt**: Beispiel-Daten für lokale Entwicklung
+    - 💡 **Humorvoll**: Dev ist die Spielwiese 😄
+  - **TEST (`application-test.yaml`, `@Profile("test")`)**:
+    - ✅ **Erlaubt**: Initial-Daten aus `TestDataInitializer`-ähnlichen Initialisierern
+    - ✅ **Erlaubt**: Test-User für Integration-Tests
+    - ❌ **NICHT erlaubt**: Echte Produktions-Credentials, echte API-Keys, echte Datenbankzugänge mit Produktionsdaten
+    - ⚠️ **Prüfen**: Environment-Variablen für Test-DB sollten nicht hardcodiert sein
+  - **PROD (`application-prod.yaml`, `@Profile("prod")`)**:
+    - ❌ **ABSOLUT VERBOTEN**: Alle Credentials aus dev/test (z.B. Passwort "123", SampleUsers, TestDataInitializer)
+    - ❌ **ABSOLUT VERBOTEN**: Hardcodierte Passwörter, API-Keys, Secrets jeglicher Art
+    - ❌ **ABSOLUT VERBOTEN**: Test-Daten, Sample-User, Mock-Credentials
+    - ✅ **Nur erlaubt**: Environment-Variablen-Referenzen (z.B. `${DATABASE_PASSWORD}`, `${AI_API_KEY}`)
+    - ✅ **Prüfen**: Alle sensiblen Werte müssen aus Environment-Variablen kommen, nie hardcodiert
+    - 🛡️ **Wichtig**: Prod ist heilig - hier nur echte, verschlüsselte Werte!
+- **Zu prüfende Pattern** (als AI-Assistent):
+  - SSH Private Keys: Patterns wie `-----BEGIN OPENSSH PRIVATE KEY-----`, `-----BEGIN RSA PRIVATE KEY-----`, `-----BEGIN EC PRIVATE KEY-----`
+  - Private Keys allgemein: `-----BEGIN.*PRIVATE KEY-----`
+  - Passwörter in Code: Vorkommen von `password`, `passwd`, `pwd` kombiniert mit `=` oder `:`, families wie "password123"
+    - **Ausnahme**: Test-Passwörter in dev/test-Profilen (z.B. `"123"` in `SampleUsers` oder `TestDataInitializer`)
+  - API-Keys: Lange alphanumerische Strings (32+ Zeichen), oft in Variablen wie `apiKey`, `api_key`, `apikey`, `secret`, `token`, `access_key`
+    - **Ausnahme**: Leere/Placeholder-Werte in dev/test wie `${AI_API_KEY:}`
+  - Datenbank-Credentials: Connection Strings mit Passwörtern wie `jdbc:`, `mysql://`, `postgres://`, `mongodb://` mit `@` und `:`
+    - **Ausnahme**: H2 in-memory für dev (`jdbc:h2:mem:testdb`), aber NUR in `application-dev.yaml`
+    - **Ausnahme**: Environment-Variable-Referenzen wie `${DATABASE_URL}` oder `${DATABASE_PASSWORD:}`
+  - AWS/GCP/Azure Keys: Pattern wie `AKIA[0-9A-Z]{16}`, `AIza[0-9A-Z_-]{35}`, etc. (NIE erlaubt, auch nicht in dev!)
+  - Environment-Keys in Code: `.env` Dateien, aber auch hardcodierte Werte in Source-Dateien
+  - Token-Patterns: Base64-ähnliche Strings (64+ Zeichen), JWT-Patterns
+  - Hardcodierte URLs mit Credentials: `http://user:password@host:port` (NIE erlaubt!)
+- **Prüf-Strategie für Commits**:
+  1. **Environment bestimmen**: Anhand der betroffenen Dateien prüfen (z.B. `application-prod.yaml` = Prod, `application-dev.yaml` = Dev)
+  2. **Pattern scannen**: Auf sensible Daten prüfen
+  3. **Context prüfen**: 
+     - In prod-Config-Dateien? → Strengste Prüfung, keine Ausnahmen
+     - In dev/test-Config-Dateien mit `@Profile`? → Erlaube bekannte Test-Credentials
+     - In Source-Code mit `@Profile("dev")` oder `@Profile("test")`? → Erlaube Test-Daten
+     - In Source-Code ohne Profile? → Streng prüfen, sollte keine Credentials enthalten
+  4. **Datei-Kontext prüfen**: 
+     - Ist es `SampleUsers.java` oder `TestDataInitializer.java`? → In dev/test ok
+     - Ist es `application-prod.yaml`? → NULL-Toleranz für Credentials!
+- **Wenn sensible Daten gefunden werden**:
+  1. **SOFORT abbrechen** - keinen Commit durchführen
+  2. **Environment identifizieren**: Dev/Test/Prod?
+  3. Benutzer warnen mit konkretem Hinweis auf:
+     - Gefundene Muster/Dateien
+     - Environment-Kontext (dev/test/prod)
+     - Erlaubt oder verboten in diesem Context
+  4. Vorschläge machen:
+     - `.gitignore` ergänzen
+     - `.env.example` verwenden
+     - Config-Dateien aus Repository entfernen
+     - Environment-Variablen verwenden statt hardcodierte Werte
+     - Bei prod: Sofortige Umstellung auf Environment-Variablen erforderlich
+  5. Falls bereits committed: Sofort auf `git filter-branch`, BFG Repo-Cleaner oder ähnliche Tools hinweisen
+- **Safe Defaults**: Files wie `*.key`, `*.pem`, `*.p12`, `*.pfx`, `*_rsa`, `*_dsa`, `*_ecdsa`, `*.env`, `secrets.yaml`, etc. sollten standardmäßig in `.gitignore` sein
+- **Build-Artefakte**: `build/`, `target/`, `bin/`, `.gradle/`, `node_modules/` sollten in `.gitignore` sein
+- **Vorsicht ist besser als Nachsicht** - lieber einmal zu viel warnen als sensible Daten ins Netz zu bringen! 🚨
+
