@@ -1,28 +1,88 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
+  # PostgreSQL Database für DEV
+  postgres-dev:
     image: postgres:15-alpine
-    container_name: pvs-postgres
+    container_name: pvs-postgres-dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-pvs}
-      POSTGRES_USER: ${POSTGRES_USER:-pvs_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_DEV:-pvs_dev}
+      POSTGRES_USER: ${POSTGRES_USER_DEV:-pvs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-dev:/var/lib/postgresql/data
       - ./backups:/backups
     ports:
-      - "127.0.0.1:5432:5432"  # Nur lokal erreichbar
+      - "127.0.0.1:5433:5432"  # Port 5433 für Dev
     networks:
       - pvs-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pvs_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_DEV:-pvs_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles:
+      - dev
+
+  # PostgreSQL Database für TEST
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: pvs-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_TEST:-pvs_test}
+      POSTGRES_USER: ${POSTGRES_USER_TEST:-pvs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_TEST}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres-data-test:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "127.0.0.1:5434:5432"  # Port 5434 für Test
+    networks:
+      - pvs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_TEST:-pvs_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - test
+
+  # PostgreSQL Database für PRODUCTION (kritisch - eigene Resource-Limits)
+  postgres-prod:
+    image: postgres:15-alpine
+    container_name: pvs-postgres-prod
+    restart: always  # Immer neu starten bei Fehler
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_PROD:-pvs_prod}
+      POSTGRES_USER: ${POSTGRES_USER_PROD:-pvs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+      - ./backups/prod:/backups/prod
+    ports:
+      - "127.0.0.1:5435:5432"  # Port 5435 für Prod
+    networks:
+      - pvs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_PROD:-pvs_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - prod
 
   # PVS Application (Dev)
   pvs-dev:
@@ -32,12 +92,12 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       PORT: 8080
-      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pvs}_dev
-      DATABASE_USERNAME: ${POSTGRES_USER:-pvs_user}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
+      DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV}
       AI_WHISPER_LOCAL_ENABLED: "false"
     depends_on:
-      postgres:
+      postgres-dev:
         condition: service_healthy
     networks:
       - pvs-network
@@ -52,6 +112,8 @@ services:
       - "traefik.http.routers.pvs-dev.rule=Host(`dev.pvs.example.com`)"
       - "traefik.http.routers.pvs-dev.entrypoints=websecure"
       - "traefik.http.routers.pvs-dev.tls.certresolver=letsencrypt"
+    profiles:
+      - dev
 
   # PVS Application (Test)
   pvs-test:
@@ -61,12 +123,12 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: test
       PORT: 8080
-      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pvs}_test
-      DATABASE_USERNAME: ${POSTGRES_USER:-pvs_user}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: jdbc:postgresql://postgres-test:5432/${POSTGRES_DB_TEST:-pvs_test}
+      DATABASE_USERNAME: ${POSTGRES_USER_TEST:-pvs_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD_TEST}
       AI_WHISPER_LOCAL_ENABLED: "false"
     depends_on:
-      postgres:
+      postgres-test:
         condition: service_healthy
     networks:
       - pvs-network
@@ -81,21 +143,23 @@ services:
       - "traefik.http.routers.pvs-test.rule=Host(`test.pvs.example.com`)"
       - "traefik.http.routers.pvs-test.entrypoints=websecure"
       - "traefik.http.routers.pvs-test.tls.certresolver=letsencrypt"
+    profiles:
+      - test
 
   # PVS Application (Production)
   pvs-prod:
     image: ${DOCKER_REGISTRY:-ghcr.io}/${DOCKER_IMAGE:-bbajor/pvs}:prod-latest
     container_name: pvs-prod
-    restart: unless-stopped
+    restart: always
     environment:
       SPRING_PROFILES_ACTIVE: prod
       PORT: 8080
-      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pvs}_prod
-      DATABASE_USERNAME: ${POSTGRES_USER:-pvs_user}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: jdbc:postgresql://postgres-prod:5432/${POSTGRES_DB_PROD:-pvs_prod}
+      DATABASE_USERNAME: ${POSTGRES_USER_PROD:-pvs_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD_PROD}
       AI_WHISPER_LOCAL_ENABLED: "false"
     depends_on:
-      postgres:
+      postgres-prod:
         condition: service_healthy
     networks:
       - pvs-network
@@ -118,6 +182,8 @@ services:
       - "traefik.http.routers.pvs-prod.rule=Host(`pvs.example.com`)"
       - "traefik.http.routers.pvs-prod.entrypoints=websecure"
       - "traefik.http.routers.pvs-prod.tls.certresolver=letsencrypt"
+    profiles:
+      - prod
 
   # Traefik Reverse Proxy mit SSL
   traefik:
@@ -155,7 +221,11 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-data:
+  postgres-data-dev:
+    driver: local
+  postgres-data-test:
+    driver: local
+  postgres-data-prod:
     driver: local
   letsencrypt:
     driver: local

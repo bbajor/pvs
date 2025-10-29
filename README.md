@@ -81,6 +81,32 @@ pvs/
 └── pom.xml
 ```
 
+## 📚 Dokumentation
+
+### 🚀 Deployment & Setup
+
+- **[Hetzner Server Setup](docs/deployment/HETZNER_COMPLETE_SETUP.md)** ⭐ - Komplette Anleitung für Hetzner-VPS (empfohlen zum Einstieg)
+- [Deployment Übersicht](docs/deployment/README.md)
+- [Quick Start Guide](docs/deployment/QUICKSTART.md)
+- [Database Architecture](docs/deployment/DATABASE_ARCHITECTURE.md)
+
+### 🔒 Security & Administration
+
+- [SSH-Key Setup](docs/security/SSH_KEY_SETUP.md) - SSH-Key für GitHub Actions einrichten
+- [SSH-Key Cleanup](docs/security/SSH_KEY_CLEANUP.md) - SSH-Key aus Git-Historie entfernen
+- [Repository Struktur](docs/REPOSITORY_STRUCTURE.md) - Organisations-Struktur
+
+### 🛠️ Scripts
+
+- **Deployment**: `scripts/deployment/`
+  - `setup-server.sh` - Server-Grundsetup (Docker, Docker Compose)
+  - `init-databases.sh` - Datenbank-Initialisierung
+- **Security**: `scripts/security/`
+  - `cleanup-ssh-key.sh` - SSH-Key aus Git entfernen
+  - `generate-new-ssh-key.sh` - Neuen SSH-Key erstellen
+- **Utilities**: `scripts/utilities/`
+  - `check-ip.sh` - IP-Adressen prüfen
+
 ## Links
 - [GitHub Repository](https://github.com/bbajor/pvs)
 - [Hosting-Lizenz (DE)](./HOSTING-LIZENZ-DE.md)
