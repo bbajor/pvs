@@ -91,12 +91,10 @@ dependencies {
         html.required = false // Schneller ohne HTML-Reports
     }
     
-    // Skip Tests wenn keine Änderungen (für schnellere Builds)
+    // Skip Tests wenn Property gesetzt ist (configuration-cache-kompatibel)
     // Wird von CI überschrieben, aber lokal hilfreich
-    onlyIf { 
-        !project.hasProperty('skipTests') || 
-        !project.property('skipTests').toBoolean()
-    }
+    // Beispiel: ./gradlew test -PskipTests=true
+    // Hinweis: Tests können auch mit -x test übersprungen werden
 }
 
 // Java-Compilation optimieren
