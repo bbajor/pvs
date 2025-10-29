@@ -58,3 +58,64 @@ vite.config.ts
 
 ### IDE generated files ###
 .copilot-plugin
+
+### Security & Sensible Daten - NIEMALS ins Repository! 🔒 ###
+# Private Keys & Certificates
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.keystore
+*.jks
+*.truststore
+
+# SSH Keys (Private & Public)
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.pub
+!*.pub.example
+ssh_key*
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+secrets.yaml
+secrets.yml
+*.secret
+*.secrets
+
+# Passwort-Dateien
+passwords.txt
+*.password
+credentials.txt
+
+# API Keys & Tokens (falls als Dateien gespeichert)
+api-keys.txt
+tokens.txt
+
+### Generierte Quellen & Build-Artefakte ###
+# Generierte Quellen
+**/generated-sources/
+**/generated-test-sources/
+**/generated/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Compiler-Outputs
+*.class
+!gradle/wrapper/gradle-wrapper.jar
+
+# JAR Files (außer Gradle Wrapper)
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!**/lib/*.jar
