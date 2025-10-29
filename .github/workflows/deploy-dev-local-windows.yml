@@ -1,0 +1,102 @@
+name: Deploy Dev to Local Machine (Windows Runner)
+
+on:
+  workflow_run:
+    workflows: ["Dev Branch CI & Build"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy-local-windows:
+    name: Deploy to Local Machine via Windows Runner
+    runs-on: self-hosted
+    # Nur deployen wenn Build erfolgreich war
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Determine PVS path
+        id: pvs_path
+        shell: pwsh
+        run: |
+          $pvsPath = if ($env:PVS_LOCAL_PATH) { $env:PVS_LOCAL_PATH } else { "D:\workspace\pvs" }
+          
+          # Prüfe ob Verzeichnis existiert
+          if (-not (Test-Path $pvsPath)) {
+            Write-Host "Verzeichnis nicht gefunden: $pvsPath" -ForegroundColor Red
+            Write-Host "Versuche alternative Pfade..." -ForegroundColor Yellow
+            
+            # Versuche typische Pfade
+            $paths = @(
+              "$env:USERPROFILE\pvs",
+              "$env:USERPROFILE\workspace\pvs",
+              "C:\pvs",
+              "$PWD"
+            )
+            
+            foreach ($path in $paths) {
+              if ((Test-Path $path) -and (Test-Path (Join-Path $path "docker-compose.dev.yml"))) {
+                $pvsPath = $path
+                Write-Host "Verzeichnis gefunden: $pvsPath" -ForegroundColor Green
+                break
+              }
+            }
+          }
+          
+          if (-not (Test-Path (Join-Path $pvsPath "docker-compose.dev.yml"))) {
+            Write-Host "docker-compose.dev.yml nicht gefunden in: $pvsPath" -ForegroundColor Red
+            exit 1
+          }
+          
+          Write-Host "PVS-Verzeichnis: $pvsPath" -ForegroundColor Green
+          echo "path=$pvsPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Verify Docker
+        shell: pwsh
+        run: |
+          Write-Host "Pruefe Docker..." -ForegroundColor Cyan
+          docker --version
+          docker compose version
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Docker nicht verfuegbar!" -ForegroundColor Red
+            exit 1
+          }
+
+      - name: Execute Auto-Update Script
+        shell: pwsh
+        working-directory: ${{ steps.pvs_path.outputs.path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          PVS_LOCAL_PATH: ${{ steps.pvs_path.outputs.path }}
+        run: |
+          $scriptPath = Join-Path ${{ steps.pvs_path.outputs.path }} "scripts\local\auto-update-dev.ps1"
+          
+          if (-not (Test-Path $scriptPath)) {
+            Write-Host "Script nicht gefunden: $scriptPath" -ForegroundColor Red
+            exit 1
+          }
+          
+          Write-Host "Fuehre Auto-Update Script aus..." -ForegroundColor Cyan
+          Write-Host "Script-Pfad: $scriptPath" -ForegroundColor Gray
+          
+          # Script ausführen
+          & $scriptPath
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Script-Fehler! Exit-Code: $LASTEXITCODE" -ForegroundColor Red
+            exit $LASTEXITCODE
+          }
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          Write-Host "" -ForegroundColor Green
+          Write-Host "Lokales Deployment abgeschlossen!" -ForegroundColor Green
+          Write-Host "App sollte verfuegbar sein auf: http://localhost:8130" -ForegroundColor Cyan
+

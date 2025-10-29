@@ -4,15 +4,18 @@ FROM gradle:8.10-jdk21 AS build
 WORKDIR /app
 
 # Copy dependency files first for better caching
-COPY build.gradle settings.gradle ./
+COPY build.gradle settings.gradle gradle.properties ./
 COPY gradle/ gradle/
-RUN gradle dependencies --no-daemon || true
+# Dependency-Download mit Cache
+RUN gradle dependencies --no-daemon --build-cache --parallel || true
 
 # Copy source code
 COPY src/ src/
 
-# Build the application
-RUN gradle bootJar --no-daemon -x test
+# Build the application (Tests bereits im Workflow ausgeführt)
+# Nutze --build-cache und --parallel für schnellere Builds
+RUN gradle bootJar --no-daemon -x test --build-cache --parallel --offline || \
+    gradle bootJar --no-daemon -x test --build-cache --parallel
 
 # Production stage
 FROM eclipse-temurin:21-jre-jammy
