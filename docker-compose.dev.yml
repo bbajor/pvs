@@ -38,13 +38,13 @@ services:
       - "com.centurylinklabs.watchtower.monitor-only=true"
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      PORT: 8080
+      PORT: 8130
       DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
       DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
       AI_WHISPER_LOCAL_ENABLED: "true"
     ports:
-      - "127.0.0.1:8080:8080"  # Nur lokal erreichbar
+      - "127.0.0.1:8130:8130"  # Nur lokal erreichbar (Port 8080 bereits von OpenWebUI verwendet)
     depends_on:
       postgres-dev:
         condition: service_healthy
@@ -53,7 +53,7 @@ services:
     networks:
       - pvs-dev-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8130/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

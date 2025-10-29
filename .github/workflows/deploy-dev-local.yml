@@ -94,5 +94,5 @@ jobs:
         run: |
           echo "✅ Lokales Deployment abgeschlossen!"
           echo ""
-          echo "📝 App sollte verfügbar sein auf: http://localhost:8080"
+          echo "📝 App sollte verfügbar sein auf: http://localhost:8130"
 

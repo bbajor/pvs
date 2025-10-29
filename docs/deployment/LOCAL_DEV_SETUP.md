@@ -38,7 +38,7 @@ docker-compose -f docker-compose.dev.yml logs -f
 **3. Applikation aufrufen:**
 
 ```
-http://localhost:8080
+http://localhost:8130
 ```
 
 **4. Container stoppen:**
@@ -66,9 +66,9 @@ docker exec pvs-postgres-dev-local psql -U pvs_user -d pvs_dev -c "SELECT versio
 
 ### PVS Application (pvs-app-dev)
 
-- **Port**: `127.0.0.1:8080` (nur lokal erreichbar)
+- **Port**: `127.0.0.1:8130` (nur lokal erreichbar, Port 8080 wird von OpenWebUI verwendet)
 - **Profile**: `dev`
-- **Health Check**: `http://localhost:8080/actuator/health`
+- **Health Check**: `http://localhost:8130/actuator/health`
 
 ### Whisper AI (optional)
 
@@ -119,8 +119,8 @@ docker exec -i pvs-postgres-dev-local psql -U pvs_user -d pvs_dev < backup_20240
 docker-compose -f docker-compose.dev.yml logs pvs-app-dev
 
 # Prüfe ob Port bereits belegt
-netstat -an | grep 8080  # Linux/Mac
-netstat -ano | findstr :8080  # Windows
+netstat -an | grep 8130  # Linux/Mac
+netstat -ano | findstr :8130  # Windows
 ```
 
 ### Datenbank-Verbindung fehlgeschlagen
@@ -138,7 +138,7 @@ docker exec pvs-postgres-dev-local pg_isready -U pvs_user
 
 ### Port bereits belegt
 
-Falls Port 8080 oder 5432 bereits belegt ist, passe die Ports in `docker-compose.dev.yml` an:
+Falls Port 8130 oder 5432 bereits belegt ist, passe die Ports in `docker-compose.dev.yml` an:
 
 ```yaml
 services:
@@ -148,7 +148,9 @@ services:
   
   pvs-app-dev:
     ports:
-      - "127.0.0.1:8081:8080"  # Ändere zu 8081
+      - "127.0.0.1:8131:8130"  # Ändere zu 8131
+    environment:
+      PORT: 8131  # Interner Port auch ändern
 ```
 
 ## 🔒 Sicherheit

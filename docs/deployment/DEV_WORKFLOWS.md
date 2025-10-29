@@ -16,7 +16,7 @@ Das Projekt unterstützt verschiedene Development-Modi je nach Anforderung.
 # Einfach Gradle starten
 ./gradlew bootRun
 
-# App läuft auf http://localhost:8080
+# App läuft auf http://localhost:8130
 ```
 
 **Eigenschaften:**
@@ -41,7 +41,7 @@ nano docker-compose.dev.env  # Passwort setzen
 # Container starten
 docker-compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d
 
-# App läuft auf http://localhost:8080
+# App läuft auf http://localhost:8130
 ```
 
 **Eigenschaften:**
@@ -226,15 +226,15 @@ export DATABASE_PASSWORD=dein_passwort
 
 ## 🔍 Troubleshooting
 
-### Port 8080 bereits belegt
+### Port 8130 bereits belegt
 
 ```bash
 # Anderen Prozess finden
-lsof -i :8080  # Mac/Linux
-netstat -ano | findstr :8080  # Windows
+lsof -i :8130  # Mac/Linux
+netstat -ano | findstr :8130  # Windows
 
-# Oder anderen Port nutzen
-SPRING_SERVER_PORT=8081 ./gradlew bootRun
+# Oder anderen Port nutzen (z.B. 8131)
+SPRING_SERVER_PORT=8131 ./gradlew bootRun
 ```
 
 ### PostgreSQL Container startet nicht
