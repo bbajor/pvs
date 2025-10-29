@@ -41,6 +41,8 @@ services:
       DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
       AI_WHISPER_LOCAL_ENABLED: "true"
+      # Vaadin Production Mode für Docker (Dev-Mode benötigt Schreibzugriff auf Source-Verzeichnis)
+      VAADIN_PRODUCTION_MODE: "true"
     ports:
       - "127.0.0.1:8130:8130"  # Nur lokal erreichbar (Port 8080 bereits von OpenWebUI verwendet)
     depends_on:

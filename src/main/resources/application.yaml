@@ -8,6 +8,8 @@ logging:
 vaadin:
   launch-browser: true
   allowed-packages: "com.vaadin,org.vaadin,com.flowingcode,de.bbajor.pvs"
+  # Production Mode für Docker-Container (überschreibbar via Environment-Variable)
+  production-mode: ${VAADIN_PRODUCTION_MODE:false}
 
 spring:
   servlet:

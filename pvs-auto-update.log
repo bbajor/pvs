@@ -85,3 +85,30 @@ ghcr.io/bbajor/pvs:dev-latest
 [2025-10-29 15:34:55] [INFO] Starte Deployment...
 [2025-10-29 15:34:55] [INFO] Setze PVS_DEV_IMAGE=ghcr.io/bbajor/pvs:dev-latest
 [2025-10-29 15:34:55] [INFO] Stoppe alte Container...
+[2025-10-29 23:42:41] [INFO] === PVS Auto-Update gestartet ===
+[2025-10-29 23:42:41] [INFO] Verzeichnis: D:\workspace\pvs
+[2025-10-29 23:42:41] [INFO] Pruefe auf neues dev Image: ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 23:42:41] [OK] Docker verfÃ¼gbar
+[2025-10-29 23:42:41] [INFO] Docker Login fÃ¼r private Image...
+[2025-10-29 23:42:42] [WARN] Docker Login fehlgeschlagen: Error response from daemon: Get "https://ghcr.io/v2/": denied: denied
+[2025-10-29 23:42:42] [INFO] Versuche Image-Pull ohne vorherigen Login...
+[2025-10-29 23:42:42] [INFO] Pulling neues Image...
+[2025-10-29 23:43:09] [INFO] Pull Output: dev-latest: Pulling from bbajor/pvs
+641b18eaabc2: Pulling fs layer
+c99c96632602: Pulling fs layer
+c99c96632602: Download complete
+641b18eaabc2: Download complete
+641b18eaabc2: Pull complete
+c99c96632602: Pull complete
+Digest: sha256:8746d1bd6a1285b62e3332486dd52b628eba12480bfe63825128e1e19411fb08
+Status: Downloaded newer image for ghcr.io/bbajor/pvs:dev-latest
+ghcr.io/bbajor/pvs:dev-latest
+
+[2025-10-29 23:43:09] [INFO] Container-Status: 2 von 3 laufen
+[2025-10-29 23:43:09] [INFO] Starte Deployment...
+[2025-10-29 23:43:09] [INFO] Setze PVS_DEV_IMAGE=ghcr.io/bbajor/pvs:dev-latest
+[2025-10-29 23:43:09] [INFO] Stoppe alte Container...
+[2025-10-29 23:43:23] [INFO] Pulling neueste Images via docker compose...
+[2025-10-29 23:43:24] [WARN] Image pull via docker compose fehlgeschlagen, versuche trotzdem weiter...
+[2025-10-29 23:43:24] [INFO] Nutze docker-compose.dev.env fÃ¼r Deployment
+[2025-10-29 23:43:24] [INFO] Fuehre aus: docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d --force-recreate --pull always
