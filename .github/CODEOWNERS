@@ -1,0 +1,4 @@
+# CODEOWNERS - Automatische Code Review Requests
+# Alle Änderungen benötigen eine Review von @bbajor
+
+* @bbajor
