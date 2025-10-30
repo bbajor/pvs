@@ -171,3 +171,8 @@
   - 📝 Deployment-Prozesse funktionieren nur, wenn Docs aktuell sind
   - 🚨 Nichts ist frustrierender als veraltete Dokumentation! 🤦‍♂️
 
+# Encoding & Line Endings
+- Standard-Encoding: UTF-8 (ohne BOM). Emojis und Umlaute müssen korrekt gespeichert werden.
+- Zeilenenden: LF als Standard in allen Textdateien. Für Windows-Skripte (`*.ps1`, `*.cmd`, `*.bat`) CRLF.
+- Bei neuen Dateien diese Defaults anwenden; bestehende Dateien nachziehen, wenn möglich.
+
