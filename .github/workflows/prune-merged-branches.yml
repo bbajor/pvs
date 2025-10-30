@@ -1,0 +1,74 @@
+name: Prune merged branches
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: prune-merged-branches
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete remote branches already merged into dev
+        env:
+          BASE_BRANCH: dev
+          PROTECTED_BRANCHES: dev main master test production
+        run: |
+          set -euo pipefail
+
+          git fetch origin --prune
+
+          mapfile -t merged_branches < <(
+            git for-each-ref \
+              --format='%(refname:strip=2)' \
+              --merged="refs/remotes/origin/${BASE_BRANCH}" \
+              refs/remotes/origin
+          )
+
+          if [ ${#merged_branches[@]} -eq 0 ]; then
+            echo "Keine gemergten Branches gefunden."
+            exit 0
+          fi
+
+          skipped=0
+          deleted=0
+
+          for branch in "${merged_branches[@]}"; do
+            if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+              continue
+            fi
+
+            for protected in $PROTECTED_BRANCHES; do
+              if [ "$branch" = "$protected" ]; then
+                echo "Überspringe geschützten Branch $branch"
+                skipped=$((skipped + 1))
+                continue 2
+              fi
+            done
+
+            case "$branch" in
+              */release/*|release/*)
+                echo "Überspringe Release-Branch $branch"
+                skipped=$((skipped + 1))
+                continue
+                ;;
+            esac
+
+            echo "Lösche Branch $branch"
+            git push origin --delete "$branch"
+            deleted=$((deleted + 1))
+          done
+
+          echo "Fertig: $deleted Branches gelöscht, $skipped übersprungen."
