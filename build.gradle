@@ -11,6 +11,10 @@ version = '1.0-SNAPSHOT'
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
+    // Ensure IDE and Gradle use the same JDK to avoid red code despite successful builds
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 ext {
@@ -71,6 +75,13 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation "com.tngtech.archunit:archunit-junit5:${archunitVersion}"
+}
+
+// Make annotation processors (e.g., Lombok/MapStruct) available on the compile classpath for IDE indexing
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
 }
 
  tasks.withType(Test).configureEach {

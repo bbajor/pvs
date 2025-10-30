@@ -1,14 +1,22 @@
 {
-    "java.configuration.updateBuildConfiguration": "automatic",
-    "java.dependency.packagePresentation": "hierarchical",
-    "java.compile.nullAnalysis.mode": "automatic",
-    "java.debug.settings.onBuildFailureProceed": true,
-    "java.import.gradle.enabled": true,
-    "java.import.gradle.wrapper.enabled": true,
-    "java.import.gradle.java.home": "",
-    "java.import.gradle.version": "",
-    "java.configuration.maven.userSettings": null,
-    "spring-boot.ls.java.heap": "512m",
-    "spring-boot.ls.problem.application-properties.enabled": true,
-    "spring-boot.ls.problem.application-yaml.enabled": true
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.dependency.packagePresentation": "hierarchical",
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.debug.settings.onBuildFailureProceed": true,
+  "java.import.gradle.enabled": true,
+  "java.import.gradle.wrapper.enabled": true,
+  "java.import.gradle.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8.9-hotspot",
+  "java.import.gradle.version": "",
+  "java.configuration.maven.userSettings": null,
+  "java.jdt.ls.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8.9-hotspot",
+  "gradle.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8.9-hotspot",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8.9-hotspot"
+    }
+  ],
+  "spring-boot.ls.java.heap": "512m",
+  "spring-boot.ls.problem.application-properties.enabled": true,
+  "spring-boot.ls.problem.application-yaml.enabled": true
 }
