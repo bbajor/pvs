@@ -1,0 +1,22 @@
+name: Branch Naming
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce cursor/<agent>/<topic> for agent branches
+        run: |
+          BR="${{ github.head_ref }}"
+          echo "head=$BR"
+          if [[ "$BR" == cursor/* ]]; then
+            if [[ ! "$BR" =~ ^cursor\/[a-z0-9._-]+\/[a-z0-9._-]+$ ]]; then
+              echo "Invalid cursor branch name: $BR (expected cursor/<agent>/<topic>)." >&2
+              exit 1
+            fi
+          fi
+          echo "Branch name ok ✅"
+
