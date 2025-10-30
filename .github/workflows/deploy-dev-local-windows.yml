@@ -22,7 +22,7 @@ jobs:
 
       - name: Determine PVS path
         id: pvs_path
-        shell: pwsh
+        shell: powershell
         run: |
           $pvsPath = if ($env:PVS_LOCAL_PATH) { $env:PVS_LOCAL_PATH } else { "D:\workspace\pvs" }
           
@@ -57,7 +57,7 @@ jobs:
           echo "path=$pvsPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Verify Docker
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Pruefe Docker..." -ForegroundColor Cyan
           docker --version
@@ -68,7 +68,7 @@ jobs:
           }
 
       - name: Execute Auto-Update Script
-        shell: pwsh
+        shell: powershell
         working-directory: ${{ steps.pvs_path.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,7 +94,7 @@ jobs:
           }
 
       - name: Summary
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "" -ForegroundColor Green
           Write-Host "Lokales Deployment abgeschlossen!" -ForegroundColor Green

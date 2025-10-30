@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -86,11 +87,19 @@ class DevSecurityConfig {
     }
 
     @Bean
-    VaadinServiceInitListener developmentLoginConfigurer() {
+    VaadinServiceInitListener developmentLoginConfigurer(
+            @Value("${vaadin.allow-production-mode-in-dev:false}") boolean allowProductionModeInDev) {
         return (serviceInitEvent) -> {
             if (serviceInitEvent.getSource().getDeploymentConfiguration().isProductionMode()) {
-                throw new IllegalStateException(
-                        "Development profile is active but Vaadin is running in production mode. This indicates a configuration error - development profile should not be used in production.");
+                if (allowProductionModeInDev) {
+                    log.warn("Development profile is active but Vaadin is running in production mode. " +
+                            "This is allowed for Docker-based development environments.");
+                } else {
+                    throw new IllegalStateException(
+                            "Development profile is active but Vaadin is running in production mode. " +
+                            "This indicates a configuration error - development profile should not be used in production. " +
+                            "If you need this for Docker development, set 'vaadin.allow-production-mode-in-dev=true'.");
+                }
             }
             var routeConfiguration = RouteConfiguration.forApplicationScope();
             routeConfiguration.setRoute(DevLoginView.LOGIN_PATH, DevLoginView.class);
