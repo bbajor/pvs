@@ -274,4 +274,13 @@ runtimeOnly 'org.postgresql:postgresql'
 
 **Erstellt:** 2025-10-30  
 **Status:** 🟡 Waiting for Agent 1  
-**Nächster Agent:** Agent 5 (parallel möglich)
+**Nächster Agent:** Agent 3 + Agent 5 (nach Agent 2 UND Agent 4)
+
+---
+
+## 🔗 Nach Abschluss: Koordiniere mit Agent 2
+
+Wenn du ALLE Tasks abgeschlossen hast:
+- Warte bis Agent 2 (Spring Security) auch fertig ist
+- Dann können Agent 3 und Agent 5 starten
+- Siehe docs/security/agents/AGENT_CHAIN.md für Details
