@@ -178,15 +178,29 @@ try {
     # Ignore errors (Container laufen vielleicht nicht)
 }
 Start-Sleep -Seconds 2
+
+# Pull neueste Images via docker compose (wichtig für Image-Updates!)
+Write-Log "Pulling neueste Images via docker compose..." "INFO"
+try {
+    if (Test-Path $envFilePath) {
+        docker compose -f $COMPOSE_FILE --env-file $ENV_FILE pull 2>&1 | Out-String | Out-Null
+    } else {
+        docker compose -f $COMPOSE_FILE pull 2>&1 | Out-String | Out-Null
+    }
+    Write-Log "Image pull via docker compose erfolgreich" "OK"
+} catch {
+    Write-Log "Image pull via docker compose fehlgeschlagen, versuche trotzdem weiter..." "WARN"
+}
+
 if (-not (Test-Path $envFilePath)) {
     Write-Log "docker-compose.dev.env nicht gefunden - verwende Defaults" "WARN"
-    Write-Log "Fuehre aus: docker compose -f $COMPOSE_FILE up -d --force-recreate" "INFO"
-    $composeOutput = docker compose -f $COMPOSE_FILE up -d --force-recreate 2>&1 | Out-String
+    Write-Log "Fuehre aus: docker compose -f $COMPOSE_FILE up -d --force-recreate --pull always" "INFO"
+    $composeOutput = docker compose -f $COMPOSE_FILE up -d --force-recreate --pull always 2>&1 | Out-String
     Write-Log "Compose Output: $composeOutput" "INFO"
 } else {
     Write-Log "Nutze docker-compose.dev.env für Deployment" "INFO"
-    Write-Log "Fuehre aus: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate" "INFO"
-    $composeOutput = docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate 2>&1 | Out-String
+    Write-Log "Fuehre aus: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate --pull always" "INFO"
+    $composeOutput = docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate --pull always 2>&1 | Out-String
     Write-Log "Compose Output: $composeOutput" "INFO"
 }
 

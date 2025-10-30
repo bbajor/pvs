@@ -15,6 +15,11 @@ spring:
     console:
       enabled: true
 
+# Disable eGK validation in dev and leave tool-path empty unless explicitly provided
+egk:
+  enabled: ${EGK_ENABLED:false}
+  tool-path: ${EGK_TOOL_PATH:}
+
 logging:
   level:
     root: INFO

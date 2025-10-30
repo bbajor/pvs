@@ -10,4 +10,5 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "egk")
 public class EgkToolProperties {
     private String toolPath;
+    private boolean enabled = true;
 }

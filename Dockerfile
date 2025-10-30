@@ -12,10 +12,23 @@ RUN gradle dependencies --no-daemon --build-cache --parallel || true
 # Copy source code
 COPY src/ src/
 
+# Build production frontend bundle so runtime doesn't need dev bundling
+# Use npm explicitly to avoid extra pnpm/bootstrap downloads inside container
+RUN gradle clean vaadinBuildFrontend --no-daemon \
+      -Pvaadin.productionMode \
+      -Pvaadin.frontend.packageManager=npm \
+      -Pvaadin.frontend.forceInstall=true \
+      --build-cache --parallel || \
+    gradle clean vaadinBuildFrontend --no-daemon \
+      -Pvaadin.productionMode \
+      -Pvaadin.frontend.packageManager=npm \
+      -Pvaadin.frontend.forceInstall=true \
+      --build-cache --parallel
+
 # Build the application (Tests bereits im Workflow ausgeführt)
 # Nutze --build-cache und --parallel für schnellere Builds
-RUN gradle bootJar --no-daemon -x test --build-cache --parallel --offline || \
-    gradle bootJar --no-daemon -x test --build-cache --parallel
+RUN gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode --offline || \
+    gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode
 
 # Production stage
 FROM eclipse-temurin:21-jre-jammy
