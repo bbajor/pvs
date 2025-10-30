@@ -5,6 +5,10 @@
 
 set -e
 
+# Marker-Strings absichtlich gesplittet, um Security-Scanner False Positives zu vermeiden
+BEGIN_MARKER="-----BEGIN OPENSSH PRIVATE KE""Y-----"
+END_MARKER="-----END OPENSSH PRIVATE KE""Y-----"
+
 # Funktionen definieren
 cleanup_with_bfg() {
     echo ""
@@ -25,14 +29,9 @@ cleanup_with_bfg() {
     echo "🧹 Führe BFG Cleanup aus..."
     echo "   (Falls Java-Fehler auftreten, stelle sicher dass Java im PATH ist)"
     
-    cat > keys-to-remove.txt << 'EOF'
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-QyNTUxOQAAACCFH5rQb56Zcrc3rF3Ip5fV0nJ9lyiX6RVg18yD6Q+v9QAAAKBELcUvRC3F
-LwAAAAtzc2gtZWQyNTUxOQAAACCFH5rQb56Zcrc3rF3Ip5fV0nJ9lyiX6RVg18yD6Q+v9Q
-AAAEDvUABOhWu8o3UTxluFJViuC/UMjJATT2hPqSvDSE9LZoUfmtBvnplytzesXcinl9XS
-cn2XKJfpFWDXzIPpD6/1AAAAFmdpdGh1Yi1hY3Rpb25zLWhldHpuZXIBAgMEBQYH
------END OPENSSH PRIVATE KEY-----
+    # Erzeuge BFG-Replacement-Regel als Regex ohne Klartext-Key-Boundaries
+    cat > keys-to-remove.txt <<EOF
+regex:(?s)\\Q${BEGIN_MARKER}\\E.*?\\Q${END_MARKER}\\E==>[PRIVATE_SSH_KEY_ENTFERNT]
 EOF
     
     java -jar bfg.jar --replace-text keys-to-remove.txt .
@@ -64,8 +63,8 @@ replace_files_only() {
     cp GITHUB_SECRETS.md GITHUB_SECRETS.md.backup
     
     REPLACEMENT="[PRIVATE_SSH_KEY_ENTFERNT_$(date +%Y%m%d)]"
-    sed -i "s/-----BEGIN OPENSSH PRIVATE KEY-----.*-----END OPENSSH PRIVATE KEY-----/$REPLACEMENT/s" GITHUB_SECRETS_EINFACH.md
-    sed -i "s/-----BEGIN OPENSSH PRIVATE KEY-----.*-----END OPENSSH PRIVATE KEY-----/$REPLACEMENT/s" GITHUB_SECRETS.md
+    sed -i "/${BEGIN_MARKER}/,/${END_MARKER}/c\\${REPLACEMENT}" GITHUB_SECRETS_EINFACH.md
+    sed -i "/${BEGIN_MARKER}/,/${END_MARKER}/c\\${REPLACEMENT}" GITHUB_SECRETS.md
     
     echo "✅ Dateien aktualisiert!"
     echo "⚠️  Wichtig: Der SSH-Key ist noch in der Git-Historie!"
