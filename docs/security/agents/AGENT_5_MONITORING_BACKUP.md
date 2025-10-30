@@ -372,4 +372,28 @@ implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 **Erstellt:** 2025-10-30  
 **Status:** 🟢 Ready to Start (parallel möglich)  
-**Nächster Agent:** Integration-Testing (nach allen Merges)
+**Nächster Agent:** Integration Testing (wenn ALLE Agents fertig)
+
+---
+
+## 🔗 Nach Abschluss: Integration Testing
+
+Wenn du ALLE Tasks abgeschlossen hast UND alle anderen Agents (2, 3, 4) auch fertig sind:
+
+### Starte Integration Testing
+```
+@cursor Hallo Integration-Tester! 👋
+
+Alle Security-Hardening-Agents haben ihre Arbeit abgeschlossen. Zeit für Integration Testing!
+
+# Deine Aufgabe
+1. Lies: docs/security/PRODUCTION_SECURITY_HARDENING_MASTER_PLAN.md (Abschnitt "Integration Testing")
+2. Führe End-to-End Security Tests durch
+3. OWASP ZAP Penetration Testing
+4. Performance Testing
+
+# Nach Abschluss
+Production-Deployment vorbereiten und Go-Live-Checkliste abarbeiten.
+
+Viel Erfolg! 🚀
+```

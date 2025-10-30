@@ -277,4 +277,54 @@ implementation 'org.springframework.boot:spring-boot-starter-security'
 
 **Erstellt:** 2025-10-30  
 **Status:** 🟡 Waiting for Agent 1  
-**Nächster Agent:** Agent 3 (nach Merge)
+**Nächster Agent:** Agent 3 + Agent 5 (nach Agent 2 UND Agent 4)
+
+---
+
+## 🔗 Nach Abschluss: Nächste Agents starten
+
+Wenn du ALLE Tasks abgeschlossen hast UND Agent 4 auch fertig ist:
+
+### Starte Agent 3 (MFA & Rate Limiting)
+```
+@cursor Hallo Agent 3! 👋
+
+Ich brief dich für Production Security Hardening - Teil 3: Multi-Factor Authentication & Rate Limiting.
+
+# Deine Aufgabe
+Lies das Task-File: docs/security/agents/AGENT_3_MFA_RATE_LIMITING.md
+
+Arbeite ALLE Tasks in diesem File ab.
+
+# Branch-Setup
+1. Erstelle Branch: feature/security-auth-mfa (von current main mit Agent 1+2+4)
+2. Arbeite an deinen Tasks
+3. Teste alles lokal
+
+# Nach Abschluss
+Siehe docs/security/agents/AGENT_CHAIN.md für nächste Schritte.
+
+Viel Erfolg! 🚀
+```
+
+### Starte Agent 5 (Monitoring) - PARALLEL
+```
+@cursor Hallo Agent 5! 👋
+
+Ich brief dich für Production Security Hardening - Teil 5: Logging, Monitoring & Backup.
+
+# Deine Aufgabe
+Lies das Task-File: docs/security/agents/AGENT_5_MONITORING_BACKUP.md
+
+Arbeite ALLE Tasks in diesem File ab.
+
+# Branch-Setup
+1. Erstelle Branch: feature/security-monitoring-backup (von current main mit Agent 1+2+4)
+2. Arbeite an deinen Tasks
+3. Teste alles lokal
+
+# Nach Abschluss
+Siehe docs/security/agents/AGENT_CHAIN.md für nächste Schritte.
+
+Viel Erfolg! 🚀
+```

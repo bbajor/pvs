@@ -241,4 +241,54 @@ Aufbau der Infrastruktur-Basis für Production Security: Reverse-Proxy, TLS/HTTP
 
 **Erstellt:** 2025-10-30  
 **Status:** 🟢 Ready to Start  
-**Nächster Agent:** Agent 2 (nach Merge)
+**Nächster Agent:** Agent 2 + Agent 4 (parallel starten)
+
+---
+
+## 🔗 Nach Abschluss: Nächste Agents starten
+
+Wenn du ALLE Tasks abgeschlossen hast, deinen Branch gemergt hast und alles funktioniert:
+
+### Starte Agent 2 (Spring Security)
+```
+@cursor Hallo Agent 2! 👋
+
+Ich brief dich für Production Security Hardening - Teil 2: Spring Security Headers & OWASP.
+
+# Deine Aufgabe
+Lies das Task-File: docs/security/agents/AGENT_2_SPRING_SECURITY.md
+
+Arbeite ALLE Tasks in diesem File ab.
+
+# Branch-Setup
+1. Erstelle Branch: feature/security-spring-headers (von current main mit Agent 1)
+2. Arbeite an deinen Tasks
+3. Teste alles lokal
+
+# Nach Abschluss
+Siehe docs/security/agents/AGENT_CHAIN.md für nächste Schritte.
+
+Viel Erfolg! 🚀
+```
+
+### Starte Agent 4 (Database Security) - PARALLEL
+```
+@cursor Hallo Agent 4! 👋
+
+Ich brief dich für Production Security Hardening - Teil 4: Database Security & Secrets Management.
+
+# Deine Aufgabe
+Lies das Task-File: docs/security/agents/AGENT_4_DATABASE_SECRETS.md
+
+Arbeite ALLE Tasks in diesem File ab.
+
+# Branch-Setup
+1. Erstelle Branch: feature/security-database-secrets (von current main mit Agent 1)
+2. Arbeite an deinen Tasks
+3. Teste alles lokal
+
+# Nach Abschluss
+Siehe docs/security/agents/AGENT_CHAIN.md für nächste Schritte.
+
+Viel Erfolg! 🚀
+```

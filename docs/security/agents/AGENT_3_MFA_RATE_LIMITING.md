@@ -291,4 +291,28 @@ implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 
 **Erstellt:** 2025-10-30  
 **Status:** 🟡 Waiting for Agent 2  
-**Nächster Agent:** Agent 4 (parallel möglich)
+**Nächster Agent:** Integration Testing (wenn ALLE Agents fertig)
+
+---
+
+## 🔗 Nach Abschluss: Integration Testing
+
+Wenn du ALLE Tasks abgeschlossen hast UND alle anderen Agents (2, 4, 5) auch fertig sind:
+
+### Starte Integration Testing
+```
+@cursor Hallo Integration-Tester! 👋
+
+Alle Security-Hardening-Agents haben ihre Arbeit abgeschlossen. Zeit für Integration Testing!
+
+# Deine Aufgabe
+1. Lies: docs/security/PRODUCTION_SECURITY_HARDENING_MASTER_PLAN.md (Abschnitt "Integration Testing")
+2. Führe End-to-End Security Tests durch
+3. OWASP ZAP Penetration Testing
+4. Performance Testing
+
+# Nach Abschluss
+Production-Deployment vorbereiten und Go-Live-Checkliste abarbeiten.
+
+Viel Erfolg! 🚀
+```
