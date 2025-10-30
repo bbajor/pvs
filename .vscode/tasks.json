@@ -1,0 +1,104 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker: Dev-Umgebung starten",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d",
+      "windows": {
+        "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": false,
+        "clear": true
+      },
+      "runOptions": {
+        "runOn": "default"
+      }
+    },
+    {
+      "label": "Docker: Dev-Umgebung stoppen",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env down",
+      "windows": {
+        "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env down"
+      },
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Docker: Dev-Umgebung Logs anzeigen",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env logs -f",
+      "windows": {
+        "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env logs -f"
+      },
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "Docker: Dev-Umgebung Status",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env ps",
+      "windows": {
+        "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env ps"
+      },
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Docker: Dev-Umgebung neu bauen und starten",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d --build --force-recreate",
+      "windows": {
+        "command": "docker compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d --build --force-recreate"
+      },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "PowerShell: Dev-Umgebung starten (mit Script)",
+      "type": "shell",
+      "command": "powershell.exe -ExecutionPolicy Bypass -File scripts/local/start-dev.ps1",
+      "windows": {
+        "command": "powershell.exe -ExecutionPolicy Bypass -File scripts/local/start-dev.ps1"
+      },
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": false,
+        "clear": true
+      },
+      "runOptions": {
+        "runOn": "default"
+      }
+    }
+  ]
+}
+

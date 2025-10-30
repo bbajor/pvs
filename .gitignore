@@ -127,7 +127,3 @@ tokens.txt
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
 !**/lib/*.jar
-
-# Log-Dateien
-*.log
-!gradle/**/*.log
