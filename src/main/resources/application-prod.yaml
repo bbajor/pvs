@@ -1,3 +1,15 @@
+server:
+  # Forward Headers Strategy für Reverse-Proxy (Traefik)
+  # Verarbeitet X-Forwarded-* Headers korrekt
+  forward-headers-strategy: framework
+  # Secure Cookies in Production
+  servlet:
+    session:
+      cookie:
+        secure: true      # Nur über HTTPS
+        http-only: true   # Kein JavaScript-Zugriff
+        same-site: strict # CSRF-Protection
+
 spring:
   jpa:
     hibernate:

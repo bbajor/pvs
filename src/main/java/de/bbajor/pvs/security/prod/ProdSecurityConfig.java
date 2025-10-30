@@ -53,7 +53,23 @@ public class ProdSecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // Configure API endpoints first
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/ai/**").permitAll());
+                .requestMatchers("/api/ai/**").permitAll()
+                // Actuator Health-Check public (für Load Balancer & Health Monitoring)
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                // Andere Actuator-Endpoints nur für authentifizierte User
+                .requestMatchers("/actuator/**").authenticated());
+        
+        // Session-Management & Security-Features
+        http.sessionManagement(session -> session
+                .sessionFixation().newSession()  // Neue Session nach Login (Session-Fixation-Protection)
+                .maximumSessions(1)              // Nur eine Session pro User
+                .maxSessionsPreventsLogin(false) // Alte Session invalidieren
+        );
+        
+        // Forward-Headers-Strategy für Reverse-Proxy (Traefik)
+        http.headers(headers -> headers
+                .frameOptions(frameOptions -> frameOptions.deny())  // X-Frame-Options: DENY
+        );
         
         // Apply Vaadin security with standard login (no dev conveniences)
         return http
