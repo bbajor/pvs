@@ -1,0 +1,21 @@
+# Traefik Dynamic Configuration - Routers
+# Route-Definitionen für verschiedene Services
+
+http:
+  routers:
+    # Traefik Dashboard Router
+    traefik-dashboard:
+      rule: "Host(`traefik.pvs.example.com`)"
+      entryPoints:
+        - websecure
+      service: api@internal
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - dashboard-auth@file
+        - securityHeaders@file
+        - admin-whitelist@file
+
+  services:
+    # Services werden automatisch via Docker-Provider erkannt
+    # Manuelle Service-Definitionen nur bei Bedarf

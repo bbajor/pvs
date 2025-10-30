@@ -1,0 +1,70 @@
+# Traefik Dynamic Configuration - Middlewares
+# Security Headers, Rate Limiting, Geo-Blocking
+
+http:
+  middlewares:
+    # Security Headers Middleware
+    securityHeaders:
+      headers:
+        # HTTPS Enforcement
+        sslRedirect: true
+        stsSeconds: 31536000  # 1 Jahr
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        
+        # Security Headers
+        contentTypeNosniff: true
+        browserXssFilter: true
+        frameDeny: true
+        
+        # Content Security Policy
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+        
+        # Referrer Policy
+        referrerPolicy: "strict-origin-when-cross-origin"
+        
+        # Permissions Policy
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
+        
+        # Custom Security Headers
+        customResponseHeaders:
+          X-Content-Type-Options: "nosniff"
+          X-Frame-Options: "DENY"
+          X-XSS-Protection: "1; mode=block"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+    
+    # Rate Limiting Middleware
+    rateLimit:
+      rateLimit:
+        average: 100  # 100 Requests
+        period: 1s    # pro Sekunde
+        burst: 50     # Burst-Limit
+    
+    # Stricter Rate Limit for Authentication Endpoints
+    authRateLimit:
+      rateLimit:
+        average: 5    # 5 Requests
+        period: 1m    # pro Minute
+        burst: 10     # Burst-Limit
+    
+    # Compression
+    compress:
+      compress: {}
+    
+    # Basic Auth for Traefik Dashboard (optional)
+    dashboard-auth:
+      basicAuth:
+        users:
+          # Username: admin, Password: changeme (htpasswd generiert)
+          # Generiere neues Passwort mit: htpasswd -nb admin your-password
+          - "admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"  # ÄNDERN!
+    
+    # IP Whitelist (optional - nur für Admin-Bereiche)
+    admin-whitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"

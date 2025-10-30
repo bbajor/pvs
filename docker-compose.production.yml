@@ -15,7 +15,7 @@ services:
       - postgres-data-dev:/var/lib/postgresql/data
       - ./backups:/backups
     ports:
-      - "127.0.0.1:5433:5432"  # Port 5433 für Dev
+      - "127.0.0.1:5433:5432"  # Port 5433 für Dev (nur localhost)
     networks:
       - pvs-network
     healthcheck:
@@ -40,7 +40,7 @@ services:
       - postgres-data-test:/var/lib/postgresql/data
       - ./backups:/backups
     ports:
-      - "127.0.0.1:5434:5432"  # Port 5434 für Test
+      - "127.0.0.1:5434:5432"  # Port 5434 für Test (nur localhost)
     networks:
       - pvs-network
     healthcheck:
@@ -64,8 +64,9 @@ services:
     volumes:
       - postgres-data-prod:/var/lib/postgresql/data
       - ./backups/prod:/backups/prod
-    ports:
-      - "127.0.0.1:5435:5432"  # Port 5435 für Prod
+    # KEINE PORTS exponiert - nur internes Netzwerk!
+    # ports:
+    #   - "127.0.0.1:5435:5432"  # Port 5435 für Prod (DEAKTIVIERT für Production Security)
     networks:
       - pvs-network
     deploy:
@@ -109,9 +110,12 @@ services:
       start_period: 60s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pvs-dev.rule=Host(`dev.pvs.example.com`)"
+      - "traefik.http.routers.pvs-dev.rule=Host(`dev.${DOMAIN:-pvs.example.com}`)"
       - "traefik.http.routers.pvs-dev.entrypoints=websecure"
       - "traefik.http.routers.pvs-dev.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.pvs-dev.tls.options=default@file"
+      - "traefik.http.routers.pvs-dev.middlewares=securityHeaders@file,compress@file"
+      - "traefik.http.services.pvs-dev.loadbalancer.server.port=8080"
     profiles:
       - dev
 
@@ -140,9 +144,12 @@ services:
       start_period: 60s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pvs-test.rule=Host(`test.pvs.example.com`)"
+      - "traefik.http.routers.pvs-test.rule=Host(`test.${DOMAIN:-pvs.example.com}`)"
       - "traefik.http.routers.pvs-test.entrypoints=websecure"
       - "traefik.http.routers.pvs-test.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.pvs-test.tls.options=default@file"
+      - "traefik.http.routers.pvs-test.middlewares=securityHeaders@file,compress@file"
+      - "traefik.http.services.pvs-test.loadbalancer.server.port=8080"
     profiles:
       - test
 
@@ -179,46 +186,70 @@ services:
       start_period: 60s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pvs-prod.rule=Host(`pvs.example.com`)"
+      - "traefik.http.routers.pvs-prod.rule=Host(`${DOMAIN:-pvs.example.com}`)"
       - "traefik.http.routers.pvs-prod.entrypoints=websecure"
       - "traefik.http.routers.pvs-prod.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.pvs-prod.tls.options=default@file"
+      - "traefik.http.routers.pvs-prod.middlewares=securityHeaders@file,rateLimit@file,compress@file"
+      - "traefik.http.services.pvs-prod.loadbalancer.server.port=8080"
+      # Health Check
+      - "traefik.http.services.pvs-prod.loadbalancer.healthcheck.path=/actuator/health"
+      - "traefik.http.services.pvs-prod.loadbalancer.healthcheck.interval=30s"
     profiles:
       - prod
 
-  # Traefik Reverse Proxy mit SSL
+  # Traefik Reverse Proxy mit SSL & Security
   traefik:
-    image: traefik:v2.11
+    image: traefik:v3.0
     container_name: pvs-traefik
-    restart: unless-stopped
-    command:
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+    restart: always
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "80:80"
       - "443:443"
+      - "8082:8082"  # Metrics
+    environment:
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./docker/traefik/dynamic:/etc/traefik/dynamic:ro
       - letsencrypt:/letsencrypt
+      - traefik-logs:/var/log/traefik
     networks:
       - pvs-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.pvs.example.com`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      # Dashboard Router
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN:-pvs.example.com}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth@file,securityHeaders@file"
+      # Metrics
+      - "traefik.http.routers.metrics.rule=Host(`metrics.${DOMAIN:-pvs.example.com}`)"
+      - "traefik.http.routers.metrics.entrypoints=websecure"
+      - "traefik.http.routers.metrics.service=prometheus@internal"
+      - "traefik.http.routers.metrics.tls.certresolver=letsencrypt"
 
 networks:
   pvs-network:
     driver: bridge
+    internal: false  # External access via Traefik
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: pvs-bridge
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
 
 volumes:
   postgres-data-dev:
@@ -228,4 +259,6 @@ volumes:
   postgres-data-prod:
     driver: local
   letsencrypt:
+    driver: local
+  traefik-logs:
     driver: local
