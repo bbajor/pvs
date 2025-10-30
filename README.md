@@ -1,5 +1,10 @@
 # PVS (Praxis-Verwaltungs-System)
 
+## Lizenzierung
+- Code steht unter Business Source License 1.1 (BUSL-1.1) mit Parametern in `LICENSE.md`.
+- Interner Betrieb in eigenen Praxen erlaubt; Angebot als SaaS nur mit separater Hosting-Lizenz (`HOSTING-LIZENZ-DE.md`).
+- Change Date: 2028-10-27 → Wechsel auf Apache-2.0.
+
 ## Prerequisites
 
 - Java 17 or higher
@@ -53,6 +58,54 @@ To build for production:
 mvn clean package -Pproduction
 ```
 
+## Branching-Strategie
+
+Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Production:
+
+### Branches
+
+- **`dev`**: Entwicklungs-Branch für lokale Entwicklung
+  - **Schnelles Testing**: `./gradlew bootRun` mit H2 In-Memory (keine Docker benötigt)
+  - **Realistisches Testing**: `docker-compose.dev.yml` mit PostgreSQL Container
+  - Läuft nur lokal auf Entwickler-Maschinen
+  - Auto-Build & Push Docker Image bei Push zu GitHub (für lokales Docker-Setup)
+  - Keine Server-Deployment (Ressourcen & Sicherheit)
+
+- **`test`**: Staging-Branch für realistisches Testing auf Server
+  - Verwendet PostgreSQL mit persistenter Datenbank auf Hetzner
+  - Daten bleiben über Deployments hinweg erhalten
+  - Auto-CI & Build bei Push (Docker Image wird gebaut)
+  - **Manuelles Deployment** über GitHub Actions (nur nach erfolgreichen Tests)
+  - **Nur über VPN erreichbar** auf Hetzner Server
+
+- **`master`**: Production-ready Code
+  - Nur stabile Releases nach ausgiebigem Testing
+  - Verwendet PostgreSQL Production-Datenbank
+  - Manuelles Deployment über GitHub Actions
+  - Öffentlich erreichbar über Traefik/HTTPS
+
+### Workflow
+
+```
+feature/* → dev → test → master
+```
+
+1. **Feature-Entwicklung**: Neue Features werden als Feature-Branches von `dev` abgezweigt
+2. **Pull Request zu `dev`**: Feature-Branch wird in `dev` gemergt nach Review
+3. **Testing in `test`**: Nach erfolgreicher Validierung wird `dev` in `test` gemergt
+4. **Production Release**: Nach finaler Validierung wird `test` in `master` gemergt
+
+### Wichtige Regeln
+
+- ✅ **Merge-Richtung**: Immer nur in eine Richtung mergen (dev→test→master), nie zurück
+- ✅ **Hotfixes**: Bei dringenden Fixes von `master` abzweigen, dann in alle Branches zurückmergen
+- ✅ **Version Tags**: Bei jedem Merge zu `master` ein neues Version-Tag erstellen (v0.1.1, v0.2.0, etc.)
+- ✅ **Branch Protection**: `master` erfordert Pull Request Reviews und erfolgreiche CI-Tests
+
+### Aktuelle Versionen
+
+- **Production**: `v0.1.0` (getaggt am master Branch)
+
 ## Troubleshooting
 
 ### eGK Card Reading Issues
@@ -76,7 +129,35 @@ pvs/
 └── pom.xml
 ```
 
+## 📚 Dokumentation
+
+### 🚀 Deployment & Setup
+
+- **[Hetzner Server Setup](docs/deployment/HETZNER_COMPLETE_SETUP.md)** ⭐ - Komplette Anleitung für Hetzner-VPS (empfohlen zum Einstieg)
+- [Deployment Übersicht](docs/deployment/README.md)
+- [Quick Start Guide](docs/deployment/QUICKSTART.md)
+- [Database Architecture](docs/deployment/DATABASE_ARCHITECTURE.md)
+
+### 🔒 Security & Administration
+
+- [SSH-Key Setup](docs/security/SSH_KEY_SETUP.md) - SSH-Key für GitHub Actions einrichten
+- [SSH-Key Cleanup](docs/security/SSH_KEY_CLEANUP.md) - SSH-Key aus Git-Historie entfernen
+- [Repository Struktur](docs/REPOSITORY_STRUCTURE.md) - Organisations-Struktur
+
+### 🛠️ Scripts
+
+- **Deployment**: `scripts/deployment/`
+  - `setup-server.sh` - Server-Grundsetup (Docker, Docker Compose)
+  - `init-databases.sh` - Datenbank-Initialisierung
+- **Security**: `scripts/security/`
+  - `cleanup-ssh-key.sh` - SSH-Key aus Git entfernen
+  - `generate-new-ssh-key.sh` - Neuen SSH-Key erstellen
+- **Utilities**: `scripts/utilities/`
+  - `check-ip.sh` - IP-Adressen prüfen
+
 ## Links
 - [GitHub Repository](https://github.com/bbajor/pvs)
+- [Hosting-Lizenz (DE)](./HOSTING-LIZENZ-DE.md)
+- [BUSL 1.1 Text](https://mariadb.com/bsl11/)
 - [Vaadin Documentation](https://vaadin.com/docs)
 - [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)

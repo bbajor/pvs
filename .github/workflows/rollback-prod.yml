@@ -1,0 +1,31 @@
+name: Rollback Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_rollback:
+        description: 'Type "ROLLBACK" to confirm'
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.confirm_rollback == 'ROLLBACK' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rollback on Render
+        uses: johnbeynon/render-deploy@v1.1.2
+        with:
+          service-id: ${{ secrets.RENDER_PROD_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          rollback: true
+
+      - name: Verify rollback
+        run: |
+          sleep 60
+          curl -f https://${{ secrets.RENDER_PROD_URL }}/actuator/health || exit 1
+

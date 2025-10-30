@@ -1,0 +1,154 @@
+name: Auto-add @cursor when issue moved to In Progress (Projects v2)
+
+on:
+  issues:
+    types:
+      - labeled
+      - edited
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to check (optional if checking via label)'
+        required: false
+        type: string
+
+jobs:
+  check_and_annotate:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Determine issue number
+        id: get_issue
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ISSUE_NUMBER="${{ github.event.inputs.issue_number }}"
+          else
+            ISSUE_NUMBER="${{ github.event.issue.number }}"
+          fi
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "🔍 Checking issue #$ISSUE_NUMBER"
+          
+          # Check if "in-progress" label was added
+          if [ "${{ github.event.action }}" == "labeled" ]; then
+            LABEL_NAME="${{ github.event.label.name }}"
+            echo "label_name=$LABEL_NAME" >> $GITHUB_OUTPUT
+            if echo "$LABEL_NAME" | grep -qi "in-progress\|in progress"; then
+              echo "has_in_progress_label=true" >> $GITHUB_OUTPUT
+            else
+              echo "has_in_progress_label=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_in_progress_label=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Project status via API
+        id: check_project_status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.get_issue.outputs.issue_number }}"
+          
+          # Try to find the issue in projects and check its status
+          # This uses GraphQL API to query Projects v2
+          QUERY='{
+            "query": "query($owner: String!, $repo: String!, $issueNumber: Int!) { repository(owner: $owner, name: $repo) { issue(number: $issueNumber) { id projectItems(first: 10) { nodes { id project { title } fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2FieldSingleSelect { name } } name } } } } } } } }",
+            "variables": {
+              "owner": "${{ github.repository_owner }}",
+              "repo": "${{ github.event.repository.name }}",
+              "issueNumber": '$ISSUE_NUMBER'
+            }
+          }'
+          
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d "$QUERY" \
+            "https://api.github.com/graphql")
+          
+          echo "GraphQL Response: $RESPONSE" | head -100
+          
+          # Extract status field value
+          STATUS=$(echo "$RESPONSE" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValues.nodes[] | select(.field.name == "Status" or .name != null) | .name' | head -1 || echo "")
+          
+          if [ -z "$STATUS" ] || [ "$STATUS" == "null" ]; then
+            # Fallback: Check if "in-progress" label exists
+            LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER" \
+              | jq -r '.labels[].name' | tr '\n' ' ')
+            
+            if echo "$LABELS" | grep -qi "in-progress\|in progress"; then
+              STATUS="In Progress"
+              echo "📋 Found 'in-progress' label"
+            else
+              STATUS=""
+              echo "⚠️  Issue not in project or no status found. Will check label from event."
+            fi
+          else
+            echo "📋 Found status: $STATUS"
+          fi
+          
+          # Also check if label was just added
+          if [ "${{ steps.get_issue.outputs.has_in_progress_label }}" == "true" ]; then
+            STATUS="In Progress"
+            echo "📋 Label 'in-progress' was just added"
+          fi
+          
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          
+          # Check if status contains "in progress" (case insensitive)
+          if echo "$STATUS" | grep -qi "in progress"; then
+            echo "is_in_progress=true" >> $GITHUB_OUTPUT
+            echo "✅ Issue is in 'In Progress' status"
+          else
+            echo "is_in_progress=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Issue not in 'In Progress' - skipping"
+          fi
+
+      - name: Check if @cursor comment already exists
+        id: check_existing
+        if: steps.check_project_status.outputs.is_in_progress == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.get_issue.outputs.issue_number }}"
+          COMMENTS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments")
+          
+          # Check if any comment contains @cursor
+          HAS_CURSOR=$(echo "$COMMENTS" | jq -r '.[].body' 2>/dev/null | grep -c "@cursor" || echo "0")
+          if [ "$HAS_CURSOR" -gt 0 ]; then
+            echo "comment_exists=true" >> $GITHUB_OUTPUT
+            echo "💬 @cursor comment already exists - skipping"
+          else
+            echo "comment_exists=false" >> $GITHUB_OUTPUT
+            echo "✨ No @cursor comment found - will add one"
+          fi
+
+      - name: Add @cursor comment to issue
+        if: steps.check_project_status.outputs.is_in_progress == 'true' && 
+            steps.check_existing.outputs.comment_exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.get_issue.outputs.issue_number }}"
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+            -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"body": "@cursor"}' \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          if [ "$HTTP_CODE" -eq 201 ]; then
+            echo "✅ Successfully added @cursor comment to issue #$ISSUE_NUMBER"
+          else
+            echo "❌ Failed to add comment. HTTP Code: $HTTP_CODE"
+            echo "$RESPONSE" | head -20
+            exit 1
+          fi
+

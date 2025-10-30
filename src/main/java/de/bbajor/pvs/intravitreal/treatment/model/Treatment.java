@@ -1,6 +1,7 @@
 package de.bbajor.pvs.intravitreal.treatment.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.SideOfEye;
@@ -30,6 +31,15 @@ public class Treatment extends BasicEntity<Long> {
     @ManyToOne(fetch = FetchType.EAGER)
     private SurgicalCenterTimeSlot surgicalCenterTimeSlot;
     private LocalDate approvalDate;
+
+    // Extended approval metadata
+    private LocalDateTime approvalDateTime;
+    private String approvedByUserId;
+    private String approvedByUserName;
+    // Optional second approval (four-eyes principle)
+    private LocalDateTime secondApprovalDateTime;
+    private String secondApprovedByUserId;
+    private String secondApprovedByUserName;
 
     @ManyToOne(fetch = FetchType.EAGER)
     private Medication medication;

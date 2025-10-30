@@ -1,0 +1,98 @@
+name: Deploy Dev to Local Machine
+
+on:
+  workflow_run:
+    workflows: ["Dev Branch CI & Build"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy-local:
+    name: Deploy to Local Machine
+    runs-on: [self-hosted, linux]
+    # Nur deployen wenn Build erfolgreich war
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Set up Docker Compose
+        run: |
+          # Prüfe ob Docker Compose verfügbar ist
+          docker compose version || docker-compose version
+
+      - name: Pull latest dev image
+        run: |
+          echo "🔄 Pulling latest dev image..."
+          docker pull ghcr.io/${{ github.repository_owner }}/pvs:dev-latest || {
+            echo "⚠️ Image pull fehlgeschlagen - verwende lokales Build"
+            echo "💡 Tipp: Stelle sicher, dass 'Dev Branch CI & Build' erfolgreich war"
+          }
+
+      - name: Determine PVS path
+        id: pvs_path
+        run: |
+          PVS_PATH="${PVS_LOCAL_PATH:-$HOME/pvs}"
+          if [ ! -d "$PVS_PATH" ]; then
+            # Versuche typische Pfade
+            for path in "$HOME/pvs" "$HOME/workspace/pvs" "/opt/pvs" "$(pwd)"; do
+              if [ -d "$path" ] && [ -f "$path/docker-compose.dev.yml" ]; then
+                PVS_PATH="$path"
+                break
+              fi
+            done
+          fi
+          
+          if [ ! -f "$PVS_PATH/docker-compose.dev.yml" ]; then
+            echo "❌ docker-compose.dev.yml nicht gefunden in: $PVS_PATH"
+            echo "💡 Setze PVS_LOCAL_PATH Environment-Variable oder ändere den Pfad"
+            exit 1
+          fi
+          
+          echo "✅ PVS-Verzeichnis gefunden: $PVS_PATH"
+          echo "path=$PVS_PATH" >> $GITHUB_OUTPUT
+
+      - name: Deploy dev environment
+        working-directory: ${{ steps.pvs_path.outputs.path }}
+        run: |
+          echo "🔄 Deploying dev environment in: $(pwd)"
+          
+          # Prüfe ob .env Datei existiert
+          if [ ! -f docker-compose.dev.env ]; then
+            echo "⚠️ docker-compose.dev.env nicht gefunden"
+            echo "💡 Erstelle sie aus: cp docker-compose.dev.env.example docker-compose.dev.env"
+            # Nutze Default-Werte (Image wird via Environment gesetzt)
+          fi
+          
+          # Setze Image-Environment-Variable
+          export PVS_DEV_IMAGE=ghcr.io/${{ github.repository_owner }}/pvs:dev-latest
+          
+          # Deploy
+          docker-compose -f docker-compose.dev.yml --env-file docker-compose.dev.env up -d || \
+          docker-compose -f docker-compose.dev.yml up -d
+          
+          echo "⏳ Warte auf Health Check..."
+          sleep 30
+          
+          # Prüfe Status
+          if docker-compose -f docker-compose.dev.yml ps | grep -q "Up (healthy)"; then
+            echo "✅ Deployment erfolgreich"
+            docker-compose -f docker-compose.dev.yml ps
+          else
+            echo "⚠️ Deployment abgeschlossen, prüfe Status:"
+            docker-compose -f docker-compose.dev.yml ps
+            echo ""
+            echo "📋 Logs (letzte 30 Zeilen):"
+            docker-compose -f docker-compose.dev.yml logs --tail=30
+          fi
+
+      - name: Summary
+        run: |
+          echo "✅ Lokales Deployment abgeschlossen!"
+          echo ""
+          echo "📝 App sollte verfügbar sein auf: http://localhost:8130"
+

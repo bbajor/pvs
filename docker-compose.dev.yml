@@ -1,0 +1,92 @@
+services:
+  # PostgreSQL Database für lokale Entwicklung
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: pvs-postgres-dev-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_DEV:-pvs_dev}
+      POSTGRES_USER: ${POSTGRES_USER_DEV:-pvs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "127.0.0.1:5434:5432"  # Nur lokal erreichbar (Port 5434 wegen lokalem PostgreSQL auf 5432)
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    networks:
+      - pvs-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_DEV:-pvs_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PVS Application (lokale Entwicklung)
+  pvs-app-dev:
+    image: ${PVS_DEV_IMAGE:-ghcr.io/bbajor/pvs:dev-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pvs-app-dev-local
+    restart: unless-stopped
+    labels:
+      # Watchtower: Automatisches Update aktivieren (optional)
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Prüfe nur dieses Image
+      - "com.centurylinklabs.watchtower.monitor-only=true"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      PORT: 8130
+      DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
+      DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      AI_WHISPER_LOCAL_ENABLED: "true"
+      # Vaadin Production Mode für Docker (Dev-Mode benötigt Schreibzugriff auf Source-Verzeichnis)
+      VAADIN_PRODUCTION_MODE: "true"
+    ports:
+      - "127.0.0.1:8130:8130"  # Nur lokal erreichbar (Port 8080 bereits von OpenWebUI verwendet)
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      whisper:
+        condition: service_healthy
+    networks:
+      - pvs-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8130/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      # Mount Source-Code für Hot-Reload (optional)
+      - ./src:/app/src:ro
+
+  # Whisper AI Service (standalone for development)
+  whisper:
+    build:
+      context: .
+      dockerfile: docker/whisper/Dockerfile
+    container_name: pvs-whisper
+    ports:
+      - "127.0.0.1:9000:9000"  # Nur lokal erreichbar
+    environment:
+      - PORT=9000
+    networks:
+      - pvs-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pvs-dev-network:
+    driver: bridge
+
+volumes:
+  postgres-dev-data:
+    driver: local
+

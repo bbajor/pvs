@@ -19,6 +19,8 @@ import com.vaadin.flow.router.Route;
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.CurrentUser;
 import jakarta.annotation.security.PermitAll;
 
 @Route(value = "ivom/:id", layout = MainLayout.class)
@@ -36,16 +38,36 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     private final TreatmentPlanLayout treatmentPlanLayout;
     private TreatmentPlan treatmentPlan;
     private final ApplicationContext context;
+    private final CurrentUser currentUser;
 
-    public TreatmentPlanDetailView(TreatmentPlanPresenter treatmenPlanPresenter, ApplicationContext context) {
+    public TreatmentPlanDetailView(TreatmentPlanPresenter treatmenPlanPresenter, ApplicationContext context, CurrentUser currentUser) {
         this.treatmentPlanPresenter = treatmenPlanPresenter;
         this.context = context;
+        this.currentUser = currentUser;
         setSizeFull();
+        // Verhindere horizontales Scrollen der gesamten View, aber erlaube vertikales
+        getStyle().set("overflow-x", "hidden");
+        // overflow-y nicht setzen - erlaube vertikales Scrollen wenn nötig
 
         treatmentPlanLayout = new TreatmentPlanLayout(treatmenPlanPresenter, treatmentPlan, context);
+        treatmentPlanLayout.setSizeFull();
+        expand(treatmentPlanLayout); // Layout soll verfügbaren Platz nutzen
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
+        
+        // Prüfe, ob Benutzer berechtigt ist, Termine zu buchen
+        boolean canBook = currentUser.getPrincipal()
+                .map(principal -> {
+                    return principal.getAuthorities().stream()
+                            .anyMatch(auth -> {
+                                String authority = auth.getAuthority();
+                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
+                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
+                            });
+                })
+                .orElse(false);
 
         createButton.addClickListener(event -> {
             TreatmentPlan treatmentPlan = treatmentPlanLayout.getCurrent();
@@ -58,6 +80,13 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
             UI.getCurrent().navigate("ivom/" + saved.getId());
 
         });
+        
+        // Button nur für berechtigte Rollen aktivieren
+        createButton.setEnabled(canBook);
+        if (!canBook) {
+            createButton.setTooltipText("Sie benötigen die Rolle ADMIN, DOCTOR oder TECH_USER, um Termine zu buchen oder zu löschen");
+        }
+        
         buttonBar.add(createButton);
 
         cancelButton.addClickListener(event -> {
@@ -106,6 +135,20 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         boolean isNewTreatmentPlan = treatmentPlan == null || treatmentPlan.getId() == null
                 || treatmentPlan.getId() == -1;
         createButton.setText(isNewTreatmentPlan ? "Erstellen" : "Aktualisieren");
+        
+        // Berechtigung prüfen
+        boolean canBook = currentUser.getPrincipal()
+                .map(principal -> {
+                    return principal.getAuthorities().stream()
+                            .anyMatch(auth -> {
+                                String authority = auth.getAuthority();
+                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
+                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
+                            });
+                })
+                .orElse(false);
+        createButton.setEnabled(canBook);
     }
 
 }

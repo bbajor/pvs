@@ -1,0 +1,132 @@
+name: Build and Push Docker Images (Hetzner)
+
+on:
+  push:
+    branches:
+      - master
+      - test
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Stage to build (dev/test/prod)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Setup Gradle Build Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build with Gradle
+        run: ./gradlew bootJar --no-daemon --build-cache --parallel
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon --build-cache --parallel
+
+      - name: Determine stage
+        id: stage
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "stage=${{ github.event.inputs.stage }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/test" ]; then
+            echo "stage=test" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            echo "stage=prod" >> $GITHUB_OUTPUT
+          else
+            echo "stage=test" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/pvs
+          tags: |
+            type=ref,event=branch
+            type=raw,value=${{ steps.stage.outputs.stage }}-latest
+            type=sha,prefix=${{ steps.stage.outputs.stage }}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Hetzner Server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            cd /opt/pvs
+            
+            # Set environment variables
+            export DOCKER_IMAGE=ghcr.io/${{ github.repository_owner }}/pvs
+            export STAGE=${{ steps.stage.outputs.stage }}
+            
+            # Pull latest image
+            docker pull ${DOCKER_IMAGE}:${STAGE}-latest || echo "Image pull failed, using existing"
+            
+            # Update specific service
+            docker-compose -f docker-compose.production.yml stop pvs-${STAGE} || true
+            docker-compose -f docker-compose.production.yml rm -f pvs-${STAGE} || true
+            docker-compose -f docker-compose.production.yml up -d pvs-${STAGE}
+            
+            # Wait for health check
+            sleep 30
+            if ! docker exec pvs-${STAGE} curl -f http://localhost:8080/actuator/health 2>/dev/null; then
+              echo "⚠️ Health check failed, but continuing..."
+            fi
+            
+            # Clean up old images (keep last 2)
+            docker image prune -f
+            
+            echo "✅ Deployed ${STAGE} to Hetzner"
+

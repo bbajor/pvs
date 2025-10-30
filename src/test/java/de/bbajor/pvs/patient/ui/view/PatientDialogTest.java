@@ -32,7 +32,11 @@ class PatientDialogTest {
     void setUp() {
         presenter = mock(PatientPresenter.class);
         when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
+        when(presenter.getDrugs()).thenReturn(Collections.emptyList());
         patient = new Patient();
+        patient.setFirstName("Test");
+        patient.setLastName("Patient");
+        patient.setBirth(java.time.LocalDate.of(1990, 1, 1)); // Required for toString()
     }
 
     @Test
@@ -44,6 +48,8 @@ class PatientDialogTest {
     @Test
     void testDialogInitializesWithCorrectTitleForExistingPatient() {
         patient.setId(123);
+        when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
+        when(presenter.getDrugs()).thenReturn(Collections.emptyList());
         PatientDialog dialog = new PatientDialog(presenter, patient);
         assertTrue(dialog.getHeaderTitle().contains("Patient"));
     }
@@ -60,6 +66,8 @@ class PatientDialogTest {
     @Test
     void testSaveButtonLabelForExistingPatient() throws Exception {
         patient.setId(1);
+        when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
+        when(presenter.getDrugs()).thenReturn(Collections.emptyList());
         PatientDialog dialog = new PatientDialog(presenter, patient);
         var saveButtonField = PatientDialog.class.getDeclaredField("saveButton");
         saveButtonField.setAccessible(true);

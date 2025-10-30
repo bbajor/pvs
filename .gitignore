@@ -38,11 +38,23 @@ build/
 
 ### Gradle ###
 .gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/.gradle/
+!**/src/test/**/.gradle/
 
+### Build output ###
 bin/
 
-# Vaadin generated files
+### Vaadin 24 generated files ###
+# All generated frontend files
 src/main/frontend/generated/
+src/main/frontend/generated/**/*
+src/main/frontend/generated/**/*.js
+src/main/frontend/generated/**/*.ts
+src/main/frontend/generated/**/*.d.ts
+src/main/frontend/generated/**/*.jsx
+src/main/frontend/generated/**/*.tsx
+src/main/frontend/generated/**/*.css
 src/main/bundles/
 vite.generated.ts
 types.d.ts
@@ -50,3 +62,72 @@ tsconfig.json
 package-lock.json
 package.json
 vite.config.ts
+
+### IDE generated files ###
+.copilot-plugin
+
+### Security & Sensible Daten - NIEMALS ins Repository! 🔒 ###
+# Private Keys & Certificates
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.keystore
+*.jks
+*.truststore
+
+# SSH Keys (Private & Public)
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.pub
+!*.pub.example
+ssh_key*
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+docker-compose.dev.env
+secrets.yaml
+secrets.yml
+*.secret
+*.secrets
+
+# Passwort-Dateien
+passwords.txt
+*.password
+credentials.txt
+
+# API Keys & Tokens (falls als Dateien gespeichert)
+api-keys.txt
+tokens.txt
+
+### Generierte Quellen & Build-Artefakte ###
+# Generierte Quellen
+**/generated-sources/
+**/generated-test-sources/
+**/generated/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Compiler-Outputs
+*.class
+!gradle/wrapper/gradle-wrapper.jar
+
+# JAR Files (außer Gradle Wrapper)
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!**/lib/*.jar
+
+# Log-Dateien
+*.log
+!gradle/**/*.log

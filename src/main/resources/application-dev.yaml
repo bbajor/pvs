@@ -1,0 +1,27 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: ${DATABASE_DDL_AUTO:create-drop}
+    show-sql: true
+  datasource:
+    # PostgreSQL wenn DATABASE_URL gesetzt ist, sonst H2
+    url: ${DATABASE_URL:jdbc:h2:mem:testdb}
+    username: ${DATABASE_USERNAME:}
+    password: ${DATABASE_PASSWORD:}
+    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    de.bbajor.pvs: DEBUG
+
+ai:
+  whisper:
+    local:
+      enabled: true
+

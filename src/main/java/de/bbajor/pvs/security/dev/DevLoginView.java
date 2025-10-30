@@ -12,6 +12,10 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.spring.security.AuthenticationContext;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+
+import java.util.List;
 
 /**
  * Login view for development.
@@ -26,9 +30,11 @@ class DevLoginView extends Main implements BeforeEnterObserver {
 
     private final AuthenticationContext authenticationContext;
     private final LoginForm login;
+    private final UserAccountRepository userAccountRepository;
 
-    DevLoginView(AuthenticationContext authenticationContext) {
+    DevLoginView(AuthenticationContext authenticationContext, UserAccountRepository userAccountRepository) {
         this.authenticationContext = authenticationContext;
+        this.userAccountRepository = userAccountRepository;
 
         // Create the components
         login = new LoginForm();
@@ -36,7 +42,13 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         login.setForgotPasswordButtonVisible(false);
 
         var exampleUsers = new Div(new Div("Use the following details to login"));
+        
+        // Add predefined test users
         SampleUsers.ALL_USERS.forEach(user -> exampleUsers.add(createSampleUserCard(user)));
+        
+        // Add users from database
+        List<UserAccount> dbUsers = userAccountRepository.findAll();
+        dbUsers.forEach(user -> exampleUsers.add(createUserAccountCard(user)));
 
         // Configure the view
         setSizeFull();
@@ -72,7 +84,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         var credentials = new DescriptionList();
         credentials.add(new DescriptionList.Term("Username"), new DescriptionList.Description(user.getUsername()));
         credentials.add(new DescriptionList.Term("Password"),
-                new DescriptionList.Description(SampleUsers.SAMPLE_PASSWORD));
+                new DescriptionList.Description("•••")); // Passwort nicht im Klartext anzeigen
 
         // Make it easier to log in while still going through the normal authentication process.
         var loginButton = new Button(VaadinIcon.SIGN_IN.create(), event -> {
@@ -83,6 +95,52 @@ class DevLoginView extends Main implements BeforeEnterObserver {
                     """, user.getUsername(), SampleUsers.SAMPLE_PASSWORD);
         });
         loginButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
+        loginButton.setTooltipText("Passwort: " + SampleUsers.SAMPLE_PASSWORD);
+
+        card.add(new Div(fullName, credentials));
+        card.add(loginButton);
+
+        return card;
+    }
+
+    private Component createUserAccountCard(UserAccount userAccount) {
+        var card = new Div();
+        card.addClassNames("dev-user-card");
+
+        String displayName = userAccount.getFullName() != null && !userAccount.getFullName().isEmpty()
+                ? userAccount.getFullName()
+                : userAccount.getUsername();
+        var fullName = new H3(displayName);
+
+        var credentials = new DescriptionList();
+        credentials.add(new DescriptionList.Term("Username"), new DescriptionList.Description(userAccount.getUsername()));
+        credentials.add(new DescriptionList.Term("Password"), new DescriptionList.Description("•••")); // Passwort nicht im Klartext anzeigen
+
+        // Try to extract password from hash (for login button only)
+        final String passwordHint;
+        if (userAccount.getPasswordHash() != null && userAccount.getPasswordHash().startsWith("{noop}")) {
+            passwordHint = userAccount.getPasswordHash().substring("{noop}".length());
+        } else {
+            passwordHint = "123"; // Standard-Passwort für verschlüsselte Passwörter
+        }
+
+        // Make it easier to log in while still going through the normal authentication process.
+        final String finalPassword = passwordHint;
+        var loginButton = new Button(VaadinIcon.SIGN_IN.create(), event -> {
+            login.getElement().executeJs("""
+                    document.getElementById("vaadinLoginUsername").value = $0;
+                    document.getElementById("vaadinLoginPassword").value = $1;
+                    document.forms[0].submit();
+                    """, userAccount.getUsername(), finalPassword);
+        });
+        loginButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
+        
+        // Passwort im Tooltip anzeigen (wird beim Hovern sichtbar)
+        if (userAccount.getPasswordHash() != null && userAccount.getPasswordHash().startsWith("{noop}")) {
+            loginButton.setTooltipText("Passwort: " + finalPassword);
+        } else {
+            loginButton.setTooltipText("Passwort: 123 (Standard für verschlüsselte Passwörter)");
+        }
 
         card.add(new Div(fullName, credentials));
         card.add(loginButton);

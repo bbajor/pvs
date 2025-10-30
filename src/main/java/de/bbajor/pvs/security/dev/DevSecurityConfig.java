@@ -1,6 +1,7 @@
 package de.bbajor.pvs.security.dev;
 
 import de.bbajor.pvs.security.controlcenter.ControlCenterSecurityConfig;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import com.vaadin.flow.router.RouteConfiguration;
 import com.vaadin.flow.server.VaadinServiceInitListener;
 import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategyConfiguration;
@@ -14,6 +15,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -23,30 +26,35 @@ import org.springframework.security.web.SecurityFilterChain;
  * <ul>
  * <li>Using a simple login view for authentication</li>
  * <li>Providing predefined test users with fixed credentials</li>
- * <li>Using an in-memory user details service with no external dependencies</li>
+ * <li>Supporting both in-memory test users and database-stored user accounts</li>
  * </ul>
  * </p>
  * <p>
  * This configuration is automatically activated when {@link ControlCenterSecurityConfig} is not active. It should
- * <strong>not</strong> be used in production environments, as it uses hardcoded credentials and simplified security
- * settings.
+ * <strong>not</strong> be used in production environments, as it uses simplified security settings.
  * </p>
  * <p>
- * The predefined users are declared in the {@link SampleUsers} class.
+ * The predefined users are declared in the {@link SampleUsers} class. Additionally, users can be created through
+ * the Benutzerverwaltung UI and will be stored in the database.
  * </p>
  * <p>
  * This configuration integrates with Vaadin's security framework through {@link VaadinSecurityConfigurer} to provide a
  * seamless login experience in the Vaadin UI.
  * </p>
  *
- * @see DevUserDetailsService The in-memory user details service implementation
+ * @see DevUserDetailsService The hybrid user details service implementation
  * @see DevUser Builder for creating development test users
  * @see SampleUsers User credentials for the predefined users
  */
 @EnableWebSecurity
 @Configuration
 @Import({ VaadinAwareSecurityContextHolderStrategyConfiguration.class })
-@ConditionalOnMissingBean(ControlCenterSecurityConfig.class)
+@ConditionalOnMissingBean({ControlCenterSecurityConfig.class, de.bbajor.pvs.security.prod.ProdSecurityConfig.class})
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "spring.profiles.active",
+    havingValue = "dev",
+    matchIfMissing = true  // Default to dev if no profile is set
+)
 class DevSecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(DevSecurityConfig.class);
@@ -57,13 +65,24 @@ class DevSecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http.with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(DevLoginView.LOGIN_PATH))
+        // Configure API endpoints first, before Vaadin configurer applies anyRequest()
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/ai/**").permitAll());
+        
+        // Then apply Vaadin security configuration (which will add anyRequest().authenticated())
+        return http
+                .with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(DevLoginView.LOGIN_PATH))
                 .build();
     }
 
     @Bean
-    UserDetailsService userDetailsService() {
-        return new DevUserDetailsService(SampleUsers.ALL_USERS);
+    PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
+    UserDetailsService userDetailsService(UserAccountRepository userAccountRepository) {
+        return new DevUserDetailsService(SampleUsers.ALL_USERS, userAccountRepository);
     }
 
     @Bean
