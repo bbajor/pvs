@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir \
     flask \
     flask-cors \
     requests \
-    faster-whisper
+    faster-whisper \
+    gunicorn
 
 # Expose port
 EXPOSE 9000
@@ -23,5 +24,5 @@ EXPOSE 9000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:9000/health')"
 
-# Run the server
-CMD ["python", "-u", "whisper_server.py"]
+# Run the server with a production WSGI server
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:9000", "whisper_server:app"]

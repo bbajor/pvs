@@ -10,6 +10,13 @@ vaadin:
   allowed-packages: "com.vaadin,org.vaadin,com.flowingcode,de.bbajor.pvs"
   # Production Mode für Docker-Container (überschreibbar via Environment-Variable)
   production-mode: ${VAADIN_PRODUCTION_MODE:false}
+  # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung (überschreibbar via Environment-Variable)
+  allow-production-mode-in-dev: ${VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV:false}
+  frontend:
+    # Erzwinge npm install bei jedem Start im Dev-Mode
+    force-install: ${VAADIN_FRONTEND_FORCE_INSTALL:true}
+    # Nutze npm statt pnpm (vermeidet zusätzliche Downloads)
+    package-manager: ${VAADIN_FRONTEND_PACKAGE_MANAGER:npm}
 
 spring:
   servlet:

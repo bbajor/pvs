@@ -16,7 +16,7 @@ services:
     networks:
       - pvs-dev-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_DEV:-pvs_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_DEV:-pvs_user} -d ${POSTGRES_DB_DEV:-pvs_dev}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,9 +40,36 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
       DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      DATABASE_DRIVER: org.postgresql.Driver
+      # Explicit Spring datasource binding to ensure Postgres is used (no H2)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      # Required for PostgreSQL Large Objects (@Lob) to avoid autocommit error
+      SPRING_DATASOURCE_HIKARI_AUTO_COMMIT: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_JDBC_LOB_NON_CONTEXTUAL_CREATION: "true"
+      FLYWAY_ENABLED: "true"
       AI_WHISPER_LOCAL_ENABLED: "true"
-      # Vaadin Production Mode für Docker (Dev-Mode benötigt Schreibzugriff auf Source-Verzeichnis)
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
       VAADIN_PRODUCTION_MODE: "true"
+      # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung
+      VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV: "true"
+      # Disable eGK validation in Docker dev
+      EGK_ENABLED: "false"
+      # Setze user.home auf /app, um Vaadin Home/Cache im Container zu ermöglichen
+      JAVA_TOOL_OPTIONS: "-Duser.home=/app"
+      # Stabilisiere npm in Container: eigener Cache & Registry explizit
+      NPM_CONFIG_CACHE: "/app/.npm"
+      NPM_CONFIG_UPDATE_NOTIFIER: "false"
+      NPM_CONFIG_FUND: "false"
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/"
+      # Whisper service discovery inside Docker network
+      AI_WHISPER_LOCAL_HOST: whisper
+      AI_WHISPER_LOCAL_PORT: "9000"
     ports:
       - "127.0.0.1:8130:8130"  # Nur lokal erreichbar (Port 8080 bereits von OpenWebUI verwendet)
     depends_on:
@@ -58,9 +85,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    volumes:
-      # Mount Source-Code für Hot-Reload (optional)
-      - ./src:/app/src:ro
+    # Kein Volume-Mount für src nötig: Production Mode verwendet bereits gebaute Dateien aus dem JAR
+    # Hot-Reload funktioniert im Production Mode ohnehin nicht
 
   # Whisper AI Service (standalone for development)
   whisper:
