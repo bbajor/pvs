@@ -13,9 +13,10 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - PORT=8080
-      - DB_URL=jdbc:postgresql://db-app:5432/pvs
-      - DB_USER=pvs
-      - DB_PASSWORD=pvs
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
+      - VAADIN_PRODUCTION_MODE=true
+      # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung
+      - VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV=true
       # Whisper Container URL - use service name for internal Docker network
       - AI_WHISPER_LOCAL_HOST=whisper
       - AI_WHISPER_LOCAL_PORT=9000
