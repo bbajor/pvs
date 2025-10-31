@@ -68,6 +68,14 @@ public class PracticeService {
     public void deletePractice() {
         practiceRepository.findFirstByOrderByIdAsc().ifPresent(practiceRepository::delete);
     }
+
+    /**
+     * Finds all practices. For compatibility with UI components.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<Practice> findAll() {
+        return practiceRepository.findAll();
+    }
 }
 
 
