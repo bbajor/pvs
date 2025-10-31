@@ -1,0 +1,35 @@
+name: Repo Hygiene
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: git fetch origin "${{ github.event.pull_request.base.ref }}"
+      - name: Block generated/build artifacts
+        run: |
+          set -e
+          CHANGED=$(git diff --diff-filter=AR --name-only "origin/${{ github.event.pull_request.base.ref }}"...HEAD || true)
+          echo "$CHANGED"
+          BAD=()
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            case "$f" in
+              build/*|target/*|node_modules/*|out/*|bin/*|dist/*|.gradle/*|.vaadin/*|*.class|*.jar|*.war|*.zip|*.tar|*.log|*.iml|.idea/*|.vscode/*|**/vaadin-dev-server-settings.json|**/.DS_Store|**/Thumbs.db)
+                BAD+=("$f");;
+            esac
+          done <<< "$CHANGED"
+          if [[ ${#BAD[@]} -gt 0 ]]; then
+            echo "Forbidden generated files detected:"
+            printf ' - %s\n' "${BAD[@]}"
+            exit 1
+          fi
+          echo "Hygiene passed ✅"
+

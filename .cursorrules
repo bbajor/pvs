@@ -1,178 +1,27 @@
 # Coding-Präferenzen & Persönliche Note
 
 ## Code-Qualität
-- **Clean Code nach Robert C. Martin**: SOLID-Prinzipien befolgen, Single Responsibility, sinnvolle Namensgebung, keine unnötige Komplexität
-- **Wiederholungen vermeiden**: Bestehende Validatoren, Utils, Patterns wiederverwenden statt Eigenlösungen pro View
-- **Validator-Konsistenz**: Bei neuen Eingabeformularen IMMER zuerst prüfen, ob schon passende Validatoren existieren (z.B. Praxisdaten sollten nicht ihre eigenen Lösungen haben 😅)
+- Clean Code (SOLID, Single Responsibility, klare Namen, geringe Komplexität)
+- Wiederverwendung vor Neuentwicklung (Validatoren, Utils, Patterns)
 
 ## Testing
-- Bei komplexeren Implementierungen mit wesentlicher Business-Logik: **Tests schreiben vor PR** ✓
-- Edge Cases nicht vergessen - Benutzer finden immer Wege, Systeme zu überraschen 🤦‍♂️
-- TDD bei kritischer Logik ist cool, aber pragmatisch bleiben
+- Bei nicht-trivialer Business-Logik: Tests vor PR einplanen
+- Edge Cases mitdenken
 
 ## Kommunikation
-- Ton: **Freundlich, per Du**
-- **Trockener Humor erwünscht** - besonders wenn's mal wieder heiß hergeht
-- Wenn Genervt-Sein erkannt wird: Lockeren Spruch oder KI-Entwicklungsgedanken der Zukunft einwerfen
-- **Emojis**: Klassische 90er/Millenial-Sprache verwenden: 😄 😊 🙂 😉 😐 😕 😒 🤔 💡 ✨ 🎯 📝 🔧 ⚡ 🚀
+- Freundlich, per Du, gern trocken-humorig 😄
+- Kurz, klar, prägnant
 
 ## Entwicklungs-Philosophie
-- Pragmatisch, nicht dogmatisch
-- Code sollte sich wie ein gutes Gespräch lesen - klar, prägnant, ohne unnötigen Fluff
+- Pragmatisch statt dogmatisch
+- Code soll sich lesen wie ein gutes Gespräch
 
-## Build & Test vor Commit - KRITISCH! 🔨
-- **VOR JEDEM GIT-PUSH**: IMMER lokal bauen und testen
-  - ✅ **Build prüfen**: `./gradlew build --no-daemon` muss erfolgreich durchlaufen
-  - ✅ **Tests prüfen**: `./gradlew test --no-daemon` muss erfolgreich durchlaufen
-  - ✅ **Compiler-Fehler beheben**: Keine fehlerhaften Commits pushen
-  - ❌ **NIE pushen wenn**: Build fehlschlägt, Tests fehlschlagen, Compiler-Fehler vorhanden
-  - 💡 **Warum**: Verhindert sinnfreie Builds auf GitHub Actions und spart Ressourcen
-  - 🎯 **Ziel**: "Alles muss grün sein" bevor überhaupt gepusht wird
+## Sicherheit (Kurzleitplanken)
+- Keine Secrets in den Code; Prod-Configs nur via Env Variablen
+- Generierte Artefakte, IDE-/Build-Outputs gehören nicht ins Repo
 
-## Security & Sensible Daten - KRITISCH! 🔒
-- **VOR JEDEM GIT-COMMIT**: IMMER prüfen, ob der zu committende Content sensible Daten enthält
-- **Nie ins Repository**: Private Keys, Passwörter, API-Keys, Tokens, Credentials, Datenbankverbindungsstrings mit Passwörtern
-- **Autogenerierte Daten der Entwicklungsumgebung**: Build-Artefakte, generierte Dateien, IDEs-spezifische Konfigurationen
-  - Verzeichnisse wie `build/`, `target/`, `bin/`, `node_modules/`, `.gradle/`, `.idea/`, `.vscode/` (außer geteilte Workspace-Settings)
-  - Generierte Quellen: `generated-sources/`, `generated-test-sources/`
-  - Compiler-Outputs: `.class`, `*.jar` (außer wenn explizit gewünscht)
-  - Lock-Files können committed werden, wenn sie Teil des Dependency-Managements sind (z.B. `package-lock.json`, `gradle.lockfile`)
-- **Environment-spezifische Security-Regeln** (unterscheide zwischen dev/test/prod):
-  - **DEV (`application-dev.yaml`, `@Profile("dev")`)**:
-    - ✅ **Erlaubt**: Test-Credentials wie `SampleUsers` (Passwort "123"), `TestDataInitializer` mit Test-Usern
-    - ✅ **Erlaubt**: Hardcodierte H2-Datenbank-URLs (`jdbc:h2:mem:testdb`)
-    - ✅ **Erlaubt**: Beispiel-Daten für lokale Entwicklung
-    - 💡 **Humorvoll**: Dev ist die Spielwiese 😄
-  - **TEST (`application-test.yaml`, `@Profile("test")`)**:
-    - ✅ **Erlaubt**: Initial-Daten aus `TestDataInitializer`-ähnlichen Initialisierern
-    - ✅ **Erlaubt**: Test-User für Integration-Tests
-    - ❌ **NICHT erlaubt**: Echte Produktions-Credentials, echte API-Keys, echte Datenbankzugänge mit Produktionsdaten
-    - ⚠️ **Prüfen**: Environment-Variablen für Test-DB sollten nicht hardcodiert sein
-  - **PROD (`application-prod.yaml`, `@Profile("prod")`)**:
-    - ❌ **ABSOLUT VERBOTEN**: Alle Credentials aus dev/test (z.B. Passwort "123", SampleUsers, TestDataInitializer)
-    - ❌ **ABSOLUT VERBOTEN**: Hardcodierte Passwörter, API-Keys, Secrets jeglicher Art
-    - ❌ **ABSOLUT VERBOTEN**: Test-Daten, Sample-User, Mock-Credentials
-    - ✅ **Nur erlaubt**: Environment-Variablen-Referenzen (z.B. `${DATABASE_PASSWORD}`, `${AI_API_KEY}`)
-    - ✅ **Prüfen**: Alle sensiblen Werte müssen aus Environment-Variablen kommen, nie hardcodiert
-    - 🛡️ **Wichtig**: Prod ist heilig - hier nur echte, verschlüsselte Werte!
-- **Zu prüfende Pattern** (als AI-Assistent):
-  - SSH Private Keys: Patterns wie `-----BEGIN OPENSSH PRIVATE KEY-----`, `-----BEGIN RSA PRIVATE KEY-----`, `-----BEGIN EC PRIVATE KEY-----`
-  - Private Keys allgemein: `-----BEGIN.*PRIVATE KEY-----`
-  - Passwörter in Code: Vorkommen von `password`, `passwd`, `pwd` kombiniert mit `=` oder `:`, families wie "password123"
-    - **Ausnahme**: Test-Passwörter in dev/test-Profilen (z.B. `"123"` in `SampleUsers` oder `TestDataInitializer`)
-  - API-Keys: Lange alphanumerische Strings (32+ Zeichen), oft in Variablen wie `apiKey`, `api_key`, `apikey`, `secret`, `token`, `access_key`
-    - **Ausnahme**: Leere/Placeholder-Werte in dev/test wie `${AI_API_KEY:}`
-  - Datenbank-Credentials: Connection Strings mit Passwörtern wie `jdbc:`, `mysql://`, `postgres://`, `mongodb://` mit `@` und `:`
-    - **Ausnahme**: H2 in-memory für dev (`jdbc:h2:mem:testdb`), aber NUR in `application-dev.yaml`
-    - **Ausnahme**: Environment-Variable-Referenzen wie `${DATABASE_URL}` oder `${DATABASE_PASSWORD:}`
-  - AWS/GCP/Azure Keys: Pattern wie `AKIA[0-9A-Z]{16}`, `AIza[0-9A-Z_-]{35}`, etc. (NIE erlaubt, auch nicht in dev!)
-  - Environment-Keys in Code: `.env` Dateien, aber auch hardcodierte Werte in Source-Dateien
-  - Token-Patterns: Base64-ähnliche Strings (64+ Zeichen), JWT-Patterns
-  - Hardcodierte URLs mit Credentials: `http://user:password@host:port` (NIE erlaubt!)
-- **Prüf-Strategie für Commits**:
-  1. **Environment bestimmen**: Anhand der betroffenen Dateien prüfen (z.B. `application-prod.yaml` = Prod, `application-dev.yaml` = Dev)
-  2. **Pattern scannen**: Auf sensible Daten prüfen
-  3. **Context prüfen**: 
-     - In prod-Config-Dateien? → Strengste Prüfung, keine Ausnahmen
-     - In dev/test-Config-Dateien mit `@Profile`? → Erlaube bekannte Test-Credentials
-     - In Source-Code mit `@Profile("dev")` oder `@Profile("test")`? → Erlaube Test-Daten
-     - In Source-Code ohne Profile? → Streng prüfen, sollte keine Credentials enthalten
-  4. **Datei-Kontext prüfen**: 
-     - Ist es `SampleUsers.java` oder `TestDataInitializer.java`? → In dev/test ok
-     - Ist es `application-prod.yaml`? → NULL-Toleranz für Credentials!
-- **Wenn sensible Daten gefunden werden**:
-  1. **SOFORT abbrechen** - keinen Commit durchführen
-  2. **Environment identifizieren**: Dev/Test/Prod?
-  3. Benutzer warnen mit konkretem Hinweis auf:
-     - Gefundene Muster/Dateien
-     - Environment-Kontext (dev/test/prod)
-     - Erlaubt oder verboten in diesem Context
-  4. Vorschläge machen:
-     - `.gitignore` ergänzen
-     - `.env.example` verwenden
-     - Config-Dateien aus Repository entfernen
-     - Environment-Variablen verwenden statt hardcodierte Werte
-     - Bei prod: Sofortige Umstellung auf Environment-Variablen erforderlich
-  5. Falls bereits committed: Sofort auf `git filter-branch`, BFG Repo-Cleaner oder ähnliche Tools hinweisen
-- **Safe Defaults**: Files wie `*.key`, `*.pem`, `*.p12`, `*.pfx`, `*_rsa`, `*_dsa`, `*_ecdsa`, `*.env`, `secrets.yaml`, etc. sollten standardmäßig in `.gitignore` sein
-- **Build-Artefakte**: `build/`, `target/`, `bin/`, `.gradle/`, `node_modules/` sollten in `.gitignore` sein
-- **Vorsicht ist besser als Nachsicht** - lieber einmal zu viel warnen als sensible Daten ins Netz zu bringen! 🚨
-
-## Documentation Sync vor Commit - KRITISCH! 📚
-- **VOR JEDEM GIT-COMMIT**: IMMER prüfen, ob README.md und relevante Dokumentation aktualisiert werden müssen
-- **Prinzip**: Code-Änderungen müssen in der Dokumentation reflektiert werden - sonst wird's für andere (und dich selbst später 😅) verwirrend
-- **Zu prüfende Änderungen**:
-  - **Build-System & Dependencies**:
-    - ✅ Neue Dependencies hinzugefügt? → README.md `Prerequisites` aktualisieren
-    - ✅ Build-Kommandos geändert? → README.md `Development`/`Production Build` Sektionen anpassen
-    - ✅ Gradle vs. Maven geändert? → README.md entsprechend aktualisieren
-  - **Projektstruktur**:
-    - ✅ Neue Verzeichnisse/Module hinzugefügt? → README.md `Project Structure` aktualisieren
-    - ✅ Wichtige Config-Dateien verschoben? → README.md und relevante Docs anpassen
-  - **Features & Funktionalität**:
-    - ✅ Neue Features/Module hinzugefügt? → README.md Feature-Sektion prüfen/ergänzen
-    - ✅ Neue Scripts/Workflows erstellt? → README.md `Scripts` Sektion aktualisieren
-    - ✅ Deployment-Prozess geändert? → `docs/deployment/` entsprechende Dateien aktualisieren
-  - **Konfiguration**:
-    - ✅ Config-Parameter geändert/neu hinzugefügt? → README.md `Getting Started` oder Config-Docs aktualisieren
-    - ✅ Environment-Variablen neu hinzugefügt? → README.md und Deployment-Docs aktualisieren
-    - ✅ Profil-Struktur geändert? → README.md Branching/Deployment-Sektionen anpassen
-  - **Workflows & Prozesse**:
-    - ✅ GitHub Actions Workflows geändert? → `docs/deployment/` entsprechende Workflow-Docs aktualisieren
-    - ✅ Branching-Strategie geändert? → README.md `Branching-Strategie` und `docs/deployment/BRANCH_STRATEGY.md` prüfen
-    - ✅ Deployment-Prozess geändert? → Alle relevanten Deployment-Docs in `docs/deployment/` aktualisieren
-  - **API & Integration**:
-    - ✅ Neue externe Dependencies/APIs hinzugefügt? → README.md `Prerequisites` oder `Links` aktualisieren
-    - ✅ API-Endpoints geändert? → API-Dokumentation prüfen/aktualisieren
-  - **Scripts & Utilities**:
-    - ✅ Neue Scripts erstellt? → README.md `Scripts` Sektion ergänzen
-    - ✅ Script-Parameter/Verhalten geändert? → README.md oder entsprechende Script-Docs aktualisieren
-- **Prüf-Strategie für Commits**:
-  1. **Geänderte Dateien analysieren**: Welche Code-Änderungen wurden gemacht?
-  2. **Dokumentations-Impact bestimmen**:
-     - Welche README/Docs-Sektionen könnten betroffen sein?
-     - Gibt es bestehende Docs zu diesem Bereich? (z.B. in `docs/deployment/`, `docs/security/`)
-  3. **Abgleich durchführen**:
-     - README.md auf veraltete/widersprüchliche Infos prüfen
-     - Spezifische Docs in `docs/` auf Konsistenz prüfen
-     - Projektstruktur in README.md vs. tatsächliche Struktur vergleichen
-  4. **Aktualisierung vorschlagen**:
-     - Konkrete Sektionen benennen, die aktualisiert werden müssen
-     - Vorschläge für Formulierungen/Inhalte machen
-     - Links zwischen README.md und spezifischen Docs prüfen/aktualisieren
-- **Wenn Dokumentations-Updates nötig sind**:
-  1. **SOFORT dokumentieren** - nicht "nachher machen", sonst vergisst man's 😅
-  2. **Konkrete Änderungen vorschlagen**: 
-     - Welche Sektion genau?
-     - Was muss geändert werden?
-     - Gibt es Beispiele aus dem Code?
-  3. **Konsistenz prüfen**:
-     - README.md vs. spezifische Docs müssen konsistent sein
-     - Keine widersprüchlichen Infos zwischen README.md und `docs/` Dateien
-  4. **Vollständigkeit prüfen**:
-     - Neue Features sollten in README.md erwähnt sein
-     - Neue Scripts sollten dokumentiert sein
-     - Deployment-Änderungen sollten in entsprechenden Docs stehen
-- **Wichtige Dokumentations-Dateien**:
-  - `README.md` - Hauptdokumentation, Einstiegspunkt
-  - `docs/deployment/README.md` - Deployment-Übersicht
-  - `docs/deployment/BRANCH_STRATEGY.md` - Branching-Info
-  - `docs/deployment/LOCAL_DEV_SETUP.md` - Lokales Setup
-  - `docs/REPOSITORY_STRUCTURE.md` - Projektstruktur
-  - `SCHNELLSTART.md` - Quick Start (falls vorhanden)
-- **Prüf-Beispiele**:
-  - Code-Änderung: `build.gradle` Dependency hinzugefügt → README.md `Prerequisites` prüfen
-  - Code-Änderung: Neues Script `scripts/local/xyz.ps1` → README.md `Scripts` Sektion ergänzen
-  - Code-Änderung: `application.yaml` neues Profil → README.md `Branching-Strategie` oder Deployment-Docs prüfen
-  - Code-Änderung: Neue `docs/deployment/XYZ.md` erstellt → README.md `Dokumentation` Sektion ergänzen
-- **Warum wichtig**: 
-  - 💡 Andere Entwickler (und du selbst in 3 Monaten) verstehen die Codebase schneller
-  - 🎯 Neue Features sind nutzbar, wenn sie dokumentiert sind
-  - 📝 Deployment-Prozesse funktionieren nur, wenn Docs aktuell sind
-  - 🚨 Nichts ist frustrierender als veraltete Dokumentation! 🤦‍♂️
-
-# Encoding & Line Endings
-- Standard-Encoding: UTF-8 (ohne BOM). Emojis und Umlaute müssen korrekt gespeichert werden.
-- Zeilenenden: LF als Standard in allen Textdateien. Für Windows-Skripte (`*.ps1`, `*.cmd`, `*.bat`) CRLF.
-- Bei neuen Dateien diese Defaults anwenden; bestehende Dateien nachziehen, wenn möglich.
+## Operative Regeln
+- Agenten arbeiten auf `cursor/<agent>/<topic>` von `dev` aus
+- Agent-PRs nur gegen `dev` (wird per CI erzwungen)
+- Deployments: `test` → Test-Hetzner, `master` → Prod-Hetzner
 

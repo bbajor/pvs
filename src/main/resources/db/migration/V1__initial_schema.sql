@@ -200,4 +200,3 @@ CREATE TABLE ai_usage_log (
     id BIGSERIAL PRIMARY KEY,
     version BIGINT NOT NULL DEFAULT 0
 );
-

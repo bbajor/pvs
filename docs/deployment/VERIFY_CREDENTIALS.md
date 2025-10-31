@@ -280,7 +280,7 @@ docker network inspect pvs_pvs-network
 ```
 
 ### Problem: GitHub Workflow schlägt bei SSH fehl
-- Prüfe ob `HETZNER_SSH_KEY` den kompletten privaten Key enthält (inkl. `-----BEGIN OPENSSH PRIVATE KEY-----` Zeilen)
+- Prüfe ob `HETZNER_SSH_KEY` den kompletten privaten Key enthält (inkl. der BEGIN/END Marker des OpenSSH-Private-Keys)
 - Prüfe ob `HETZNER_USER` korrekt ist (meist `root`)
 - Prüfe ob `HETZNER_HOST` die korrekte IP-Adresse ist
 
