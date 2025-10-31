@@ -24,7 +24,8 @@ import java.io.IOException;
  * Hinweis: Diese Headers werden zusätzlich zu Traefik-Middlewares gesetzt
  * für Defense-in-Depth (doppelte Absicherung).
  * 
- * Diese Konfiguration ist unabhängig von Dev/Prod-Profilen und gilt für alle Umgebungen.
+ * Diese Konfiguration gilt für alle Umgebungen (dev, test, prod).
+ * In Dev ist sie weniger strikt für einfacheres Debugging.
  * 
  * @author Agent 2 - Spring Security
  * @since 2025-10-30
