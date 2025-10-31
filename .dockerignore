@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+build/
+target/
+.gradle/
+gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Node
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+
+# Docs (nicht für Container benötigt)
+docs/
+
+# Local env
+.env
+.env.local
+
+# Test files
+src/test/
