@@ -2,6 +2,8 @@ package de.bbajor.pvs.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import jakarta.servlet.FilterChain;
@@ -37,8 +39,10 @@ public class SecurityHeadersConfiguration {
      * Security Headers Filter Bean.
      * 
      * Wird für alle HTTP-Responses ausgeführt (OncePerRequestFilter).
+     * Läuft mit niedriger Priorität (nach Security-Filter-Chain).
      */
     @Bean
+    @Order(Ordered.LOWEST_PRECEDENCE)
     public OncePerRequestFilter securityHeadersFilter() {
         return new OncePerRequestFilter() {
             @Override
