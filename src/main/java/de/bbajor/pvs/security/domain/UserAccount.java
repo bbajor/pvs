@@ -40,4 +40,17 @@ public class UserAccount extends BasicEntity<Long> {
 
     @Column(name = "email")
     private String email;
+
+    // Agent 3: MFA Fields
+    @Column(name = "mfa_enabled")
+    private boolean mfaEnabled = false;
+
+    @Column(name = "mfa_secret")
+    private String mfaSecret;  // TOTP Secret (Base32, encrypted recommended)
+
+    @Column(name = "mfa_backup_codes", length = 1000)
+    private String mfaBackupCodes;  // JSON array of hashed backup codes
+
+    @Column(name = "mfa_setup_completed")
+    private boolean mfaSetupCompleted = false;
 }
