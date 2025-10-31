@@ -95,6 +95,10 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
       DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV}
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
+      VAADIN_PRODUCTION_MODE: "true"
+      # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung
+      VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV: "true"
       AI_WHISPER_LOCAL_ENABLED: "false"
     depends_on:
       postgres-dev:
@@ -126,6 +130,8 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres-test:5432/${POSTGRES_DB_TEST:-pvs_test}
       DATABASE_USERNAME: ${POSTGRES_USER_TEST:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_TEST}
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
+      VAADIN_PRODUCTION_MODE: "true"
       AI_WHISPER_LOCAL_ENABLED: "false"
     depends_on:
       postgres-test:
@@ -157,6 +163,8 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres-prod:5432/${POSTGRES_DB_PROD:-pvs_prod}
       DATABASE_USERNAME: ${POSTGRES_USER_PROD:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_PROD}
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
+      VAADIN_PRODUCTION_MODE: "true"
       AI_WHISPER_LOCAL_ENABLED: "false"
     depends_on:
       postgres-prod:
