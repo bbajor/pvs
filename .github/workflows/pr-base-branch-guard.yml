@@ -1,0 +1,23 @@
+name: PR Base Branch Guard
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if agent PR base is not dev
+        run: |
+          BR_HEAD="${{ github.head_ref }}"
+          BR_BASE="${{ github.event.pull_request.base.ref }}"
+          echo "head=$BR_HEAD base=$BR_BASE"
+          if [[ "$BR_HEAD" == cursor/* ]]; then
+            if [[ "$BR_BASE" != "dev" ]]; then
+              echo "Agent branches (cursor/*) must target 'dev' (found '$BR_BASE')." >&2
+              exit 1
+            fi
+          fi
+          echo "Guard passed ✅"
+

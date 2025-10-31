@@ -177,7 +177,7 @@ GitHub Repository → **Settings** → **Secrets and variables** → **Actions**
 |------------|------|----------|
 | `HETZNER_HOST` | IP-Adresse | `123.45.67.89` |
 | `HETZNER_USER` | `root` | `root` |
-| `HETZNER_SSH_KEY` | Private Key Inhalt | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `HETZNER_SSH_KEY` | Private Key Inhalt | OpenSSH Private Key (mit BEGIN/END Markern) |
 | `PROD_DB_HOST` | `localhost` | `localhost` |
 | `PROD_DB_NAME` | `pvs_prod` | `pvs_prod` |
 | `PROD_DB_USER` | `pvs_user` | `pvs_user` |
@@ -187,7 +187,7 @@ GitHub Repository → **Settings** → **Secrets and variables** → **Actions**
 ```bash
 cat ~/.ssh/hetzner_deploy
 ```
-→ Ganzen Inhalt kopieren (inkl. `-----BEGIN...` und `-----END...`)
+→ Ganzen Inhalt kopieren (inkl. der BEGIN/END Marker)
 
 **Erwartete Ausgabe:** ✅ Alle Secrets sind konfiguriert
 

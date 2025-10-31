@@ -163,4 +163,3 @@ configurations.all {
 vaadin {
     // default configuration; prepare/build frontend tasks available
 }
-

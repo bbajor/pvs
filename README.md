@@ -67,21 +67,20 @@ Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Produ
 - **`dev`**: Entwicklungs-Branch für lokale Entwicklung
   - **Schnelles Testing**: `./gradlew bootRun` mit H2 In-Memory (keine Docker benötigt)
   - **Realistisches Testing**: `docker-compose.dev.yml` mit PostgreSQL Container
-  - Läuft nur lokal auf Entwickler-Maschinen
-  - Auto-Build & Push Docker Image bei Push zu GitHub (für lokales Docker-Setup)
-  - Keine Server-Deployment (Ressourcen & Sicherheit)
+  - **Lokale Builds**: ausschließlich via `docker-compose.dev.yml`
+  - **CI**: Vollständiger Build + Tests bei Push/PR nach `dev`
+  - Keine Server-Deployments
 
 - **`test`**: Staging-Branch für realistisches Testing auf Server
   - Verwendet PostgreSQL mit persistenter Datenbank auf Hetzner
   - Daten bleiben über Deployments hinweg erhalten
-  - Auto-CI & Build bei Push (Docker Image wird gebaut)
-  - **Manuelles Deployment** über GitHub Actions (nur nach erfolgreichen Tests)
+  - **CI**: Build + Push Image → automatisches Deployment auf Test-Hetzner nach erfolgreichem Build
   - **Nur über VPN erreichbar** auf Hetzner Server
 
 - **`master`**: Production-ready Code
   - Nur stabile Releases nach ausgiebigem Testing
   - Verwendet PostgreSQL Production-Datenbank
-  - Manuelles Deployment über GitHub Actions
+  - **CI**: Build + Push Image → automatisches Deployment auf Prod-Hetzner nach erfolgreichem Build
   - Öffentlich erreichbar über Traefik/HTTPS
 
 ### Workflow
@@ -91,6 +90,7 @@ feature/* → dev → test → master
 ```
 
 1. **Feature-Entwicklung**: Neue Features werden als Feature-Branches von `dev` abgezweigt
+   - Agenten: `cursor/<agent>/<topic>`, PRs ausschließlich nach `dev`
 2. **Pull Request zu `dev`**: Feature-Branch wird in `dev` gemergt nach Review
 3. **Testing in `test`**: Nach erfolgreicher Validierung wird `dev` in `test` gemergt
 4. **Production Release**: Nach finaler Validierung wird `test` in `master` gemergt
