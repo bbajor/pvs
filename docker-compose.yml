@@ -12,6 +12,8 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - PORT=8080
+      # Vaadin Production Mode (nutzt precompiled Frontend aus Dockerfile)
+      - VAADIN_PRODUCTION_MODE=true
       # Whisper Container URL - use service name for internal Docker network
       - AI_WHISPER_LOCAL_HOST=whisper
       - AI_WHISPER_LOCAL_PORT=9000
