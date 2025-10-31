@@ -66,6 +66,10 @@ dependencies {
     implementation 'com.bucket4j:bucket4j-core:8.10.1'  // Rate Limiting
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'  // In-Memory Cache for Rate Limiting
 
+    // Agent 5: Logging & Monitoring Dependencies
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'  // JSON Logging
+    implementation 'io.micrometer:micrometer-registry-prometheus'  // Prometheus Metrics
+
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
 
