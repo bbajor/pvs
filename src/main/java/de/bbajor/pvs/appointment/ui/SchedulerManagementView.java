@@ -22,6 +22,7 @@ import de.bbajor.pvs.appointment.model.SchedulerAssignment;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.practice.service.PracticeService;
 import jakarta.annotation.security.RolesAllowed;
 
 /**
@@ -36,6 +37,7 @@ public class SchedulerManagementView extends Main {
 
     private final AppointmentSchedulerService schedulerService;
     private final OfficeHoursService officeHoursService;
+    private final PracticeService practiceService;
 
     private Grid<AppointmentScheduler> schedulerGrid;
     private Grid<OfficeHours> officeHoursGrid;
@@ -46,9 +48,11 @@ public class SchedulerManagementView extends Main {
 
     public SchedulerManagementView(
             AppointmentSchedulerService schedulerService,
-            OfficeHoursService officeHoursService) {
+            OfficeHoursService officeHoursService,
+            PracticeService practiceService) {
         this.schedulerService = schedulerService;
         this.officeHoursService = officeHoursService;
+        this.practiceService = practiceService;
 
         addClassNames(
             LumoUtility.BoxSizing.BORDER, 
@@ -200,23 +204,43 @@ public class SchedulerManagementView extends Main {
     }
 
     private void openSchedulerDialog() {
-        // TODO: Implement scheduler dialog
-        showNotification("Dialog zum Anlegen eines Terminplaners", NotificationVariant.LUMO_PRIMARY);
+        SchedulerDialog dialog = new SchedulerDialog(
+            schedulerService, 
+            practiceService, 
+            null
+        );
+        dialog.setOnSaveCallback(this::showSchedulersTab);
+        dialog.open();
     }
 
     private void openSchedulerDialog(AppointmentScheduler scheduler) {
-        // TODO: Implement scheduler edit dialog
-        showNotification("Dialog zum Bearbeiten: " + scheduler.getName(), NotificationVariant.LUMO_PRIMARY);
+        SchedulerDialog dialog = new SchedulerDialog(
+            schedulerService, 
+            practiceService, 
+            scheduler
+        );
+        dialog.setOnSaveCallback(this::showSchedulersTab);
+        dialog.open();
     }
 
     private void openOfficeHoursDialog() {
-        // TODO: Implement office hours dialog
-        showNotification("Dialog zum Anlegen von Sprechzeiten", NotificationVariant.LUMO_PRIMARY);
+        OfficeHoursDialog dialog = new OfficeHoursDialog(
+            officeHoursService, 
+            selectedScheduler, 
+            null
+        );
+        dialog.setOnSaveCallback(this::showOfficeHoursTab);
+        dialog.open();
     }
 
     private void openOfficeHoursDialog(OfficeHours officeHours) {
-        // TODO: Implement office hours edit dialog
-        showNotification("Dialog zum Bearbeiten von Sprechzeiten", NotificationVariant.LUMO_PRIMARY);
+        OfficeHoursDialog dialog = new OfficeHoursDialog(
+            officeHoursService, 
+            selectedScheduler, 
+            officeHours
+        );
+        dialog.setOnSaveCallback(this::showOfficeHoursTab);
+        dialog.open();
     }
 
     private void openAssignmentDialog() {

@@ -14,6 +14,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Menu;
@@ -26,8 +27,11 @@ import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.AppointmentService;
+import de.bbajor.pvs.appointment.service.GlobalAppointmentService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.patient.service.PatientService;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import jakarta.annotation.security.PermitAll;
 
 /**
@@ -43,22 +47,28 @@ public class AppointmentCalendarView extends Main {
     private final AppointmentSchedulerService schedulerService;
     private final AppointmentService appointmentService;
     private final OfficeHoursService officeHoursService;
+    private final PatientService patientService;
+    private final GlobalAppointmentService globalAppointmentService;
 
     private AppointmentScheduler currentScheduler;
     private LocalDate currentDate;
     private Div calendarContainer;
-    private Span schedulerNameLabel;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     public AppointmentCalendarView(
             AppointmentSchedulerService schedulerService,
             AppointmentService appointmentService,
-            OfficeHoursService officeHoursService) {
+            OfficeHoursService officeHoursService,
+            PatientService patientService,
+            GlobalAppointmentService globalAppointmentService) {
         this.schedulerService = schedulerService;
         this.appointmentService = appointmentService;
         this.officeHoursService = officeHoursService;
+        this.patientService = patientService;
+        this.globalAppointmentService = globalAppointmentService;
         this.currentDate = LocalDate.now();
 
         addClassNames(
@@ -84,17 +94,27 @@ public class AppointmentCalendarView extends Main {
         newAppointmentButton.setIcon(VaadinIcon.CALENDAR.create());
         newAppointmentButton.getElement().setAttribute("theme", "primary");
 
-        schedulerNameLabel = new Span(currentScheduler != null ? currentScheduler.getName() : "Kein Terminplaner");
-        schedulerNameLabel.getStyle()
-            .set("font-weight", "bold")
-            .set("font-size", "1.2em")
-            .set("color", "var(--lumo-primary-color)");
+        // Global next available slot button
+        Button globalNextSlotButton = new Button("Nächster freier Termin (alle Ärzte)", 
+            event -> findGlobalNextSlot());
+        globalNextSlotButton.setIcon(VaadinIcon.SEARCH.create());
+        globalNextSlotButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_SUCCESS);
+
+        // Add SchedulerSwitcher for quick switching between calendars
+        SchedulerSwitcher schedulerSwitcher = new SchedulerSwitcher(schedulerService);
+        schedulerSwitcher.setOnSchedulerChange(scheduler -> {
+            setCurrentScheduler(scheduler);
+        });
+        if (currentScheduler != null) {
+            schedulerSwitcher.setCurrentScheduler(currentScheduler);
+        }
 
         add(new ViewToolbar(
             "Terminkalender", 
-            ViewToolbar.group(schedulerNameLabel, newAppointmentButton)
+            ViewToolbar.group(newAppointmentButton, globalNextSlotButton)
         ));
 
+        add(schedulerSwitcher);
         add(createDateNavigation());
 
         calendarContainer = new Div();
@@ -258,20 +278,80 @@ public class AppointmentCalendarView extends Main {
     }
 
     private void openAppointmentDialog() {
-        // TODO: Open dialog for creating new appointment
-        System.out.println("Open new appointment dialog");
+        if (currentScheduler == null) {
+            Notification.show("Bitte wählen Sie zuerst einen Terminplaner aus", 3000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        
+        AppointmentDialog dialog = new AppointmentDialog(
+            appointmentService,
+            patientService,
+            currentScheduler,
+            null
+        );
+        dialog.setOnSaveCallback(this::refreshCalendar);
+        dialog.open();
     }
 
     private void openAppointmentDialog(Appointment appointment) {
-        // TODO: Open dialog for editing appointment
-        System.out.println("Open appointment dialog for: " + appointment);
+        AppointmentDialog dialog = new AppointmentDialog(
+            appointmentService,
+            patientService,
+            currentScheduler,
+            appointment
+        );
+        dialog.setOnSaveCallback(this::refreshCalendar);
+        dialog.open();
     }
 
     public void setCurrentScheduler(AppointmentScheduler scheduler) {
         this.currentScheduler = scheduler;
-        if (schedulerNameLabel != null) {
-            schedulerNameLabel.setText(scheduler != null ? scheduler.getName() : "Kein Terminplaner");
-        }
         refreshCalendar();
+    }
+
+    /**
+     * Find the next available slot globally across all schedulers.
+     */
+    private void findGlobalNextSlot() {
+        LocalDateTime from = LocalDateTime.now();
+        
+        globalAppointmentService.findNextAvailableSlotGlobally(from, 30)
+            .ifPresentOrElse(
+                slot -> {
+                    // Switch to the scheduler with the earliest slot
+                    setCurrentScheduler(slot.scheduler());
+                    
+                    // Open dialog with pre-filled time
+                    Appointment newAppointment = new Appointment();
+                    newAppointment.setScheduler(slot.scheduler());
+                    newAppointment.setStartTime(slot.time());
+                    newAppointment.setEndTime(slot.time().plusMinutes(30));
+                    
+                    AppointmentDialog dialog = new AppointmentDialog(
+                        appointmentService,
+                        patientService,
+                        slot.scheduler(),
+                        newAppointment
+                    );
+                    dialog.setOnSaveCallback(this::refreshCalendar);
+                    dialog.open();
+                    
+                    Notification.show(
+                        String.format("Nächster freier Termin bei %s: %s", 
+                            slot.scheduler().getName(),
+                            slot.time().format(DATETIME_FORMATTER)),
+                        5000,
+                        Notification.Position.MIDDLE
+                    ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                },
+                () -> {
+                    Notification.show(
+                        "Kein freier Termin in den nächsten 4 Wochen bei keinem Arzt gefunden",
+                        5000,
+                        Notification.Position.MIDDLE
+                    ).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            );
     }
 }
