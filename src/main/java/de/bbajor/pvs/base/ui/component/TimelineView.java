@@ -240,8 +240,11 @@ public class TimelineView extends VerticalLayout {
         },
                 t2 -> {
                     // Hier können Sie die Logik für den Klick-Handler hinzufügen
-                    TreatmentDetailDialog dialog = new TreatmentDetailDialog(t2.getTreatment(),
-                            context.getBean(TreatmentPlanService.class));
+                    TreatmentDetailDialog dialog = new TreatmentDetailDialog(
+                        t2.getTreatment(),
+                        context.getBean(TreatmentPlanService.class),
+                        context.getBean(de.bbajor.pvs.security.service.UserAccountService.class)
+                    );
                     dialog.open();
                 });
         return card;
