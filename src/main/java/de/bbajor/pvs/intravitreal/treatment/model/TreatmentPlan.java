@@ -7,9 +7,11 @@ import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
@@ -22,6 +24,14 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 public class TreatmentPlan extends BasicEntity<Long> {
+
+    /**
+     * The tenant this treatment plan belongs to.
+     * Provides explicit tenant isolation for security.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     private LocalDate creationDate;
     private String description;
