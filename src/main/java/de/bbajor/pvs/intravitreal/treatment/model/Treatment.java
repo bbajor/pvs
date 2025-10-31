@@ -8,6 +8,7 @@ import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.SideOfEyeConverter;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,6 +23,14 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 public class Treatment extends BasicEntity<Long> {
+
+    /**
+     * The tenant this treatment belongs to.
+     * Provides explicit tenant isolation for security.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "treatment_plan_id")

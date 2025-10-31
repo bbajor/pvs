@@ -6,6 +6,7 @@ import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.patient.dto.Salutation;
 import de.bbajor.pvs.patient.dto.Title;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
@@ -13,6 +14,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -27,8 +29,8 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 @Table(name = "patient", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "first_name", "last_name", "birth" }),
-        @UniqueConstraint(columnNames = { "insurance_number" })
+        @UniqueConstraint(columnNames = { "tenant_id", "first_name", "last_name", "birth" }),
+        @UniqueConstraint(columnNames = { "tenant_id", "insurance_number" })
 })
 public class Patient extends BasicEntity<Integer> {
 
@@ -60,6 +62,14 @@ public class Patient extends BasicEntity<Integer> {
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private PatientHistory patientHistory;
     private String description;
+
+    /**
+     * The tenant this patient belongs to.
+     * Ensures data isolation between different practices/clinics.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     @Override
     public String toString() {
