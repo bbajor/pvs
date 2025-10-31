@@ -1,0 +1,30 @@
+###############################################
+# keys-to-remove.txt.example
+#
+# Diese Datei dient als Vorlage für BFG Repo-Cleaner
+# (Option: --replace-text). Bitte KEINE echten Secrets
+# committen. Kopiere diese Datei zu 'keys-to-remove.txt'
+# (steht in .gitignore) und ergänze lokal die zu
+# entfernenden Muster.
+#
+# Format:
+# Jedes Ersetzungsmuster als zwei Zeilen:
+#   regex==>replacement
+# Siehe Doku: https://rtyley.github.io/bfg-repo-cleaner/#usage
+###############################################
+
+# Beispiel: Generische Private-Key-Blöcke entfernen
+# (Absichtlich keine exakten Marker, um Scanner-False-Positives
+#  in der Repo-Historie zu vermeiden.)
+(?s)-----BEGIN \S*PRIVATE KEY-----.*-----END \S*PRIVATE KEY-----==>[PRIVATE_KEY_REMOVED]
+
+# Beispiel: Platzhalter für versehentlich committedes Passwort
+#(?i)password\s*[:=]\s*\S+==>[PASSWORD_REMOVED]
+
+# Beispiel: URL mit eingebetteten Credentials
+#(?i)https?://[^\s/]+:[^\s@]+@==>[URL_WITH_CREDENTIALS_REMOVED]
+
+# Beispiel: Konkrete (alte) Token/Secrets (hier nur Demo-IDs)
+#OLD_API_TOKEN_1234567890==>[TOKEN_REMOVED]
+
+
