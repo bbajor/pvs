@@ -8,6 +8,11 @@
 
 Teste alle Security-Features lokal mit Docker-Compose (inkl. Whisper AI).
 
+**Wichtig:** Der Container läuft mit:
+- ✅ **Spring-Profil:** `dev` (H2-Database, DevSecurityConfig)
+- ✅ **Vaadin:** Production Mode (precompiled frontend aus Dockerfile)
+- ✅ **Grund:** Ermöglicht schnelles lokales Testen OHNE ständiges Frontend-Neu-Kompilieren
+
 ---
 
 ## 🚀 Deployment-Schritte
@@ -181,20 +186,24 @@ docker compose up --build
 **Symptom:**
 ```
 Failed to start bean 'webServerStartStop'
+java.lang.IllegalStateException: Failed to determine project directory for dev mode
 ```
 
-**Lösung:**
+**Ursache:** Vaadin im Development Mode (braucht Gradle-Projektstruktur im Container)
+
+**Lösung:** ✅ **BEREITS BEHOBEN** durch `VAADIN_PRODUCTION_MODE=true` in `docker-compose.yml`
+
+Wenn das Problem trotzdem auftritt:
 ```bash
-# Vollständige Logs anschauen
-docker compose logs pvs-app > app-logs.txt
-cat app-logs.txt
+# Prüfe Environment-Variable im Container
+docker exec pvs-app env | grep VAADIN
 
-# Suche nach:
-# - "Caused by:"
-# - "Bean ... required"
-# - "Port already in use"
+# Expected:
+# VAADIN_PRODUCTION_MODE=true
 
-# Dann spezifisches Problem beheben
+# Wenn fehlt, in docker-compose.yml ergänzen:
+# environment:
+#   - VAADIN_PRODUCTION_MODE=true
 ```
 
 ### Problem: Port 8080 bereits belegt
