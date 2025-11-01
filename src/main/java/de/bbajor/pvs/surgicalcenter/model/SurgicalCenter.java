@@ -4,6 +4,7 @@ import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.patient.model.Address;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
@@ -11,6 +12,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,6 +24,13 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 public class SurgicalCenter extends BasicEntity<Integer> {
+
+    /**
+     * The tenant this surgical center belongs to.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     private String name;
     private String description;
