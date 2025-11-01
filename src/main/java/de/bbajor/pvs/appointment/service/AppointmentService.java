@@ -14,6 +14,8 @@ import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.repository.AppointmentRepository;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.tenant.context.TenantContext;
+import de.bbajor.pvs.tenant.service.TenantAccessValidator;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -26,11 +28,19 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final OfficeHoursService officeHoursService;
+    private final TenantAccessValidator tenantAccessValidator;
 
     /**
      * Find all appointments for a scheduler.
+     * Ensures tenant isolation.
      */
     public List<Appointment> findByScheduler(AppointmentScheduler scheduler) {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            tenantAccessValidator.validateTenantAccess(scheduler.getTenant().getId(), 
+                "AppointmentScheduler", scheduler.getId());
+            return appointmentRepository.findBySchedulerAndTenantId(scheduler, tenantId);
+        }
         return appointmentRepository.findByScheduler(scheduler);
     }
 
@@ -53,19 +63,29 @@ public class AppointmentService {
 
     /**
      * Find appointment by ID.
+     * Ensures tenant isolation.
      */
     public Optional<Appointment> findById(Long id) {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            Optional<Appointment> appointment = appointmentRepository.findByIdAndTenantId(id, tenantId);
+            appointment.ifPresent(a -> 
+                tenantAccessValidator.validateTenantAccess(a.getTenant().getId(), "Appointment", a.getId()));
+            return appointment;
+        }
         return appointmentRepository.findById(id);
     }
 
     /**
      * Save an appointment with validations.
+     * Ensures tenant consistency.
      * 
      * @throws IllegalStateException if appointment is in the past and being modified
      * @throws IllegalArgumentException if appointment overlaps with existing appointments
      */
     public Appointment save(Appointment appointment) {
         validateAppointment(appointment);
+        validateAndSetTenant(appointment);
         return appointmentRepository.save(appointment);
     }
 
@@ -80,6 +100,43 @@ public class AppointmentService {
             throw new IllegalStateException("Vergangene Termine können nicht gelöscht werden");
         }
         appointmentRepository.delete(appointment);
+    }
+
+    /**
+     * Validate and set tenant for appointment.
+     * Ensures tenant consistency across scheduler, patient, and appointment.
+     */
+    private void validateAndSetTenant(Appointment appointment) {
+        Long tenantId = TenantContext.getTenantId();
+        
+        if (tenantId != null) {
+            // Validate scheduler belongs to current tenant
+            if (appointment.getScheduler() != null) {
+                tenantAccessValidator.validateTenantAccess(
+                    appointment.getScheduler().getTenant().getId(),
+                    "AppointmentScheduler",
+                    appointment.getScheduler().getId());
+            }
+            
+            // Validate patient belongs to current tenant
+            if (appointment.getPatient() != null) {
+                tenantAccessValidator.validateTenantAccess(
+                    appointment.getPatient().getTenant().getId(),
+                    "Patient",
+                    appointment.getPatient().getId());
+            }
+            
+            // Set tenant from context if not set
+            if (appointment.getTenant() == null) {
+                appointment.setTenant(appointment.getScheduler().getTenant());
+            }
+            
+            // Validate tenant consistency
+            if (!appointment.getTenant().getId().equals(tenantId)) {
+                throw new IllegalArgumentException(
+                    "Termin gehört nicht zum aktuellen Mandanten");
+            }
+        }
     }
 
     /**

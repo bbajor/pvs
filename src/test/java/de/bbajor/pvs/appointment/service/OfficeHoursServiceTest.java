@@ -28,6 +28,7 @@ import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.repository.AppointmentRepository;
 import de.bbajor.pvs.appointment.repository.OfficeHoursRepository;
 import de.bbajor.pvs.practice.model.Practice;
+import de.bbajor.pvs.tenant.model.Tenant;
 
 /**
  * Unit tests for OfficeHoursService business logic and validations.
@@ -46,17 +47,26 @@ class OfficeHoursServiceTest {
 
     private AppointmentScheduler scheduler;
     private OfficeHours officeHours;
+    private Tenant tenant;
 
     @BeforeEach
     void setUp() {
+        // Setup tenant
+        tenant = new Tenant();
+        tenant.setId(1L);
+        tenant.setTenantCode("TEST-2024-A1B2");
+        tenant.setTenantName("Test Praxis MVZ");
+
         Practice practice = new Practice();
         practice.setId(1L);
         practice.setPracticeName("Test Praxis");
+        practice.setTenant(tenant);
 
         scheduler = new AppointmentScheduler();
         scheduler.setId(1L);
         scheduler.setName("Test Scheduler");
         scheduler.setPractice(practice);
+        scheduler.setTenant(tenant);
 
         officeHours = new OfficeHours();
         officeHours.setScheduler(scheduler);

@@ -29,6 +29,8 @@ import de.bbajor.pvs.appointment.model.AppointmentStatus;
 import de.bbajor.pvs.appointment.repository.AppointmentRepository;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.practice.model.Practice;
+import de.bbajor.pvs.tenant.model.Tenant;
+import de.bbajor.pvs.tenant.service.TenantAccessValidator;
 
 /**
  * Unit tests for AppointmentService business logic and validations.
@@ -42,32 +44,46 @@ class AppointmentServiceTest {
     @Mock
     private OfficeHoursService officeHoursService;
 
+    @Mock
+    private TenantAccessValidator tenantAccessValidator;
+
     @InjectMocks
     private AppointmentService appointmentService;
 
     private AppointmentScheduler scheduler;
     private Patient patient;
     private Appointment appointment;
+    private Tenant tenant;
 
     @BeforeEach
     void setUp() {
+        // Setup tenant
+        tenant = new Tenant();
+        tenant.setId(1L);
+        tenant.setTenantCode("TEST-2024-A1B2");
+        tenant.setTenantName("Test Praxis MVZ");
+
         Practice practice = new Practice();
         practice.setId(1L);
         practice.setPracticeName("Test Praxis");
+        practice.setTenant(tenant);
 
         scheduler = new AppointmentScheduler();
         scheduler.setId(1L);
         scheduler.setName("Test Scheduler");
         scheduler.setPractice(practice);
+        scheduler.setTenant(tenant);
 
         patient = new Patient();
         patient.setId(1);
         patient.setFirstName("Max");
         patient.setLastName("Mustermann");
+        patient.setTenant(tenant);
 
         appointment = new Appointment();
         appointment.setScheduler(scheduler);
         appointment.setPatient(patient);
+        appointment.setTenant(tenant);
         appointment.setReason("Kontrolluntersuchung");
         appointment.setStatus(AppointmentStatus.SCHEDULED);
     }
