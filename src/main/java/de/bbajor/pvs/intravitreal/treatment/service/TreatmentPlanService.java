@@ -59,8 +59,14 @@ public class TreatmentPlanService {
     @Transactional(readOnly = true)
     public TreatmentPlan findByIdWithDetails(Long id) {
         // Fetch the treatment plan with patient and diagnosis in a single query
-        TreatmentPlan treatmentPlan = treatmentPlanRepository.findTreatmentPlanByIdWithPatientDiagnosis(id)
-                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
+        // Get current tenant ID for secure access
+        Long tenantId = de.bbajor.pvs.tenant.context.TenantContext.getTenantId();
+        
+        TreatmentPlan treatmentPlan = tenantId != null
+                ? treatmentPlanRepository.findTreatmentPlanByIdAndTenantWithPatientDiagnosis(id, tenantId)
+                        .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id))
+                : treatmentPlanRepository.findById(id)
+                        .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
 
         // Fetch treatments separately to avoid lazy loading issues
         List<Treatment> treatments = treatmentRepository
@@ -78,7 +84,14 @@ public class TreatmentPlanService {
 
     @Transactional
     private Collection<TreatmentPlan> findByPatient(Integer patientId) {
-        return treatmentPlanRepository.findByPatientId(patientId);
+        // Get current tenant ID for secure access
+        Long tenantId = de.bbajor.pvs.tenant.context.TenantContext.getTenantId();
+        
+        return tenantId != null
+                ? treatmentPlanRepository.findByTenantAndPatientId(tenantId, patientId)
+                : treatmentPlanRepository.findAll().stream()
+                        .filter(tp -> tp.getPatient() != null && tp.getPatient().getId().equals(patientId))
+                        .toList();
     }
 
     public List<TreatmentPlan> findTreatmentPlans(String filter) {
