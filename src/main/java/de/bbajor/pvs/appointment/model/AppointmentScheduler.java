@@ -5,10 +5,12 @@ import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.practice.model.Practice;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -39,6 +41,16 @@ public class AppointmentScheduler extends BasicEntity<Long> {
     @NotNull
     @ManyToOne(fetch = FetchType.EAGER)
     private Practice practice;
+
+    /**
+     * The tenant this scheduler belongs to.
+     * Ensures data isolation between different practices/clinics.
+     * Derived from practice.tenant for consistency.
+     */
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     @Column(nullable = false)
     private boolean active = true;

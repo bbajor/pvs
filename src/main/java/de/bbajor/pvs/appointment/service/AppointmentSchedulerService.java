@@ -12,6 +12,8 @@ import de.bbajor.pvs.appointment.repository.AppointmentSchedulerRepository;
 import de.bbajor.pvs.appointment.repository.SchedulerAssignmentRepository;
 import de.bbajor.pvs.practice.model.Practice;
 import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.tenant.context.TenantContext;
+import de.bbajor.pvs.tenant.service.TenantAccessValidator;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -24,11 +26,19 @@ public class AppointmentSchedulerService {
 
     private final AppointmentSchedulerRepository schedulerRepository;
     private final SchedulerAssignmentRepository assignmentRepository;
+    private final TenantAccessValidator tenantAccessValidator;
 
     /**
      * Find all schedulers for a practice.
+     * Ensures tenant isolation.
      */
     public List<AppointmentScheduler> findByPractice(Practice practice) {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            tenantAccessValidator.validateTenantAccess(practice.getTenant().getId(), 
+                "Practice", practice.getId());
+            return schedulerRepository.findByTenantAndPractice(tenantId, practice.getId());
+        }
         return schedulerRepository.findByPractice(practice);
     }
 
@@ -41,16 +51,55 @@ public class AppointmentSchedulerService {
 
     /**
      * Find scheduler by ID.
+     * Ensures tenant isolation.
      */
     public Optional<AppointmentScheduler> findById(Long id) {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            Optional<AppointmentScheduler> scheduler = schedulerRepository.findByIdAndTenantId(id, tenantId);
+            scheduler.ifPresent(s -> 
+                tenantAccessValidator.validateTenantAccess(s.getTenant().getId(), "AppointmentScheduler", s.getId()));
+            return scheduler;
+        }
         return schedulerRepository.findById(id);
     }
 
     /**
      * Create or update a scheduler.
+     * Ensures tenant consistency.
      */
     public AppointmentScheduler save(AppointmentScheduler scheduler) {
+        validateAndSetTenant(scheduler);
         return schedulerRepository.save(scheduler);
+    }
+
+    /**
+     * Validate and set tenant for scheduler.
+     * Ensures tenant consistency with practice.
+     */
+    private void validateAndSetTenant(AppointmentScheduler scheduler) {
+        Long tenantId = TenantContext.getTenantId();
+        
+        if (tenantId != null) {
+            // Validate practice belongs to current tenant
+            if (scheduler.getPractice() != null) {
+                tenantAccessValidator.validateTenantAccess(
+                    scheduler.getPractice().getTenant().getId(),
+                    "Practice",
+                    scheduler.getPractice().getId());
+            }
+            
+            // Set tenant from practice if not set
+            if (scheduler.getTenant() == null && scheduler.getPractice() != null) {
+                scheduler.setTenant(scheduler.getPractice().getTenant());
+            }
+            
+            // Validate tenant consistency
+            if (scheduler.getTenant() != null && !scheduler.getTenant().getId().equals(tenantId)) {
+                throw new IllegalArgumentException(
+                    "Terminplaner geh?rt nicht zum aktuellen Mandanten");
+            }
+        }
     }
 
     /**
@@ -130,8 +179,21 @@ public class AppointmentSchedulerService {
 
     /**
      * Find all schedulers.
+     * Tenant-aware: Returns only schedulers for current tenant.
      */
     public List<AppointmentScheduler> findAll() {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            return schedulerRepository.findByTenantId(tenantId);
+        }
         return schedulerRepository.findAll();
+    }
+
+    /**
+     * Find all active schedulers for current tenant.
+     */
+    public List<AppointmentScheduler> findAllActive() {
+        Long tenantId = tenantAccessValidator.requireCurrentTenantId();
+        return schedulerRepository.findActivByTenantId(tenantId);
     }
 }
