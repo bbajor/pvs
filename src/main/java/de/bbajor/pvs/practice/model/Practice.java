@@ -1,6 +1,10 @@
 package de.bbajor.pvs.practice.model;
 
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,7 +13,7 @@ import de.bbajor.pvs.base.domain.BasicEntity;
 
 /**
  * Entity representing the practice data.
- * Only one practice record should exist in the system.
+ * In multi-tenant mode, each tenant has its own practice data.
  */
 @Getter
 @Setter
@@ -39,6 +43,14 @@ public class Practice extends BasicEntity<Long> {
     
     // Additional information
     private String additionalInfo;
+    
+    /**
+     * The tenant this practice belongs to.
+     * In multi-tenant mode, each tenant has its own practice data.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
     
     /**
      * Returns the complete address as a single string

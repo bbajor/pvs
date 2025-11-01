@@ -4,7 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
@@ -20,9 +23,16 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @NoArgsConstructor
 @Table(uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"surgicalCenter_id", "date", "startTime", "endTime"})
+    @UniqueConstraint(columnNames = {"tenant_id", "surgicalCenter_id", "date", "startTime", "endTime"})
 })
 public class SurgicalCenterTimeSlot extends BasicEntity<Long> {
+
+    /**
+     * The tenant this time slot belongs to.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     private String description;
     private LocalDate date;
