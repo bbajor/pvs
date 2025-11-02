@@ -5,9 +5,11 @@ import java.time.LocalDateTime;
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +31,16 @@ public class Appointment extends BasicEntity<Long> {
     @NotNull
     @ManyToOne(fetch = FetchType.EAGER)
     private AppointmentScheduler scheduler;
+
+    /**
+     * The tenant this appointment belongs to.
+     * Ensures data isolation between different practices/clinics.
+     * Must match scheduler.tenant and patient.tenant.
+     */
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     @NotNull
     @Column(nullable = false)

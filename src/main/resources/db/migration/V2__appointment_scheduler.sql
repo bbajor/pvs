@@ -8,12 +8,15 @@ CREATE TABLE appointment_scheduler (
     name VARCHAR(255) NOT NULL,
     description VARCHAR(500),
     practice_id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     type VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
-    CONSTRAINT fk_scheduler_practice FOREIGN KEY (practice_id) REFERENCES practice(id) ON DELETE CASCADE
+    CONSTRAINT fk_scheduler_practice FOREIGN KEY (practice_id) REFERENCES practice(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scheduler_tenant FOREIGN KEY (tenant_id) REFERENCES tenant(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_scheduler_practice ON appointment_scheduler(practice_id);
+CREATE INDEX idx_scheduler_tenant ON appointment_scheduler(tenant_id);
 CREATE INDEX idx_scheduler_active ON appointment_scheduler(active);
 
 -- Office Hours table
@@ -56,6 +59,7 @@ CREATE TABLE appointment (
     id BIGSERIAL PRIMARY KEY,
     version BIGINT NOT NULL DEFAULT 0,
     scheduler_id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
     patient_id INTEGER NOT NULL,
     treatment_id BIGINT,
     start_time TIMESTAMP NOT NULL,
@@ -69,12 +73,14 @@ CREATE TABLE appointment (
     last_modified_at TIMESTAMP,
     last_modified_by VARCHAR(255),
     CONSTRAINT fk_appointment_scheduler FOREIGN KEY (scheduler_id) REFERENCES appointment_scheduler(id) ON DELETE CASCADE,
+    CONSTRAINT fk_appointment_tenant FOREIGN KEY (tenant_id) REFERENCES tenant(id) ON DELETE CASCADE,
     CONSTRAINT fk_appointment_patient FOREIGN KEY (patient_id) REFERENCES patient(id) ON DELETE CASCADE,
     CONSTRAINT fk_appointment_treatment FOREIGN KEY (treatment_id) REFERENCES treatment(id) ON DELETE SET NULL,
     CONSTRAINT chk_appointment_time CHECK (start_time < end_time)
 );
 
 CREATE INDEX idx_appointment_scheduler ON appointment(scheduler_id);
+CREATE INDEX idx_appointment_tenant ON appointment(tenant_id);
 CREATE INDEX idx_appointment_patient ON appointment(patient_id);
 CREATE INDEX idx_appointment_treatment ON appointment(treatment_id);
 CREATE INDEX idx_appointment_start_time ON appointment(start_time);
