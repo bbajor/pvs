@@ -34,6 +34,7 @@ import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.practice.model.Practice;
 import de.bbajor.pvs.practice.service.PracticeService;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.tenant.repository.TenantRepository;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
@@ -55,6 +56,7 @@ public class TestDataInitializer implements CommandLineRunner {
         private final UserAccountRepository userAccountRepository;
         private final PasswordEncoder passwordEncoder;
         private final PracticeService practiceService;
+        private final TenantRepository tenantRepository;
 
         // Realistische Werte für die Testdaten
         private static final String[] MEDICATION_NAMES = {
@@ -200,6 +202,11 @@ public class TestDataInitializer implements CommandLineRunner {
                 // Zusatzinformationen
                 practice.setAdditionalInfo(
                                 "Beispielpraxis für die Entwicklungsumgebung. Spezialisiert auf Netzhauterkrankungen und intravitreale Injektionen.");
+
+                // Setze Tenant (DEV-TEST Tenant für Testdaten)
+                tenantRepository.findByTenantCode("DEV-TEST")
+                                .or(() -> tenantRepository.findAll().stream().findFirst())
+                                .ifPresent(practice::setTenant);
 
                 practiceService.savePractice(practice);
         }
