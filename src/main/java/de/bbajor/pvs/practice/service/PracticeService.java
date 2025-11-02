@@ -8,12 +8,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.practice.model.Practice;
 import de.bbajor.pvs.practice.repository.PracticeRepository;
+import de.bbajor.pvs.tenant.context.TenantContext;
+import de.bbajor.pvs.tenant.repository.TenantRepository;
 
 @Service
 public class PracticeService {
 
     @Autowired
     private PracticeRepository practiceRepository;
+
+    @Autowired
+    private TenantRepository tenantRepository;
 
     /**
      * Gets the practice data. Returns null if no practice is configured yet.
@@ -30,6 +35,14 @@ public class PracticeService {
      */
     @Transactional
     public Practice savePractice(Practice practice) {
+        // Set tenant if not already set
+        if (practice.getTenant() == null) {
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId != null) {
+                tenantRepository.findById(tenantId).ifPresent(practice::setTenant);
+            }
+        }
+
         // Check if a practice already exists
         Optional<Practice> existingPractice = practiceRepository.findFirstByOrderByIdAsc();
         
