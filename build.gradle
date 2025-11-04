@@ -169,5 +169,12 @@ vaadin {
 // Sicherstellen, dass vaadinPrepareFrontend nach der Kompilierung läuft
 // damit alle Klassen und Annotationen verfügbar sind
 tasks.named('vaadinPrepareFrontend') {
-    dependsOn compileJava
+    // classes task includes both compileJava and processResources
+    dependsOn classes
+    // Ensure runtime dependencies are available for annotation scanning
+    // This is needed because Vaadin needs to read annotations that reference Spring classes
+    doFirst {
+        // Ensure all dependencies are resolved before Vaadin tries to scan annotations
+        configurations.runtimeClasspath.resolve()
+    }
 }
