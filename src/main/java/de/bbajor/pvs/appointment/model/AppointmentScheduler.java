@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
-import de.bbajor.pvs.practice.model.Practice;
-import de.bbajor.pvs.tenant.model.Tenant;
+import de.bbajor.pvs.location.model.Location;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,8 +20,8 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 
 /**
- * Entity representing an appointment scheduler for a practice.
- * Each practice can have multiple schedulers (e.g., per doctor, for MFA, for pre-examinations).
+ * Entity representing an appointment scheduler for a location.
+ * Each location can have multiple schedulers (e.g., per doctor, for MFA, for pre-examinations).
  */
 @Getter
 @Setter
@@ -38,19 +37,16 @@ public class AppointmentScheduler extends BasicEntity<Long> {
     @Column(length = 500)
     private String description;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.EAGER)
-    private Practice practice;
-
     /**
-     * The tenant this scheduler belongs to.
-     * Ensures data isolation between different practices/clinics.
-     * Derived from practice.tenant for consistency.
+     * The location this scheduler belongs to.
+     * Data isolation is ensured via location -> institution relationship.
+     * 
+     * This replaces the old "practice" field.
      */
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "location_id")
+    private Location location;
 
     @Column(nullable = false)
     private boolean active = true;
@@ -72,6 +68,9 @@ public class AppointmentScheduler extends BasicEntity<Long> {
 
     @Override
     public String toString() {
-        return String.format("%s (%s)", name, practice != null ? practice.getPracticeName() : "");
+        if (location != null) {
+            return String.format("%s (%s)", name, location.getLocationName());
+        }
+        return name;
     }
 }

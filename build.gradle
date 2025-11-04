@@ -40,7 +40,9 @@ dependencies {
     implementation 'com.vaadin:vaadin-spring-boot-starter'
     implementation 'com.vaadin:control-center-starter'
 
+    implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework:spring-context'
     runtimeOnly 'org.postgresql:postgresql'
     // In-memory DB for local development (fixes missing JDBC driver)
     runtimeOnly 'com.h2database:h2'
@@ -162,4 +164,10 @@ configurations.all {
 
 vaadin {
     // default configuration; prepare/build frontend tasks available
+}
+
+// Sicherstellen, dass vaadinPrepareFrontend nach der Kompilierung läuft
+// damit alle Klassen und Annotationen verfügbar sind
+tasks.named('vaadinPrepareFrontend') {
+    dependsOn compileJava
 }

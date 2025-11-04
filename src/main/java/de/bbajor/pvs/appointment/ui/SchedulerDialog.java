@@ -16,8 +16,8 @@ import com.vaadin.flow.component.textfield.TextField;
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.SchedulerType;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
-import de.bbajor.pvs.practice.model.Practice;
-import de.bbajor.pvs.practice.service.PracticeService;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.location.service.LocationService;
 
 /**
  * Dialog for creating and editing appointment schedulers.
@@ -25,22 +25,22 @@ import de.bbajor.pvs.practice.service.PracticeService;
 public class SchedulerDialog extends Dialog {
 
     private final AppointmentSchedulerService schedulerService;
-    private final PracticeService practiceService;
+    private final LocationService locationService;
     private AppointmentScheduler scheduler;
     private Runnable onSaveCallback;
 
     private TextField nameField;
     private TextArea descriptionArea;
-    private ComboBox<Practice> practiceComboBox;
+    private ComboBox<Location> locationComboBox;
     private ComboBox<SchedulerType> typeComboBox;
     private Checkbox activeCheckbox;
 
     public SchedulerDialog(
             AppointmentSchedulerService schedulerService,
-            PracticeService practiceService,
+            LocationService locationService,
             AppointmentScheduler scheduler) {
         this.schedulerService = schedulerService;
-        this.practiceService = practiceService;
+        this.locationService = locationService;
         this.scheduler = scheduler != null ? scheduler : new AppointmentScheduler();
 
         setModal(true);
@@ -73,11 +73,11 @@ public class SchedulerDialog extends Dialog {
         descriptionArea.setValue(scheduler.getDescription() != null ? scheduler.getDescription() : "");
         descriptionArea.setPlaceholder("Optionale Beschreibung des Terminplaners");
 
-        practiceComboBox = new ComboBox<>("Praxis");
-        practiceComboBox.setItems(practiceService.findAll());
-        practiceComboBox.setItemLabelGenerator(Practice::getPracticeName);
-        practiceComboBox.setValue(scheduler.getPractice());
-        practiceComboBox.setRequiredIndicatorVisible(true);
+        locationComboBox = new ComboBox<>("Standort");
+        locationComboBox.setItems(locationService.getAllLocations());
+        locationComboBox.setItemLabelGenerator(Location::getLocationName);
+        locationComboBox.setValue(scheduler.getLocation());
+        locationComboBox.setRequiredIndicatorVisible(true);
 
         typeComboBox = new ComboBox<>("Typ");
         typeComboBox.setItems(SchedulerType.values());
@@ -87,7 +87,7 @@ public class SchedulerDialog extends Dialog {
         activeCheckbox = new Checkbox("Aktiv");
         activeCheckbox.setValue(scheduler.isActive());
 
-        layout.add(nameField, descriptionArea, practiceComboBox, typeComboBox, activeCheckbox);
+        layout.add(nameField, descriptionArea, locationComboBox, typeComboBox, activeCheckbox);
         return layout;
     }
 
@@ -111,14 +111,14 @@ public class SchedulerDialog extends Dialog {
                 showError("Bitte geben Sie einen Namen an");
                 return;
             }
-            if (practiceComboBox.getValue() == null) {
-                showError("Bitte wählen Sie eine Praxis aus");
+            if (locationComboBox.getValue() == null) {
+                showError("Bitte wählen Sie einen Standort aus");
                 return;
             }
 
             scheduler.setName(nameField.getValue());
             scheduler.setDescription(descriptionArea.getValue());
-            scheduler.setPractice(practiceComboBox.getValue());
+            scheduler.setLocation(locationComboBox.getValue());
             scheduler.setType(typeComboBox.getValue());
             scheduler.setActive(activeCheckbox.getValue());
 

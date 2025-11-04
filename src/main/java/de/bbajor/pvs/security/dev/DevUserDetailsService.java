@@ -7,65 +7,40 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
  * Implementation of {@link UserDetailsService} for development environments.
  * <p>
- * This class provides a hybrid implementation that supports both:
- * <ul>
- * <li>Predefined in-memory {@link DevUser} instances (from {@link SampleUsers})</li>
- * <li>User accounts stored in the database ({@link UserAccount}) via the Benutzerverwaltung</li>
- * </ul>
+ * This class loads user details exclusively from the database ({@link UserAccount}).
+ * All credentials come from the database, whether using H2 or PostgreSQL.
  * </p>
  * <p>
- * This implementation is specifically designed for development and testing purposes. It allows the application to
- * function with predefined test users while also supporting user management through the UI.
- * </p>
- * <p>
- * The lookup order is:
- * <ol>
- * <li>First, check the in-memory DevUser collection</li>
- * <li>If not found, query the database for UserAccount entities</li>
- * <li>Throw UsernameNotFoundException if neither found</li>
- * </ol>
+ * This implementation is designed for development environments and should not
+ * be used in production. Test users should be created via the Benutzerverwaltung UI
+ * or via TestDataInitializer.
  * </p>
  *
- * @see DevUser The development user class stored in this service
  * @see UserAccount The database-stored user account entity
  * @see UserDetailsService Spring Security's interface for loading user authentication details
  */
 final class DevUserDetailsService implements UserDetailsService {
 
-    private final Map<String, UserDetails> userByUsername;
     private final UserAccountRepository userAccountRepository;
 
     /**
-     * Creates a new service with the specified development users and user account repository.
+     * Creates a new service that loads users exclusively from the database.
      *
-     * @param users
-     *            the development users to include in this service
      * @param userAccountRepository
      *            repository for accessing user accounts from the database
      */
-    DevUserDetailsService(Collection<DevUser> users, UserAccountRepository userAccountRepository) {
-        this.userByUsername = new HashMap<>();
-        users.forEach(user -> this.userByUsername.put(user.getAppUser().getPreferredUsername(), user));
+    DevUserDetailsService(UserAccountRepository userAccountRepository) {
         this.userAccountRepository = userAccountRepository;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // First, try to find in-memory DevUser
-        UserDetails devUser = userByUsername.get(username);
-        if (devUser != null) {
-            return devUser;
-        }
-
-        // If not found, try to find in database
+        // Load user exclusively from database
         Optional<UserAccount> userAccount = userAccountRepository.findByUsername(username);
         if (userAccount.isPresent()) {
             return new UserAccountUserDetailsAdapter(userAccount.get());

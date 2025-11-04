@@ -2,6 +2,9 @@ package de.bbajor.pvs.patient.ui.view;
 
 import java.util.List;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.accordion.AccordionPanel;
@@ -14,13 +17,16 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.data.renderer.TextRenderer;
 
 import de.bbajor.pvs.base.ui.component.AddressField;
+import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.patient.dto.Salutation;
 import de.bbajor.pvs.patient.dto.Title;
 import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.security.AppRoles;
 
 public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm, Patient> {
 
@@ -39,14 +45,30 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         private final AddressField<Address> addressField = new AddressField<>(new Address());
         private final TextField phoneField = new TextField("Telefonnummer");
         private final TextField emailField = new TextField("E-Mail");
+        private final ComboBox<Location> locationField = new ComboBox<>("Standort");
 
         public PatientForm(List<HealthInsurance> healthInsurances, Patient patient,
                         ValueChangeListener<? super ValueChangeEvent<?>> listener) {
+                this(healthInsurances, patient, null, listener);
+        }
+
+        public PatientForm(List<HealthInsurance> healthInsurances, Patient patient,
+                        List<Location> locations, ValueChangeListener<? super ValueChangeEvent<?>> listener) {
                 super(patient);
 
                 titleComboBox.setItems(Title.values());
                 salutationComboBox.setItems(Salutation.values());
                 healthInsuranceField.setItems(healthInsurances);
+
+                // Location field: Only visible/editable for TECH_USER, ADMIN, OWNER
+                boolean canEditLocation = canUserEditLocation();
+                locationField.setVisible(canEditLocation);
+                locationField.setEnabled(canEditLocation);
+                if (locations != null && canEditLocation) {
+                    locationField.setItems(locations);
+                    locationField.setRenderer(new TextRenderer<>(Location::getLocationName));
+                    locationField.setItemLabelGenerator(loc -> loc.getLocationName() != null ? loc.getLocationName() : "");
+                }
 
                 descriptionField.setWidthFull();
                 descriptionField.setHeight("150px");
@@ -60,6 +82,10 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                 personalDataLayout.add(firstNameField);
                 personalDataLayout.add(lastNameField);
                 personalDataLayout.add(birthDateField);
+                // Location field only visible for authorized users
+                if (canEditLocation) {
+                    personalDataLayout.add(locationField);
+                }
                 AccordionPanel personalPanel = new AccordionPanel("Persönliche Daten", personalDataLayout);
                 personalPanel.setOpened(true);
                 personalPanel.setWidthFull();
@@ -134,8 +160,34 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                                 "Die Beschreibung darf maximal 2000 Zeichen enthalten")
                                 .bind(Patient::getDescription, Patient::setDescription);
                 binder.forField(addressField).bind(Patient::getAddress, Patient::setAddress);
+                // Location binding only if user can edit
+                if (canEditLocation) {
+                    binder.bind(locationField, Patient::getLocation, Patient::setLocation);
+                }
                 binder.addValueChangeListener(listener);
                 setValue(patient);
+        }
+
+        /**
+         * Checks if the current user has permission to edit the location field.
+         * Only TECH_USER, ADMIN, and OWNER can edit the location.
+         */
+        private boolean canUserEditLocation() {
+            try {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getAuthorities() != null) {
+                    return auth.getAuthorities().stream()
+                            .anyMatch(a -> {
+                                String authority = a.getAuthority();
+                                return authority.equals("ROLE_" + AppRoles.TECH_USER) ||
+                                       authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                                       authority.equals("ROLE_" + AppRoles.OWNER);
+                            });
+                }
+            } catch (Exception e) {
+                // If we can't determine the user's role, don't show the field
+            }
+            return false;
         }
 
         @Override

@@ -18,5 +18,8 @@
   ],
   "spring-boot.ls.java.heap": "512m",
   "spring-boot.ls.problem.application-properties.enabled": true,
-  "spring-boot.ls.problem.application-yaml.enabled": true
+  "spring-boot.ls.problem.application-yaml.enabled": true,
+  "cSpell.words": [
+    "taskmanagement"
+  ]
 }
