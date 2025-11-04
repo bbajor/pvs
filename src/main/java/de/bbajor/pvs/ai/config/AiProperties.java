@@ -30,9 +30,9 @@ public class AiProperties {
         private int port = 9000;
         private boolean autoInstall = true;
         private String pythonPath = "python";
-        private boolean useDocker = true;
-        private String dockerImage = "pvs-whisper:latest";
-        private String dockerComposePath = "docker/whisper/docker-compose.yml";
+        private boolean usePodman = true;
+        private String podmanImage = "pvs-whisper:latest";
+        private String podmanComposePath = "docker/whisper/podman-compose.yml";
     }
 
     @Getter

@@ -17,7 +17,7 @@ public class WhisperInstallationService {
 
     private static final Logger LOG = LogManager.getLogger(WhisperInstallationService.class);
     private final AiProperties aiProperties;
-    private final DockerWhisperService dockerWhisperService;
+    private final PodmanWhisperService podmanWhisperService;
 
     public boolean checkPythonAvailable() {
         try {
@@ -55,13 +55,13 @@ public class WhisperInstallationService {
     }
 
     public void installWhisper() throws IOException, InterruptedException {
-        if (aiProperties.getWhisper().getLocal().isUseDocker()) {
-            // Use Docker installation
-            dockerWhisperService.startWhisperContainer();
+        if (aiProperties.getWhisper().getLocal().isUsePodman()) {
+            // Use Podman installation
+            podmanWhisperService.startWhisperContainer();
         } else {
             // Fallback to Python installation
             if (!checkPythonAvailable()) {
-                throw new IllegalStateException("Python not found. Please install Python first or use Docker.");
+                throw new IllegalStateException("Python not found. Please install Python first or use Podman.");
             }
 
             String pythonPath = aiProperties.getWhisper().getLocal().getPythonPath();
@@ -82,16 +82,16 @@ public class WhisperInstallationService {
     }
 
     public void startWhisperServer() throws IOException, InterruptedException {
-        if (aiProperties.getWhisper().getLocal().isUseDocker()) {
+        if (aiProperties.getWhisper().getLocal().isUsePodman()) {
             // Check if container is running, start if not
-            if (!dockerWhisperService.checkWhisperContainerRunning()) {
-                dockerWhisperService.startWhisperContainer();
+            if (!podmanWhisperService.checkWhisperContainerRunning()) {
+                podmanWhisperService.startWhisperContainer();
             }
         } else {
             // Fallback to Python process
             // This would require the old implementation
-            LOG.warn("Python-based Whisper server start not implemented. Please use Docker.");
-            throw new IllegalStateException("Please use Docker for Whisper installation (set ai.whisper.local.use-docker=true)");
+            LOG.warn("Python-based Whisper server start not implemented. Please use Podman.");
+            throw new IllegalStateException("Please use Podman for Whisper installation (set ai.whisper.local.use-podman=true)");
         }
     }
 

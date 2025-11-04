@@ -29,9 +29,9 @@ echo "User: ${DB_USER}"
 echo ""
 
 # Prüfe ob Container läuft
-if ! docker ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+if ! podman ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
   echo "❌ Container '${CONTAINER_NAME}' läuft nicht!"
-  echo "   Starte ihn zuerst: docker start ${CONTAINER_NAME}"
+  echo "   Starte ihn zuerst: podman start ${CONTAINER_NAME}"
   exit 1
 fi
 
@@ -40,18 +40,18 @@ echo ""
 
 # Prüfe ob User existiert
 echo "Prüfe ob User '${DB_USER}' existiert..."
-if docker exec "${CONTAINER_NAME}" psql -U postgres -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}';" | grep -q 1; then
+if podman exec "${CONTAINER_NAME}" psql -U postgres -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}';" | grep -q 1; then
   echo "✅ User '${DB_USER}' existiert"
   USE_POSTGRES_USER=true
-elif docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -tc "SELECT 1;" >/dev/null 2>&1; then
+elif podman exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -tc "SELECT 1;" >/dev/null 2>&1; then
   echo "⚠️  User 'postgres' existiert nicht, aber '${DB_USER}' ist erreichbar"
   USE_POSTGRES_USER=false
 else
   echo "❌ Weder 'postgres' noch '${DB_USER}' sind als Superuser verfügbar"
   echo ""
   echo "Verfügbare Users im Container:"
-  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -c "\du" 2>/dev/null || \
-  docker exec "${CONTAINER_NAME}" psql -U postgres -d postgres -c "\du" 2>/dev/null || \
+  podman exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -c "\du" 2>/dev/null || \
+  podman exec "${CONTAINER_NAME}" psql -U postgres -d postgres -c "\du" 2>/dev/null || \
   echo "Konnte Users nicht auflisten - möglicherweise fehlende Berechtigung"
   exit 1
 fi
@@ -62,10 +62,10 @@ echo "🔄 Update Passwort für User '${DB_USER}'..."
 # Update Passwort
 if [ "$USE_POSTGRES_USER" = true ]; then
   # Nutze postgres Superuser
-  docker exec "${CONTAINER_NAME}" psql -U postgres -d postgres -c "ALTER USER ${DB_USER} WITH PASSWORD '${NEW_PASSWORD}';"
+  podman exec "${CONTAINER_NAME}" psql -U postgres -d postgres -c "ALTER USER ${DB_USER} WITH PASSWORD '${NEW_PASSWORD}';"
 else
   # Versuche mit dem User selbst (wenn er Superuser ist)
-  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -c "ALTER USER ${DB_USER} WITH PASSWORD '${NEW_PASSWORD}';"
+  podman exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -c "ALTER USER ${DB_USER} WITH PASSWORD '${NEW_PASSWORD}';"
 fi
 
 if [ $? -eq 0 ]; then
@@ -77,7 +77,7 @@ fi
 
 echo ""
 echo "🧪 Teste neue Verbindung..."
-if docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -c "SELECT current_user;" >/dev/null 2>&1; then
+if podman exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d postgres -c "SELECT current_user;" >/dev/null 2>&1; then
   echo "✅ Verbindung mit neuem Passwort erfolgreich!"
 else
   echo "⚠️  Verbindungstest fehlgeschlagen - möglicherweise benötigt Container Neustart"
@@ -91,10 +91,10 @@ echo ""
 echo "1. Aktualisiere .env Datei auf dem Server:"
 echo "   POSTGRES_PASSWORD_<STAGE>=${NEW_PASSWORD}"
 echo ""
-echo "2. Aktualisiere docker-compose.production.yml Environment-Variablen"
+echo "2. Aktualisiere podman-compose.production.yml Environment-Variablen"
 echo ""
 echo "3. Starte Container neu (damit neue .env Werte geladen werden):"
-echo "   docker-compose -f docker-compose.production.yml restart pvs-<stage>"
+echo "   podman-compose -f podman-compose.production.yml restart pvs-<stage>"
 echo ""
 echo "4. Falls GitHub Secrets betroffen sind, aktualisiere sie:"
 echo "   https://github.com/bbajor/pvs/settings/secrets/actions"

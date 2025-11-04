@@ -56,9 +56,9 @@ ai:
       port: 9000
       auto-install: true
       python-path: "python"
-      use-docker: true
-      docker-image: "pvs-whisper:latest"
-      docker-compose-path: "docker/whisper/docker-compose.yml"
+      use-podman: true
+      podman-image: "pvs-whisper:latest"
+      podman-compose-path: "docker/whisper/podman-compose.yml"
     remote:
       enabled: true
       provider: "aleph-alpha"
