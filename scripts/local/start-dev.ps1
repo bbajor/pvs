@@ -20,15 +20,47 @@ try {
     }
     Write-Host "✓ Podman verfügbar" -ForegroundColor Green
     
-    # Determine compose command
-    $COMPOSE_CMD = "podman compose"
+    # Warnung wenn docker-compose.exe im PATH ist (Windows)
+    $dockerCompose = Get-Command docker-compose.exe -ErrorAction SilentlyContinue
+    if ($dockerCompose) {
+        Write-Host "⚠️  WARNUNG: docker-compose.exe gefunden im PATH" -ForegroundColor Yellow
+        Write-Host "   Podman könnte docker-compose.exe verwenden statt native compose" -ForegroundColor Yellow
+        Write-Host "   Lösung: Deinstalliere docker-compose.exe oder verwende podman-compose (Python-Tool)" -ForegroundColor Gray
+    }
+    
+    # Determine compose command - prefer podman-compose (Python) auf Windows um docker-compose.exe zu vermeiden
+    $COMPOSE_CMD = "podman-compose"
     try {
-        $null = podman compose version 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            $COMPOSE_CMD = "podman-compose"
+        $null = podman-compose --version 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ podman-compose (Python) gefunden" -ForegroundColor Green
+        } else {
+            # Fallback zu podman compose (native)
+            $null = podman compose version 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $COMPOSE_CMD = "podman compose"
+                Write-Host "✓ podman compose (native) gefunden" -ForegroundColor Green
+            } else {
+                Write-Host "❌ Weder podman-compose noch podman compose verfügbar" -ForegroundColor Red
+                Write-Host "   Installiere: pip install podman-compose" -ForegroundColor Gray
+                exit 1
+            }
         }
     } catch {
-        $COMPOSE_CMD = "podman-compose"
+        # Fallback zu podman compose (native)
+        try {
+            $null = podman compose version 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $COMPOSE_CMD = "podman compose"
+                Write-Host "✓ podman compose (native) gefunden" -ForegroundColor Green
+            } else {
+                Write-Host "❌ Weder podman-compose noch podman compose verfügbar" -ForegroundColor Red
+                exit 1
+            }
+        } catch {
+            Write-Host "❌ Podman compose nicht verfügbar" -ForegroundColor Red
+            exit 1
+        }
     }
 } catch {
     Write-Host "❌ Podman nicht gefunden. Bitte Podman installieren." -ForegroundColor Red

@@ -116,6 +116,26 @@ Der Whisper-Container wird automatisch via Podman gestartet:
 
 ## Troubleshooting
 
+### Podman verwendet `docker-compose.exe` auf Windows
+
+**Problem:** Podman Compose verwendet automatisch `docker-compose.exe` aus dem Windows App Store, wenn es im PATH verfügbar ist.
+
+**Lösung:**
+
+1. **`docker-compose.exe` entfernen** (empfohlen):
+   - Windows Settings > Apps > docker-compose > Deinstallieren
+   - Oder aus dem PATH entfernen
+
+2. **`podman-compose` (Python-Tool) verwenden**:
+   ```powershell
+   pip install podman-compose
+   podman-compose -f podman-compose.dev.yml up -d
+   ```
+
+3. **Podman Desktop verwenden** (verwendet native `podman compose`):
+   - Podman Desktop installieren und starten
+   - Native `podman compose` wird automatisch verwendet
+
 ### Podman nicht gefunden
 
 ```bash
