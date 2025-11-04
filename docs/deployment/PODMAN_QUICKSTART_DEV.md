@@ -79,6 +79,53 @@ podman-compose -f podman-compose.dev.yml ps
 - **PostgreSQL**: localhost:5434
 - **Whisper**: localhost:9000
 
+## Troubleshooting
+
+### Podman verwendet `docker-compose.exe` auf Windows
+
+**Problem:** Podman Compose verwendet automatisch `docker-compose.exe` aus dem Windows App Store, wenn es im PATH verfügbar ist.
+
+**Lösung 1: `docker-compose.exe` entfernen (empfohlen)**
+
+```powershell
+# Prüfe ob docker-compose.exe im PATH ist
+Get-Command docker-compose.exe -ErrorAction SilentlyContinue
+
+# Falls gefunden, entferne es aus dem PATH oder deinstalliere es über Windows Settings > Apps
+```
+
+**Lösung 2: Umgebungsvariable setzen**
+
+```powershell
+# Setze Umgebungsvariable, um Podman zu zwingen, native compose zu verwenden
+$env:CONTAINER_HOST = "unix:///run/user/1000/podman/podman.sock"  # Linux/WSL2
+# Oder für Windows: Podman Desktop muss laufen
+```
+
+**Lösung 3: `podman-compose` (Python-Tool) verwenden**
+
+```powershell
+# Installiere podman-compose (Python-Tool)
+pip install podman-compose
+
+# Verwende explizit podman-compose statt podman compose
+podman-compose -f podman-compose.dev.yml up -d
+```
+
+### Gradle Build-Fehler im Container
+
+**Problem:** `ClassNotFoundException: org.springframework.context.ApplicationEventPublisherAware` beim Build.
+
+**Lösung:** Das ist ein bekanntes Problem beim Container-Build. Die Dependencies werden während des Builds geladen. Warte auf den vollständigen Build oder baue lokal:
+
+```powershell
+# Baue lokal vor dem Container-Build
+./gradlew clean build -x test
+
+# Dann starte Container
+.\scripts\local\start-dev.ps1
+```
+
 ## Wichtige Befehle
 
 ### Container stoppen
