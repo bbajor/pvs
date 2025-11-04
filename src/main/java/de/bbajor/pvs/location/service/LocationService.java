@@ -6,11 +6,11 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.repository.LocationRepository;
-import de.bbajor.pvs.institution.context.InstitutionContext;
 import lombok.RequiredArgsConstructor;
 
 /**
