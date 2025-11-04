@@ -20,8 +20,8 @@ $ErrorActionPreference = "Stop"
 
 $REPO_OWNER = if ($env:GITHUB_REPO_OWNER) { $env:GITHUB_REPO_OWNER } else { "bbajor" }
 $IMAGE_NAME = "ghcr.io/${REPO_OWNER}/pvs:dev-latest"
-$COMPOSE_FILE = "docker-compose.dev.yml"
-$ENV_FILE = "docker-compose.dev.env"
+$COMPOSE_FILE = "podman-compose.dev.yml"
+$ENV_FILE = "podman-compose.dev.env"
 $COMPOSE_DIR = if ($env:PVS_LOCAL_PATH) { $env:PVS_LOCAL_PATH } else { "D:\workspace\pvs" }
 $LOG_FILE = Join-Path $COMPOSE_DIR "pvs-auto-update.log"
 
@@ -61,31 +61,42 @@ Write-Log "=== PVS Auto-Update gestartet ===" "INFO"
 Write-Log "Verzeichnis: $COMPOSE_DIR" "INFO"
 Write-Log "Pruefe auf neues dev Image: $IMAGE_NAME" "INFO"
 
-# Prüfe ob Docker verfügbar ist
+# Prüfe ob Podman verfügbar ist
 try {
-    $null = docker --version 2>&1
+    $null = podman --version 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Log "Docker nicht verfügbar" "ERROR"
+        Write-Log "Podman nicht verfügbar" "ERROR"
         exit 1
     }
-    Write-Log "Docker verfügbar" "OK"
+    Write-Log "Podman verfügbar" "OK"
+    
+    # Determine compose command
+    $COMPOSE_CMD = "podman compose"
+    try {
+        $null = podman compose version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $COMPOSE_CMD = "podman-compose"
+        }
+    } catch {
+        $COMPOSE_CMD = "podman-compose"
+    }
 } catch {
-    Write-Log "Docker nicht gefunden. Bitte Docker Desktop installieren." "ERROR"
+    Write-Log "Podman nicht gefunden. Bitte Podman installieren." "ERROR"
     exit 1
 }
 
-# Prüfe ob Docker Login für private Images nötig ist
+# Prüfe ob Podman Login für private Images nötig ist
 if ($env:GITHUB_TOKEN -and $env:GITHUB_USERNAME) {
-    Write-Log "Docker Login für private Image..." "INFO"
+    Write-Log "Podman Login für private Image..." "INFO"
     try {
-        $loginOutput = $env:GITHUB_TOKEN | docker login ghcr.io -u $env:GITHUB_USERNAME --password-stdin 2>&1 | Out-String
+        $loginOutput = $env:GITHUB_TOKEN | podman login ghcr.io -u $env:GITHUB_USERNAME --password-stdin 2>&1 | Out-String
         if ($LASTEXITCODE -eq 0) {
-            Write-Log "Docker Login erfolgreich" "OK"
+            Write-Log "Podman Login erfolgreich" "OK"
         } else {
-            Write-Log "Docker Login fehlgeschlagen, versuche ohne Login..." "WARN"
+            Write-Log "Podman Login fehlgeschlagen, versuche ohne Login..." "WARN"
         }
     } catch {
-        Write-Log "Docker Login fehlgeschlagen: $($_.Exception.Message)" "WARN"
+        Write-Log "Podman Login fehlgeschlagen: $($_.Exception.Message)" "WARN"
         Write-Log "Versuche Image-Pull ohne vorherigen Login..." "INFO"
     }
 }
@@ -93,7 +104,7 @@ if ($env:GITHUB_TOKEN -and $env:GITHUB_USERNAME) {
 # Prüfe ob ein neues Image verfügbar ist
 $currentImageId = $null
 try {
-    $currentImageId = docker images --format "{{.ID}}" $IMAGE_NAME 2>$null | Select-Object -First 1
+    $currentImageId = podman images --format "{{.ID}}" $IMAGE_NAME 2>$null | Select-Object -First 1
     if ($null -eq $currentImageId -or $currentImageId -eq "") {
         $currentImageId = $null
     }
@@ -104,7 +115,7 @@ try {
 
 Write-Log "Pulling neues Image..." "INFO"
 try {
-    $pullOutput = docker pull $IMAGE_NAME 2>&1 | Out-String
+    $pullOutput = podman pull $IMAGE_NAME 2>&1 | Out-String
     $pullExitCode = $LASTEXITCODE
     Write-Log "Pull Output: $pullOutput" "INFO"
 } catch {
@@ -115,7 +126,7 @@ try {
 if ($pullExitCode -ne 0) {
     if ($pullOutput -match "unauthorized") {
         Write-Log "Image pull fehlgeschlagen - nicht autorisiert (ghcr.io Login erforderlich)" "WARN"
-        Write-Log "Fuer oeffentliche Images: docker login ghcr.io" "INFO"
+        Write-Log "Fuer oeffentliche Images: podman login ghcr.io" "INFO"
     } else {
         Write-Log "Image pull fehlgeschlagen (moeglicherweise noch nicht gebaut)" "WARN"
         Write-Log "Details: $pullOutput" "INFO"
@@ -124,7 +135,7 @@ if ($pullExitCode -ne 0) {
     exit 0
 }
 
-$newImageId = docker images --format "{{.ID}}" $IMAGE_NAME 2>$null | Select-Object -First 1
+$newImageId = podman images --format "{{.ID}}" $IMAGE_NAME 2>$null | Select-Object -First 1
 if ($null -eq $newImageId -or $newImageId -eq "") {
     $newImageId = $null
 }
@@ -132,7 +143,7 @@ if ($null -eq $newImageId -or $newImageId -eq "") {
 # Prüfe ob Container laufen
 $containersRunning = $false
 try {
-    $runningContainers = docker compose -f $COMPOSE_FILE ps --format json 2>&1 | ConvertFrom-Json -ErrorAction SilentlyContinue
+    $runningContainers = & $COMPOSE_CMD -f $COMPOSE_FILE ps --format json 2>&1 | ConvertFrom-Json -ErrorAction SilentlyContinue
     if ($runningContainers) {
         $runningCount = ($runningContainers | Where-Object { $_.State -eq "running" }).Count
         $totalCount = $runningContainers.Count
@@ -163,44 +174,44 @@ Write-Log "Starte Deployment..." "INFO"
 $env:PVS_DEV_IMAGE = $IMAGE_NAME
 Write-Log "Setze PVS_DEV_IMAGE=$IMAGE_NAME" "INFO"
 
-# Prüfe ob docker-compose.dev.env existiert
+# Prüfe ob podman-compose.dev.env existiert
 $envFilePath = Join-Path $COMPOSE_DIR $ENV_FILE
 
 # Stoppe und entferne alte Container (fuer sauberes Update)
 Write-Log "Stoppe alte Container..." "INFO"
 try {
     if (Test-Path $envFilePath) {
-        docker compose -f $COMPOSE_FILE --env-file $ENV_FILE down 2>&1 | Out-String | Out-Null
+        & $COMPOSE_CMD -f $COMPOSE_FILE --env-file $ENV_FILE down 2>&1 | Out-String | Out-Null
     } else {
-        docker compose -f $COMPOSE_FILE down 2>&1 | Out-String | Out-Null
+        & $COMPOSE_CMD -f $COMPOSE_FILE down 2>&1 | Out-String | Out-Null
     }
 } catch {
     # Ignore errors (Container laufen vielleicht nicht)
 }
 Start-Sleep -Seconds 2
 
-# Pull neueste Images via docker compose (wichtig für Image-Updates!)
-Write-Log "Pulling neueste Images via docker compose..." "INFO"
+# Pull neueste Images via $COMPOSE_CMD (wichtig für Image-Updates!)
+Write-Log "Pulling neueste Images via $COMPOSE_CMD..." "INFO"
 try {
     if (Test-Path $envFilePath) {
-        docker compose -f $COMPOSE_FILE --env-file $ENV_FILE pull 2>&1 | Out-String | Out-Null
+        & $COMPOSE_CMD -f $COMPOSE_FILE --env-file $ENV_FILE pull 2>&1 | Out-String | Out-Null
     } else {
-        docker compose -f $COMPOSE_FILE pull 2>&1 | Out-String | Out-Null
+        & $COMPOSE_CMD -f $COMPOSE_FILE pull 2>&1 | Out-String | Out-Null
     }
-    Write-Log "Image pull via docker compose erfolgreich" "OK"
+    Write-Log "Image pull via $COMPOSE_CMD erfolgreich" "OK"
 } catch {
-    Write-Log "Image pull via docker compose fehlgeschlagen, versuche trotzdem weiter..." "WARN"
+    Write-Log "Image pull via $COMPOSE_CMD fehlgeschlagen, versuche trotzdem weiter..." "WARN"
 }
 
 if (-not (Test-Path $envFilePath)) {
-    Write-Log "docker-compose.dev.env nicht gefunden - verwende Defaults" "WARN"
-    Write-Log "Fuehre aus: docker compose -f $COMPOSE_FILE up -d --force-recreate --pull always" "INFO"
-    $composeOutput = docker compose -f $COMPOSE_FILE up -d --force-recreate --pull always 2>&1 | Out-String
+    Write-Log "podman-compose.dev.env nicht gefunden - verwende Defaults" "WARN"
+    Write-Log "Fuehre aus: $COMPOSE_CMD -f $COMPOSE_FILE up -d --force-recreate --pull always" "INFO"
+    $composeOutput = & $COMPOSE_CMD -f $COMPOSE_FILE up -d --force-recreate --pull always 2>&1 | Out-String
     Write-Log "Compose Output: $composeOutput" "INFO"
 } else {
-    Write-Log "Nutze docker-compose.dev.env für Deployment" "INFO"
-    Write-Log "Fuehre aus: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate --pull always" "INFO"
-    $composeOutput = docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate --pull always 2>&1 | Out-String
+    Write-Log "Nutze podman-compose.dev.env für Deployment" "INFO"
+    Write-Log "Fuehre aus: $COMPOSE_CMD -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate --pull always" "INFO"
+    $composeOutput = & $COMPOSE_CMD -f $COMPOSE_FILE --env-file $ENV_FILE up -d --force-recreate --pull always 2>&1 | Out-String
     Write-Log "Compose Output: $composeOutput" "INFO"
 }
 
@@ -224,7 +235,7 @@ if ($LASTEXITCODE -ne 0) {
                         Write-Log "Lokale PostgreSQL-Instanz gefunden - Container nutzt Port 5433" "INFO"
                         Write-Log "Moegliche Loesungen:" "INFO"
                         Write-Log "  1. Lokale PostgreSQL stoppen: Stop-Process -Id $procId" "INFO"
-                        Write-Log "  2. Oder nutze bereits geaenderten Port 5433 in docker-compose.dev.yml" "INFO"
+                        Write-Log "  2. Oder nutze bereits geaenderten Port 5433 in podman-compose.dev.yml" "INFO"
                     }
                 }
             }
@@ -232,7 +243,7 @@ if ($LASTEXITCODE -ne 0) {
             # Ignore
         }
         
-        Write-Log "Moegliche Loesung: Anderen Prozess auf Port beenden ODER Port in docker-compose.dev.yml aendern" "INFO"
+        Write-Log "Moegliche Loesung: Anderen Prozess auf Port beenden ODER Port in podman-compose.dev.yml aendern" "INFO"
     }
     
     Write-Log "=== Auto-Update fehlgeschlagen ===" "ERROR"
@@ -246,12 +257,12 @@ Start-Sleep -Seconds 30
 
 # Prüfe Status
 Write-Log "Pruefe Container-Status..." "INFO"
-$statusOutput = docker compose -f $COMPOSE_FILE ps 2>&1
+$statusOutput = & $COMPOSE_CMD -f $COMPOSE_FILE ps 2>&1
 $statusText = $statusOutput -join "`n"
 Write-Log "Status Output: $statusText" "INFO"
 
 # Prüfe alle Container
-$psOutput = docker compose -f $COMPOSE_FILE ps --format json 2>&1 | ConvertFrom-Json -ErrorAction SilentlyContinue
+$psOutput = & $COMPOSE_CMD -f $COMPOSE_FILE ps --format json 2>&1 | ConvertFrom-Json -ErrorAction SilentlyContinue
 if ($psOutput) {
     $allRunning = $true
     foreach ($container in $psOutput) {
@@ -265,21 +276,21 @@ if ($psOutput) {
     
     if ($allRunning) {
         Write-Log "Deployment erfolgreich - alle Container laufen" "OK"
-        docker compose -f $COMPOSE_FILE ps
+        & $COMPOSE_CMD -f $COMPOSE_FILE ps
     } else {
         Write-Log "Deployment abgeschlossen, aber nicht alle Container laufen" "WARN"
-        docker compose -f $COMPOSE_FILE ps
+        & $COMPOSE_CMD -f $COMPOSE_FILE ps
         Write-Log "Pruefe Logs..." "INFO"
-        docker compose -f $COMPOSE_FILE logs --tail=50
+        & $COMPOSE_CMD -f $COMPOSE_FILE logs --tail=50
     }
 } elseif ($statusText -match "Up.*healthy") {
     Write-Log "Deployment erfolgreich" "OK"
-    docker compose -f $COMPOSE_FILE ps
+    Invoke-Expression "$COMPOSE_CMD" -f $COMPOSE_FILE ps
 } else {
     Write-Log "Deployment abgeschlossen, pruefe Status:" "WARN"
-    docker compose -f $COMPOSE_FILE ps
+    Invoke-Expression "$COMPOSE_CMD" -f $COMPOSE_FILE ps
     Write-Log "Pruefe Logs (letzte 50 Zeilen):" "INFO"
-    docker compose -f $COMPOSE_FILE logs --tail=50
+    Invoke-Expression "$COMPOSE_CMD" -f $COMPOSE_FILE logs --tail=50
 }
 
 Write-Log "=== Auto-Update abgeschlossen ===" "INFO"
