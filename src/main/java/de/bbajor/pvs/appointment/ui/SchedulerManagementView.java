@@ -22,7 +22,7 @@ import de.bbajor.pvs.appointment.model.SchedulerAssignment;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
-import de.bbajor.pvs.practice.service.PracticeService;
+import de.bbajor.pvs.location.service.LocationService;
 import jakarta.annotation.security.RolesAllowed;
 
 /**
@@ -37,7 +37,7 @@ public class SchedulerManagementView extends Main {
 
     private final AppointmentSchedulerService schedulerService;
     private final OfficeHoursService officeHoursService;
-    private final PracticeService practiceService;
+    private final LocationService locationService;
 
     private Grid<AppointmentScheduler> schedulerGrid;
     private Grid<OfficeHours> officeHoursGrid;
@@ -49,10 +49,10 @@ public class SchedulerManagementView extends Main {
     public SchedulerManagementView(
             AppointmentSchedulerService schedulerService,
             OfficeHoursService officeHoursService,
-            PracticeService practiceService) {
+            LocationService locationService) {
         this.schedulerService = schedulerService;
         this.officeHoursService = officeHoursService;
-        this.practiceService = practiceService;
+        this.locationService = locationService;
 
         addClassNames(
             LumoUtility.BoxSizing.BORDER, 
@@ -111,8 +111,9 @@ public class SchedulerManagementView extends Main {
         schedulerGrid.addColumn(AppointmentScheduler::getName).setHeader("Name");
         schedulerGrid.addColumn(AppointmentScheduler::getDescription).setHeader("Beschreibung");
         schedulerGrid.addColumn(AppointmentScheduler::getType).setHeader("Typ");
-        schedulerGrid.addColumn(scheduler -> scheduler.getPractice().getPracticeName())
-            .setHeader("Praxis");
+        schedulerGrid.addColumn(scheduler -> 
+            scheduler.getLocation() != null ? scheduler.getLocation().getLocationName() : "Kein Standort")
+            .setHeader("Standort");
         schedulerGrid.addColumn(scheduler -> scheduler.isActive() ? "Aktiv" : "Inaktiv")
             .setHeader("Status");
 
@@ -206,7 +207,7 @@ public class SchedulerManagementView extends Main {
     private void openSchedulerDialog() {
         SchedulerDialog dialog = new SchedulerDialog(
             schedulerService, 
-            practiceService, 
+            locationService, 
             null
         );
         dialog.setOnSaveCallback(this::showSchedulersTab);
@@ -216,7 +217,7 @@ public class SchedulerManagementView extends Main {
     private void openSchedulerDialog(AppointmentScheduler scheduler) {
         SchedulerDialog dialog = new SchedulerDialog(
             schedulerService, 
-            practiceService, 
+            locationService, 
             scheduler
         );
         dialog.setOnSaveCallback(this::showSchedulersTab);

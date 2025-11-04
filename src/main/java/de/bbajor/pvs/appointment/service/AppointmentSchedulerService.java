@@ -10,10 +10,11 @@ import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.SchedulerAssignment;
 import de.bbajor.pvs.appointment.repository.AppointmentSchedulerRepository;
 import de.bbajor.pvs.appointment.repository.SchedulerAssignmentRepository;
-import de.bbajor.pvs.practice.model.Practice;
+import de.bbajor.pvs.institution.service.InstitutionAccessValidator;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.security.domain.UserAccount;
-import de.bbajor.pvs.tenant.context.TenantContext;
-import de.bbajor.pvs.tenant.service.TenantAccessValidator;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -26,27 +27,35 @@ public class AppointmentSchedulerService {
 
     private final AppointmentSchedulerRepository schedulerRepository;
     private final SchedulerAssignmentRepository assignmentRepository;
-    private final TenantAccessValidator tenantAccessValidator;
+    private final InstitutionAccessValidator institutionAccessValidator;
+    private final LocationService locationService;
 
     /**
-     * Find all schedulers for a practice.
+     * Find all schedulers for a location.
      * Ensures tenant isolation.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * AppointmentScheduler → Location → Institution (primary path).
+     * </p>
      */
-    public List<AppointmentScheduler> findByPractice(Practice practice) {
-        Long tenantId = TenantContext.getTenantId();
-        if (tenantId != null) {
-            tenantAccessValidator.validateTenantAccess(practice.getTenant().getId(), 
-                "Practice", practice.getId());
-            return schedulerRepository.findByTenantAndPractice(tenantId, practice.getId());
+    public List<AppointmentScheduler> findByLocation(Location location) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            // Validate location belongs to current institution
+            if (location.getInstitution() != null && location.getInstitution().getId() != null) {
+                institutionAccessValidator.validateInstitutionAccess(location.getInstitution().getId(), 
+                    "Location", location.getId());
+            }
+            return schedulerRepository.findByLocation(location);
         }
-        return schedulerRepository.findByPractice(practice);
+        return schedulerRepository.findByLocation(location);
     }
 
     /**
-     * Find all active schedulers for a practice.
+     * Find all active schedulers for a location.
      */
-    public List<AppointmentScheduler> findActiveByPractice(Practice practice) {
-        return schedulerRepository.findByPracticeAndActiveTrue(practice);
+    public List<AppointmentScheduler> findActiveByLocation(Location location) {
+        return schedulerRepository.findByLocationAndActiveTrue(location);
     }
 
     /**
@@ -54,11 +63,17 @@ public class AppointmentSchedulerService {
      * Ensures tenant isolation.
      */
     public Optional<AppointmentScheduler> findById(Long id) {
-        Long tenantId = TenantContext.getTenantId();
-        if (tenantId != null) {
-            Optional<AppointmentScheduler> scheduler = schedulerRepository.findByIdAndTenantId(id, tenantId);
-            scheduler.ifPresent(s -> 
-                tenantAccessValidator.validateTenantAccess(s.getTenant().getId(), "AppointmentScheduler", s.getId()));
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            Optional<AppointmentScheduler> scheduler = schedulerRepository.findByIdAndInstitutionId(id, institutionId);
+            scheduler.ifPresent(s -> {
+                if (s.getLocation() != null && s.getLocation().getInstitution() != null) {
+                    institutionAccessValidator.validateInstitutionAccess(
+                        s.getLocation().getInstitution().getId(), 
+                        "AppointmentScheduler", 
+                        s.getId());
+                }
+            });
             return scheduler;
         }
         return schedulerRepository.findById(id);
@@ -74,30 +89,35 @@ public class AppointmentSchedulerService {
     }
 
     /**
-     * Validate and set tenant for scheduler.
-     * Ensures tenant consistency with practice.
+     * Validate tenant for scheduler.
+     * Ensures tenant consistency with location.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * AppointmentScheduler → Location → Institution (primary path).
+     * </p>
      */
     private void validateAndSetTenant(AppointmentScheduler scheduler) {
-        Long tenantId = TenantContext.getTenantId();
+        Long institutionId = InstitutionContext.getInstitutionId();
         
-        if (tenantId != null) {
-            // Validate practice belongs to current tenant
-            if (scheduler.getPractice() != null) {
-                tenantAccessValidator.validateTenantAccess(
-                    scheduler.getPractice().getTenant().getId(),
-                    "Practice",
-                    scheduler.getPractice().getId());
+        if (institutionId != null) {
+            // Validate location belongs to current institution/tenant
+            if (scheduler.getLocation() != null && scheduler.getLocation().getInstitution() != null) {
+                institutionAccessValidator.validateInstitutionAccess(
+                    scheduler.getLocation().getInstitution().getId(),
+                    "Location",
+                    scheduler.getLocation().getId());
             }
             
-            // Set tenant from practice if not set
-            if (scheduler.getTenant() == null && scheduler.getPractice() != null) {
-                scheduler.setTenant(scheduler.getPractice().getTenant());
-            }
-            
-            // Validate tenant consistency
-            if (scheduler.getTenant() != null && !scheduler.getTenant().getId().equals(tenantId)) {
-                throw new IllegalArgumentException(
-                    "Terminplaner geh?rt nicht zum aktuellen Mandanten");
+            // Ensure scheduler has location
+            if (scheduler.getLocation() == null) {
+                // Try to set default location
+                Location defaultLocation = locationService.getDefaultLocation();
+                if (defaultLocation != null) {
+                    scheduler.setLocation(defaultLocation);
+                } else {
+                    throw new IllegalStateException(
+                        "No location found. Ensure LocationService has a location configured for the current institution.");
+                }
             }
         }
     }
@@ -179,21 +199,24 @@ public class AppointmentSchedulerService {
 
     /**
      * Find all schedulers.
-     * Tenant-aware: Returns only schedulers for current tenant.
+     * Institution-aware: Returns only schedulers for current institution.
      */
     public List<AppointmentScheduler> findAll() {
-        Long tenantId = TenantContext.getTenantId();
-        if (tenantId != null) {
-            return schedulerRepository.findByTenantId(tenantId);
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            return schedulerRepository.findByInstitutionId(institutionId);
         }
         return schedulerRepository.findAll();
     }
 
     /**
-     * Find all active schedulers for current tenant.
+     * Find all active schedulers for current institution.
      */
     public List<AppointmentScheduler> findAllActive() {
-        Long tenantId = tenantAccessValidator.requireCurrentTenantId();
-        return schedulerRepository.findActivByTenantId(tenantId);
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            throw new IllegalStateException("No institution context available");
+        }
+        return schedulerRepository.findActivByInstitutionId(institutionId);
     }
 }

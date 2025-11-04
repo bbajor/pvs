@@ -28,11 +28,11 @@ import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.AppointmentStatus;
 import de.bbajor.pvs.appointment.repository.AppointmentRepository;
 import de.bbajor.pvs.patient.model.Patient;
-import de.bbajor.pvs.practice.model.Practice;
-import de.bbajor.pvs.tenant.model.Tenant;
-import de.bbajor.pvs.tenant.service.TenantAccessValidator;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.institution.service.InstitutionAccessValidator;
 
-/**
+/** 
  * Unit tests for AppointmentService business logic and validations.
  */
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +45,7 @@ class AppointmentServiceTest {
     private OfficeHoursService officeHoursService;
 
     @Mock
-    private TenantAccessValidator tenantAccessValidator;
+    private InstitutionAccessValidator institutionAccessValidator;
 
     @InjectMocks
     private AppointmentService appointmentService;
@@ -53,37 +53,37 @@ class AppointmentServiceTest {
     private AppointmentScheduler scheduler;
     private Patient patient;
     private Appointment appointment;
-    private Tenant tenant;
+    private Institution institution;
 
     @BeforeEach
     void setUp() {
-        // Setup tenant
-        tenant = new Tenant();
-        tenant.setId(1L);
-        tenant.setTenantCode("TEST-2024-A1B2");
-        tenant.setTenantName("Test Praxis MVZ");
+        // Setup institution
+        institution = new Institution();
+        institution.setId(1L);
+        institution.setInstitutionCode("TEST-2024-A1B2");
+        institution.setInstitutionName("Test Praxis MVZ");
+        institution.setDatabaseName("pvs_inst_test_2024_a1b2");
+        institution.setContainerName("postgres-inst-test-2024-a1b2");
 
-        Practice practice = new Practice();
-        practice.setId(1L);
-        practice.setPracticeName("Test Praxis");
-        practice.setTenant(tenant);
+        Location location = new Location();
+        location.setId(1L);
+        location.setLocationName("Test Praxis");
+        location.setInstitution(institution);
 
         scheduler = new AppointmentScheduler();
         scheduler.setId(1L);
         scheduler.setName("Test Scheduler");
-        scheduler.setPractice(practice);
-        scheduler.setTenant(tenant);
+        scheduler.setLocation(location);
 
         patient = new Patient();
         patient.setId(1);
         patient.setFirstName("Max");
         patient.setLastName("Mustermann");
-        patient.setTenant(tenant);
+        patient.setLocation(location);
 
         appointment = new Appointment();
         appointment.setScheduler(scheduler);
         appointment.setPatient(patient);
-        appointment.setTenant(tenant);
         appointment.setReason("Kontrolluntersuchung");
         appointment.setStatus(AppointmentStatus.SCHEDULED);
     }

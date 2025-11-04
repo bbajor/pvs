@@ -3,8 +3,9 @@ package de.bbajor.pvs.surgicalcenter.model;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.patient.model.Address;
-import de.bbajor.pvs.tenant.model.Tenant;
+import de.bbajor.pvs.institution.model.Institution; // TODO: Remove after migration
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
@@ -25,12 +26,9 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class SurgicalCenter extends BasicEntity<Integer> {
 
-    /**
-     * The tenant this surgical center belongs to.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "institution_id")
+    private Institution institution;
 
     private String name;
     private String description;
@@ -56,3 +54,4 @@ public class SurgicalCenter extends BasicEntity<Integer> {
                 + (address != null ? address.toString() : "");
     }
 }
+

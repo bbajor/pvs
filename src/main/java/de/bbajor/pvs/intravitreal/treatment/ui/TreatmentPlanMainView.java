@@ -12,6 +12,8 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -19,18 +21,21 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.CurrentUser;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route("ivom")
 @PageTitle("IVOM-Verwaltung")
 @Menu(order = 2, icon = "vaadin:calendar-user", title = "IVOM-Verwaltung")
 @PermitAll
-public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeListener {
+public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeListener, BeforeEnterObserver {
 
     private final TreatmentPlanListPresenter ivomListPresenter;
     private final CurrentUser currentUser;
@@ -101,6 +106,20 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // SUPER_ADMIN without institution context should not access treatment plan data
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+        boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+        
+        if (isSuperAdmin && !hasInstitutionContext) {
+            // Redirect SUPER_ADMIN to institution management
+            event.forwardTo("admin/institutions");
+        }
     }
 
     private void navigateToDetailView(TreatmentPlan treatmentPlan) {

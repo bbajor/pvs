@@ -1,13 +1,12 @@
 package de.bbajor.pvs.intravitreal.treatment.model;
 
 import java.time.LocalDate;
-import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.patient.model.Patient;
-import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -26,15 +25,25 @@ import lombok.experimental.Accessors;
 public class TreatmentPlan extends BasicEntity<Long> {
 
     /**
-     * The tenant this treatment plan belongs to.
-     * Provides explicit tenant isolation for security.
+     * Data isolation: All filtering is done via institution.
+     * TreatmentPlan → Patient → Location → Institution (primary path).
+     * During migration, also supports Patient → Practice → Tenant (legacy).
+     * 
+     * Explicit institution_id for performance and data isolation compliance.
      */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
 
     private LocalDate creationDate;
     private String description;
+    
+    /**
+     * The institution this treatment plan belongs to.
+     * Data isolation: All filtering is done via institution.
+     * This is set automatically from patient.location.institution or patient.practice.tenant.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "institution_id", nullable = false)
+    private Institution institution;
+    
     @ManyToOne(fetch = FetchType.EAGER)
     private Patient patient;
     @ManyToOne(fetch = FetchType.EAGER)

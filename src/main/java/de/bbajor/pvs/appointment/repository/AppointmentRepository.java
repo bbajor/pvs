@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,14 +14,17 @@ import org.springframework.stereotype.Repository;
 import de.bbajor.pvs.appointment.model.Appointment;
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.patient.model.Patient;
-import de.bbajor.pvs.tenant.repository.TenantAwareRepository;
+import de.bbajor.pvs.institution.repository.InstitutionAwareRepository;
 
 /**
  * Repository for Appointment entities.
  * Tenant-aware to ensure data isolation.
+ * <p>
+ * Uses Location for data isolation.
+ * </p>
  */
 @Repository
-public interface AppointmentRepository extends TenantAwareRepository<Appointment, Long> {
+public interface AppointmentRepository extends InstitutionAwareRepository<Appointment, Long> {
 
     /**
      * Find all appointments for a scheduler.
@@ -72,28 +76,95 @@ public interface AppointmentRepository extends TenantAwareRepository<Appointment
     );
 
     /**
-     * Find appointments for a tenant within a date range.
+     * Find appointments for a institution within a date range.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
      */
-    @Query("SELECT a FROM Appointment a WHERE a.tenant.id = :tenantId " +
+    @Query("SELECT a FROM Appointment a WHERE " +
+       "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId " +
            "AND a.startTime >= :start AND a.startTime <= :end ORDER BY a.startTime ASC")
-    List<Appointment> findByTenantIdAndDateRange(
-        @Param("tenantId") Long tenantId,
+    List<Appointment> findByInstitutionIdAndDateRange(
+        @Param("institutionId") Long institutionId,
         @Param("start") LocalDateTime start,
         @Param("end") LocalDateTime end
     );
 
-    /**
-     * Find appointment by ID and tenant (tenant-safe access).
-     */
-    @Query("SELECT a FROM Appointment a WHERE a.id = :id AND a.tenant.id = :tenantId")
-    Optional<Appointment> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     /**
-     * Find all appointments for a scheduler belonging to a tenant.
+     * Find all appointments for a scheduler belonging to an institution.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
      */
-    @Query("SELECT a FROM Appointment a WHERE a.scheduler = :scheduler AND a.tenant.id = :tenantId")
-    List<Appointment> findBySchedulerAndTenantId(
+    @Query("SELECT a FROM Appointment a WHERE a.scheduler = :scheduler AND " +
+           "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId")
+    List<Appointment> findBySchedulerAndInstitutionId(
         @Param("scheduler") AppointmentScheduler scheduler,
-        @Param("tenantId") Long tenantId
+        @Param("institutionId") Long institutionId
     );
+    
+    /**
+     * Find all appointments for an institution.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Override
+    @Query("SELECT a FROM Appointment a WHERE " +
+           "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId")
+    List<Appointment> findByInstitutionId(@Param("institutionId") Long institutionId);
+    
+    /**
+     * Find appointment by ID and institution (institution-safe access).
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Override
+    @Query("SELECT a FROM Appointment a WHERE a.id = :id AND " +
+           "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId")
+    Optional<Appointment> findByIdAndInstitutionId(@Param("id") Long id, @Param("institutionId") Long institutionId);
+    
+    /**
+     * Count appointments for an institution.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Override
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE " +
+           "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId")
+    long countByInstitutionId(@Param("institutionId") Long institutionId);
+    
+    /**
+     * Check if appointment exists for institution.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Override
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM Appointment a WHERE a.id = :id AND " +
+           "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId")
+    boolean existsByIdAndInstitutionId(@Param("id") Long id, @Param("institutionId") Long institutionId);
+    
+    /**
+     * Delete all appointments for an institution.
+     * USE WITH CAUTION - for institution deletion/cleanup only.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Appointment → Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Override
+    @Modifying
+    @Query("DELETE FROM Appointment a WHERE " +
+           "a.patient.location IS NOT NULL AND a.patient.location.institution.id = :institutionId")
+    void deleteByInstitutionId(@Param("institutionId") Long institutionId);
 }

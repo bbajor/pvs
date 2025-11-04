@@ -4,7 +4,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
-import de.bbajor.pvs.tenant.model.Tenant;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.location.model.Location;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
@@ -22,11 +23,11 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 @Table(name = "user_account", uniqueConstraints = { 
-    @UniqueConstraint(columnNames = { "tenant_id", "username" })
+    @UniqueConstraint(columnNames = { "institution_id", "username" })
 })
 public class UserAccount extends BasicEntity<Long> {
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String username;
 
     @Column(nullable = false)
@@ -47,10 +48,35 @@ public class UserAccount extends BasicEntity<Long> {
     private String email;
 
     /**
-     * The tenant this user belongs to.
-     * Null for super-admin users who can manage all tenants.
+     * The institution this user belongs to.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Users belong to exactly one institution (null for super-admins).
+     * </p>
+     * <p>
+     * This is the primary field for institution assignment.
+     * The tenant field (below) is kept for backward compatibility during migration.
+     * </p>
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "institution_id")
+    private Institution institution;
+
+    /**
+     * The preferred location (Standort) for this user.
+     * <p>
+     * Users can be assigned to a preferred location within their institution.
+     * This is useful for:
+     * - Appointment planning (filter appointments by preferred location)
+     * - Treatment planning (assign treatments to user's preferred location)
+     * - Default location selection in UI
+     * </p>
+     * <p>
+     * This is optional - if not set, the user can work at any location
+     * within their institution.
+     * </p>
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id")
-    private Tenant tenant;
+    @JoinColumn(name = "preferred_location_id")
+    private Location preferredLocation;
 }

@@ -11,6 +11,8 @@ spring:
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
+    # Flyway ist in dev deaktiviert, weil das Schema mit Hibernate create-drop erstellt wird
+    # Die Migration V1__initial_schema.sql muss aktualisiert werden, wenn Flyway aktiviert wird
   h2:
     console:
       enabled: true
