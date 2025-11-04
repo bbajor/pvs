@@ -14,8 +14,8 @@ import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.repository.AppointmentRepository;
 import de.bbajor.pvs.patient.model.Patient;
-import de.bbajor.pvs.tenant.context.TenantContext;
-import de.bbajor.pvs.tenant.service.TenantAccessValidator;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.service.InstitutionAccessValidator;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -28,18 +28,25 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final OfficeHoursService officeHoursService;
-    private final TenantAccessValidator tenantAccessValidator;
+    private final InstitutionAccessValidator institutionAccessValidator;
 
     /**
      * Find all appointments for a scheduler.
      * Ensures tenant isolation.
+     * <p>
+     * Uses Location for data isolation.
+     * </p>
      */
     public List<Appointment> findByScheduler(AppointmentScheduler scheduler) {
-        Long tenantId = TenantContext.getTenantId();
-        if (tenantId != null) {
-            tenantAccessValidator.validateTenantAccess(scheduler.getTenant().getId(), 
-                "AppointmentScheduler", scheduler.getId());
-            return appointmentRepository.findBySchedulerAndTenantId(scheduler, tenantId);
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            // Validate location belongs to current institution
+            if (scheduler.getLocation() != null && scheduler.getLocation().getInstitution() != null) {
+                institutionAccessValidator.validateInstitutionAccess(
+                    scheduler.getLocation().getInstitution().getId(), 
+                    "AppointmentScheduler", scheduler.getId());
+            }
+            return appointmentRepository.findBySchedulerAndInstitutionId(scheduler, institutionId);
         }
         return appointmentRepository.findByScheduler(scheduler);
     }
@@ -64,13 +71,21 @@ public class AppointmentService {
     /**
      * Find appointment by ID.
      * Ensures tenant isolation.
+     * <p>
+     * Uses Location for data isolation.
+     * </p>
      */
     public Optional<Appointment> findById(Long id) {
-        Long tenantId = TenantContext.getTenantId();
-        if (tenantId != null) {
-            Optional<Appointment> appointment = appointmentRepository.findByIdAndTenantId(id, tenantId);
-            appointment.ifPresent(a -> 
-                tenantAccessValidator.validateTenantAccess(a.getTenant().getId(), "Appointment", a.getId()));
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            Optional<Appointment> appointment = appointmentRepository.findByIdAndInstitutionId(id, institutionId);
+            appointment.ifPresent(a -> {
+                // Validate patient location belongs to current institution
+                if (a.getPatient().getLocation() != null && a.getPatient().getLocation().getInstitution() != null) {
+                    institutionAccessValidator.validateInstitutionAccess(
+                        a.getPatient().getLocation().getInstitution().getId(), "Appointment", a.getId());
+                }
+            });
             return appointment;
         }
         return appointmentRepository.findById(id);
@@ -103,38 +118,71 @@ public class AppointmentService {
     }
 
     /**
-     * Validate and set tenant for appointment.
-     * Ensures tenant consistency across scheduler, patient, and appointment.
+     * Validate tenant for appointment.
+     * Ensures tenant consistency across scheduler and patient.
+     * <p>
+     * Uses Location for data isolation.
+     * </p>
      */
     private void validateAndSetTenant(Appointment appointment) {
-        Long tenantId = TenantContext.getTenantId();
+        Long institutionId = InstitutionContext.getInstitutionId();
         
-        if (tenantId != null) {
-            // Validate scheduler belongs to current tenant
+        if (institutionId != null) {
+            // Validate scheduler belongs to current institution/tenant
             if (appointment.getScheduler() != null) {
-                tenantAccessValidator.validateTenantAccess(
-                    appointment.getScheduler().getTenant().getId(),
-                    "AppointmentScheduler",
-                    appointment.getScheduler().getId());
+                AppointmentScheduler scheduler = appointment.getScheduler();
+                // Check location (new model)
+                if (scheduler.getLocation() != null && scheduler.getLocation().getInstitution() != null) {
+                    institutionAccessValidator.validateInstitutionAccess(
+                        scheduler.getLocation().getInstitution().getId(),
+                        "AppointmentScheduler",
+                        scheduler.getId());
+                } else {
+                    throw new IllegalStateException(
+                        "AppointmentScheduler has no location with institution. " +
+                        "Scheduler ID: " + scheduler.getId());
+                }
             }
             
-            // Validate patient belongs to current tenant
+            // Validate patient belongs to current institution/tenant
             if (appointment.getPatient() != null) {
-                tenantAccessValidator.validateTenantAccess(
-                    appointment.getPatient().getTenant().getId(),
-                    "Patient",
-                    appointment.getPatient().getId());
+                Patient patient = appointment.getPatient();
+                // Check location (new model)
+                if (patient.getLocation() != null && patient.getLocation().getInstitution() != null) {
+                    institutionAccessValidator.validateInstitutionAccess(
+                        patient.getLocation().getInstitution().getId(),
+                        "Patient",
+                        patient.getId());
+                } else {
+                    throw new IllegalStateException(
+                        "Patient has no location with institution. " +
+                        "Patient ID: " + patient.getId());
+                }
             }
             
-            // Set tenant from context if not set
-            if (appointment.getTenant() == null) {
-                appointment.setTenant(appointment.getScheduler().getTenant());
-            }
-            
-            // Validate tenant consistency
-            if (!appointment.getTenant().getId().equals(tenantId)) {
-                throw new IllegalArgumentException(
-                    "Termin gehört nicht zum aktuellen Mandanten");
+            // Ensure scheduler and patient belong to same institution/tenant
+            if (appointment.getScheduler() != null && appointment.getPatient() != null) {
+                AppointmentScheduler scheduler = appointment.getScheduler();
+                Patient patient = appointment.getPatient();
+                
+                Long schedulerInstitutionId = null;
+                Long patientInstitutionId = null;
+                
+                // Get scheduler institution ID
+                if (scheduler.getLocation() != null && scheduler.getLocation().getInstitution() != null) {
+                    schedulerInstitutionId = scheduler.getLocation().getInstitution().getId();
+                }
+                
+                // Get patient institution ID
+                if (patient.getLocation() != null && patient.getLocation().getInstitution() != null) {
+                    patientInstitutionId = patient.getLocation().getInstitution().getId();
+                }
+                
+                if (schedulerInstitutionId != null && patientInstitutionId != null 
+                        && !schedulerInstitutionId.equals(patientInstitutionId)) {
+                    throw new IllegalArgumentException(
+                        "Terminplaner und Patient gehören nicht zur gleichen Einrichtung");
+                }
             }
         }
     }

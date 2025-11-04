@@ -13,12 +13,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationFilter;
+import de.bbajor.pvs.institution.security.VaadinInstitutionAuthenticationSuccessHandler;
 
 /**
  * Security configuration for the development environment.
@@ -65,10 +72,31 @@ class DevSecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // Configure API endpoints first, before Vaadin configurer applies anyRequest()
+    AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+        // Configure API endpoints and login path first, before Vaadin configurer applies anyRequest()
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/ai/**").permitAll());
+                .requestMatchers("/api/ai/**").permitAll()
+                .requestMatchers("/" + DevLoginView.LOGIN_PATH).permitAll());
+        
+        // Add custom institution authentication filter before Vaadin security
+        InstitutionAuthenticationFilter institutionAuthFilter = new InstitutionAuthenticationFilter("/" + DevLoginView.LOGIN_PATH);
+        institutionAuthFilter.setAuthenticationManager(authenticationManager);
+        
+        // Configure success/failure handlers
+        // Success handler uses JavaScript to navigate directly to patient-search
+        // This preserves the SecurityContext in the Vaadin thread
+        AuthenticationSuccessHandler successHandler = new VaadinInstitutionAuthenticationSuccessHandler("patient-search");
+        AuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler(
+                "/" + DevLoginView.LOGIN_PATH + "?error");
+        institutionAuthFilter.setAuthenticationSuccessHandler(successHandler);
+        institutionAuthFilter.setAuthenticationFailureHandler(failureHandler);
+        
+        http.addFilterBefore(institutionAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         
         // Then apply Vaadin security configuration (which will add anyRequest().authenticated())
         return http
@@ -83,7 +111,8 @@ class DevSecurityConfig {
 
     @Bean
     UserDetailsService userDetailsService(UserAccountRepository userAccountRepository) {
-        return new DevUserDetailsService(SampleUsers.ALL_USERS, userAccountRepository);
+        // All credentials come from database - no in-memory sample users
+        return new DevUserDetailsService(userAccountRepository);
     }
 
     @Bean

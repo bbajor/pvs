@@ -1,24 +1,46 @@
 package de.bbajor.pvs.security.dev;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.html.DescriptionList;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.login.LoginForm;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.page.WebStorage;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.server.VaadinServletRequest;
+import com.vaadin.flow.server.VaadinServletResponse;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.spring.security.AuthenticationContext;
+
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
-
-import java.util.List;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
+import de.bbajor.pvs.security.AppRoles;
+import jakarta.annotation.PostConstruct;
 
 /**
  * Login view for development.
@@ -28,23 +50,31 @@ import java.util.List;
 // No @Route annotation - the route is registered dynamically by DevSecurityConfig.
 class DevLoginView extends Main implements BeforeEnterObserver {
 
+    private static final Logger log = LoggerFactory.getLogger(DevLoginView.class);
+    
     static final String LOGIN_PATH = "dev-login";
     private static final String CALLOUT_HIDDEN_KEY = "walking-skeleton-dev-login-callout-hidden";
 
     private final AuthenticationContext authenticationContext;
     private final UserAccountRepository userAccountRepository;
+    private final org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider;
     private final TextField tenantCodeField;
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final Button loginButton;
+    private Div exampleUsersDiv;
 
-    DevLoginView(AuthenticationContext authenticationContext, UserAccountRepository userAccountRepository) {
+    DevLoginView(AuthenticationContext authenticationContext, UserAccountRepository userAccountRepository,
+                 org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider) {
         this.authenticationContext = authenticationContext;
         this.userAccountRepository = userAccountRepository;
+        // Use ObjectProvider to avoid eager initialization issues
+        this.authenticationManagerProvider = authenticationManagerProvider;
 
-        // Create custom login form with tenant code field
-        tenantCodeField = new TextField("Tenant Code");
-        tenantCodeField.setPlaceholder("z.B. PRAX-A1B2C3D4");
+        // Create custom login form with institution/tenant code field
+        // During migration, supports both Institution Code and Tenant Code (legacy)
+        tenantCodeField = new TextField("Institution/Tenant Code");
+        tenantCodeField.setPlaceholder("z.B. DEV-TEST oder PRAX-001");
         tenantCodeField.setRequired(true);
         tenantCodeField.setWidthFull();
 
@@ -68,22 +98,24 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         );
         loginForm.getStyle().set("max-width", "400px");
 
-        var exampleUsers = new Div(new Div("Dev-Benutzer für Tests (klick auf Button zum Login)"));
+        var exampleUsersHeader = new Div("Benutzer aus der Datenbank (klick auf Button zum Login)");
+        exampleUsersHeader.addClassNames("dev-users-header");
         
-        // Add predefined test users
-        SampleUsers.ALL_USERS.forEach(user -> exampleUsers.add(createSampleUserCard(user)));
-        
-        // Add users from database
-        List<UserAccount> dbUsers = userAccountRepository.findAll();
-        dbUsers.forEach(user -> exampleUsers.add(createUserAccountCard(user)));
+        exampleUsersDiv = new Div();
 
         // Configure the view
         setSizeFull();
         addClassNames("dev-login-view");
 
-        exampleUsers.addClassNames("dev-users");
+        // Wrap user list in scrollable container
+        var usersScrollContainer = new Div(exampleUsersHeader, exampleUsersDiv);
+        usersScrollContainer.addClassNames("dev-users-scroll-container");
 
-        var contentDiv = new Div(loginForm, exampleUsers);
+        // Create fixed login form wrapper
+        var loginFormWrapper = new Div(loginForm);
+        loginFormWrapper.addClassNames("dev-login-form-wrapper");
+
+        var contentDiv = new Div(loginFormWrapper, usersScrollContainer);
         contentDiv.addClassNames("dev-content-div");
         add(contentDiv);
 
@@ -102,71 +134,122 @@ class DevLoginView extends Main implements BeforeEnterObserver {
                 value -> devModeMenuDiv.setVisible(value == null));
     }
 
+    @PostConstruct
+    private void loadDatabaseUsers() {
+        // Load database users after view initialization to avoid security context issues
+        try {
+            List<UserAccount> dbUsers = userAccountRepository.findAll();
+            dbUsers.forEach(user -> exampleUsersDiv.add(createUserAccountCard(user)));
+        } catch (Exception e) {
+            log.warn("Could not load users from database: {}", e.getMessage());
+            // Continue without database users - login will still work
+        }
+    }
+
     private void performLogin() {
         String tenantCode = tenantCodeField.getValue();
         String username = usernameField.getValue();
         String password = passwordField.getValue();
 
-        if (tenantCode.isEmpty() || username.isEmpty() || password.isEmpty()) {
+        // Validate required fields
+        if (username.isEmpty() || password.isEmpty()) {
+            Notification.show("Bitte geben Sie Benutzername und Passwort ein", 3000, Notification.Position.TOP_CENTER);
             return;
         }
 
-        // Redirect to login endpoint with tenant code
-        getUI().ifPresent(ui -> {
-            ui.getPage().executeJs("""
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = $0;
-                    
-                    const tenantInput = document.createElement('input');
-                    tenantInput.type = 'hidden';
-                    tenantInput.name = 'tenantCode';
-                    tenantInput.value = $1;
-                    form.appendChild(tenantInput);
-                    
-                    const usernameInput = document.createElement('input');
-                    usernameInput.type = 'hidden';
-                    usernameInput.name = 'username';
-                    usernameInput.value = $2;
-                    form.appendChild(usernameInput);
-                    
-                    const passwordInput = document.createElement('input');
-                    passwordInput.type = 'hidden';
-                    passwordInput.name = 'password';
-                    passwordInput.value = $3;
-                    form.appendChild(passwordInput);
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                    """, LOGIN_PATH, tenantCode, username, password);
-        });
-    }
+        // Check if institution code is empty and if user is SUPER_ADMIN or INSTITUTION_ADMIN
+        boolean isEmptyInstitutionCode = tenantCode == null || tenantCode.trim().isEmpty();
+        if (isEmptyInstitutionCode) {
+            // Try to load user from database to check roles
+            Optional<UserAccount> userOpt = userAccountRepository.findByUsername(username);
+            if (userOpt.isPresent()) {
+                UserAccount user = userOpt.get();
+                boolean hasSuperAdminRole = user.getRoles() != null && 
+                        (user.getRoles().contains(AppRoles.SUPER_ADMIN) || user.getRoles().contains(AppRoles.INSTITUTION_ADMIN));
+                
+                if (!hasSuperAdminRole) {
+                    Notification.show("Institution-Code ist erforderlich. Nur SUPER_ADMIN und INSTITUTION_ADMIN können ohne Institution-Code einloggen.", 
+                            5000, Notification.Position.TOP_CENTER);
+                    tenantCodeField.setInvalid(true);
+                    return;
+                }
+                // User has SUPER_ADMIN or INSTITUTION_ADMIN role, allow login without institution code
+                log.debug("User {} has {} role, allowing login without institution code", username,
+                        user.getRoles().contains(AppRoles.SUPER_ADMIN) ? AppRoles.SUPER_ADMIN : AppRoles.INSTITUTION_ADMIN);
+            } else {
+                // User not found yet, but we'll let authentication provider handle it
+                // It will check if user has SUPER_ADMIN or INSTITUTION_ADMIN role
+                log.debug("User {} not found in database yet, letting authentication provider handle validation", username);
+            }
+        }
 
-    private Component createSampleUserCard(DevUser user) {
-        var card = new Div();
-        card.addClassNames("dev-user-card");
-
-        var fullName = new H3(user.getAppUser().getFullName());
-
-        var credentials = new DescriptionList();
-        credentials.add(new DescriptionList.Term("Tenant"), new DescriptionList.Description("DEV-TEST"));
-        credentials.add(new DescriptionList.Term("Username"), new DescriptionList.Description(user.getUsername()));
-        credentials.add(new DescriptionList.Term("Password"),
-                new DescriptionList.Description("•••"));
-
-        var quickLoginButton = new Button(VaadinIcon.SIGN_IN.create(), event -> {
-            tenantCodeField.setValue("DEV-TEST");
-            usernameField.setValue(user.getUsername());
-            passwordField.setValue(SampleUsers.SAMPLE_PASSWORD);
-            performLogin();
-        });
-        quickLoginButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
-        quickLoginButton.setTooltipText("Schnell-Login");
-
-        card.add(new Div(fullName, credentials));
-        card.add(quickLoginButton);
-
-        return card;
+        try {
+            // Get AuthenticationManager lazily to avoid initialization issues
+            AuthenticationManager authManager = authenticationManagerProvider.getObject();
+            
+            // Authenticate directly in Vaadin thread - this preserves SecurityContext
+            // Use empty string if institution code is empty (for SUPER_ADMIN/INSTITUTION_ADMIN)
+            String institutionCodeForAuth = isEmptyInstitutionCode ? "" : tenantCode;
+            InstitutionAuthenticationToken authRequest = new InstitutionAuthenticationToken(institutionCodeForAuth, username, password);
+            Authentication authResult = authManager.authenticate(authRequest);
+            
+            // Set authentication in SecurityContext
+            SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+            securityContext.setAuthentication(authResult);
+            SecurityContextHolder.setContext(securityContext);
+            
+            // CRITICAL: Save SecurityContext to HTTP Session
+            // Vaadin navigations are client-side and don't trigger HTTP filters,
+            // so we must explicitly save the SecurityContext to the session
+            VaadinServletRequest vaadinRequest = VaadinServletRequest.getCurrent();
+            VaadinServletResponse vaadinResponse = VaadinServletResponse.getCurrent();
+            if (vaadinRequest != null && vaadinResponse != null) {
+                HttpSessionSecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+                securityContextRepository.saveContext(securityContext, vaadinRequest, vaadinResponse);
+                log.debug("SecurityContext saved to HTTP session");
+            } else {
+                log.warn("Could not get VaadinServletRequest/VaadinServletResponse - SecurityContext may not be persisted to session");
+            }
+            
+            // Set InstitutionContext from authentication token - required for institution-aware queries
+            if (authResult instanceof InstitutionAuthenticationToken institutionAuth && institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set to: {} (institution code: {})", institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+            
+            log.debug("Login successful for user: {} (institution/tenant: {})", username, tenantCode);
+            
+            // Navigate directly using Vaadin's router - SecurityContext is now available
+            // SUPER_ADMIN and INSTITUTION_ADMIN without institution should go to institution management
+            if (authResult instanceof InstitutionAuthenticationToken institutionAuth && institutionAuth.getInstitutionId() == null) {
+                // User logged in without institution (SUPER_ADMIN or INSTITUTION_ADMIN)
+                UI.getCurrent().navigate("admin/institutions");
+            } else {
+                // Regular user with institution - go to patient search
+                UI.getCurrent().navigate("patient-search");
+            }
+            
+        } catch (BadCredentialsException e) {
+            log.warn("Login failed for user: {} (institution/tenant: {})", username, tenantCode);
+            Notification notification = Notification.show(
+                    "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.", 
+                    5000, 
+                    Notification.Position.TOP_CENTER);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            
+            // Mark fields as invalid
+            tenantCodeField.setInvalid(true);
+            usernameField.setInvalid(true);
+            passwordField.setInvalid(true);
+            passwordField.setErrorMessage("Ungültige Anmeldedaten.");
+        } catch (Exception e) {
+            log.error("Error during login", e);
+            Notification notification = Notification.show(
+                    "Ein Fehler ist aufgetreten: " + e.getMessage(), 
+                    5000, 
+                    Notification.Position.TOP_CENTER);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     private Component createUserAccountCard(UserAccount userAccount) {
@@ -179,10 +262,16 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         var fullName = new H3(displayName);
 
         var credentials = new DescriptionList();
-        String tenantCodeDisplay = userAccount.getTenant() != null 
-                ? userAccount.getTenant().getTenantCode() 
-                : "DEV-TEST";
-        credentials.add(new DescriptionList.Term("Tenant"), new DescriptionList.Description(tenantCodeDisplay));
+        String institutionCodeDisplay = userAccount.getInstitution() != null 
+                ? userAccount.getInstitution().getInstitutionCode() 
+                : (userAccount.getPreferredLocation() != null 
+                    ? userAccount.getPreferredLocation().getLocationName() 
+                    : "Unbekannt");
+        String locationCodeDisplay = userAccount.getPreferredLocation() != null 
+                ? userAccount.getPreferredLocation().getLocationName() 
+                : "Unbekannt";
+        credentials.add(new DescriptionList.Term("Institution/Tenant"), new DescriptionList.Description(institutionCodeDisplay));
+        credentials.add(new DescriptionList.Term("Location"), new DescriptionList.Description(locationCodeDisplay));
         credentials.add(new DescriptionList.Term("Username"), new DescriptionList.Description(userAccount.getUsername()));
         credentials.add(new DescriptionList.Term("Password"), new DescriptionList.Description("•••"));
 
@@ -196,7 +285,21 @@ class DevLoginView extends Main implements BeforeEnterObserver {
 
         final String finalPassword = passwordHint;
         var quickLoginButton = new Button(VaadinIcon.SIGN_IN.create(), event -> {
-            tenantCodeField.setValue(tenantCodeDisplay);
+            // CRITICAL: Use institution code, not location name
+            // If institution is null, use "SUPER_ADMIN" or empty string (user must have SUPER_ADMIN role)
+            String institutionCodeToUse = institutionCodeDisplay;
+            if ("Unbekannt".equals(institutionCodeToUse) || institutionCodeToUse == null || institutionCodeToUse.isEmpty()) {
+                // For users without institution, check if they have SUPER_ADMIN role
+                if (userAccount.getRoles() != null && userAccount.getRoles().contains("SUPER_ADMIN")) {
+                    institutionCodeToUse = ""; // Empty for SUPER_ADMIN
+                } else {
+                    // For other users without institution, show error
+                    Notification.show("User hat keine Institution zugeordnet. Bitte Institution-Code manuell eingeben.", 
+                        5000, Notification.Position.TOP_CENTER);
+                    return;
+                }
+            }
+            tenantCodeField.setValue(institutionCodeToUse);
             usernameField.setValue(userAccount.getUsername());
             passwordField.setValue(finalPassword);
             performLogin();
@@ -212,18 +315,40 @@ class DevLoginView extends Main implements BeforeEnterObserver {
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (authenticationContext.isAuthenticated()) {
-            // Redirect to the main view if the user is already logged in. This makes impersonation easier to work with.
-            event.forwardTo("");
+        boolean authenticated = authenticationContext.isAuthenticated();
+        String location = event.getLocation().getPath();
+        log.debug("DevLoginView.beforeEnter() called - location: {}, authenticated: {}", location, authenticated);
+        
+        if (authenticated) {
+            // Redirect to patient search if the user is already logged in
+            log.debug("User is authenticated in DevLoginView.beforeEnter(), redirecting to patient-search");
+            event.forwardTo("patient-search");
             return;
         }
 
+        log.debug("User is not authenticated in DevLoginView.beforeEnter()");
+
         if (event.getLocation().getQueryParameters().getParameters().containsKey("error")) {
             // Show error notification for login failure
+            var errorParams = event.getLocation().getQueryParameters().getParameters().get("error");
+            String errorMessage = "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
+            
+            if (errorParams != null && !errorParams.isEmpty()) {
+                String errorParam = errorParams.get(0);
+                if (errorParam != null && !errorParam.isEmpty()) {
+                    errorMessage = "Login fehlgeschlagen: " + errorParam;
+                }
+            }
+            
+            // Show notification
+            Notification notification = Notification.show(errorMessage, 5000, Notification.Position.TOP_CENTER);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            
+            // Mark fields as invalid
             tenantCodeField.setInvalid(true);
             usernameField.setInvalid(true);
             passwordField.setInvalid(true);
-            passwordField.setErrorMessage("Login fehlgeschlagen. Bitte \u00fcberpr\u00fcfen Sie Ihre Eingaben.");
+            passwordField.setErrorMessage("Bitte überprüfen Sie Ihre Eingaben.");
         }
     }
 }

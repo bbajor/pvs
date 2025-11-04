@@ -134,6 +134,8 @@ pvs/
 ### 🚀 Deployment & Setup
 
 - **[Hetzner Server Setup](docs/deployment/HETZNER_COMPLETE_SETUP.md)** ⭐ - Komplette Anleitung für Hetzner-VPS (empfohlen zum Einstieg)
+- **[Docker-Alternativen für Windows](docs/deployment/DOCKER_ALTERNATIVES_WINDOWS.md)** 🐳 - Kostenfreie Alternativen zu Docker Desktop (Podman, Rancher Desktop, Dockge, etc.)
+- **[Docker Engine Windows Setup](docs/deployment/DOCKER_ENGINE_WINDOWS.md)** 🐳 - Docker Desktop entfernen & nur Engine über WSL2 installieren (mit Portainer CE Web-UI)
 - [Deployment Übersicht](docs/deployment/README.md)
 - [Quick Start Guide](docs/deployment/QUICKSTART.md)
 - [Database Architecture](docs/deployment/DATABASE_ARCHITECTURE.md)

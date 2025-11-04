@@ -22,6 +22,16 @@
       "modulePaths": [],
       "vmArgs": "-Dspring.profiles.active=dev",
       "console": "integratedTerminal"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot-Application<pvs-app-pvs>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "de.bbajor.pvs.Application",
+      "projectName": "pvs-app-pvs",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
     }
   ]
 }

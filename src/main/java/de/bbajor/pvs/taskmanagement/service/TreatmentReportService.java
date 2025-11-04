@@ -22,9 +22,12 @@ import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
-import de.bbajor.pvs.practice.model.Practice;
-import de.bbajor.pvs.practice.service.PracticeService;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.location.service.LocationService;
+import de.bbajor.pvs.institution.service.InstitutionService;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 
 @Service
 public class TreatmentReportService {
@@ -33,22 +36,23 @@ public class TreatmentReportService {
     private Clock clock;
     
     @Autowired
-    private PracticeService practiceService;
-
+    private LocationService locationService;
+    
     public byte[] generatePdfReport(List<Treatment> treatments, SurgicalCenterTimeSlot timeSlot, 
             String treatingDoctor) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             
-            // Load practice data first
-            Practice practice = practiceService.getPractice();
+            // Load location data first
+            Location location = locationService.getDefaultLocation();
             
             // Create first page and add watermark
             PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
             
-            // Add watermark to the page
-            addWatermark(document, page, practice);
+            // Add watermark to the page (use institution from location)
+            Institution institution = location != null ? location.getInstitution() : null;
+            addWatermark(document, page, institution);
             
             PDPageContentStream contentStream = new PDPageContentStream(document, page);
             
@@ -89,42 +93,42 @@ public class TreatmentReportService {
             }
             yPosition -= 5; // Extra space after title
             
-            // Practice Information (if available)
-            if (practice != null && practice.getPracticeName() != null && !practice.getPracticeName().isBlank()) {
+            // Location Information (if available)
+            if (location != null && location.getLocationName() != null && !location.getLocationName().isBlank()) {
                 contentStream.setFont(headerFont, 12);
                 contentStream.beginText();
                 contentStream.newLineAtOffset(margin, yPosition);
-                contentStream.showText("Praxisinformationen");
+                contentStream.showText("Standortinformationen");
                 contentStream.endText();
                 yPosition -= 30;
                 
                 contentStream.setFont(normalFont, 10);
-                yPosition = addTextLine(contentStream, "Praxis: " + practice.getPracticeName(), margin, yPosition, lineHeight);
+                yPosition = addTextLine(contentStream, "Standort: " + location.getLocationName(), margin, yPosition, lineHeight);
                 
-                String fullAddress = practice.getFullAddress();
+                String fullAddress = location.getFullAddress();
                 if (fullAddress != null && !fullAddress.isBlank()) {
                     yPosition = addTextLine(contentStream, "Adresse: " + fullAddress, margin, yPosition, lineHeight);
                 }
                 
-                String ownerWithTitle = practice.getOwnerWithTitle();
+                String ownerWithTitle = location.getOwnerWithTitle();
                 if (ownerWithTitle != null && !ownerWithTitle.isBlank()) {
                     yPosition = addTextLine(contentStream, "Praxisinhaber: " + ownerWithTitle, margin, yPosition, lineHeight);
                 }
                 
-                if (practice.getLanr() != null && !practice.getLanr().isBlank()) {
-                    yPosition = addTextLine(contentStream, "LANR: " + practice.getLanr(), margin, yPosition, lineHeight);
+                if (location.getLanr() != null && !location.getLanr().isBlank()) {
+                    yPosition = addTextLine(contentStream, "LANR: " + location.getLanr(), margin, yPosition, lineHeight);
                 }
                 
-                if (practice.getBsnr() != null && !practice.getBsnr().isBlank()) {
-                    yPosition = addTextLine(contentStream, "BSNR: " + practice.getBsnr(), margin, yPosition, lineHeight);
+                if (location.getBsnr() != null && !location.getBsnr().isBlank()) {
+                    yPosition = addTextLine(contentStream, "BSNR: " + location.getBsnr(), margin, yPosition, lineHeight);
                 }
                 
-                if (practice.getPhone() != null && !practice.getPhone().isBlank()) {
-                    yPosition = addTextLine(contentStream, "Telefon: " + practice.getPhone(), margin, yPosition, lineHeight);
+                if (location.getPhone() != null && !location.getPhone().isBlank()) {
+                    yPosition = addTextLine(contentStream, "Telefon: " + location.getPhone(), margin, yPosition, lineHeight);
                 }
                 
-                if (practice.getEmail() != null && !practice.getEmail().isBlank()) {
-                    yPosition = addTextLine(contentStream, "E-Mail: " + practice.getEmail(), margin, yPosition, lineHeight);
+                if (location.getEmail() != null && !location.getEmail().isBlank()) {
+                    yPosition = addTextLine(contentStream, "E-Mail: " + location.getEmail(), margin, yPosition, lineHeight);
                 }
                 
                 yPosition -= 10;
@@ -199,8 +203,8 @@ public class TreatmentReportService {
                     page = new PDPage(PDRectangle.A4);
                     document.addPage(page);
                     
-                    // Add watermark to new page
-                    addWatermark(document, page, practice);
+                    // Add watermark to new page (use institution from location)
+                    addWatermark(document, page, institution);
                     
                     contentStream = new PDPageContentStream(document, page);
                     yPosition = 750;
@@ -285,11 +289,11 @@ public class TreatmentReportService {
             // Always create a new page for confidentiality clause
             page = new PDPage(PDRectangle.A4);
             document.addPage(page);
-            addWatermark(document, page, practice);
+            addWatermark(document, page, institution);
             contentStream = new PDPageContentStream(document, page);
             yPosition = 750;
             
-            yPosition = addConfidentialityClause(contentStream, practice, margin, yPosition, lineHeight, headerFont, normalFont);
+            yPosition = addConfidentialityClause(contentStream, location, margin, yPosition, lineHeight, headerFont, normalFont);
             
             contentStream.close();
             
@@ -354,7 +358,7 @@ public class TreatmentReportService {
         return y - lineHeight;
     }
     
-    private void addWatermark(PDDocument document, PDPage page, Practice practice) throws IOException {
+    private void addWatermark(PDDocument document, PDPage page, Institution institution) throws IOException {
         PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
         
         try (PDPageContentStream watermarkStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
@@ -365,13 +369,8 @@ public class TreatmentReportService {
             
             // Watermark text
             String watermarkText = "";
-            if (practice != null) {
-                if (practice.getPracticeName() != null && !practice.getPracticeName().isBlank()) {
-                    watermarkText = practice.getPracticeName();
-                    if (practice.getLanr() != null && !practice.getLanr().isBlank()) {
-                        watermarkText += " | LANR: " + practice.getLanr();
-                    }
-                }
+            if (institution != null && institution.getInstitutionName() != null && !institution.getInstitutionName().isBlank()) {
+                watermarkText = institution.getInstitutionName();
             }
             
             if (!watermarkText.isBlank()) {
@@ -396,7 +395,7 @@ public class TreatmentReportService {
         }
     }
     
-    private int addConfidentialityClause(PDPageContentStream contentStream, Practice practice, 
+    private int addConfidentialityClause(PDPageContentStream contentStream, Location location, 
             int margin, int yPosition, int lineHeight, PDType1Font headerFont, PDType1Font normalFont) throws IOException {
         
         // Separation line
@@ -416,13 +415,13 @@ public class TreatmentReportService {
             "Dieses Dokument enthält streng vertrauliche und personenbezogene Patientendaten.", 
             margin, yPosition, lineHeight);
         
-        if (practice != null && practice.getPhone() != null && !practice.getPhone().isBlank()) {
+        if (location != null && location.getPhone() != null && !location.getPhone().isBlank()) {
             yPosition = addTextLine(contentStream, 
-                "Bei Verlust oder Fund dieses Dokuments wenden Sie sich bitte umgehend an die Praxis unter: " + practice.getPhone(), 
+                "Bei Verlust oder Fund dieses Dokuments wenden Sie sich bitte umgehend an die Praxis unter: " + location.getPhone(), 
                 margin, yPosition, lineHeight);
-        } else if (practice != null && practice.getEmail() != null && !practice.getEmail().isBlank()) {
+        } else if (location != null && location.getEmail() != null && !location.getEmail().isBlank()) {
             yPosition = addTextLine(contentStream, 
-                "Bei Verlust oder Fund dieses Dokuments wenden Sie sich bitte umgehend an: " + practice.getEmail(), 
+                "Bei Verlust oder Fund dieses Dokuments wenden Sie sich bitte umgehend an: " + location.getEmail(), 
                 margin, yPosition, lineHeight);
         }
         
@@ -447,13 +446,13 @@ public class TreatmentReportService {
             "This document contains strictly confidential and personally identifiable patient data.", 
             margin, yPosition, lineHeight);
         
-        if (practice != null && practice.getPhone() != null && !practice.getPhone().isBlank()) {
+        if (location != null && location.getPhone() != null && !location.getPhone().isBlank()) {
             yPosition = addTextLine(contentStream, 
-                "In case of loss or finding of this document, please contact the practice immediately at: " + practice.getPhone(), 
+                "In case of loss or finding of this document, please contact the practice immediately at: " + location.getPhone(), 
                 margin, yPosition, lineHeight);
-        } else if (practice != null && practice.getEmail() != null && !practice.getEmail().isBlank()) {
+        } else if (location != null && location.getEmail() != null && !location.getEmail().isBlank()) {
             yPosition = addTextLine(contentStream, 
-                "In case of loss or finding of this document, please contact immediately: " + practice.getEmail(), 
+                "In case of loss or finding of this document, please contact immediately: " + location.getEmail(), 
                 margin, yPosition, lineHeight);
         }
         

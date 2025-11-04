@@ -5,15 +5,46 @@
     justify-content: center;
     align-items: center;
     background-color: var(--lumo-shade-5pct);
+    padding: var(--lumo-space-l);
 }
 
 .dev-login-view .dev-content-div {
     display: flex;
-    box-shadow: var(--lumo-box-shadow-s);
+    box-shadow: var(--lumo-box-shadow-m);
     border: 1px solid var(--lumo-shade-30pct);
-    border-radius: var(--lumo-border-radius-s);
+    border-radius: var(--lumo-border-radius-m);
     background-color: var(--lumo-base-color);
-    overflow: clip;
+    overflow: hidden;
+    max-width: 1200px;
+    max-height: 90vh;
+    width: 100%;
+}
+
+.dev-login-view .dev-login-form-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--lumo-space-xl);
+    min-width: 400px;
+    flex-shrink: 0;
+}
+
+.dev-login-view .dev-users-scroll-container {
+    display: flex;
+    flex-direction: column;
+    width: 500px;
+    max-width: 500px;
+    border-left: 1px solid var(--lumo-shade-20pct);
+    background-color: var(--lumo-shade-5pct);
+    overflow: hidden;
+}
+
+.dev-login-view .dev-users-header {
+    padding: var(--lumo-space-m);
+    font-weight: 600;
+    color: var(--lumo-secondary-text-color);
+    border-bottom: 1px solid var(--lumo-shade-20pct);
+    flex-shrink: 0;
 }
 
 .dev-login-view .dev-users {
@@ -23,7 +54,9 @@
     background-color: var(--lumo-shade-5pct);
     color: var(--lumo-secondary-text-color);
     row-gap: var(--lumo-space-m);
-    border-left: 1px solid var(--lumo-shade-20pct);
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
 }
 
 .dev-login-view .dev-user-card {

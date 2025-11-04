@@ -17,13 +17,10 @@ public class PracticeSettingsTab extends VerticalLayout {
         setSpacing(true);
         setPadding(true);
 
-        // Show message with link instead of redirect
-        Span message = new Span("Zur Verwaltung der Praxisdaten:");
-        Anchor link = new Anchor("/praxis", "Praxisverwaltung öffnen");
-        link.getStyle().set("font-weight", "bold");
-        link.getStyle().set("text-decoration", "underline");
+        // Show message - Location management is now handled via Institution management
+        Span message = new Span("Standortverwaltung erfolgt über die Institutionsverwaltung.");
         
-        add(message, link);
+        add(message);
     }
 
 }

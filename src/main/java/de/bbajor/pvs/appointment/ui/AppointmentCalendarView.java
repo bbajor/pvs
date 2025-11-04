@@ -32,6 +32,12 @@ import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.patient.service.PatientService;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.security.AppRoles;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 /**
@@ -42,7 +48,7 @@ import jakarta.annotation.security.PermitAll;
 @PageTitle("Terminkalender")
 @Menu(order = 2, icon = "vaadin:calendar", title = "Terminkalender")
 @PermitAll
-public class AppointmentCalendarView extends Main {
+public class AppointmentCalendarView extends Main implements BeforeEnterObserver {
 
     private final AppointmentSchedulerService schedulerService;
     private final AppointmentService appointmentService;
@@ -87,6 +93,20 @@ public class AppointmentCalendarView extends Main {
         }
 
         initializeView();
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // SUPER_ADMIN without institution context should not access appointment data
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+        boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+        
+        if (isSuperAdmin && !hasInstitutionContext) {
+            // Redirect SUPER_ADMIN to institution management
+            event.forwardTo("admin/institutions");
+        }
     }
 
     private void initializeView() {
