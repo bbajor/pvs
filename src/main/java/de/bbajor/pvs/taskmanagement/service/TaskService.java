@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
@@ -73,12 +74,21 @@ public class TaskService {
     /**
      * Internal method for creating daily tasks without security checks.
      * Used by scheduled tasks and startup listeners.
+     * Creates tasks for all institutions separately.
      */
     @Transactional
     public void createDailyTaskIfAnyInternal() {
-        // 1. Find all timeslots containing not approved treatments until today
+        // This method should be called per institution
+        // For now, we require InstitutionContext to be set
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            // No institution context - cannot create tasks
+            return;
+        }
+        
+        // 1. Find all timeslots containing not approved treatments until today for this institution
         List<Long> timeSlotIds = new ArrayList<>();
-        List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(LocalDate.now(clock));
+        List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(institutionId, LocalDate.now(clock));
         // Collect the time slot IDs from the tasks, not the task IDs
         tasks.stream()
                 .map(Task::getTimeSlot)
@@ -133,15 +143,22 @@ public class TaskService {
             List<Treatment> forSlot = treatmentRepository.findByTimeSlotId(slotId);
             boolean allApproved = forSlot.stream().allMatch(t -> t.getApprovalDate() != null);
             if (allApproved) {
-                Task task = taskRepository.findAll().stream()
-                        .filter(tsk -> tsk.getTimeSlot() != null && tsk.getTimeSlot().getId().equals(slotId))
-                        .findFirst().orElse(null);
-                if (task != null && !task.isCompleted()) {
-                    task.setCompleted(true);
-                    task.setCompletedAt(clock.instant().atZone(clock.getZone()).toLocalDateTime());
-                    task.setCompletedByUserId(actorUserId);
-                    task.setCompletedByUserName(actorUserName);
-                    taskRepository.save(task);
+                // Find task by time slot ID with institution filtering
+                Long institutionId = InstitutionContext.getInstitutionId();
+                if (institutionId != null) {
+                    // Use institution-aware query
+                    Task task = taskRepository.findAllByInstitutionId(institutionId, 
+                            org.springframework.data.domain.Pageable.unpaged())
+                            .getContent().stream()
+                            .filter(tsk -> tsk.getTimeSlot() != null && tsk.getTimeSlot().getId().equals(slotId))
+                            .findFirst().orElse(null);
+                    if (task != null && !task.isCompleted()) {
+                        task.setCompleted(true);
+                        task.setCompletedAt(clock.instant().atZone(clock.getZone()).toLocalDateTime());
+                        task.setCompletedByUserId(actorUserId);
+                        task.setCompletedByUserName(actorUserName);
+                        taskRepository.save(task);
+                    }
                 }
             }
         }
@@ -150,16 +167,27 @@ public class TaskService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public List<Task> list(Pageable pageable) {
-        return taskRepository.findAllBy(pageable).toList();
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            // No institution context - return empty list to enforce data isolation
+            return List.of();
+        }
+        return taskRepository.findAllByInstitutionId(institutionId, pageable).toList();
     }
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public List<Task> listByCompleted(Boolean completed, Pageable pageable) {
-        if (completed == null) {
-            return taskRepository.findAllBy(pageable).toList();
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            // No institution context - return empty list to enforce data isolation
+            return List.of();
         }
-        return taskRepository.findAllByCompleted(completed, pageable).toList();
+        
+        if (completed == null) {
+            return taskRepository.findAllByInstitutionId(institutionId, pageable).toList();
+        }
+        return taskRepository.findAllByInstitutionIdAndCompleted(institutionId, completed, pageable).toList();
     }
 
     @Transactional
