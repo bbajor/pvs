@@ -24,19 +24,24 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.RolesAllowed;
 
 @Route("aufgabenliste")
 @PageTitle("Zurückliegende Behandlungen die noch überprüft werden müssen")
 @Menu(order = 0, icon = "vaadin:clipboard-check", title = "Zu überprüfende Behandlungen")
 @RolesAllowed({ AppRoles.ADMIN, AppRoles.DOCTOR, AppRoles.OWNER })
-public class TaskListView extends Main {
+public class TaskListView extends Main implements BeforeEnterObserver {
 
         private final TaskService taskService;
         private final TreatmentRepository treatmentRepository;
@@ -127,6 +132,20 @@ public class TaskListView extends Main {
                 add(new ViewToolbar("Aufgabenliste", controls));
                 add(taskGrid);
                 refreshGrid();
+        }
+
+        @Override
+        public void beforeEnter(BeforeEnterEvent event) {
+                // SUPER_ADMIN without institution context should not access task data
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+                boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+                
+                if (isSuperAdmin && !hasInstitutionContext) {
+                        // Redirect SUPER_ADMIN to institution management
+                        event.forwardTo("admin/institutions");
+                }
         }
 
         private void refreshGrid() {

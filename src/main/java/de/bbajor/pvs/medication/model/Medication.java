@@ -3,7 +3,6 @@ package de.bbajor.pvs.medication.model;
 import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
-import de.bbajor.pvs.tenant.model.Tenant;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -20,13 +19,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class Medication extends BasicEntity<Long> {
 
-    /**
-     * The tenant this medication belongs to.
-     * Null for system-wide medications available to all tenants.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id")
-    private Tenant tenant;
+    // Tenant isolation: Null for system-wide medications, otherwise via treatment.patient.practice.tenant
 
     @Column(length = 50)
     private String eingangsnummer;

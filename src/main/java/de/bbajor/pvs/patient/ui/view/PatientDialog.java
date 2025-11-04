@@ -46,7 +46,8 @@ public class PatientDialog extends Dialog {
         setHeight("1000px");
 
         // Create the components
-        form = new PatientForm(presenter.getHealthInsurances(), patient, e -> valueChanged(e));
+        form = new PatientForm(presenter.getHealthInsurances(), patient, 
+                presenter.getLocations(), e -> valueChanged(e));
 
         var readBtn = new Button("Aus Gesundheitskarte einlesen", event -> {
             try {
