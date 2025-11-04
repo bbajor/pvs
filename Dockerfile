@@ -14,15 +14,15 @@ COPY src/ src/
 
 # Build production frontend bundle so runtime doesn't need dev bundling
 # Use npm explicitly to avoid extra pnpm/bootstrap downloads inside container
-# classes task (includes compileJava + processResources) must run before vaadinBuildFrontend
-# to ensure all compiled classes and dependencies are available for annotation scanning
-RUN gradle clean classes --no-daemon --build-cache --parallel && \
+# compileJava must run before vaadinBuildFrontend to ensure all annotations are available
+# NOTE: We use compileJava (not classes) to avoid circular dependency with processResources
+RUN gradle clean compileJava --no-daemon --build-cache --parallel && \
     gradle vaadinBuildFrontend --no-daemon \
       -Pvaadin.productionMode \
       -Pvaadin.frontend.packageManager=npm \
       -Pvaadin.frontend.forceInstall=true \
       --build-cache || \
-    (gradle clean classes --no-daemon --build-cache && \
+    (gradle clean compileJava --no-daemon --build-cache && \
      gradle vaadinBuildFrontend --no-daemon \
        -Pvaadin.productionMode \
        -Pvaadin.frontend.packageManager=npm \
