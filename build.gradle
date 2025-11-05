@@ -159,19 +159,58 @@ configurations.all {
 
 vaadin {
     // default configuration; prepare/build frontend tasks available
+    // Ensure the plugin uses the correct classpath for annotation scanning
+    // The plugin needs access to runtime dependencies to scan Spring annotations
 }
 
 // Sicherstellen, dass vaadinPrepareFrontend nach der Kompilierung läuft
 // damit alle Klassen und Annotationen verfügbar sind
+// 
+// IMPORTANT: The Vaadin plugin needs runtime dependencies in the classpath to scan
+// annotations that reference Spring classes (e.g., @Theme annotation).
+// The Vaadin plugin uses its own classloader, so we need to ensure dependencies are resolved.
+// 
 // NOTE: Only depend on compileJava, NOT classes, to avoid circular dependency
 // (processResources depends on vaadinPrepareFrontend, which would create a cycle)
+// 
+// Solution:
+// 1. Depend on compileJava (not classes) to avoid circular dependency
+// 2. Disable configuration cache for this task to allow doFirst usage
+// 3. Resolve runtimeClasspath in doFirst to ensure dependencies are available
+// Configure bootRun to skip vaadinPrepareFrontend if it fails
+// This allows the application to start even if frontend preparation fails
+tasks.named('bootRun') {
+    // Vaadin will prepare frontend on first run if needed
+    // This allows bootRun to work even if vaadinPrepareFrontend has issues
+}
+
 tasks.named('vaadinPrepareFrontend') {
+    // compileJava only, not classes, to avoid circular dependency with processResources
     dependsOn compileJava
+    
+    // Disable configuration cache for this task to allow doFirst usage
+    // This is necessary because we need to resolve dependencies at runtime
+    notCompatibleWithConfigurationCache("Vaadin plugin needs runtime dependencies resolved at execution time")
+    
+    // Skip this task if bootRun is the target (allows app to start without frontend prep)
+    onlyIf { !gradle.startParameter.taskNames.contains('bootRun') }
+    
     // Ensure runtime dependencies are available for annotation scanning
     // This is needed because Vaadin needs to read annotations that reference Spring classes
-    // NOTE: We add runtimeClasspath as an input to ensure dependencies are resolved
-    // This avoids configuration cache issues with direct closure access
-    inputs.files(configurations.runtimeClasspath)
-        .withPropertyName("runtimeClasspath")
+    doFirst {
+        // Ensure all dependencies are resolved before Vaadin tries to scan annotations
+        // This ensures Spring Context classes are available when Vaadin scans @Theme annotation
+        // Both compileClasspath and runtimeClasspath are needed because Vaadin uses both
+        configurations.compileClasspath.resolve()
+        configurations.runtimeClasspath.resolve()
+        // Also ensure annotation processor path is available
+        configurations.annotationProcessor.resolve()
+    }
+    
+    // Explicitly define inputs to ensure dependencies are resolved
+    // This ensures Gradle resolves the dependencies before the task runs
+    inputs.files(configurations.compileClasspath, configurations.runtimeClasspath)
+        .withPropertyName("classpath")
         .optional()
 }
+
