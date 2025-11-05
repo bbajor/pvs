@@ -15,14 +15,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@ConditionalOnMissingBean(DockerWhisperService.class)
+@ConditionalOnMissingBean(PodmanWhisperService.class)
 @RequiredArgsConstructor
-public class DockerWhisperServiceStub {
+public class PodmanWhisperServiceStub {
 
     private final AiProperties aiProperties;
 
-    public boolean checkDockerAvailable() {
-        log.debug("Whisper disabled - checkDockerAvailable() returns false");
+    public boolean checkPodmanAvailable() {
+        log.debug("Whisper disabled - checkPodmanAvailable() returns false");
         return false;
     }
 

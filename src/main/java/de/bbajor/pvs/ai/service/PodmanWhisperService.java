@@ -13,29 +13,29 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "ai.whisper.local.enabled", havingValue = "true", matchIfMissing = false)
-public class DockerWhisperService {
+public class PodmanWhisperService {
 
-    private static final Logger LOG = LogManager.getLogger(DockerWhisperService.class);
+    private static final Logger LOG = LogManager.getLogger(PodmanWhisperService.class);
     private final AiProperties aiProperties;
 
-    public boolean checkDockerAvailable() {
+    public boolean checkPodmanAvailable() {
         try {
-            Process process = new ProcessBuilder("docker", "--version").start();
+            Process process = new ProcessBuilder("podman", "--version").start();
             int exitCode = process.waitFor();
             return exitCode == 0;
         } catch (IOException | InterruptedException e) {
-            LOG.warn("Docker not found: {}", e.getMessage());
+            LOG.warn("Podman not found: {}", e.getMessage());
             return false;
         }
     }
 
     public boolean checkWhisperContainerRunning() {
-        if (!checkDockerAvailable()) {
+        if (!checkPodmanAvailable()) {
             return false;
         }
 
         try {
-            Process process = new ProcessBuilder("docker", "ps", "--filter", "name=pvs-whisper", "--format", "{{.Names}}")
+            Process process = new ProcessBuilder("podman", "ps", "--filter", "name=pvs-whisper", "--format", "{{.Names}}")
                     .start();
             String output = new String(process.getInputStream().readAllBytes()).trim();
             boolean isRunning = output.contains("pvs-whisper");
@@ -44,7 +44,7 @@ public class DockerWhisperService {
                 LOG.debug("Whisper container not running");
             } else {
                 // Also check container health status
-                Process healthProcess = new ProcessBuilder("docker", "inspect", "--format", "{{.State.Health.Status}}", "pvs-whisper")
+                Process healthProcess = new ProcessBuilder("podman", "inspect", "--format", "{{.State.HealthStatus}}", "pvs-whisper")
                         .start();
                 String healthOutput = new String(healthProcess.getInputStream().readAllBytes()).trim();
                 healthProcess.waitFor();
@@ -53,11 +53,11 @@ public class DockerWhisperService {
             process.waitFor();
             return isRunning;
         } catch (IOException e) {
-            LOG.warn("Error checking docker container status: {}", e.getMessage());
+            LOG.warn("Error checking podman container status: {}", e.getMessage());
             return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOG.warn("Interrupted while checking docker container status: {}", e.getMessage());
+            LOG.warn("Interrupted while checking podman container status: {}", e.getMessage());
             return false;
         }
     }
@@ -77,26 +77,40 @@ public class DockerWhisperService {
     }
 
     public void startWhisperContainer() throws IOException, InterruptedException {
-        if (!checkDockerAvailable()) {
-            throw new IllegalStateException("Docker not found. Please install Docker first.");
+        if (!checkPodmanAvailable()) {
+            throw new IllegalStateException("Podman not found. Please install Podman first.");
         }
 
-        String composePath = aiProperties.getWhisper().getLocal().getDockerComposePath();
-        LOG.info("Starting Whisper container using docker-compose from: {}", composePath);
+        String composePath = aiProperties.getWhisper().getLocal().getPodmanComposePath();
+        LOG.info("Starting Whisper container using podman-compose from: {}", composePath);
 
-        // First, ensure Docker engine is running by checking if we can communicate with it
+        // First, ensure Podman engine is running by checking if we can communicate with it
         try {
-            Process checkProcess = new ProcessBuilder("docker", "info").start();
+            Process checkProcess = new ProcessBuilder("podman", "info").start();
             int checkExitCode = checkProcess.waitFor();
             if (checkExitCode != 0) {
-                throw new IllegalStateException("Docker engine is not running. Please start Docker Desktop first.");
+                throw new IllegalStateException("Podman engine is not running. Please start Podman first.");
             }
         } catch (IOException e) {
-            throw new IllegalStateException("Docker engine is not accessible. Please start Docker Desktop first.", e);
+            throw new IllegalStateException("Podman engine is not accessible. Please start Podman first.", e);
         }
 
-        // Build and start container
-        ProcessBuilder pb = new ProcessBuilder("docker", "compose", "-f", composePath, "up", "-d", "--build");
+        // Build and start container - try podman compose first, fallback to podman-compose
+        ProcessBuilder pb;
+        try {
+            // Try podman compose (Podman 4.0+)
+            pb = new ProcessBuilder("podman", "compose", "-f", composePath, "up", "-d", "--build");
+            Process testProcess = pb.start();
+            int testExitCode = testProcess.waitFor();
+            if (testExitCode != 0) {
+                // Fallback to podman-compose (Python tool)
+                pb = new ProcessBuilder("podman-compose", "-f", composePath, "up", "-d", "--build");
+            }
+        } catch (IOException e) {
+            // Fallback to podman-compose (Python tool)
+            pb = new ProcessBuilder("podman-compose", "-f", composePath, "up", "-d", "--build");
+        }
+        
         pb.inheritIO();
         
         Process process = pb.start();
@@ -144,14 +158,26 @@ public class DockerWhisperService {
     }
 
     public void stopWhisperContainer() throws IOException, InterruptedException {
-        if (!checkDockerAvailable()) {
+        if (!checkPodmanAvailable()) {
             return;
         }
 
-        String composePath = aiProperties.getWhisper().getLocal().getDockerComposePath();
+        String composePath = aiProperties.getWhisper().getLocal().getPodmanComposePath();
         LOG.info("Stopping Whisper container");
 
-        ProcessBuilder pb = new ProcessBuilder("docker", "compose", "-f", composePath, "down");
+        // Try podman compose first, fallback to podman-compose
+        ProcessBuilder pb;
+        try {
+            pb = new ProcessBuilder("podman", "compose", "-f", composePath, "down");
+            Process testProcess = pb.start();
+            int testExitCode = testProcess.waitFor();
+            if (testExitCode != 0) {
+                pb = new ProcessBuilder("podman-compose", "-f", composePath, "down");
+            }
+        } catch (IOException e) {
+            pb = new ProcessBuilder("podman-compose", "-f", composePath, "down");
+        }
+
         pb.inheritIO();
         
         Process process = pb.start();
@@ -191,12 +217,12 @@ public class DockerWhisperService {
     }
 
     public String getContainerLogs(int lines) {
-        if (!checkDockerAvailable()) {
-            return "Docker not available";
+        if (!checkPodmanAvailable()) {
+            return "Podman not available";
         }
 
         try {
-            Process process = new ProcessBuilder("docker", "logs", "--tail", String.valueOf(lines), "pvs-whisper")
+            Process process = new ProcessBuilder("podman", "logs", "--tail", String.valueOf(lines), "pvs-whisper")
                     .start();
             String output = new String(process.getInputStream().readAllBytes());
             process.waitFor();

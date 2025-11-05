@@ -76,21 +76,21 @@ jobs:
             cd /opt/pvs
             
             # Backup current production
-            docker tag ghcr.io/${{ github.repository_owner }}/pvs:prod-latest ghcr.io/${{ github.repository_owner }}/pvs:prod-backup-$(date +%Y%m%d-%H%M%S) || true
+            podman tag ghcr.io/${{ github.repository_owner }}/pvs:prod-latest ghcr.io/${{ github.repository_owner }}/pvs:prod-backup-$(date +%Y%m%d-%H%M%S) || true
             
             # Pull and deploy
-            docker pull ghcr.io/${{ github.repository_owner }}/pvs:prod-latest
-            docker-compose -f docker-compose.production.yml pull pvs-prod
-            docker-compose -f docker-compose.production.yml up -d pvs-prod
+            podman pull ghcr.io/${{ github.repository_owner }}/pvs:prod-latest
+            podman-compose -f podman-compose.production.yml pull pvs-prod
+            podman-compose -f podman-compose.production.yml up -d pvs-prod
             
             # Wait for health check
             echo "⏳ Waiting for application to start..."
             sleep 60
             
             # Health check via container
-            if ! docker exec pvs-prod curl -f http://localhost:8080/actuator/health 2>/dev/null; then
+            if ! podman exec pvs-prod curl -f http://localhost:8080/actuator/health 2>/dev/null; then
               echo "❌ Health check failed - rolling back..."
-              docker-compose -f docker-compose.production.yml restart pvs-prod
+              podman-compose -f podman-compose.production.yml restart pvs-prod
               sleep 30
               exit 1
             fi
