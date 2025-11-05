@@ -6,11 +6,11 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.repository.LocationRepository;
-import de.bbajor.pvs.institution.context.InstitutionContext;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -31,20 +31,24 @@ public class LocationService {
      * Gets the first/default location for the current institution.
      * Uses InstitutionContext to find the institution and returns its first active location.
      * Returns null if no location is configured for the current institution.
+     * 
+     * @throws IllegalStateException if no institution context is set (prevents cross-institution data leakage)
      */
     @Transactional(readOnly = true)
     public Location getDefaultLocation() {
         Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Find first active location for current institution
-            List<Location> locations = locationRepository.findByInstitutionIdAndActive(institutionId, true);
-            if (!locations.isEmpty()) {
-                return locations.get(0);
-            }
+        if (institutionId == null) {
+            throw new IllegalStateException("Cannot access default location without institution context. Institution isolation required.");
         }
         
-        // Fallback: Return first active location if available
-        return locationRepository.findByActive(true).stream().findFirst().orElse(null);
+        // Find first active location for current institution
+        List<Location> locations = locationRepository.findByInstitutionIdAndActive(institutionId, true);
+        if (!locations.isEmpty()) {
+            return locations.get(0);
+        }
+        
+        // No active location found for current institution
+        return null;
     }
 
     /**
@@ -62,36 +66,40 @@ public class LocationService {
      * Uses InstitutionContext to find the institution.
      * 
      * @param activeOnly if true, only returns active locations; if false, returns all locations
+     * @return list of locations for current institution, empty list if no institution context (prevents cross-institution data leakage)
      */
     @Transactional(readOnly = true)
     public List<Location> getAllLocations(boolean activeOnly) {
         Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            if (activeOnly) {
-                return locationRepository.findByInstitutionIdAndActive(institutionId, true);
-            } else {
-                return locationRepository.findByInstitutionId(institutionId);
-            }
+        if (institutionId == null) {
+            // No institution context - return empty list to enforce data isolation
+            // Consistent with other services (e.g., PatientService, SurgicalCenterService)
+            return List.of();
         }
         
-        // Fallback: Return all locations (for super admin)
         if (activeOnly) {
-            return locationRepository.findByActive(true);
+            return locationRepository.findByInstitutionIdAndActive(institutionId, true);
+        } else {
+            return locationRepository.findByInstitutionId(institutionId);
         }
-        return locationRepository.findAll();
     }
 
     /**
      * Finds a location by ID for the current institution.  
      * Ensures institution isolation.
+     * 
+     * @param id the location ID
+     * @return Optional containing the location if found and belongs to current institution, empty otherwise
+     * @throws IllegalStateException if no institution context is set (prevents cross-institution data leakage)
      */
     @Transactional(readOnly = true)
     public Optional<Location> findById(Long id) {
         Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            return locationRepository.findByIdAndInstitutionId(id, institutionId);
+        if (institutionId == null) {
+            throw new IllegalStateException("Cannot access location without institution context. Institution isolation required.");
         }
-        return locationRepository.findById(id);
+        
+        return locationRepository.findByIdAndInstitutionId(id, institutionId);
     }
 
     /**

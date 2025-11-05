@@ -26,6 +26,9 @@ public class InstitutionAuthenticationFilter extends AbstractAuthenticationProce
     private static final String PASSWORD_PARAM = "password";
 
     public InstitutionAuthenticationFilter(String loginPath) {
+        // AntPathRequestMatcher is marked as deprecated but there's no non-deprecated 
+        // alternative for AbstractAuthenticationProcessingFilter in Spring Security 6.x
+        // The deprecated API is still the recommended way for this use case
         super(new AntPathRequestMatcher(loginPath, "POST"));
         log.debug("InstitutionAuthenticationFilter initialized for path: {}", loginPath);
     }

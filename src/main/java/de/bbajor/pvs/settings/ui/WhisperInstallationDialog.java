@@ -17,22 +17,22 @@ import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.textfield.TextArea;
 
 import de.bbajor.pvs.ai.config.AiProperties;
-import de.bbajor.pvs.ai.service.DockerWhisperService;
+import de.bbajor.pvs.ai.service.PodmanWhisperService;
 
 public class WhisperInstallationDialog extends Dialog {
 
-    private final DockerWhisperService dockerWhisperService;
+    private final PodmanWhisperService podmanWhisperService;
     private final AiProperties aiProperties;
     private final TextArea logOutput;
     private final ProgressBar progressBar;
     private final Button closeButton;
     private final Button cancelButton;
     private final H3 description;
-    private Process dockerProcess;
+    private Process podmanProcess;
     private boolean cancelled = false;
 
-    public WhisperInstallationDialog(DockerWhisperService dockerWhisperService, AiProperties aiProperties) {
-        this.dockerWhisperService = dockerWhisperService;
+    public WhisperInstallationDialog(PodmanWhisperService podmanWhisperService, AiProperties aiProperties) {
+        this.podmanWhisperService = podmanWhisperService;
         this.aiProperties = aiProperties;
 
         setHeaderTitle("Whisper Installation");
@@ -48,7 +48,7 @@ public class WhisperInstallationDialog extends Dialog {
         content.setSpacing(true);
 
         // Description
-        description = new H3("Docker-Container wird erstellt und gestartet...");
+        description = new H3("Podman-Container wird erstellt und gestartet...");
         description.getStyle().set("margin-top", "0");
         content.add(description);
 
@@ -64,7 +64,7 @@ public class WhisperInstallationDialog extends Dialog {
         logOutput.setReadOnly(true);
         logOutput.setWidthFull();
         logOutput.setHeight("400px");
-        logOutput.setValue("Starte Docker-Installation...\n");
+        logOutput.setValue("Starte Podman-Installation...\n");
         content.add(logOutput);
         content.setFlexGrow(1, logOutput);
 
@@ -94,22 +94,22 @@ public class WhisperInstallationDialog extends Dialog {
     }
 
     private void startInstallation() {
-        appendLog("Prüfe Docker Engine...");
+        appendLog("Prüfe Podman Engine...");
         
-        if (!dockerWhisperService.checkDockerAvailable()) {
-            appendLog("FEHLER: Docker ist nicht verfügbar. Bitte installieren Sie Docker Desktop.");
+        if (!podmanWhisperService.checkPodmanAvailable()) {
+            appendLog("FEHLER: Podman ist nicht verfügbar. Bitte installieren Sie Podman.");
             showError();
             return;
         }
 
-        appendLog("Docker Engine gefunden.");
+        appendLog("Podman Engine gefunden.");
         appendLog("Starte Whisper-Container...");
         appendLog("Dies kann einige Minuten dauern, besonders beim ersten Start.");
 
         // Run installation asynchronously
         CompletableFuture.supplyAsync(() -> {
             try {
-                return executeDockerBuild();
+                return executePodmanBuild();
             } catch (Exception e) {
                 appendLog("FEHLER: " + e.getMessage());
                 e.printStackTrace();
@@ -121,27 +121,27 @@ public class WhisperInstallationDialog extends Dialog {
                     return;
                 }
                 
-                if (success) {
-                    appendLog("\n✓ Installation erfolgreich abgeschlossen!");
-                    progressBar.setIndeterminate(false);
-                    progressBar.setValue(1.0);
-                    description.setText("Installation erfolgreich!");
-                    cancelButton.setVisible(false);
-                    closeButton.setVisible(true);
-                    closeButton.setEnabled(true);
-                } else {
-                    showError();
-                }
-            }));
+                    if (success) {
+                        appendLog("\n✓ Installation erfolgreich abgeschlossen!");
+                        progressBar.setIndeterminate(false);
+                        progressBar.setValue(1.0);
+                        description.setText("Installation erfolgreich!");
+                        cancelButton.setVisible(false);
+                        closeButton.setVisible(true);
+                        closeButton.setEnabled(true);
+                    } else {
+                        showError();
+                    }
+                }));
         });
     }
 
-    private boolean executeDockerBuild() {
+    private boolean executePodmanBuild() {
         try {
-            appendLog("Führe 'docker compose up --build' aus...");
+            appendLog("Führe 'podman compose up --build' aus...");
             
             // Get compose path from properties
-            String composePath = aiProperties.getWhisper().getLocal().getDockerComposePath();
+            String composePath = aiProperties.getWhisper().getLocal().getPodmanComposePath();
             
             // Resolve relative path to absolute path if needed
             if (!composePath.startsWith("/") && !composePath.matches("^[A-Za-z]:.*")) {
@@ -152,16 +152,24 @@ public class WhisperInstallationDialog extends Dialog {
             
             appendLog("Verwende Compose-Datei: " + composePath);
             
-            // Use docker compose command
-            ProcessBuilder pb = new ProcessBuilder(
-                    "docker", "compose", "-f", composePath, "up", "-d", "--build"
-            );
+            // Use podman compose command (try podman compose first, fallback to podman-compose)
+            ProcessBuilder pb;
+            try {
+                pb = new ProcessBuilder("podman", "compose", "-f", composePath, "up", "-d", "--build");
+                Process testProcess = pb.start();
+                int testExitCode = testProcess.waitFor();
+                if (testExitCode != 0) {
+                    pb = new ProcessBuilder("podman-compose", "-f", composePath, "up", "-d", "--build");
+                }
+            } catch (Exception e) {
+                pb = new ProcessBuilder("podman-compose", "-f", composePath, "up", "-d", "--build");
+            }
             pb.redirectErrorStream(true);
-            dockerProcess = pb.start();
+            podmanProcess = pb.start();
 
             // Read output line by line
             try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(dockerProcess.getInputStream()))) {
+                    new InputStreamReader(podmanProcess.getInputStream()))) {
                 
                 String line;
                 while ((line = reader.readLine()) != null && !cancelled) {
@@ -172,7 +180,7 @@ public class WhisperInstallationDialog extends Dialog {
                     if (line.contains("Creating") || line.contains("Starting")) {
                         appendLog("Container wird erstellt...");
                     } else if (line.contains("Pulling")) {
-                        appendLog("Docker-Image wird heruntergeladen...");
+                        appendLog("Podman-Image wird heruntergeladen...");
                     } else if (line.contains("Building")) {
                         appendLog("Container wird gebaut...");
                     }
@@ -180,12 +188,12 @@ public class WhisperInstallationDialog extends Dialog {
             }
 
             if (cancelled) {
-                dockerProcess.destroyForcibly();
+                podmanProcess.destroyForcibly();
                 appendLog("\nInstallation wurde abgebrochen.");
                 return false;
             }
 
-            int exitCode = dockerProcess.waitFor();
+            int exitCode = podmanProcess.waitFor();
             
             if (exitCode == 0) {
                 appendLog("\nWarte auf Container-Bereitschaft...");
@@ -196,8 +204,8 @@ public class WhisperInstallationDialog extends Dialog {
                     Thread.sleep(2000);
                     attempts++;
                     
-                    if (dockerWhisperService.isContainerRunning()) {
-                        if (dockerWhisperService.checkWhisperServerAvailable()) {
+                    if (podmanWhisperService.isContainerRunning()) {
+                        if (podmanWhisperService.checkWhisperServerAvailable()) {
                             appendLog("Container ist bereit und antwortet!");
                             return true;
                         }
@@ -215,7 +223,7 @@ public class WhisperInstallationDialog extends Dialog {
                 appendLog("WARNUNG: Container läuft, aber Server antwortet noch nicht.");
                 return true; // Container is running, even if not fully ready
             } else {
-                appendLog("FEHLER: Docker-Kommando fehlgeschlagen mit Exit-Code: " + exitCode);
+                appendLog("FEHLER: Podman-Kommando fehlgeschlagen mit Exit-Code: " + exitCode);
                 return false;
             }
         } catch (InterruptedException e) {
@@ -241,9 +249,9 @@ public class WhisperInstallationDialog extends Dialog {
 
     private void cancelInstallation() {
         cancelled = true;
-        if (dockerProcess != null && dockerProcess.isAlive()) {
+        if (podmanProcess != null && podmanProcess.isAlive()) {
             appendLog("\nInstallation wird abgebrochen...");
-            dockerProcess.destroyForcibly();
+            podmanProcess.destroyForcibly();
         }
         description.setText("Installation abgebrochen");
         cancelButton.setEnabled(false);

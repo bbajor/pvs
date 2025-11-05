@@ -12,7 +12,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import de.bbajor.pvs.ai.config.AiProperties;
-import de.bbajor.pvs.ai.service.DockerWhisperService;
+import de.bbajor.pvs.ai.service.PodmanWhisperService;
 import de.bbajor.pvs.ai.service.WhisperInstallationService;
 import de.bbajor.pvs.settings.ui.WhisperInstallationDialog;
 import jakarta.annotation.PostConstruct;
@@ -33,7 +33,7 @@ public class WhisperSettingsTab extends VerticalLayout {
 
     private final AiProperties aiProperties;
     private final WhisperInstallationService whisperInstallationService;
-    private final DockerWhisperService dockerWhisperService;
+    private final PodmanWhisperService podmanWhisperService;
 
     private Checkbox localWhisperEnabled;
     private TextField whisperHost;
@@ -90,8 +90,8 @@ public class WhisperSettingsTab extends VerticalLayout {
     private void checkWhisperStatus() {
         try {
             boolean serverAvailable = whisperInstallationService.checkWhisperServerAvailable();
-            boolean dockerAvailable = dockerWhisperService.checkDockerAvailable();
-            boolean containerRunning = dockerWhisperService.checkWhisperContainerRunning();
+            boolean podmanAvailable = podmanWhisperService.checkPodmanAvailable();
+            boolean containerRunning = podmanWhisperService.checkWhisperContainerRunning();
             
             if (serverAvailable) {
                 whisperStatusLabel.setText("✓ Whisper-Server ist erreichbar" + 
@@ -100,8 +100,8 @@ public class WhisperSettingsTab extends VerticalLayout {
             } else if (containerRunning) {
                 whisperStatusLabel.setText("⚠ Container läuft, Server antwortet nicht");
                 whisperStatusLabel.getStyle().set("color", "var(--lumo-warning-color)");
-            } else if (!dockerAvailable) {
-                whisperStatusLabel.setText("✗ Docker ist nicht verfügbar");
+            } else if (!podmanAvailable) {
+                whisperStatusLabel.setText("✗ Podman ist nicht verfügbar");
                 whisperStatusLabel.getStyle().set("color", "var(--lumo-error-color)");
             } else {
                 whisperStatusLabel.setText("✗ Whisper-Server ist nicht erreichbar");
@@ -116,17 +116,17 @@ public class WhisperSettingsTab extends VerticalLayout {
     private void installWhisper() {
         installWhisperButton.setEnabled(false);
         try {
-            if (aiProperties.getWhisper().getLocal().isUseDocker()) {
-                if (!dockerWhisperService.checkDockerAvailable()) {
-                    Notification.show("Docker nicht gefunden. Bitte installieren Sie Docker zuerst.", 5000,
+            if (aiProperties.getWhisper().getLocal().isUsePodman()) {
+                if (!podmanWhisperService.checkPodmanAvailable()) {
+                    Notification.show("Podman nicht gefunden. Bitte installieren Sie Podman zuerst.", 5000,
                             Notification.Position.MIDDLE)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     installWhisperButton.setEnabled(true);
                     return;
                 }
                 
-                // Open installation dialog for Docker
-                WhisperInstallationDialog dialog = new WhisperInstallationDialog(dockerWhisperService, aiProperties);
+                // Open installation dialog for Podman
+                WhisperInstallationDialog dialog = new WhisperInstallationDialog(podmanWhisperService, aiProperties);
                 dialog.open();
                 dialog.addOpenedChangeListener(e -> {
                     if (!e.isOpened()) {
@@ -137,7 +137,7 @@ public class WhisperSettingsTab extends VerticalLayout {
                 return;
             } else {
                 if (!whisperInstallationService.checkPythonAvailable()) {
-                    Notification.show("Python nicht gefunden. Bitte installieren Sie Python zuerst oder nutzen Sie Docker.", 5000,
+                    Notification.show("Python nicht gefunden. Bitte installieren Sie Python zuerst oder nutzen Sie Podman.", 5000,
                             Notification.Position.MIDDLE)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     installWhisperButton.setEnabled(true);

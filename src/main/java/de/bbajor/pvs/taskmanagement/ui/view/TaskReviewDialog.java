@@ -1,15 +1,16 @@
 package de.bbajor.pvs.taskmanagement.ui.view;
 
-import java.io.ByteArrayInputStream;
 import java.util.List;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -303,14 +304,24 @@ public class TaskReviewDialog extends Dialog {
             String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
             byte[] pdfBytes = reportService.generatePdfReport(treatments, task.getTimeSlot(), treatingDoctor);
             
-            com.vaadin.flow.server.StreamResource resource = new com.vaadin.flow.server.StreamResource("Behandlungsbericht.pdf", 
-                () -> new ByteArrayInputStream(pdfBytes));
+            // Use Vaadin 24 DownloadHandler API (non-deprecated)
+            DownloadHandler downloadHandler = event -> {
+                try (var outputStream = event.getOutputStream()) {
+                    outputStream.write(pdfBytes);
+                } catch (Exception e) {
+                    throw new RuntimeException("Fehler beim Schreiben des PDFs", e);
+                }
+            };
             
+            // Create Anchor component for download using DownloadHandler
+            Anchor downloadLink = new Anchor();
+            downloadLink.setText("Behandlungsbericht.pdf");
+            downloadLink.setHref(downloadHandler);
+            downloadLink.getElement().setAttribute("download", true);
+            
+            // Trigger download
             getUI().ifPresent(ui -> {
-                com.vaadin.flow.server.StreamRegistration registration = ui.getSession()
-                        .getResourceRegistry()
-                        .registerResource(resource);
-                ui.getPage().open(registration.getResourceUri().toString(), "_blank");
+                ui.getPage().open(downloadLink.getHref(), "_blank");
             });
             
             Notification.show("Bericht wird heruntergeladen");

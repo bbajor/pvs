@@ -9,11 +9,13 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.service.InstitutionAccessValidator;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
@@ -23,7 +25,6 @@ import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.domain.TaskRepository;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 @Service
 public class TaskService {
@@ -38,6 +39,9 @@ public class TaskService {
     private TreatmentRepository treatmentRepository;
     @Autowired
     private TreatmentAuditLogRepository auditLogRepository;
+
+    @Autowired
+    private InstitutionAccessValidator institutionAccessValidator;
 
     @Autowired
     private Clock clock;
@@ -113,6 +117,14 @@ public class TaskService {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
         if (!secondApproval) {
             treatment.setApprovalDate(LocalDate.now(clock));
             treatment.setApprovalDateTime(clock.instant().atZone(clock.getZone()).toLocalDateTime());
@@ -201,6 +213,14 @@ public class TaskService {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
         treatment.setAdditionalInfo(additionalInfo);
         treatmentRepository.save(treatment);
     }
