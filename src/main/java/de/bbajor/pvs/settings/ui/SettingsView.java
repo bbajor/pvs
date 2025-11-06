@@ -11,6 +11,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
+import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.UserSettingsTab;
@@ -24,13 +25,15 @@ import jakarta.annotation.security.RolesAllowed;
 public class SettingsView extends Main {
 
     private final Tab generalTab = new Tab("Allgemein");
+    private final Tab layoutTab = new Tab("Layout");
     private final Tab locationTab = new Tab("Standorte");
     private final Tab userTab = new Tab("Benutzerverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
 
     private final VerticalLayout content = new VerticalLayout();
 
-    public SettingsView(InstitutionGeneralTab institutionGeneralTab, 
+    public SettingsView(InstitutionGeneralTab institutionGeneralTab,
+            LayoutSettingsTab layoutSettingsTab,
             LocationManagementTab locationManagementTab,
             UserSettingsTab userSettingsTab,
             MedicationSettingsTab medicationSettingsTab) {
@@ -40,13 +43,15 @@ public class SettingsView extends Main {
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(generalTab, locationTab, userTab, medicationTab);
+        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, userTab, medicationTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
             if (selected == generalTab) {
                 content.add(institutionGeneralTab);
+            } else if (selected == layoutTab) {
+                content.add(layoutSettingsTab);
             } else if (selected == locationTab) {
                 content.add(locationManagementTab);
             } else if (selected == userTab) {

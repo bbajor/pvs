@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import org.instancio.Instancio;
 import static org.instancio.Select.field;
+import javax.sql.DataSource;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
@@ -68,6 +69,7 @@ public class TestDataInitializer {
     private final PasswordEncoder passwordEncoder;
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
+    private final DataSource dataSource;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -107,6 +109,20 @@ public class TestDataInitializer {
     @Order(0)
     @Transactional
     public void initializeTestData() {
+        // Only run for H2 databases - PostgreSQL uses Flyway migrations
+        try {
+            String jdbcUrl = dataSource.getConnection().getMetaData().getURL();
+            if (!jdbcUrl.startsWith("jdbc:h2:")) {
+                log.info("TestDataInitializer skipped - not using H2 database (URL: {})", jdbcUrl);
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Could not determine database type, skipping TestDataInitializer", e);
+            return;
+        }
+        
+        log.info("TestDataInitializer running for H2 database");
+        
         // Ensure Hibernate has created the schema by accessing entities
         // This forces Hibernate to create tables if using create-drop
         try {
@@ -143,158 +159,173 @@ public class TestDataInitializer {
             }
         }
 
-        // Initialisiere zuerst Test-Tenants und Tenant-spezifische User
-        // Erstelle auch die Location für DEV-TEST Tenant
-        Location defaultLocation = initTestTenants();
+        // Initialisiere Test-Institutionen mit Standorten und Usern
+        TestInstitutions testInstitutions = initTestInstitutions();
 
-        // Flush, um sicherzustellen, dass alle Tenants und Locations persistiert sind,
+        // Flush, um sicherzustellen, dass alle Institutionen und Locations persistiert sind,
         // bevor wir sie später verwenden
         entityManager.flush();
         entityManager.clear(); // Clear session, um alle Objekte zu detachen
 
-        // Erstelle Testuser aus SampleUsers
-        createTestUsers();
-
-        // CRITICAL: Ensure Institution and Location exist BEFORE creating patients
-        // This ensures patients can be assigned to a location with institution
-        // Location is already created in initTestTenants()
-        log.info("Default location: {} (institution: {})",
-                defaultLocation.getLocationName(),
-                defaultLocation.getInstitution().getInstitutionCode());
-
-        // CRITICAL: Set InstitutionContext for test data initialization
-        // This is required for patient service methods that check institution context
-        InstitutionContext.setInstitutionId(defaultLocation.getInstitution().getId());
-        log.debug("InstitutionContext set to: {} for test data initialization", defaultLocation.getInstitution().getId());
-
-        List<Patient> savedPatients = patientService.saveAll(createRealisticPatients(20));
-        List<Medication> savedMedications = medicationService
-                .saveAll(createRealisticMedications(MEDICATION_NAMES.length));
-        List<Diagnosis> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
-
-        // Erzeuge OP-Zentren mit Zeitslots für Mittwoch und Freitag
-        List<SurgicalCenter> surgicalCenters = createSurgicalCentersWithTimeSlots(
-                SURGICAL_CENTER_NAMES.length, defaultLocation);
-
-        // Erzeuge 10 Behandlungspläne mit Behandlungen
-        createTreatmentPlansWithTreatments(10, savedPatients, savedMedications, diagnosisDtos, surgicalCenters);
-
-        // Erstelle einen abgelaufenen TimeSlot mit nicht genehmigten Behandlungen für Task-Testing
-        createPastTimeSlotsWithUnapprovedTreatments(savedPatients.subList(0, 3), surgicalCenters.get(0),
-                savedMedications.get(0), diagnosisDtos.get(0));
-        
-        // Clear InstitutionContext after initialization to avoid side effects
-        // The context will be set properly when users log in
-        InstitutionContext.clear();
-        log.debug("InstitutionContext cleared after test data initialization");
-    }
-
-    /**
-     * Initialisiert Test-Tenants für Multi-Tenancy und erstellt die Location
-     * für DEV-TEST
-     *
-     * @return die Location für DEV-TEST Tenant für spätere Verwendung
-     */
-    private Location initTestTenants() {
-        // Create default test tenant
-        Institution testInstitution = createInstitutionIfNotExists(
-                "DEV-TEST",
-                "Test-Praxis (Dev)",
-                "Standard-Test-Praxis für Entwicklung"
-        );
-
-        // Create sample tenants
-        Institution institution1 = createInstitutionIfNotExists(
-                "PRAX-001",
-                "Augenarztpraxis Dr. Müller",
-                "Praxis in Berlin"
-        );
-
-        Institution institution2 = createInstitutionIfNotExists(
-                "PRAX-002",
-                "MVZ Augenheilkunde Hamburg",
-                "Medizinisches Versorgungszentrum"
-        );
-
-        // Create Location for DEV-TEST tenant
-        Location defaultLocation = createLocationForInstitution(testInstitution);
-
-        // Create super admin (no tenant, can manage all tenants/locations)
+        // Erstelle Superadmin
         createInstitutionUserIfNotExists(
                 null,
                 "superadmin",
                 "admin@pvs.local",
                 "Super Administrator",
-                Set.of("SUPER_ADMIN", "ADMIN", "USER")
+                Set.of(AppRoles.SUPER_ADMIN, AppRoles.ADMIN, AppRoles.USER)
         );
 
-        // Create test users for each tenant
+        // Institution 1: Leer lassen (nur Institutionsadmin)
         createInstitutionUserIfNotExists(
-                testInstitution,
-                "testadmin",
-                "testadmin@test.local",
-                "Test Admin",
-                Set.of("ADMIN", "USER")
+                testInstitutions.institution1,
+                "inst1-admin",
+                "inst1-admin@pvs.local",
+                "Institution 1 Admin",
+                Set.of(AppRoles.INSTITUTION_ADMIN, AppRoles.USER)
         );
 
-        // Create "admin" user (matching SampleUsers.ADMIN_USERNAME) for DEV-TEST tenant
+        // Institution 2: Vollständige Testdaten mit allen Rollen
+        createUsersForInstitution(testInstitutions.institution2);
+
+        // CRITICAL: Set InstitutionContext for test data initialization (Institution 2)
+        InstitutionContext.setInstitutionId(testInstitutions.institution2.getId());
+        log.debug("InstitutionContext set to: {} for test data initialization", testInstitutions.institution2.getId());
+
+        // Erstelle Testdaten für Institution 2
+        List<Medication> savedMedications = medicationService
+                .saveAll(createRealisticMedications(MEDICATION_NAMES.length));
+        List<Diagnosis> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
+
+        // Erstelle 5 Patienten für Institution 2 (jeweils auf einem der beiden Standorte)
+        List<Patient> savedPatients = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Location patientLocation = (i % 2 == 0) ? testInstitutions.institution2Location1 : testInstitutions.institution2Location2;
+            List<Patient> patients = createRealisticPatients(1, testInstitutions.institution2, patientLocation);
+            savedPatients.addAll(patientService.saveAll(patients));
+        }
+
+        // Erzeuge OP-Zentren mit Zeitslots (2 Jahre Vergangenheit, 1 Jahr Zukunft)
+        List<SurgicalCenter> surgicalCenters = createSurgicalCentersWithTimeSlots(
+                SURGICAL_CENTER_NAMES.length, testInstitutions.institution2Location1);
+
+        // Erzeuge Behandlungspläne für alle Patienten (mindestens 5 Termine in Vergangenheit, max 1 in Zukunft)
+        createTreatmentPlansWithTreatments(savedPatients, savedMedications, diagnosisDtos, surgicalCenters);
+
+        // Clear InstitutionContext after initialization to avoid side effects
+        InstitutionContext.clear();
+        log.debug("InstitutionContext cleared after test data initialization");
+    }
+
+    /**
+     * Datenklasse für Test-Institutionen
+     */
+    private static class TestInstitutions {
+        Institution institution1;
+        Location institution1Location1;
+        Location institution1Location2;
+        Institution institution2;
+        Location institution2Location1;
+        Location institution2Location2;
+    }
+
+    /**
+     * Initialisiert 2 Test-Institutionen mit je 2 Standorten
+     *
+     * @return TestInstitutions mit allen Institutionen und Standorten
+     */
+    private TestInstitutions initTestInstitutions() {
+        TestInstitutions result = new TestInstitutions();
+
+        // Institution 1: Leer (nur Institutionsadmin)
+        result.institution1 = createInstitutionIfNotExists(
+                "PRAX-001",
+                "Augenarztpraxis Dr. Müller",
+                "Leere Test-Institution für Neuaufbau"
+        );
+        result.institution1Location1 = createLocationForInstitution(result.institution1, "Standort 1 - Hauptpraxis");
+        result.institution1Location2 = createLocationForInstitution(result.institution1, "Standort 2 - Filiale");
+
+        // Institution 2: Vollständige Testdaten
+        result.institution2 = createInstitutionIfNotExists(
+                "PRAX-002",
+                "MVZ Augenheilkunde Hamburg",
+                "Vollständige Test-Institution mit Patienten und Behandlungen"
+        );
+        result.institution2Location1 = createLocationForInstitution(result.institution2, "Standort 1 - Hauptpraxis");
+        result.institution2Location2 = createLocationForInstitution(result.institution2, "Standort 2 - Filiale");
+
+        return result;
+    }
+
+    /**
+     * Erstellt User für eine Institution mit allen Rollen
+     */
+    private void createUsersForInstitution(Institution institution) {
         createInstitutionUserIfNotExists(
-                testInstitution,
-                "admin",
-                "alice@example.com",
-                "Alice Administrator",
-                Set.of("ADMIN", "OWNER", "USER", "DOCTOR")
+                institution,
+                "inst2-admin",
+                "inst2-admin@pvs.local",
+                "Institution 2 Admin",
+                Set.of(AppRoles.ADMIN, AppRoles.USER)
         );
-
-        // Create "user" user (matching SampleUsers.USER_USERNAME) for DEV-TEST tenant
         createInstitutionUserIfNotExists(
-                testInstitution,
-                "user",
-                "ursula@example.com",
-                "Ursula User",
-                Set.of("USER", "TECH_USER", "MEDICAL_STAFF")
+                institution,
+                "inst2-owner",
+                "inst2-owner@pvs.local",
+                "Institution 2 Owner",
+                Set.of(AppRoles.OWNER, AppRoles.USER)
         );
-
-        // Create users for other tenants (they would need their own locations)
         createInstitutionUserIfNotExists(
-                institution1,
-                "dr.mueller",
-                "mueller@praxis.local",
-                "Dr. Müller",
-                Set.of("ADMIN", "USER")
+                institution,
+                "inst2-doctor",
+                "inst2-doctor@pvs.local",
+                "Institution 2 Doctor",
+                Set.of(AppRoles.DOCTOR, AppRoles.USER)
         );
-
         createInstitutionUserIfNotExists(
-                institution2,
-                "dr.schmidt",
-                "schmidt@mvz.local",
-                "Dr. Schmidt",
-                Set.of("ADMIN", "USER")
+                institution,
+                "inst2-medical",
+                "inst2-medical@pvs.local",
+                "Institution 2 Medical Staff",
+                Set.of(AppRoles.MEDICAL_STAFF, AppRoles.USER)
         );
-
-        // Note: tenant1 and tenant2 would need their own locations for users
-        // For now, we only create location for DEV-TEST
-        return defaultLocation;
+        createInstitutionUserIfNotExists(
+                institution,
+                "inst2-tech",
+                "inst2-tech@pvs.local",
+                "Institution 2 Tech User",
+                Set.of(AppRoles.TECH_USER, AppRoles.USER)
+        );
+        createInstitutionUserIfNotExists(
+                institution,
+                "inst2-user",
+                "inst2-user@pvs.local",
+                "Institution 2 User",
+                Set.of(AppRoles.USER)
+        );
     }
 
     /**
      * Erstellt eine Location für eine Institution, falls noch nicht vorhanden
      */
-    private Location createLocationForInstitution(Institution institution) {
+    private Location createLocationForInstitution(Institution institution, String locationName) {
         // Ensure Institution is persisted
         if (institution.getId() == null) {
             institution = institutionRepository.save(institution);
         }
 
-        // Check if location already exists for this institution
+        // Check if location with this name already exists for this institution
         List<Location> existingLocations = locationService.findByInstitution(institution);
-        if (!existingLocations.isEmpty()) {
-            return existingLocations.get(0);
+        for (Location loc : existingLocations) {
+            if (locationName.equals(loc.getLocationName())) {
+                return loc;
+            }
         }
 
         // Create new location
         Location location = new Location();
-        location.setLocationName("Augenarztpraxis Muster");
+        location.setLocationName(locationName);
         location.setStreet("Hauptstraße");
         location.setHouseNumber("42");
         location.setPostalCode("10115");
@@ -409,10 +440,10 @@ public class TestDataInitializer {
     /**
      * Erstellt realistische Patientendaten
      */
-    private List<Patient> createRealisticPatients(int count) {
+    private List<Patient> createRealisticPatients(int count, Institution institution, Location location) {
         Random random = new Random();
 
-        return Instancio.ofList(Patient.class)
+        List<Patient> patients = Instancio.ofList(Patient.class)
                 .size(count)
                 .ignore(field(Patient::getId))
                 .ignore(field(Patient::getVersion))
@@ -459,6 +490,20 @@ public class TestDataInitializer {
                 .ignore(field(HealthInsurance::getVersion))
                 .ignore(field(Patient::getPatientHistory))
                 .create();
+
+        // CRITICAL: Set institution and location for each patient and their health insurance
+        // This ensures all entities have the required non-nullable associations before saving
+        for (Patient patient : patients) {
+            patient.setInstitution(institution);
+            patient.setLocation(location);
+            
+            // Set institution for health insurance (required non-nullable association)
+            if (patient.getHealthInsurance() != null) {
+                patient.getHealthInsurance().setInstitution(institution);
+            }
+        }
+
+        return patients;
     }
 
     /**
@@ -599,29 +644,29 @@ public class TestDataInitializer {
     }
 
     /**
-     * Generiert Zeitslots für Mittwoch und Freitag für die nächsten 2 Jahre,
+     * Generiert Zeitslots für Mittwoch und Freitag:
+     * - 2 Jahre in die Vergangenheit
+     * - 1 Jahr in die Zukunft
      * 7-9 Uhr
      */
     private List<SurgicalCenterTimeSlot> generateTimeSlots(SurgicalCenter center) {
         List<SurgicalCenterTimeSlot> timeSlots = new ArrayList<>();
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = startDate.plusYears(2);
+        LocalDate now = LocalDate.now();
+        LocalDate startDate = now.minusYears(2); // 2 Jahre in die Vergangenheit
+        LocalDate endDate = now.plusYears(1); // 1 Jahr in die Zukunft
 
-        // Starte 6 Monate in der Vergangenheit
-        LocalDate startDateWithHistory = startDate.minusMonths(6);
+        // Finde den ersten Mittwoch ab Startdatum
+        LocalDate wednesday = startDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.WEDNESDAY));
 
-        // Finde den ersten Mittwoch
-        LocalDate wednesday = startDateWithHistory.with(TemporalAdjusters.nextOrSame(DayOfWeek.WEDNESDAY));
-
-        // Generiere Mittwoch-Slots für 2 Jahre
-        while (wednesday.isBefore(endDate)) {
+        // Generiere Mittwoch-Slots von 2 Jahren Vergangenheit bis 1 Jahr Zukunft
+        while (wednesday.isBefore(endDate) || wednesday.isEqual(endDate)) {
             SurgicalCenterTimeSlot wednesdaySlot = new SurgicalCenterTimeSlot();
             wednesdaySlot.setDate(wednesday);
             wednesdaySlot.setStartTime(LocalTime.of(7, 0));
             wednesdaySlot.setEndTime(LocalTime.of(9, 0));
             wednesdaySlot.setSurgicalCenter(center);
             // Slots in der Vergangenheit sind nicht mehr verfügbar
-            wednesdaySlot.setAvailable(wednesday.isAfter(startDate));
+            wednesdaySlot.setAvailable(wednesday.isAfter(now) || wednesday.isEqual(now));
             wednesdaySlot.setApproved(true);
             wednesdaySlot.setDescription("Regulärer Mittwoch-Termin");
             timeSlots.add(wednesdaySlot);
@@ -629,18 +674,18 @@ public class TestDataInitializer {
             wednesday = wednesday.plusWeeks(1);
         }
 
-        // Finde den ersten Freitag
+        // Finde den ersten Freitag ab Startdatum
         LocalDate friday = startDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY));
 
-        // Generiere Freitag-Slots für 2 Jahre
-        while (friday.isBefore(endDate)) {
+        // Generiere Freitag-Slots von 2 Jahren Vergangenheit bis 1 Jahr Zukunft
+        while (friday.isBefore(endDate) || friday.isEqual(endDate)) {
             SurgicalCenterTimeSlot fridaySlot = new SurgicalCenterTimeSlot();
             fridaySlot.setDate(friday);
             fridaySlot.setStartTime(LocalTime.of(7, 0));
             fridaySlot.setEndTime(LocalTime.of(9, 0));
             fridaySlot.setSurgicalCenter(center);
             // Slots in der Vergangenheit sind nicht mehr verfügbar
-            fridaySlot.setAvailable(friday.isAfter(startDate));
+            fridaySlot.setAvailable(friday.isAfter(now) || friday.isEqual(now));
             fridaySlot.setApproved(true);
             fridaySlot.setDescription("Regulärer Freitag-Termin");
             timeSlots.add(fridaySlot);
@@ -652,34 +697,24 @@ public class TestDataInitializer {
     }
 
     /**
-     * Erstellt Behandlungspläne mit zugehörigen Behandlungen
+     * Erstellt Behandlungspläne mit zugehörigen Behandlungen für alle Patienten.
+     * Jeder Patient erhält:
+     * - Mindestens 5 Termine in der Vergangenheit
+     * - Maximal 1 Termin in der Zukunft
+     * - Mix aus approved und unapproved Behandlungen
      */
-    /**
-     * Erstellt Behandlungspläne mit zugehörigen Behandlungen Verbesserte
-     * Version mit größerer Variabilität
-     */
-    private void createTreatmentPlansWithTreatments(int count, List<Patient> patients,
+    private void createTreatmentPlansWithTreatments(List<Patient> patients,
             List<Medication> medications,
             List<Diagnosis> diagnoses,
             List<SurgicalCenter> surgicalCenters) {
         Random random = new Random();
         LocalDate now = LocalDate.now();
 
-        // Stellen Sie sicher, dass jeder Patient einen eigenen Behandlungsplan hat
-        List<Patient> selectedPatients = new ArrayList<>(patients);
-        // Mische die Patienten, um zufällige Auswahl zu gewährleisten
-        java.util.Collections.shuffle(selectedPatients);
-
-        // Beschränke auf 'count' Patienten oder weniger, falls nicht genug Patienten
-        // vorhanden
-        int planCount = Math.min(count, selectedPatients.size());
-
-        // Generiere für jeden ausgewählten Patienten einen Behandlungsplan
-        for (int i = 0; i < planCount; i++) {
+        // Generiere für jeden Patienten einen Behandlungsplan
+        for (Patient patientFromList : patients) {
             // Wichtig: Hole den Patienten direkt aus der Datenbank, um sicherzustellen,
             // dass es sich um eine persistierte Entität handelt und nicht um ein
             // transientes Objekt
-            Patient patientFromList = selectedPatients.get(i);
 
             // Stelle sicher, dass der Patient eine ID hat (also gespeichert ist)
             if (patientFromList.getId() == null) {
@@ -695,15 +730,12 @@ public class TestDataInitializer {
             }
 
             // Erstelle einen individualisierten Behandlungsplan
+            // Plan wurde vor mindestens 6 Monaten erstellt (für Vergangenheitstermine)
             TreatmentPlan plan = new TreatmentPlan();
-            plan.setCreationDate(now.minusDays(random.nextInt(90)));
+            plan.setCreationDate(now.minusMonths(6 + random.nextInt(6))); // 6-12 Monate in der Vergangenheit
 
-            // Wähle eine passende Diagnose und stelle sicher, dass sie eine ID hat
+            // Wähle eine passende Diagnose
             Diagnosis diagnosis = diagnoses.get(random.nextInt(diagnoses.size()));
-            if (diagnosis.getId() == null) {
-                System.out.println("Warnung: Diagnose " + diagnosis.getName() + " hat keine ID!");
-                continue; // Überspringe diesen Plan
-            }
             plan.setDiagnosis(diagnosis);
 
             // Personalisiere den Behandlungsplan
@@ -731,120 +763,114 @@ public class TestDataInitializer {
             };
             plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
 
-            // Speichere den Behandlungsplan (nutze interne Methode ohne Security-Check für Testdaten)
+            // Speichere den Behandlungsplan
             TreatmentPlan savedPlan;
             try {
                 savedPlan = treatmentPlanService.saveTreatmentPlanInternal(plan);
             } catch (Exception e) {
-                System.out.println("Fehler beim Speichern des Behandlungsplans: " + e.getMessage());
-                e.printStackTrace();
+                log.error("Fehler beim Speichern des Behandlungsplans: {}", e.getMessage(), e);
                 continue; // Überspringe diesen Plan bei einem Fehler
-            } // Wähle 1-3 verschiedene OP-Zentren für diesen Patienten
-            // Manche Patienten bevorzugen immer das gleiche Zentrum, andere wechseln
-            int centerCount = random.nextInt(3) + 1; // 1 bis 3 Zentren
-            List<SurgicalCenter> patientCenters = new ArrayList<>();
-
-            // Wähle zufällige Zentren
-            for (int c = 0; c < centerCount && c < surgicalCenters.size(); c++) {
-                int centerIndex = random.nextInt(surgicalCenters.size());
-                if (!patientCenters.contains(surgicalCenters.get(centerIndex))) {
-                    patientCenters.add(surgicalCenters.get(centerIndex));
-                }
             }
 
-            // Variable Anzahl von Behandlungen pro Plan (2-12)
-            // Chronische Patienten erhalten mehr Behandlungen
-            int maxTreatments = random.nextInt(11) + 2; // 2 bis 12 Behandlungen
-            List<Treatment> treatments = new ArrayList<>();
+            // Wähle ein OP-Zentrum für diesen Patienten
+            SurgicalCenter center = surgicalCenters.get(random.nextInt(surgicalCenters.size()));
 
-            // Wähle ein bevorzugtes Medikament für diesen Patienten
+            // Wähle ein bevorzugtes Medikament und eine Seite
             Medication preferredMedication = medications.get(random.nextInt(medications.size()));
             SideOfEye preferredSideOfEye = EYE_SIDES[random.nextInt(EYE_SIDES.length)];
 
-            // Erstelle die Behandlungen mit einer gewissen Regelmäßigkeit
-            for (int j = 0; j < maxTreatments; j++) {
-                // Mache j final, damit es im Lambda-Ausdruck verwendet werden kann
-                final int treatmentIndex = j;
+            List<Treatment> treatments = new ArrayList<>();
+            LocalDate planCreationDate = plan.getCreationDate();
 
-                // Wähle ein Zentrum für diese Behandlung
-                SurgicalCenter center = patientCenters.get(random.nextInt(patientCenters.size()));
+            // Sammle alle verfügbaren Slots aus der Vergangenheit (mindestens 5)
+            List<SurgicalCenterTimeSlot> pastSlots = center.getAvailableTimeSlots().stream()
+                    .filter(slot -> slot.getDate().isBefore(now) && slot.getDate().isAfter(planCreationDate))
+                    .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
+                    .collect(Collectors.toList());
 
-                // Hole Slots für dieses Zentrum
-                List<SurgicalCenterTimeSlot> availableSlots = center.getAvailableTimeSlots()
-                        .stream()
-                        .filter(slot -> {
-                            // Stelle sicher, dass der Slot nach dem Erstellungsdatum des Plans liegt
-                            LocalDate planCreationDate = plan.getCreationDate();
+            // Sammle verfügbare Slots aus der Zukunft (maximal 1)
+            List<SurgicalCenterTimeSlot> futureSlots = center.getAvailableTimeSlots().stream()
+                    .filter(slot -> slot.getDate().isAfter(now) || slot.getDate().isEqual(now))
+                    .filter(SurgicalCenterTimeSlot::isAvailable)
+                    .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
+                    .limit(1)
+                    .collect(Collectors.toList());
 
-                            // Behandlungen ab Planstart im 14-Tage-Rhythmus
-                            return slot.getDate()
-                                    .isAfter(planCreationDate.plusDays(treatmentIndex * 14))
-                                    && slot.getDate()
-                                            .isBefore(planCreationDate.plusDays(treatmentIndex * 14 + 10))
-                                    && // Für historische Slots (vor heute) muss available nicht geprüft werden
-                                    (slot.getDate().isBefore(now) || slot.isAvailable());
-                        })
-                        .limit(5) // Nur die ersten 5 passenden Slots betrachten
-                        .collect(Collectors.toList());
-
-                // Falls keine passenden Slots gefunden wurden, breche ab
-                if (availableSlots.isEmpty()) {
-                    break;
-                }
-
-                // Wähle einen zufälligen verfügbaren Slot
-                SurgicalCenterTimeSlot slot = availableSlots.get(random.nextInt(availableSlots.size()));
-
-                // Erstelle eine neue Behandlung
-                Treatment treatment = new Treatment();
-                treatment.setTreatmentPlan(savedPlan);
-
-                // 80% Wahrscheinlichkeit für bevorzugte Seite, 20% für andere Seite oder
-                // beidseitig
-                if (random.nextDouble() < 0.8) {
-                    treatment.setSideOfEye(preferredSideOfEye);
-                } else {
-                    treatment.setSideOfEye(
-                            EYE_SIDES[random.nextInt(EYE_SIDES.length)]);
-                }
-
-                treatment.setSurgicalCenterTimeSlot(slot);
-                treatment.setApprovalDate(slot.getDate().minusDays(random.nextInt(10) + 1));
-
-                // Verschiedene Bemerkungen für Behandlungen
-                String[] infoRemarks = {
-                    "Standardbehandlung",
-                    "Verlaufskontrolle",
-                    "Follow-up nach OCT",
-                    "Initiale Behandlungsphase",
-                    "Aufgrund von Makulaödem",
-                    "Nach Laserkoagulation"
-                };
-                treatment.setAdditionalInfo(infoRemarks[random.nextInt(infoRemarks.length)]);
-
-                // 90% Wahrscheinlichkeit für bevorzugtes Medikament, 10% für Wechsel
-                if (random.nextDouble() < 0.9) {
-                    treatment.setMedication(preferredMedication);
-                } else {
-                    treatment.setMedication(medications.get(random.nextInt(medications.size())));
-                }
-
+            // Erstelle mindestens 5 Behandlungen in der Vergangenheit
+            int pastTreatmentCount = Math.max(5, Math.min(8, pastSlots.size())); // 5-8 Behandlungen in der Vergangenheit
+            for (int i = 0; i < pastTreatmentCount && i < pastSlots.size(); i++) {
+                SurgicalCenterTimeSlot slot = pastSlots.get(i);
+                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, medications, random, true);
                 treatments.add(treatment);
-
-                // Markiere den Zeitslot als nicht mehr verfügbar
-                slot.setAvailable(false);
+                slot.setAvailable(false); // Slot ist belegt
             }
 
-            // Speichere die Behandlungen, falls welche erstellt wurden
+            // Erstelle maximal 1 Behandlung in der Zukunft
+            if (!futureSlots.isEmpty() && random.nextDouble() < 0.7) { // 70% Wahrscheinlichkeit für Zukunftstermin
+                SurgicalCenterTimeSlot slot = futureSlots.get(0);
+                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, medications, random, false);
+                treatments.add(treatment);
+                slot.setAvailable(false); // Slot ist belegt
+            }
+
+            // Speichere die Behandlungen
             if (!treatments.isEmpty()) {
                 try {
-                    treatmentPlanService.saveNewTreatmentsForExistingPlanInternal(treatments,
-                            savedPlan.getId());
+                    treatmentPlanService.saveNewTreatmentsForExistingPlanInternal(treatments, savedPlan.getId());
                 } catch (Exception e) {
-                    System.out.println("Fehler beim Speichern der Behandlungen: " + e.getMessage());
-                    e.printStackTrace();
+                    log.error("Fehler beim Speichern der Behandlungen: {}", e.getMessage(), e);
                 }
             }
         }
+    }
+
+    /**
+     * Erstellt eine Behandlung für einen Zeitslot
+     */
+    private Treatment createTreatment(TreatmentPlan plan, SurgicalCenterTimeSlot slot, 
+            Medication preferredMedication, SideOfEye preferredSideOfEye,
+            List<Medication> medications, Random random, boolean isPast) {
+        Treatment treatment = new Treatment();
+        treatment.setTreatmentPlan(plan);
+        treatment.setSurgicalCenterTimeSlot(slot);
+
+        // 80% Wahrscheinlichkeit für bevorzugte Seite
+        if (random.nextDouble() < 0.8) {
+            treatment.setSideOfEye(preferredSideOfEye);
+        } else {
+            treatment.setSideOfEye(EYE_SIDES[random.nextInt(EYE_SIDES.length)]);
+        }
+
+        // 90% Wahrscheinlichkeit für bevorzugtes Medikament
+        if (random.nextDouble() < 0.9) {
+            treatment.setMedication(preferredMedication);
+        } else {
+            treatment.setMedication(medications.get(random.nextInt(medications.size())));
+        }
+
+        // Verschiedene Bemerkungen
+        String[] infoRemarks = {
+            "Standardbehandlung",
+            "Verlaufskontrolle",
+            "Follow-up nach OCT",
+            "Initiale Behandlungsphase",
+            "Aufgrund von Makulaödem",
+            "Nach Laserkoagulation"
+        };
+        treatment.setAdditionalInfo(infoRemarks[random.nextInt(infoRemarks.length)]);
+
+        // Für Vergangenheitstermine: 70% approved, 30% unapproved (für TaskView)
+        if (isPast) {
+            if (random.nextDouble() < 0.7) {
+                // Approved: ApprovalDate setzen
+                treatment.setApprovalDate(slot.getDate().minusDays(random.nextInt(10) + 1));
+            }
+            // Unapproved: ApprovalDate bleibt null
+        } else {
+            // Zukunftstermine sind noch nicht approved
+            // ApprovalDate bleibt null
+        }
+
+        return treatment;
     }
 }

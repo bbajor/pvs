@@ -1,22 +1,29 @@
 package de.bbajor.pvs.appointment.ui;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -42,13 +49,17 @@ import jakarta.annotation.security.PermitAll;
 
 /**
  * Calendar view for displaying and managing appointments.
- * Shows a day view with time slots and appointments.
+ * Shows a day view or week view with time slots and appointments.
  */
 @Route("appointment-calendar")
 @PageTitle("Terminkalender")
 @Menu(order = 2, icon = "vaadin:calendar", title = "Terminkalender")
 @PermitAll
 public class AppointmentCalendarView extends Main implements BeforeEnterObserver {
+
+    private enum ViewMode {
+        DAY, WEEK
+    }
 
     private final AppointmentSchedulerService schedulerService;
     private final AppointmentService appointmentService;
@@ -58,7 +69,9 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
 
     private AppointmentScheduler currentScheduler;
     private LocalDate currentDate;
+    private ViewMode currentViewMode = ViewMode.DAY;
     private Div calendarContainer;
+    private Component dateNavigation;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -135,7 +148,10 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         ));
 
         add(schedulerSwitcher);
-        add(createDateNavigation());
+        add(createViewModeTabs());
+        
+        dateNavigation = createDateNavigation();
+        add(dateNavigation);
 
         calendarContainer = new Div();
         calendarContainer.setSizeFull();
@@ -144,37 +160,94 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         refreshCalendar();
     }
 
+    private Component createViewModeTabs() {
+        Tab dayTab = new Tab("Tagesansicht");
+        Tab weekTab = new Tab("Wochenansicht");
+        Tabs tabs = new Tabs(dayTab, weekTab);
+        
+        if (currentViewMode == ViewMode.DAY) {
+            tabs.setSelectedTab(dayTab);
+        } else {
+            tabs.setSelectedTab(weekTab);
+        }
+        
+        tabs.addSelectedChangeListener(event -> {
+            Tab selected = event.getSelectedTab();
+            if (selected == dayTab) {
+                currentViewMode = ViewMode.DAY;
+            } else {
+                currentViewMode = ViewMode.WEEK;
+            }
+            remove(dateNavigation);
+            dateNavigation = createDateNavigation();
+            add(dateNavigation);
+            refreshCalendar();
+        });
+        
+        return tabs;
+    }
+
     private Component createDateNavigation() {
         HorizontalLayout navigation = new HorizontalLayout();
         navigation.setWidthFull();
         navigation.setJustifyContentMode(HorizontalLayout.JustifyContentMode.CENTER);
         navigation.setAlignItems(HorizontalLayout.Alignment.CENTER);
 
-        Button previousDay = new Button(VaadinIcon.ANGLE_LEFT.create(), event -> {
-            currentDate = currentDate.minusDays(1);
-            refreshCalendar();
-        });
-
-        Button today = new Button("Heute", event -> {
-            currentDate = LocalDate.now();
-            refreshCalendar();
-        });
-
-        Button nextDay = new Button(VaadinIcon.ANGLE_RIGHT.create(), event -> {
-            currentDate = currentDate.plusDays(1);
-            refreshCalendar();
-        });
-
-        DatePicker datePicker = new DatePicker("Datum auswählen");
-        datePicker.setValue(currentDate);
-        datePicker.addValueChangeListener(event -> {
-            if (event.getValue() != null) {
-                currentDate = event.getValue();
+        if (currentViewMode == ViewMode.DAY) {
+            Button previousDay = new Button(VaadinIcon.ANGLE_LEFT.create(), event -> {
+                currentDate = currentDate.minusDays(1);
                 refreshCalendar();
-            }
-        });
+            });
 
-        navigation.add(previousDay, today, nextDay, datePicker);
+            Button today = new Button("Heute", event -> {
+                currentDate = LocalDate.now();
+                refreshCalendar();
+            });
+
+            Button nextDay = new Button(VaadinIcon.ANGLE_RIGHT.create(), event -> {
+                currentDate = currentDate.plusDays(1);
+                refreshCalendar();
+            });
+
+            DatePicker datePicker = new DatePicker("Datum auswählen");
+            datePicker.setValue(currentDate);
+            datePicker.addValueChangeListener(event -> {
+                if (event.getValue() != null) {
+                    currentDate = event.getValue();
+                    refreshCalendar();
+                }
+            });
+
+            navigation.add(previousDay, today, nextDay, datePicker);
+        } else {
+            // Week navigation
+            Button previousWeek = new Button(VaadinIcon.ANGLE_LEFT.create(), event -> {
+                currentDate = currentDate.minusWeeks(1);
+                refreshCalendar();
+            });
+
+            Button thisWeek = new Button("Diese Woche", event -> {
+                currentDate = LocalDate.now();
+                refreshCalendar();
+            });
+
+            Button nextWeek = new Button(VaadinIcon.ANGLE_RIGHT.create(), event -> {
+                currentDate = currentDate.plusWeeks(1);
+                refreshCalendar();
+            });
+
+            DatePicker datePicker = new DatePicker("Woche auswählen");
+            datePicker.setValue(currentDate);
+            datePicker.addValueChangeListener(event -> {
+                if (event.getValue() != null) {
+                    currentDate = event.getValue();
+                    refreshCalendar();
+                }
+            });
+
+            navigation.add(previousWeek, thisWeek, nextWeek, datePicker);
+        }
+
         return navigation;
     }
 
@@ -186,6 +259,14 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             return;
         }
 
+        if (currentViewMode == ViewMode.DAY) {
+            refreshDayView();
+        } else {
+            refreshWeekView();
+        }
+    }
+
+    private void refreshDayView() {
         H3 dateHeader = new H3(currentDate.format(DATE_FORMATTER) + " - " + currentDate.getDayOfWeek());
         calendarContainer.add(dateHeader);
 
@@ -212,6 +293,32 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         // Create time grid
         VerticalLayout timeGrid = createTimeGrid(officeHours, appointments);
         calendarContainer.add(timeGrid);
+    }
+
+    private void refreshWeekView() {
+        // Calculate week start (Monday) and end (Sunday)
+        LocalDate weekStart = currentDate.with(DayOfWeek.MONDAY);
+        LocalDate weekEnd = weekStart.plusDays(6);
+        
+        H3 weekHeader = new H3("Woche " + weekStart.format(DATE_FORMATTER) + " - " + weekEnd.format(DATE_FORMATTER));
+        calendarContainer.add(weekHeader);
+
+        // Get appointments for the entire week
+        LocalDateTime startOfWeek = weekStart.atStartOfDay();
+        LocalDateTime endOfWeek = weekEnd.atTime(LocalTime.MAX);
+        List<Appointment> weekAppointments = appointmentService.findBySchedulerAndDateRange(
+            currentScheduler,
+            startOfWeek,
+            endOfWeek
+        );
+
+        // Group appointments by date
+        Map<LocalDate, List<Appointment>> appointmentsByDate = weekAppointments.stream()
+            .collect(Collectors.groupingBy(apt -> apt.getStartTime().toLocalDate()));
+
+        // Create week grid
+        HorizontalLayout weekGrid = createWeekGrid(weekStart, appointmentsByDate);
+        calendarContainer.add(weekGrid);
     }
 
     private VerticalLayout createTimeGrid(List<OfficeHours> officeHours, List<Appointment> appointments) {
@@ -290,6 +397,167 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
                     .set("padding", "var(--lumo-space-xs)")
                     .set("border-radius", "var(--lumo-border-radius)")
                     .set("cursor", "pointer");
+                appointmentLabel.addClickListener(e -> openAppointmentDialog(apt));
+                slot.add(appointmentLabel);
+            });
+
+        return slot;
+    }
+
+    private HorizontalLayout createWeekGrid(LocalDate weekStart, Map<LocalDate, List<Appointment>> appointmentsByDate) {
+        HorizontalLayout weekLayout = new HorizontalLayout();
+        weekLayout.setWidthFull();
+        weekLayout.setSpacing(false);
+        weekLayout.setPadding(false);
+        weekLayout.addClassNames(LumoUtility.Gap.SMALL);
+
+        // Get all office hours for the week to determine time range
+        LocalTime earliestTime = LocalTime.of(23, 59);
+        LocalTime latestTime = LocalTime.of(0, 0);
+        
+        for (int i = 0; i < 7; i++) {
+            LocalDate day = weekStart.plusDays(i);
+            List<OfficeHours> dayOfficeHours = officeHoursService.findBySchedulerAndDate(currentScheduler, day);
+            if (!dayOfficeHours.isEmpty()) {
+                LocalTime dayEarliest = dayOfficeHours.stream()
+                    .map(OfficeHours::getStartTime)
+                    .min(LocalTime::compareTo)
+                    .orElse(LocalTime.of(8, 0))
+                    .minusHours(2);
+                LocalTime dayLatest = dayOfficeHours.stream()
+                    .map(OfficeHours::getEndTime)
+                    .max(LocalTime::compareTo)
+                    .orElse(LocalTime.of(18, 0))
+                    .plusHours(2);
+                
+                if (dayEarliest.isBefore(earliestTime)) {
+                    earliestTime = dayEarliest;
+                }
+                if (dayLatest.isAfter(latestTime)) {
+                    latestTime = dayLatest;
+                }
+            }
+        }
+
+        // Fallback if no office hours found
+        if (earliestTime.equals(LocalTime.of(23, 59))) {
+            earliestTime = LocalTime.of(6, 0);
+            latestTime = LocalTime.of(20, 0);
+        }
+
+        // Ensure times are within 0-24 range
+        if (earliestTime.isBefore(LocalTime.of(0, 0))) {
+            earliestTime = LocalTime.of(0, 0);
+        }
+        if (latestTime.isAfter(LocalTime.of(23, 59))) {
+            latestTime = LocalTime.of(23, 59);
+        }
+
+        // Create column for each day (Monday to Sunday)
+        for (int i = 0; i < 7; i++) {
+            LocalDate day = weekStart.plusDays(i);
+            VerticalLayout dayColumn = createDayColumn(day, earliestTime, latestTime, 
+                appointmentsByDate.getOrDefault(day, new ArrayList<>()));
+            weekLayout.add(dayColumn);
+        }
+
+        return weekLayout;
+    }
+
+    private VerticalLayout createDayColumn(LocalDate day, LocalTime earliestTime, LocalTime latestTime, 
+                                          List<Appointment> dayAppointments) {
+        VerticalLayout column = new VerticalLayout();
+        column.setPadding(false);
+        column.setSpacing(false);
+        column.setWidth("14%");
+        column.addClassNames(LumoUtility.Border.ALL, LumoUtility.BorderRadius.SMALL);
+        column.getStyle().set("min-width", "150px");
+
+        // Day header
+        H4 dayHeader = new H4(day.getDayOfWeek().toString() + "\n" + day.format(DateTimeFormatter.ofPattern("dd.MM.")));
+        dayHeader.getStyle()
+            .set("text-align", "center")
+            .set("padding", "var(--lumo-space-s)")
+            .set("margin", "0")
+            .set("background-color", day.equals(LocalDate.now()) 
+                ? "var(--lumo-primary-color-10pct)" 
+                : "var(--lumo-contrast-5pct)");
+        column.add(dayHeader);
+
+        // Get office hours for this day
+        List<OfficeHours> dayOfficeHours = officeHoursService.findBySchedulerAndDate(currentScheduler, day);
+
+        // Time slots
+        Div timeSlotsContainer = new Div();
+        timeSlotsContainer.setWidthFull();
+        timeSlotsContainer.getStyle()
+            .set("overflow-y", "auto")
+            .set("max-height", "600px");
+
+        LocalTime currentTime = earliestTime;
+        while (currentTime.isBefore(latestTime)) {
+            Div timeSlot = createWeekTimeSlot(day, currentTime, dayOfficeHours, dayAppointments);
+            timeSlotsContainer.add(timeSlot);
+            currentTime = currentTime.plusMinutes(15);
+        }
+
+        column.add(timeSlotsContainer);
+        column.setFlexGrow(1, timeSlotsContainer);
+
+        return column;
+    }
+
+    private Div createWeekTimeSlot(LocalDate day, LocalTime time, List<OfficeHours> officeHours, 
+                                   List<Appointment> appointments) {
+        Div slot = new Div();
+        slot.getStyle()
+            .set("border-bottom", "1px solid var(--lumo-contrast-10pct)")
+            .set("padding", "var(--lumo-space-xs)")
+            .set("min-height", "30px")
+            .set("position", "relative");
+
+        // Check if within office hours
+        boolean withinOfficeHours = officeHours.stream()
+            .anyMatch(oh -> !time.isBefore(oh.getStartTime()) && time.isBefore(oh.getEndTime()));
+
+        if (withinOfficeHours) {
+            slot.getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+        }
+
+        // Time label (only show every hour)
+        if (time.getMinute() == 0) {
+            Span timeLabel = new Span(time.format(TIME_FORMATTER));
+            timeLabel.getStyle()
+                .set("font-size", "var(--lumo-font-size-xs)")
+                .set("color", "var(--lumo-contrast-70pct)")
+                .set("position", "absolute")
+                .set("top", "2px")
+                .set("left", "4px");
+            slot.add(timeLabel);
+        }
+
+        // Check for appointments at this time
+        LocalDateTime slotDateTime = LocalDateTime.of(day, time);
+        appointments.stream()
+            .filter(apt -> !apt.getStartTime().isAfter(slotDateTime) 
+                        && apt.getEndTime().isAfter(slotDateTime))
+            .forEach(apt -> {
+                Span appointmentLabel = new Span(
+                    apt.getPatient().getLastName() + ", " + 
+                    apt.getPatient().getFirstName()
+                );
+                appointmentLabel.getStyle()
+                    .set("background-color", "var(--lumo-primary-color)")
+                    .set("color", "var(--lumo-primary-contrast-color)")
+                    .set("padding", "2px 4px")
+                    .set("border-radius", "var(--lumo-border-radius-s)")
+                    .set("font-size", "var(--lumo-font-size-xs)")
+                    .set("cursor", "pointer")
+                    .set("display", "block")
+                    .set("margin-top", "2px")
+                    .set("white-space", "nowrap")
+                    .set("overflow", "hidden")
+                    .set("text-overflow", "ellipsis");
                 appointmentLabel.addClickListener(e -> openAppointmentDialog(apt));
                 slot.add(appointmentLabel);
             });

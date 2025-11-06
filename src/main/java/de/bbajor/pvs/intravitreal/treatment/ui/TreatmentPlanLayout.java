@@ -10,9 +10,17 @@ import java.util.Set;
 
 import org.springframework.context.ApplicationContext;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.server.StreamRegistration;
+import com.vaadin.flow.server.StreamResource;
+
 import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.accordion.AccordionPanel;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -25,6 +33,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
 
+import de.bbajor.pvs.appointment.service.AppointmentReportService;
 import de.bbajor.pvs.base.ui.component.TimeLineCardConfig;
 import de.bbajor.pvs.base.ui.component.TimelineView;
 import de.bbajor.pvs.base.util.SideOfEye;
@@ -64,11 +73,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private final TabSheet tabSheet = new TabSheet();
     private final TreatmentPlanPresenter presenter;
     private TreatmentPlan current;
+    private final ApplicationContext context;
 
     public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan,
             ApplicationContext context) {
         this.presenter = presenter;
         this.current = treatmentPlan;
+        this.context = context;
 
         setSizeFull();
         // overflow entfernt - erlaube Scrollen wenn nötig
@@ -147,6 +158,17 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineLayout.setSpacing(false);
         // Kein overflow hidden - erlaube Scrollen wenn nötig
         
+        // Export-Button für Patienten-Ausdruck
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setWidthFull();
+        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.END);
+        
+        Button exportButton = new Button("Termine ausdrucken", new Icon(VaadinIcon.PRINT));
+        exportButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        exportButton.addClickListener(e -> generateAppointmentReport());
+        buttonLayout.add(exportButton);
+        timeLineLayout.add(buttonLayout);
+        
         // Orientation toggle controls both timelines
         RadioButtonGroup<TimelineView.Orientation> orientationToggle = new RadioButtonGroup<>();
         orientationToggle.setLabel("Ausrichtung");
@@ -170,6 +192,61 @@ public class TreatmentPlanLayout extends VerticalLayout {
         updateTimelineLayout(timeLineLayout, TimelineView.Orientation.HORIZONTAL);
         
         tabSheet.add("Behandlungsübersicht", timeLineLayout);
+    }
+    
+    private void generateAppointmentReport() {
+        if (current == null || current.getPatient() == null) {
+            Notification.show("Kein Patient ausgewählt", 3000, 
+                    Notification.Position.BOTTOM_CENTER);
+            return;
+        }
+        
+        try {
+            AppointmentReportService reportService = context.getBean(AppointmentReportService.class);
+            Patient patient = current.getPatient();
+            byte[] pdfBytes = reportService.generatePatientAppointmentReport(patient);
+            
+            // Erstelle Download-Link
+            String patientName = patient.getLastName() + "_" + patient.getFirstName();
+            String filename = "Geplante_Termine_" + patientName + "_" + 
+                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+            
+            downloadPdf(pdfBytes, filename);
+            
+            Notification.show("Termin-Ausdruck wird heruntergeladen", 3000, 
+                    Notification.Position.BOTTOM_CENTER);
+        } catch (Exception e) {
+            Notification notification = Notification.show(
+                    "Fehler beim Generieren des Termin-Ausdrucks: " + e.getMessage(), 5000, 
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    private void downloadPdf(byte[] pdfBytes, String filename) {
+        // Create StreamResource for download
+        StreamResource streamResource = new StreamResource(filename, () -> {
+            return new java.io.ByteArrayInputStream(pdfBytes);
+        });
+        streamResource.setContentType("application/pdf");
+        
+        // Register the resource and get the URL
+        getUI().ifPresent(ui -> {
+            StreamRegistration registration = ui.getSession().getResourceRegistry()
+                    .registerResource(streamResource);
+            String resourceUrl = registration.getResourceUri().toString();
+            
+            // Create download link and trigger download via JavaScript
+            ui.getPage().executeJs(
+                "var link = document.createElement('a');" +
+                "link.href = $0;" +
+                "link.download = $1;" +
+                "document.body.appendChild(link);" +
+                "link.click();" +
+                "document.body.removeChild(link);",
+                resourceUrl, filename
+            );
+        });
     }
     
     private void updateTimelineLayout(VerticalLayout timeLineLayout, TimelineView.Orientation orientation) {

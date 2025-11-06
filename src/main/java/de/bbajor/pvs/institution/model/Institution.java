@@ -179,6 +179,60 @@ public class Institution extends BasicEntity<Long> {
      */
     @Column(name = "remote_llm_monthly_quota")
     private Integer remoteLlmMonthlyQuota;
+    
+    /**
+     * Website URL of the institution (for QR code generati?on).
+     */
+    @Column(name = "website_url", length = 500)
+    private String websiteUrl;
+    
+    /**
+     * Watermark image for PDF reports (stored as BLOB).
+     */
+    @Column(name = "watermark_image", columnDefinition = "BYTEA")
+    private byte[] watermarkImage;
+
+    /**
+     * Layout customization: Primary brand color (hex format, e.g., "#1976d2").
+     */
+    @Column(name = "layout_primary_color", length = 7)
+    private String layoutPrimaryColor;
+
+    /**
+     * Layout customization: Secondary brand color (hex format).
+     */
+    @Column(name = "layout_secondary_color", length = 7)
+    private String layoutSecondaryColor;
+
+    /**
+     * Layout customization: Background color for main content areas (hex format).
+     */
+    @Column(name = "layout_background_color", length = 7)
+    private String layoutBackgroundColor;
+
+    /**
+     * Layout customization: Primary text color (hex format).
+     */
+    @Column(name = "layout_text_color", length = 7)
+    private String layoutTextColor;
+
+    /**
+     * Layout customization: Accent color for highlights and call-to-action elements (hex format).
+     */
+    @Column(name = "layout_accent_color", length = 7)
+    private String layoutAccentColor;
+
+    /**
+     * Layout customization: Border radius for UI elements (e.g., "8px", "0.5rem").
+     */
+    @Column(name = "layout_border_radius", length = 10)
+    private String layoutBorderRadius;
+
+    /**
+     * Layout customization: Font family for UI text (e.g., "Arial, sans-serif").
+     */
+    @Column(name = "layout_font_family", length = 100)
+    private String layoutFontFamily;
 
     /**
      * Note: Locations are stored in the institution's own database,

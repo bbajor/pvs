@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import com.vaadin.flow.component.page.AppShellConfigurator;
-import com.vaadin.flow.theme.Theme;
 
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = {
@@ -37,7 +36,6 @@ import com.vaadin.flow.theme.Theme;
         "de.bbajor.pvs.taskmanagement.domain",
         "de.bbajor.pvs.ai.domain"
 })
-@Theme("default")
 public class Application implements AppShellConfigurator {
 
     @Bean

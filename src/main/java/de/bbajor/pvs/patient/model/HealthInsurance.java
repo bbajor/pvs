@@ -3,6 +3,7 @@ package de.bbajor.pvs.patient.model;
 import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.institution.model.Institution;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -17,7 +18,16 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class HealthInsurance extends BasicEntity<Integer> {
 
-    // Tenant isolation is ensured via patient.practice.tenant relationship
+    /**
+     * The institution this health insurance belongs to.
+     * <p>
+     * Data isolation: Health insurances are filtered by institution.
+     * This ensures that each institution only sees its own health insurance records.
+     * </p>
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "institution_id", nullable = false)
+    private Institution institution;
 
     private LocalDate insuranceStart; // Beginn der Versicherung
     private String insuranceType; // Versichertenart

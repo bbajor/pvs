@@ -37,6 +37,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       PORT: 8130
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
       DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
       DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
@@ -46,7 +48,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
       # Required for PostgreSQL Large Objects (@Lob) to avoid autocommit error
       SPRING_DATASOURCE_HIKARI_AUTO_COMMIT: "false"
@@ -92,12 +94,15 @@ services:
   whisper:
     build:
       context: .
-      dockerfile: docker/whisper/Dockerfile
+      dockerfile: ./docker/whisper/Dockerfile
     container_name: pvs-whisper
     ports:
       - "127.0.0.1:9000:9000"  # Nur lokal erreichbar
     environment:
       - PORT=9000
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+      - PYTHONIOENCODING=utf-8
     networks:
       - pvs-dev-network
     restart: unless-stopped

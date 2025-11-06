@@ -60,6 +60,8 @@ dependencies {
     implementation 'org.apache.ant:ant:1.10.6'
     
     implementation 'org.apache.pdfbox:pdfbox:3.0.1'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.zxing:javase:3.5.3'
 
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
@@ -212,5 +214,32 @@ tasks.named('vaadinPrepareFrontend') {
     inputs.files(configurations.compileClasspath, configurations.runtimeClasspath)
         .withPropertyName("classpath")
         .optional()
+}
+
+// ============================================
+// Flyway Migration Testing Tasks
+// ============================================
+
+// Test Flyway migrations locally with H2 database
+// Usage: ./gradlew testMigrations -PtestDbUrl=jdbc:h2:mem:testdb
+task testMigrations(type: JavaExec) {
+    group = 'verification'
+    description = 'Test Flyway migrations locally with H2 database'
+    
+    classpath = sourceSets.main.runtimeClasspath
+    
+    mainClass = 'de.bbajor.pvs.test.FlywayMigrationTester'
+    
+    def dbUrl = project.findProperty('testDbUrl') ?: 'jdbc:h2:mem:testdb'
+    def dbUser = project.findProperty('testDbUser') ?: 'sa'
+    def dbPassword = project.findProperty('testDbPassword') ?: ''
+    
+    args = [dbUrl, dbUser, dbPassword]
+    
+    doFirst {
+        println "Testing Flyway migrations..."
+        println "Database URL: ${dbUrl}"
+        println "Locations: src/main/resources/db/migration"
+    }
 }
 
