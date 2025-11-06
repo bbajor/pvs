@@ -14,6 +14,8 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -35,7 +37,10 @@ import lombok.experimental.Accessors;
 })
 public class Patient extends BasicEntity<Integer> {
 
+    @Enumerated(EnumType.STRING)
     private Salutation salutation;
+    
+    @Enumerated(EnumType.STRING)
     private Title title;
     @Column(name = "first_name", nullable = false)
     private String firstName;
@@ -47,7 +52,7 @@ public class Patient extends BasicEntity<Integer> {
     @AttributeOverrides({
         @AttributeOverride(name = "street", column = @Column(name = "patient_street")),
         @AttributeOverride(name = "houseNo", column = @Column(name = "patient_house_no")),
-        @AttributeOverride(name = "postlCode", column = @Column(name = "patient_postal_code")),
+        @AttributeOverride(name = "postalCode", column = @Column(name = "patient_postal_code")),
         @AttributeOverride(name = "city", column = @Column(name = "patient_city")),
         @AttributeOverride(name = "country", column = @Column(name = "patient_country"))
     })

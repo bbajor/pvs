@@ -5,9 +5,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -122,13 +120,7 @@ public class UserSettingsTab extends VerticalLayout {
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        // Add link to full user management view
-        Span message = new Span("Für erweiterte Funktionen:");
-        Anchor link = new Anchor("/admin/users", "Benutzerverwaltung öffnen");
-        link.getStyle().set("font-weight", "bold");
-        link.getStyle().set("text-decoration", "underline");
-
-        add(title, formLayout, message, link);
+        add(title, formLayout);
         
         refreshUsers();
     }

@@ -40,7 +40,7 @@ public class SurgicalCenter extends BasicEntity<Integer> {
     @AttributeOverrides({
             @AttributeOverride(name = "street", column = @Column(name = "surgical_center_street")),
             @AttributeOverride(name = "houseNo", column = @Column(name = "surgical_center_house_no")),
-            @AttributeOverride(name = "postlCode", column = @Column(name = "surgical_center_postal_code")),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "surgical_center_postal_code")),
             @AttributeOverride(name = "city", column = @Column(name = "surgical_center_city")),
             @AttributeOverride(name = "country", column = @Column(name = "surgical_center_country"))
     })

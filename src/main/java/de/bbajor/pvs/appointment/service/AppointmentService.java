@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.appointment.model.Appointment;
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
+import de.bbajor.pvs.appointment.model.AppointmentStatus;
 import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.repository.AppointmentRepository;
 import de.bbajor.pvs.patient.model.Patient;
@@ -66,6 +67,18 @@ public class AppointmentService {
      */
     public List<Appointment> findByPatient(Patient patient) {
         return appointmentRepository.findByPatient(patient);
+    }
+
+    /**
+     * Find all future appointments for a patient.
+     * Returns only appointments with startTime >= now.
+     */
+    public List<Appointment> findFutureAppointmentsByPatient(Patient patient) {
+        LocalDateTime now = LocalDateTime.now();
+        return appointmentRepository.findByPatient(patient).stream()
+            .filter(apt -> apt.getStartTime() != null && !apt.getStartTime().isBefore(now))
+            .filter(apt -> apt.getStatus() == null || apt.getStatus() == AppointmentStatus.SCHEDULED)
+            .collect(java.util.stream.Collectors.toList());
     }
 
     /**

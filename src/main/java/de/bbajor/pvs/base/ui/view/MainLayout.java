@@ -1,5 +1,6 @@
 package de.bbajor.pvs.base.ui.view;
 
+import de.bbajor.pvs.institution.service.InstitutionLayoutService;
 import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.AppRoles;
 import com.vaadin.flow.component.Component;
@@ -32,15 +33,30 @@ public final class MainLayout extends AppLayout {
 
     private final CurrentUser currentUser;
     private final AuthenticationContext authenticationContext;
+    private final InstitutionLayoutService layoutService;
 
-    MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext) {
+    MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext, 
+            InstitutionLayoutService layoutService) {
         this.currentUser = currentUser;
         this.authenticationContext = authenticationContext;
+        this.layoutService = layoutService;
         setPrimarySection(Section.DRAWER);
         addToDrawer(createHeader(), new Scroller(createSideNav()));
         // Only add user menu if user is authenticated (to avoid CurrentUser.require() exception)
         if (authenticationContext.isAuthenticated()) {
             addToDrawer(createUserMenu());
+        }
+        
+        // Apply institution layout settings after UI is attached
+        UI currentUI = UI.getCurrent();
+        if (currentUI != null) {
+            currentUI.addAttachListener(e -> {
+                layoutService.applyLayoutSettings(currentUI);
+            });
+            // Also apply immediately if already attached
+            if (currentUI.isAttached()) {
+                layoutService.applyLayoutSettings(currentUI);
+            }
         }
     }
 
@@ -49,7 +65,7 @@ public final class MainLayout extends AppLayout {
         var appLogo = VaadinIcon.CALENDAR.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
 
-        var appName = new Span("Praxis Tool-Suite");
+        var appName = new Span("Ophthalmoplan");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
 
         var header = new Div(appLogo, appName);
@@ -65,9 +81,11 @@ public final class MainLayout extends AppLayout {
         boolean isSuperAdmin = isCurrentUserSuperAdmin();
         
         if (isSuperAdmin) {
-            // SUPER_ADMIN only sees their own settings menu
+            // SUPER_ADMIN sees system settings and medication database
             nav.addItem(new SideNavItem("System-Einstellungen", "admin/super-settings", 
                     new Icon("vaadin:cog")));
+            nav.addItem(new SideNavItem("Medikamentendatenbank", "ivom-drugs", 
+                    new Icon("vaadin:pill")));
         } else {
             // Regular users see all menu entries
             MenuConfiguration.getMenuEntries().forEach(entry -> {
