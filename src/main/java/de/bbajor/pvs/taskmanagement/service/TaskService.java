@@ -21,6 +21,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import de.bbajor.pvs.taskmanagement.domain.Task;
@@ -42,6 +43,9 @@ public class TaskService {
 
     @Autowired
     private InstitutionAccessValidator institutionAccessValidator;
+    
+    @Autowired
+    private UserAccountRepository userAccountRepository;
 
     @Autowired
     private Clock clock;
@@ -112,11 +116,70 @@ public class TaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER')")
     public void approveTreatment(Long treatmentId, String actorUserId, String actorUserName, boolean secondApproval) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Get current user's authentication
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Keine Authentifizierung gefunden.");
+        }
+        
+        // Get current user's roles
+        java.util.Set<String> userRoles = auth.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .collect(java.util.stream.Collectors.toSet());
+        
+        // Get current user account to check if they are a treating doctor
+        de.bbajor.pvs.security.domain.UserAccount currentUser = userAccountRepository
+                .findByUsername(auth.getName())
+                .orElseThrow(() -> new IllegalStateException("Benutzer nicht gefunden: " + auth.getName()));
+        
+        if (!secondApproval) {
+            // First approval: Must be done by a treating doctor
+            if (treatment.getTreatingDoctors() == null || treatment.getTreatingDoctors().isEmpty()) {
+                throw new IllegalStateException(
+                    "Die Behandlung hat keinen zugewiesenen behandelnden Arzt. " +
+                    "Bitte weisen Sie zuerst einen behandelnden Arzt zu.");
+            }
+            
+            boolean isTreatingDoctor = treatment.getTreatingDoctors().stream()
+                    .anyMatch(doctor -> doctor.getId().equals(currentUser.getId()));
+            
+            if (!isTreatingDoctor) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                    "Die erste Genehmigung muss vom behandelnden Arzt durchgeführt werden. " +
+                    "Sie sind nicht als behandelnder Arzt für diese Behandlung zugewiesen.");
+            }
+        } else {
+            // Second approval: Can be done by MFA, OWNER, or another doctor (not the first approver)
+            if (treatment.getApprovedByUserId() == null) {
+                throw new IllegalStateException(
+                    "Die Behandlung wurde noch nicht erstmalig genehmigt. " +
+                    "Bitte führen Sie zuerst die erste Genehmigung durch.");
+            }
+            
+            // Check if current user is the first approver
+            if (actorUserId != null && actorUserId.equals(treatment.getApprovedByUserId())) {
+                throw new IllegalStateException(
+                    "Die Zweitprüfung darf nicht vom selben Benutzer durchgeführt werden, " +
+                    "der die erste Genehmigung durchgeführt hat.");
+            }
+            
+            // Check if user has valid role for second approval
+            boolean hasValidRole = userRoles.contains("MEDICAL_STAFF") || 
+                                  userRoles.contains("OWNER") || 
+                                  userRoles.contains("DOCTOR");
+            
+            if (!hasValidRole) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                    "Die Zweitprüfung kann nur von MFA, Inhaber oder einem Arzt durchgeführt werden. " +
+                    "Ihre Rolle: " + String.join(", ", userRoles));
+            }
+        }
         
         // Validate institution context: ensure treatment belongs to current institution
         if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
@@ -177,29 +240,40 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public List<Task> list(Pageable pageable) {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
             // No institution context - return empty list to enforce data isolation
+            org.slf4j.LoggerFactory.getLogger(TaskService.class)
+                    .warn("TaskService.list() called without institution context - returning empty list");
             return List.of();
         }
-        return taskRepository.findAllByInstitutionId(institutionId, pageable).toList();
+        List<Task> tasks = taskRepository.findAllByInstitutionId(institutionId, pageable).toList();
+        org.slf4j.LoggerFactory.getLogger(TaskService.class)
+                .debug("TaskService.list() found {} tasks for institution ID: {}", tasks.size(), institutionId);
+        return tasks;
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'OWNER')")
     public List<Task> listByCompleted(Boolean completed, Pageable pageable) {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
             // No institution context - return empty list to enforce data isolation
+            org.slf4j.LoggerFactory.getLogger(TaskService.class)
+                    .warn("TaskService.listByCompleted() called without institution context - returning empty list");
             return List.of();
         }
         
+        List<Task> tasks;
         if (completed == null) {
-            return taskRepository.findAllByInstitutionId(institutionId, pageable).toList();
+            tasks = taskRepository.findAllByInstitutionId(institutionId, pageable).toList();
+        } else {
+            tasks = taskRepository.findAllByInstitutionIdAndCompleted(institutionId, completed, pageable).toList();
         }
-        return taskRepository.findAllByInstitutionIdAndCompleted(institutionId, completed, pageable).toList();
+        org.slf4j.LoggerFactory.getLogger(TaskService.class)
+                .debug("TaskService.listByCompleted(completed={}) found {} tasks for institution ID: {}", 
+                        completed, tasks.size(), institutionId);
+        return tasks;
     }
 
     @Transactional
