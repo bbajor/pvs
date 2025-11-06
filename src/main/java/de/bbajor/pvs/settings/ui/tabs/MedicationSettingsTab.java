@@ -17,11 +17,16 @@ public class MedicationSettingsTab extends VerticalLayout {
         setSpacing(true);
         setPadding(true);
 
-        // Show message with link instead of redirect
-        Span message = new Span("Zur Verwaltung der Medikamentendatenbank:");
-        Anchor link = new Anchor("/ivom-drugs", "Medikamentendatenbank öffnen");
+        // Show message with information about medication database
+        Span message = new Span("Die Medikamentendatenbank wird direkt in diesem Tab verwaltet. " +
+                "Bitte laden Sie die Arzneimitteldaten als CSV von folgender Seite herunter:");
+        message.getStyle().set("display", "block");
+        message.getStyle().set("margin-bottom", "var(--lumo-space-m)");
+        
+        Anchor link = new Anchor("https://portal.dimdi.de/amguifree/am/search.xhtml",
+                "DIMDI Arzneimittel-Informationssystem");
+        link.setTarget("_blank");
         link.getStyle().set("font-weight", "bold");
-        link.getStyle().set("text-decoration", "underline");
         
         add(message, link);
     }

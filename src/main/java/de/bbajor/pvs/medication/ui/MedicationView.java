@@ -24,7 +24,6 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
@@ -40,7 +39,7 @@ import jakarta.annotation.security.RolesAllowed;
 
 @Route("ivom-drugs")
 @PageTitle("Medikamente")
-@RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
+@RolesAllowed({ AppRoles.SUPER_ADMIN, AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 public class MedicationView extends Main {
 
     private final TreeGrid<MedicationNode> grid = new TreeGrid<>();
@@ -129,7 +128,7 @@ public class MedicationView extends Main {
         }));
         add(new ViewToolbar("Medikamentenkatalog"));
         add(infoBox);
-        if (isTechUser()) {
+        if (isTechUser() || isSuperAdmin()) {
             add(initUpload());
         }
         add(filterField);
@@ -186,6 +185,11 @@ public class MedicationView extends Main {
     private boolean isTechUser() {
         return authenticationContext.getGrantedRoles().stream()
                 .anyMatch(role -> AppRoles.TECH_USER.equals(role) || AppRoles.ADMIN.equals(role));
+    }
+
+    private boolean isSuperAdmin() {
+        return authenticationContext.getGrantedRoles().stream()
+                .anyMatch(role -> AppRoles.SUPER_ADMIN.equals(role));
     }
 
     private TreeData<MedicationNode> buildTree(List<Medication> medications) {
