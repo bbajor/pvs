@@ -5,7 +5,11 @@ import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRe
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.List;
 import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -33,15 +37,18 @@ import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
+import jakarta.annotation.security.PermitAll;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import jakarta.annotation.security.RolesAllowed;
 
 @Route("aufgabenliste")
 @PageTitle("Zurückliegende Behandlungen die noch überprüft werden müssen")
 @Menu(order = 0, icon = "vaadin:clipboard-check", title = "Zu überprüfende Behandlungen")
-@RolesAllowed({ AppRoles.ADMIN, AppRoles.DOCTOR, AppRoles.OWNER })
+@PermitAll
 public class TaskListView extends Main implements BeforeEnterObserver {
+
+        private static final Logger log = LoggerFactory.getLogger(TaskListView.class);
 
         private final TaskService taskService;
         private final TreatmentRepository treatmentRepository;
@@ -95,6 +102,9 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                 taskGrid.getStyle().set("min-height", "10em");
                 taskGrid.addItemDoubleClickListener(ev -> {
                         Task t = ev.getItem();
+                        
+                        // All authenticated users can open the dialog (ADMIN can view and generate reports)
+                        // But only MEDICAL_STAFF, OWNER, DOCTOR can start review
                         TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
                                         this.authenticationContext, this.reportService);
                         dialog.open();
@@ -137,21 +147,52 @@ public class TaskListView extends Main implements BeforeEnterObserver {
         @Override
         public void beforeEnter(BeforeEnterEvent event) {
                 // SUPER_ADMIN without institution context should not access task data
+                // All other authenticated users (including ADMIN) with institution context can access
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
                 boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
                         .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
                 boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+                Long institutionId = InstitutionContext.getInstitutionId();
                 
+                // Debug logging
+                if (auth != null) {
+                        log.debug("TaskListView.beforeEnter - User: {}, isSuperAdmin: {}, hasInstitutionContext: {}, institutionId: {}", 
+                                auth.getName(), isSuperAdmin, hasInstitutionContext, institutionId);
+                }
+                
+                // Only redirect SUPER_ADMIN without institution context
+                // All other users (including ADMIN with institution context) can proceed
                 if (isSuperAdmin && !hasInstitutionContext) {
                         // Redirect SUPER_ADMIN to institution management
+                        log.debug("Redirecting SUPER_ADMIN without institution context to admin/institutions");
                         event.forwardTo("admin/institutions");
                 }
+                // All other cases (including ADMIN with institution context) are allowed
         }
 
         private void refreshGrid() {
                 taskGrid.setItems(query -> {
                         Boolean completedFilter = hideCompleted ? Boolean.FALSE : null;
-                        return taskService.listByCompleted(completedFilter, toSpringPageRequest(query)).stream();
+                        List<Task> tasks = taskService.listByCompleted(completedFilter, toSpringPageRequest(query));
+                        
+                        // Debug logging and user notification for missing institution context
+                        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+                        if (institutionId == null) {
+                                log.warn("No institution context set - cannot load tasks for user: {}", 
+                                        authenticationContext.getPrincipalName().orElse("unknown"));
+                                // Show notification to user (only once, not on every query)
+                                if (query.getPage() == 0 && query.getPageSize() > 0) {
+                                        Notification.show(
+                                                "Kein Institution-Kontext gefunden. Bitte melden Sie sich erneut an oder kontaktieren Sie den Administrator.",
+                                                10000,
+                                                Notification.Position.MIDDLE
+                                        ).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                                }
+                        } else {
+                                log.debug("Loading tasks for institution ID: {}, found {} tasks", institutionId, tasks.size());
+                        }
+                        
+                        return tasks.stream();
                 });
         }
 

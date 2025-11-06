@@ -1,6 +1,9 @@
 package de.bbajor.pvs.security.dev;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -19,8 +22,11 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.DescriptionList;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Main;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -85,38 +91,79 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         passwordField = new PasswordField("Passwort");
         passwordField.setRequired(true);
         passwordField.setWidthFull();
+        passwordField.setRevealButtonVisible(true); // Show/Hide password button with eye icon
 
         loginButton = new Button("Anmelden");
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         loginButton.setWidthFull();
         loginButton.addClickListener(event -> performLogin());
 
+        // Create login form with title
+        var loginTitle = new H2("Anmeldung");
+        loginTitle.addClassNames("dev-login-title");
+        
         var loginForm = new FormLayout();
         loginForm.add(tenantCodeField, usernameField, passwordField, loginButton);
         loginForm.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1)
         );
-        loginForm.getStyle().set("max-width", "400px");
+        loginForm.getStyle().set("max-width", "420px");
+        loginForm.getStyle().set("width", "100%");
 
-        var exampleUsersHeader = new Div("Benutzer aus der Datenbank (klick auf Button zum Login)");
+        // Create decorative medical icon/image
+        var medicalIcon = createMedicalIcon();
+        medicalIcon.addClassNames("dev-login-medical-icon");
+        
+        var loginFormContainer = new Div(loginTitle, loginForm);
+        loginFormContainer.addClassNames("dev-login-form-container");
+        
+        // Create wrapper with icon and form side by side
+        var loginSection = new Div(medicalIcon, loginFormContainer);
+        loginSection.addClassNames("dev-login-section");
+
+        var exampleUsersHeader = new Div();
+        var headerIcon = VaadinIcon.USERS.create();
+        headerIcon.setSize("16px");
+        var headerText = new Span("Testbenutzer");
+        exampleUsersHeader.add(headerIcon, headerText);
         exampleUsersHeader.addClassNames("dev-users-header");
         
         exampleUsersDiv = new Div();
+        exampleUsersDiv.addClassNames("dev-users");
 
         // Configure the view
         setSizeFull();
         addClassNames("dev-login-view");
+        getStyle().set("display", "flex");
+        getStyle().set("justify-content", "center");
+        getStyle().set("align-items", "center");
+        getStyle().set("min-height", "100vh");
 
         // Wrap user list in scrollable container
         var usersScrollContainer = new Div(exampleUsersHeader, exampleUsersDiv);
         usersScrollContainer.addClassNames("dev-users-scroll-container");
+        usersScrollContainer.getStyle().set("display", "flex");
+        usersScrollContainer.getStyle().set("flex-direction", "column");
+        usersScrollContainer.getStyle().set("width", "500px");
+        usersScrollContainer.getStyle().set("min-width", "500px");
+        usersScrollContainer.getStyle().set("flex-shrink", "0");
 
         // Create fixed login form wrapper
-        var loginFormWrapper = new Div(loginForm);
+        var loginFormWrapper = new Div(loginSection);
         loginFormWrapper.addClassNames("dev-login-form-wrapper");
+        loginFormWrapper.getStyle().set("display", "flex");
+        loginFormWrapper.getStyle().set("align-items", "center");
+        loginFormWrapper.getStyle().set("justify-content", "center");
+        loginFormWrapper.getStyle().set("min-width", "650px");
+        loginFormWrapper.getStyle().set("flex-shrink", "0");
 
         var contentDiv = new Div(loginFormWrapper, usersScrollContainer);
         contentDiv.addClassNames("dev-content-div");
+        contentDiv.getStyle().set("display", "flex");
+        contentDiv.getStyle().set("flex-direction", "row");
+        contentDiv.getStyle().set("max-width", "1200px");
+        contentDiv.getStyle().set("max-height", "90vh");
+        contentDiv.getStyle().set("width", "100%");
         add(contentDiv);
 
         var devModeMenuDiv = new Div("You can also use the Dev Mode Menu here to impersonate any user");
@@ -136,10 +183,41 @@ class DevLoginView extends Main implements BeforeEnterObserver {
 
     @PostConstruct
     private void loadDatabaseUsers() {
-        // Load database users after view initialization to avoid security context issues
+        // Load relevant users for dev login: Superadmin + one user per institution
         try {
-            List<UserAccount> dbUsers = userAccountRepository.findAll();
-            dbUsers.forEach(user -> exampleUsersDiv.add(createUserAccountCard(user)));
+            List<UserAccount> allUsers = userAccountRepository.findAll();
+            
+            // Filter: Superadmin + one user per institution
+            List<UserAccount> usersToShow = new ArrayList<>();
+            
+            // Add superadmin (if exists)
+            allUsers.stream()
+                    .filter(user -> user.getRoles() != null && user.getRoles().contains(AppRoles.SUPER_ADMIN))
+                    .findFirst()
+                    .ifPresent(usersToShow::add);
+            
+            // Group users by institution and add one user per institution
+            Map<Long, UserAccount> usersByInstitution = new HashMap<>();
+            for (UserAccount user : allUsers) {
+                if (user.getInstitution() != null) {
+                    Long institutionId = user.getInstitution().getId();
+                    // Prefer ADMIN user, otherwise take first user for this institution
+                    if (!usersByInstitution.containsKey(institutionId)) {
+                        usersByInstitution.put(institutionId, user);
+                    } else {
+                        // Replace with ADMIN user if current is not ADMIN
+                        UserAccount current = usersByInstitution.get(institutionId);
+                        if (user.getRoles() != null && user.getRoles().contains(AppRoles.ADMIN) 
+                                && (current.getRoles() == null || !current.getRoles().contains(AppRoles.ADMIN))) {
+                            usersByInstitution.put(institutionId, user);
+                        }
+                    }
+                }
+            }
+            usersToShow.addAll(usersByInstitution.values());
+            
+            // Add all users to the view
+            usersToShow.forEach(user -> exampleUsersDiv.add(createUserAccountCard(user)));
         } catch (Exception e) {
             log.warn("Could not load users from database: {}", e.getMessage());
             // Continue without database users - login will still work
@@ -259,8 +337,19 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         String displayName = userAccount.getFullName() != null && !userAccount.getFullName().isEmpty()
                 ? userAccount.getFullName()
                 : userAccount.getUsername();
+        
+        // User icon and name
+        var userIcon = VaadinIcon.USER.create();
+        userIcon.setSize("20px");
+        userIcon.getStyle().set("color", "var(--lumo-primary-color)");
         var fullName = new H3(displayName);
+        fullName.getStyle().set("margin", "0");
+        fullName.getStyle().set("font-size", "var(--lumo-font-size-l)");
+        
+        var nameContainer = new Div(userIcon, fullName);
+        nameContainer.addClassNames("dev-user-name-container");
 
+        // Credentials
         var credentials = new DescriptionList();
         String institutionCodeDisplay = userAccount.getInstitution() != null 
                 ? userAccount.getInstitution().getInstitutionCode() 
@@ -270,10 +359,21 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         String locationCodeDisplay = userAccount.getPreferredLocation() != null 
                 ? userAccount.getPreferredLocation().getLocationName() 
                 : "Unbekannt";
-        credentials.add(new DescriptionList.Term("Institution/Tenant"), new DescriptionList.Description(institutionCodeDisplay));
-        credentials.add(new DescriptionList.Term("Location"), new DescriptionList.Description(locationCodeDisplay));
-        credentials.add(new DescriptionList.Term("Username"), new DescriptionList.Description(userAccount.getUsername()));
-        credentials.add(new DescriptionList.Term("Password"), new DescriptionList.Description("•••"));
+        
+        var institutionIcon = VaadinIcon.BUILDING.create();
+        institutionIcon.setSize("14px");
+        credentials.add(new DescriptionList.Term(new Span(institutionIcon, new Span(" Institution"))), 
+                new DescriptionList.Description(institutionCodeDisplay));
+        
+        var locationIcon = VaadinIcon.MAP_MARKER.create();
+        locationIcon.setSize("14px");
+        credentials.add(new DescriptionList.Term(new Span(locationIcon, new Span(" Standort"))), 
+                new DescriptionList.Description(locationCodeDisplay));
+        
+        var usernameIcon = VaadinIcon.USER_CARD.create();
+        usernameIcon.setSize("14px");
+        credentials.add(new DescriptionList.Term(new Span(usernameIcon, new Span(" Benutzername"))), 
+                new DescriptionList.Description(userAccount.getUsername()));
 
         // Try to extract password from hash (for login button only)
         final String passwordHint;
@@ -284,7 +384,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         }
 
         final String finalPassword = passwordHint;
-        var quickLoginButton = new Button(VaadinIcon.SIGN_IN.create(), event -> {
+        var quickLoginButton = new Button("Anmelden", VaadinIcon.SIGN_IN.create(), event -> {
             // CRITICAL: Use institution code, not location name
             // If institution is null, use "SUPER_ADMIN" or empty string (user must have SUPER_ADMIN role)
             String institutionCodeToUse = institutionCodeDisplay;
@@ -304,13 +404,43 @@ class DevLoginView extends Main implements BeforeEnterObserver {
             passwordField.setValue(finalPassword);
             performLogin();
         });
-        quickLoginButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
-        quickLoginButton.setTooltipText("Schnell-Login");
+        quickLoginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+        quickLoginButton.setWidthFull();
 
-        card.add(new Div(fullName, credentials));
-        card.add(quickLoginButton);
+        var cardContent = new Div(nameContainer, credentials);
+        cardContent.addClassNames("dev-user-card-content");
+        var cardActions = new Div(quickLoginButton);
+        cardActions.addClassNames("dev-user-card-actions");
+        
+        card.add(cardContent, cardActions);
 
         return card;
+    }
+
+    private Component createMedicalIcon() {
+        // Create a large decorative medical icon using SVG
+        var iconContainer = new Div();
+        iconContainer.addClassNames("dev-medical-icon-container");
+        
+        // Use healthicons SVG for medical/healthcare theme
+        try {
+            var healthIcon = new Icon("my-icons-icons", "healthicons--ambulatory-clinic");
+            healthIcon.setSize("200px");
+            healthIcon.getStyle().set("color", "var(--lumo-primary-color)");
+            healthIcon.getStyle().set("opacity", "0.2");
+            healthIcon.addClassNames("dev-login-medical-icon");
+            iconContainer.add(healthIcon);
+        } catch (Exception e) {
+            // Fallback to VaadinIcon with medical theme
+            var fallbackIcon = VaadinIcon.HEART.create();
+            fallbackIcon.setSize("200px");
+            fallbackIcon.getStyle().set("color", "var(--lumo-primary-color)");
+            fallbackIcon.getStyle().set("opacity", "0.2");
+            fallbackIcon.addClassNames("dev-login-medical-icon");
+            iconContainer.add(fallbackIcon);
+        }
+        
+        return iconContainer;
     }
 
     @Override

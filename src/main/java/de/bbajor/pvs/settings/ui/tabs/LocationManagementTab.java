@@ -148,8 +148,11 @@ public class LocationManagementTab extends VerticalLayout {
         });
 
         grid.setSizeFull();
+        grid.setHeightFull();
 
+        setSizeFull();
         add(title, formLayout, grid);
+        setFlexGrow(1, grid);
         refreshGrid();
     }
 

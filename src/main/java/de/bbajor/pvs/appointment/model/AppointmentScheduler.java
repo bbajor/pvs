@@ -8,6 +8,8 @@ import de.bbajor.pvs.location.model.Location;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -54,6 +56,7 @@ public class AppointmentScheduler extends BasicEntity<Long> {
     /**
      * Type of scheduler to distinguish different use cases
      */
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SchedulerType type = SchedulerType.DOCTOR;
 

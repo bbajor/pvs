@@ -20,83 +20,89 @@ import lombok.experimental.Accessors;
 public class Medication extends BasicEntity<Long> {
 
     // Tenant isolation: Null for system-wide medications, otherwise via treatment.patient.practice.tenant
+    // Note: Field order matches database column order to avoid Hibernate mapping issues
 
-    @Column(length = 50)
+    @Column(name = "eingangsnummer", length = 50)
     private String eingangsnummer;
 
-    @Column(length = 500)
+    @Column(name = "arzneimittelbezeichnung", length = 500)
     private String arzneimittelbezeichnung;
 
-    @Column(length = 500)
+    @Column(name = "darreichungsform", length = 500)
     private String darreichungsform;
 
-    @Column(length = 100)
+    @Column(name = "zielgruppe", length = 100)
     private String zielgruppe;
 
-    @Column(length = 200)
+    @Column(name = "anwendungsart", length = 200)
     private String anwendungsart;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "anwendungsgebiete", columnDefinition = "TEXT")
     private String anwendungsgebiete;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "indikation_atc", columnDefinition = "TEXT")
     private String indikationAtc;
 
-    @Column(length = 50)
+    @Column(name = "bescheiddatum_zulassung", length = 50)
     private String BescheiddatumZulassung;
 
-    @Column(length = 100)
+    @Column(name = "zulassungsstatus", length = 100)
     private String zulassungsstatus;
 
-    @Column(length = 100)
+    @Column(name = "zulassungs_nr", length = 100)
     private String zulassungsNr;
 
-    @Column(length = 50)
+    @Column(name = "verkehrsfaehigkeit", length = 50)
     private String verkehrsfaehigkeit;
 
-    @Column(length = 500)
+    @Column(name = "zulassungs_reg_nr_oder_kennziffer", length = 500)
     private String zulassungsRegNrOderKennziffer;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "parallelimportinformationen", columnDefinition = "TEXT")
     private String parallelimportinformationen;
 
-    @Column(length = 100)
+    @Column(name = "eu_verfahrensnummer", length = 100)
     private String euVerfahrensnummer;
 
-    @Column(length = 500)
+    @Column(name = "zulassungsinhaber", length = 500)
     private String zulassungsinhaber;
 
-    @Column(length = 500)
+    @Column(name = "hersteller_endfreigabe", length = 500)
     private String herstellerEndfreigabe;
 
-    @Column(length = 500)
+    @Column(name = "vertreiber", length = 500)
     private String vertreiber;
 
-    @Column(length = 500)
+    @Column(name = "oertlicher_vertreter", length = 500)
     private String oertlicherVertreter;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "wirkstoffe", columnDefinition = "TEXT")
     private String wirkstoffe;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "packungsgroessen_gruppe", columnDefinition = "TEXT")
     private String packungsgroessenGruppe;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "am_klassifikationen", columnDefinition = "TEXT")
     private String amKlassifikationen;
 
-    @Column(length = 1000)
+    @Column(name = "description", length = 1000)
     private String description;
 
+    @Column(name = "is_favourite")
     private boolean isFavourite;
 
+    @Column(name = "valid_from")
     private LocalDate validFrom;
+    
+    @Column(name = "valid_until")
     private LocalDate validUntil;
 
+    @Column(name = "additional_notes", length = 1000)
     private String additionalNotes;
 }

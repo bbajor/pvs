@@ -7,8 +7,9 @@ import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.patient.model.Patient;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
@@ -64,6 +65,7 @@ public class Appointment extends BasicEntity<Long> {
     /**
      * Status of the appointment
      */
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AppointmentStatus status = AppointmentStatus.SCHEDULED;
 
