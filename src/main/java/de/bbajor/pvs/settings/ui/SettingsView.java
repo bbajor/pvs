@@ -11,6 +11,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.settings.ui.tabs.AiSettingsTab;
+import de.bbajor.pvs.settings.ui.tabs.KbvMasterDataTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.PracticeSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.UserSettingsTab;
@@ -27,18 +28,20 @@ public class SettingsView extends Main {
     private final Tab userTab = new Tab("Benutzerverwaltung");
     private final Tab practiceTab = new Tab("Praxisverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
+    private final Tab kbvTab = new Tab("KBV-Stammdaten");
 
     private final VerticalLayout content = new VerticalLayout();
 
     public SettingsView(AiSettingsTab aiSettingsTab, UserSettingsTab userSettingsTab,
-            PracticeSettingsTab practiceSettingsTab, MedicationSettingsTab medicationSettingsTab) {
+            PracticeSettingsTab practiceSettingsTab, MedicationSettingsTab medicationSettingsTab,
+            KbvMasterDataTab kbvMasterDataTab) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
                 LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(aiTab, userTab, practiceTab, medicationTab);
+        Tabs tabs = new Tabs(aiTab, userTab, practiceTab, medicationTab, kbvTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
@@ -51,6 +54,8 @@ public class SettingsView extends Main {
                 content.add(practiceSettingsTab);
             } else if (selected == medicationTab) {
                 content.add(medicationSettingsTab);
+            } else if (selected == kbvTab) {
+                content.add(kbvMasterDataTab);
             }
         });
 
