@@ -86,4 +86,13 @@ public final class AppRoles {
      * Role for the practice owner.
      */
     public static final String OWNER = "OWNER";
+
+    /**
+     * Role for super administrators with full system access.
+     * <p>
+     * Super administrators have the highest level of access and can perform all administrative operations.
+     * MFA is required for users with this role.
+     * </p>
+     */
+    public static final String SUPER_ADMIN = "SUPER_ADMIN";
 }
