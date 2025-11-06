@@ -40,4 +40,16 @@ public class UserAccount extends BasicEntity<Long> {
 
     @Column(name = "email")
     private String email;
+
+    @Column(name = "mfa_enabled")
+    private boolean mfaEnabled = false;
+
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
+
+    @Column(name = "password_change_required")
+    private boolean passwordChangeRequired = false;
+
+    @Column(name = "initial_password_set")
+    private boolean initialPasswordSet = false;
 }

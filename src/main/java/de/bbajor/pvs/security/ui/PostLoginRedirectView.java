@@ -1,54 +1,61 @@
-package de.bbajor.pvs.base.ui.view;
+package de.bbajor.pvs.security.ui;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.router.Route;
+import com.vaadin.flow.spring.security.AuthenticationContext;
+
 import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
-
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Main;
-import com.vaadin.flow.router.BeforeEnterEvent;
-import com.vaadin.flow.router.BeforeEnterObserver;
-import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpSession;
 
 /**
- * This view shows up when a user navigates to the root ('/') of the application.
+ * View that handles post-login redirects based on user state.
+ * 
+ * <p>
+ * This view checks if:
+ * <ul>
+ * <li>MFA verification is required</li>
+ * <li>Password change is required</li>
+ * </ul>
+ * and redirects accordingly.
+ * </p>
  */
-@Route
-@PermitAll // When security is enabled, allow all authenticated users
-public final class MainView extends Main implements BeforeEnterObserver {
+@Route("post-login")
+@PermitAll
+public class PostLoginRedirectView implements BeforeEnterObserver {
 
     private final CurrentUser currentUser;
     private final UserAccountRepository userAccountRepository;
+    private final AuthenticationContext authenticationContext;
     private final HttpSession httpSession;
 
-    // TODO Replace with your own main view.
-
-    MainView(CurrentUser currentUser, UserAccountRepository userAccountRepository, HttpSession httpSession) {
+    public PostLoginRedirectView(
+            CurrentUser currentUser,
+            UserAccountRepository userAccountRepository,
+            AuthenticationContext authenticationContext,
+            HttpSession httpSession) {
         this.currentUser = currentUser;
         this.userAccountRepository = userAccountRepository;
+        this.authenticationContext = authenticationContext;
         this.httpSession = httpSession;
-        
-        addClassName(LumoUtility.Padding.MEDIUM);
-        add(new ViewToolbar("Hauptansicht"));
-        add(new Div("Bitte wählen Sie einen Bereich aus dem Menü auf der linken Seite."));
     }
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        // Check if user is authenticated
-        if (!currentUser.get().isPresent()) {
-            return; // Let Spring Security handle unauthenticated access
+        if (!authenticationContext.isAuthenticated()) {
+            event.forwardTo("/");
+            return;
         }
 
         currentUser.get().ifPresent(user -> {
             UserAccount userAccount = userAccountRepository.findByUsername(user.getUsername()).orElse(null);
             if (userAccount == null) {
+                event.forwardTo("/");
                 return;
             }
 
@@ -65,13 +72,9 @@ public final class MainView extends Main implements BeforeEnterObserver {
                 event.forwardTo("/password-change");
                 return;
             }
-        });
-    }
 
-    /**
-     * Navigates to the main view.
-     */
-    public static void showMainView() {
-        UI.getCurrent().navigate(MainView.class);
+            // All checks passed, redirect to main view
+            event.forwardTo("/");
+        });
     }
 }

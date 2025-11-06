@@ -16,7 +16,11 @@ CREATE TABLE user_account (
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     user_id VARCHAR(255),
     full_name VARCHAR(255),
-    email VARCHAR(255)
+    email VARCHAR(255),
+    mfa_enabled BOOLEAN DEFAULT FALSE,
+    mfa_secret VARCHAR(255),
+    password_change_required BOOLEAN DEFAULT FALSE,
+    initial_password_set BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE user_account_roles (

@@ -166,6 +166,15 @@ services:
       # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
       VAADIN_PRODUCTION_MODE: "true"
       AI_WHISPER_LOCAL_ENABLED: "false"
+      # SMTP configuration for email sending
+      SMTP_HOST: ${SMTP_HOST:}
+      SMTP_PORT: ${SMTP_PORT:587}
+      SMTP_USERNAME: ${SMTP_USERNAME:}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:}
+      # MFA issuer name
+      MFA_ISSUER: ${MFA_ISSUER:PVS}
+      # Super-Admin initial password (optional - if not set, random password is generated)
+      SUPER_ADMIN_INITIAL_PASSWORD: ${SUPER_ADMIN_INITIAL_PASSWORD:}
     depends_on:
       postgres-prod:
         condition: service_healthy
