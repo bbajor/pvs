@@ -97,7 +97,7 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
 
         // Check if password change is required
         currentUser.get().ifPresent(user -> {
-            UserAccount userAccount = userAccountRepository.findByUsername(user.getUsername()).orElse(null);
+            UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
             if (userAccount != null && userAccount.isPasswordChangeRequired()) {
                 // Password change required, redirect to password change view
                 event.forwardTo("/password-change");

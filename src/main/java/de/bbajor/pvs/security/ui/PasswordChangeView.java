@@ -79,7 +79,7 @@ public class PasswordChangeView extends VerticalLayout implements BeforeEnterObs
 
         // Check if password change is actually required
         currentUser.get().ifPresent(user -> {
-            UserAccount userAccount = userAccountRepository.findByUsername(user.getUsername()).orElse(null);
+            UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
             if (userAccount == null || !userAccount.isPasswordChangeRequired()) {
                 // Password change not required, redirect to main view
                 event.forwardTo("/");
@@ -110,7 +110,7 @@ public class PasswordChangeView extends VerticalLayout implements BeforeEnterObs
 
         // Get user account
         currentUser.get().ifPresent(user -> {
-            UserAccount userAccount = userAccountRepository.findByUsername(user.getUsername()).orElse(null);
+            UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
             if (userAccount == null) {
                 Notification.show("Benutzerkonto nicht gefunden", 3000, Notification.Position.MIDDLE);
                 return;
@@ -132,18 +132,12 @@ public class PasswordChangeView extends VerticalLayout implements BeforeEnterObs
 
             Notification.show("Passwort erfolgreich geändert", 3000, Notification.Position.MIDDLE);
 
-            // Re-authenticate with new password and redirect
-            authenticationContext.login(userAccount.getUsername(), newPassword);
-            
-            // Redirect to main view after a short delay
+            // Redirect to login to re-authenticate with new password
             getUI().ifPresent(ui -> {
                 ui.access(() -> {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                    ui.navigate("/");
+                    // Logout and redirect to login
+                    authenticationContext.logout();
+                    ui.getPage().setLocation("/");
                 });
             });
         });

@@ -81,7 +81,7 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
 
         // Load user account
         currentUser.get().ifPresent(user -> {
-            userAccount = userAccountRepository.findByUsername(user.getUsername())
+            userAccount = userAccountRepository.findByUsername(user.getPreferredUsername())
                     .orElse(null);
             if (userAccount != null) {
                 if (userAccount.isMfaEnabled()) {
@@ -108,7 +108,7 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
         currentSecret = mfaService.generateSecret();
         
         currentUser.get().ifPresent(user -> {
-            String qrCodeBase64 = mfaService.generateQrCode(user.getUsername(), currentSecret);
+            String qrCodeBase64 = mfaService.generateQrCode(user.getPreferredUsername(), currentSecret);
             
             // Display QR code
             Image qrCodeImage = new Image();

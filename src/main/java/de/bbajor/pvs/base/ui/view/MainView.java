@@ -47,7 +47,7 @@ public final class MainView extends Main implements BeforeEnterObserver {
         }
 
         currentUser.get().ifPresent(user -> {
-            UserAccount userAccount = userAccountRepository.findByUsername(user.getUsername()).orElse(null);
+            UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
             if (userAccount == null) {
                 return;
             }
