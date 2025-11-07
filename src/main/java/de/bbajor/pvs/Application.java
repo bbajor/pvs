@@ -17,7 +17,9 @@ import com.vaadin.flow.theme.Theme;
         "de.bbajor.pvs.medication.repository",
         "de.bbajor.pvs.intravitreal.treatment.repository",
         "de.bbajor.pvs.surgicalcenter.repository",
-        "de.bbajor.pvs.taskmanagement.domain"
+        "de.bbajor.pvs.taskmanagement.domain",
+        "de.bbajor.pvs.ai.repository",
+        "de.bbajor.pvs.security.domain"
 })
 @EntityScan(basePackages = {
         "de.bbajor.pvs.patient.model",
@@ -25,7 +27,8 @@ import com.vaadin.flow.theme.Theme;
         "de.bbajor.pvs.intravitreal.treatment.model",
         "de.bbajor.pvs.surgicalcenter.model",
         "de.bbajor.pvs.security.domain",
-        "de.bbajor.pvs.base.domain"
+        "de.bbajor.pvs.base.domain",
+        "de.bbajor.pvs.ai.domain"
 })
 @Theme("default")
 public class Application implements AppShellConfigurator {
