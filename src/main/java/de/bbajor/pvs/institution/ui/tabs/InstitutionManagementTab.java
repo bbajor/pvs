@@ -1,5 +1,9 @@
 package de.bbajor.pvs.institution.ui.tabs;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -10,13 +14,13 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.service.InstitutionService;
+import de.bbajor.pvs.institution.ui.InstitutionAdministratorDialog;
+import de.bbajor.pvs.institution.ui.InstitutionEmailContactDialog;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
 
 /**
  * Tab component for managing institutions and administrators.
@@ -28,6 +32,8 @@ import org.springframework.stereotype.Component;
 public class InstitutionManagementTab extends VerticalLayout {
 
     private final InstitutionService institutionService;
+    private final InstitutionEmailContactDialog emailContactDialog;
+    private final InstitutionAdministratorDialog administratorDialog;
 
     private Grid<Institution> grid;
     private TextField institutionNameField;
@@ -83,7 +89,11 @@ public class InstitutionManagementTab extends VerticalLayout {
                     institution.isActive() ? ButtonVariant.LUMO_ERROR : ButtonVariant.LUMO_SUCCESS,
                     ButtonVariant.LUMO_SMALL
             );
-            return new HorizontalLayout(toggleButton);
+            Button emailButton = new Button("E-Mail-Kontakte", e -> openEmailContactsDialog(institution));
+            emailButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            Button adminButton = new Button("Administrator hinzufügen", e -> openAdministratorDialog(institution));
+            adminButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+            return new HorizontalLayout(toggleButton, emailButton, adminButton);
         }).setHeader("Aktionen");
 
         grid.setSizeFull();
@@ -147,6 +157,14 @@ public class InstitutionManagementTab extends VerticalLayout {
 
     private void refreshGrid() {
         grid.setItems(institutionService.findAll());
+    }
+
+    private void openEmailContactsDialog(Institution institution) {
+        emailContactDialog.openForInstitution(institution);
+    }
+
+    private void openAdministratorDialog(Institution institution) {
+        administratorDialog.openForInstitution(institution);
     }
 }
 

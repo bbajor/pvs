@@ -75,12 +75,32 @@ public class MfaService {
      * @throws MfaException if QR code generation fails
      */
     public String generateQrCode(String username, String secret) {
+        return generateQrCode(username, secret, false);
+    }
+
+    /**
+     * Generates a QR code image as Base64-encoded PNG for the given secret and username.
+     * 
+     * @param username the username to include in the QR code label
+     * @param secret the TOTP secret (Base32-encoded)
+     * @param isReset whether this is a reset (adds timestamp to label to help identify old entries)
+     * @return Base64-encoded PNG image data
+     * @throws MfaException if QR code generation fails
+     */
+    public String generateQrCode(String username, String secret, boolean isReset) {
         try {
             // Create TOTP URI according to Google Authenticator format
+            String label = username;
+            if (isReset) {
+                // Add timestamp to label when resetting to help users identify and delete old entries
+                long timestamp = System.currentTimeMillis();
+                String dateStr = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm").format(new java.util.Date(timestamp));
+                label = username + " [" + dateStr + "]";
+            }
             String totpUri = String.format(
                     "otpauth://totp/%s:%s?secret=%s&issuer=%s",
                     URLEncoder.encode(issuerName, StandardCharsets.UTF_8),
-                    URLEncoder.encode(username, StandardCharsets.UTF_8),
+                    URLEncoder.encode(label, StandardCharsets.UTF_8),
                     URLEncoder.encode(secret, StandardCharsets.UTF_8),
                     URLEncoder.encode(issuerName, StandardCharsets.UTF_8));
 

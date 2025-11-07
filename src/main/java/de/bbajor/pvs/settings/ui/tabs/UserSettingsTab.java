@@ -5,9 +5,11 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Tab for managing users of the current institution.
@@ -54,6 +57,8 @@ public class UserSettingsTab extends VerticalLayout {
     private Checkbox enabledCheckbox;
     private Button saveButton;
     private Button cancelButton;
+    private Button deleteButton;
+    private Grid<UserAccount> userGrid;
     
     private UserAccount selectedUser;
     private List<UserAccount> allUsers;
@@ -75,6 +80,25 @@ public class UserSettingsTab extends VerticalLayout {
         }
 
         H3 title = new H3("Benutzerverwaltung");
+
+        // Initialize grid
+        userGrid = new Grid<>(UserAccount.class, false);
+        userGrid.addColumn(UserAccount::getUsername).setHeader("Benutzername");
+        userGrid.addColumn(UserAccount::getFullName).setHeader("Name");
+        userGrid.addColumn(UserAccount::getEmail).setHeader("E-Mail");
+        userGrid.addColumn(ua -> String.join(", ", ua.getRoles())).setHeader("Rolle");
+        userGrid.addColumn(ua -> ua.getPreferredLocation() != null ? ua.getPreferredLocation().getLocationName() : "-")
+                .setHeader("Standort");
+        userGrid.addColumn(ua -> ua.isEnabled() ? "Ja" : "Nein").setHeader("Aktiv");
+        userGrid.setSizeFull();
+        
+        userGrid.asSingleSelect().addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                editUser(e.getValue());
+            } else {
+                clearForm();
+            }
+        });
 
         // Initialize fields
         usernameField = new TextField("Benutzername");
@@ -111,16 +135,32 @@ public class UserSettingsTab extends VerticalLayout {
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         cancelButton = new Button("Abbrechen", e -> clearForm());
+        
+        deleteButton = new Button("Löschen", e -> deleteUser());
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         FormLayout formLayout = new FormLayout();
         formLayout.add(usernameField, fullNameField, emailField, passwordField, 
-                roleSelect, locationComboBox, enabledCheckbox, saveButton, cancelButton);
+                roleSelect, locationComboBox, enabledCheckbox);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        add(title, formLayout);
+        HorizontalLayout buttonLayout = new HorizontalLayout(saveButton, cancelButton, deleteButton);
+        buttonLayout.setSpacing(true);
+        
+        VerticalLayout formContainer = new VerticalLayout(formLayout, buttonLayout);
+        formContainer.setWidth("400px");
+        formContainer.setPadding(true);
+        
+        HorizontalLayout splitLayout = new HorizontalLayout(userGrid, formContainer);
+        splitLayout.setSizeFull();
+        splitLayout.setFlexGrow(1, userGrid);
+        splitLayout.setFlexGrow(0, formContainer);
+        
+        add(title, splitLayout);
+        expand(splitLayout);
         
         refreshUsers();
     }
@@ -205,12 +245,56 @@ public class UserSettingsTab extends VerticalLayout {
         enabledCheckbox.setValue(true);
     }
 
+    private void editUser(UserAccount userAccount) {
+        selectedUser = userAccount;
+        usernameField.setValue(userAccount.getUsername() != null ? userAccount.getUsername() : "");
+        fullNameField.setValue(userAccount.getFullName() != null ? userAccount.getFullName() : "");
+        emailField.setValue(userAccount.getEmail() != null ? userAccount.getEmail() : "");
+        passwordField.clear();
+        if (!userAccount.getRoles().isEmpty()) {
+            roleSelect.setValue(userAccount.getRoles().iterator().next());
+        }
+        locationComboBox.setValue(userAccount.getPreferredLocation());
+        enabledCheckbox.setValue(userAccount.isEnabled());
+    }
+
+    private void deleteUser() {
+        if (selectedUser == null || selectedUser.getId() == null) {
+            Notification.show("Bitte wählen Sie einen Benutzer zum Löschen aus", 3000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+        
+        try {
+            // Deactivate instead of delete (soft delete)
+            selectedUser.setEnabled(false);
+            userAccountRepository.save(selectedUser);
+            refreshUsers();
+            clearForm();
+            Notification.show("Benutzer wurde deaktiviert", 3000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        } catch (Exception e) {
+            log.error("Error deleting user: {}", e.getMessage(), e);
+            Notification.show("Fehler beim Löschen: " + e.getMessage(),
+                    5000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
     private void refreshUsers() {
         // Refresh location list in case locations were added/removed
         locationComboBox.setItems(locationService.getAllLocations(true));
         
-        // TODO: Load users for current institution
-        // For now, this is a simple form
+        // Load users for current institution
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            allUsers = userAccountRepository.findAll().stream()
+                    .filter(ua -> ua.getInstitution() != null && ua.getInstitution().getId().equals(institutionId))
+                    .collect(Collectors.toList());
+            userGrid.setItems(allUsers);
+        } else {
+            userGrid.setItems(List.of());
+        }
     }
 }
 

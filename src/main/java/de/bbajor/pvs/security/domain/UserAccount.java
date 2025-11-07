@@ -59,6 +59,18 @@ public class UserAccount extends BasicEntity<Long> {
     @Column(name = "initial_password_set")
     private boolean initialPasswordSet = false;
 
+    @Column(name = "recovery_email")
+    private String recoveryEmail;
+
+    @Column(name = "recovery_email_verified")
+    private boolean recoveryEmailVerified = false;
+
+    @Column(name = "mfa_reset_token")
+    private String mfaResetToken;
+
+    @Column(name = "mfa_reset_token_expiry")
+    private java.time.LocalDateTime mfaResetTokenExpiry;
+
     /**
      * The institution this user belongs to.
      * <p>

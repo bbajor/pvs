@@ -297,11 +297,40 @@ class DevLoginView extends Main implements BeforeEnterObserver {
             
             log.debug("Login successful for user: {} (institution/tenant: {})", username, tenantCode);
             
+            // Check if MFA is required before navigating
+            UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+            if (userAccount != null) {
+                // Check if MFA is required (mandatory for SUPER_ADMIN and INSTITUTION_ADMIN)
+                boolean mfaRequired = isMfaRequired(userAccount);
+                
+                if (mfaRequired && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
+                    // MFA is required but not set up - redirect to setup
+                    Notification.show("MFA ist für Ihr Konto erforderlich. Bitte richten Sie MFA ein.", 
+                            5000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    UI.getCurrent().navigate("/mfa-setup");
+                    return;
+                }
+                
+                if (userAccount.isMfaEnabled() && userAccount.getMfaSecret() != null) {
+                    // MFA is enabled - set session flag and redirect to verification
+                    if (vaadinRequest != null) {
+                        jakarta.servlet.http.HttpSession session = vaadinRequest.getHttpServletRequest().getSession();
+                        session.setAttribute("MFA_REQUIRED", true);
+                        session.setAttribute("MFA_USERNAME", username);
+                        log.debug("MFA required for user {}, redirecting to verification", username);
+                        UI.getCurrent().navigate("/mfa-verify");
+                        return;
+                    }
+                }
+            }
+            
             // Navigate directly using Vaadin's router - SecurityContext is now available
-            // SUPER_ADMIN and INSTITUTION_ADMIN without institution should go to institution management
+            // SUPER_ADMIN and INSTITUTION_ADMIN without institution should go to super admin settings
             if (authResult instanceof InstitutionAuthenticationToken institutionAuth && institutionAuth.getInstitutionId() == null) {
                 // User logged in without institution (SUPER_ADMIN or INSTITUTION_ADMIN)
-                UI.getCurrent().navigate("admin/institutions");
+                // Redirect to super admin settings with institution tab
+                UI.getCurrent().navigate("admin/super-settings");
             } else {
                 // Regular user with institution - go to patient search
                 UI.getCurrent().navigate("patient-search");
@@ -441,6 +470,18 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         }
         
         return iconContainer;
+    }
+
+    /**
+     * Checks if MFA is required for a user.
+     * MFA is mandatory for SUPER_ADMIN and INSTITUTION_ADMIN, optional for others.
+     */
+    private boolean isMfaRequired(UserAccount userAccount) {
+        if (userAccount == null || userAccount.getRoles() == null) {
+            return false;
+        }
+        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN) 
+                || userAccount.getRoles().contains(AppRoles.INSTITUTION_ADMIN);
     }
 
     @Override
