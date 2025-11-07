@@ -101,4 +101,8 @@ jobs:
             docker image prune -f
             
             echo "Production deployment successful"
+            echo ""
+            echo "⚠️  IMPORTANT: Check application logs for Super-Admin initial password"
+            echo "   The password is only shown on first startup if no Super-Admin exists."
+            echo "   Command: docker logs pvs-prod | grep -A 10 'SUPER-ADMIN INITIAL PASSWORD'"
 

@@ -303,6 +303,31 @@ podman info
 podman ps -a
 ```
 
+### 🔐 Multi-Faktor-Authentifizierung (MFA)
+
+Das System unterstützt TOTP-basierte Multi-Faktor-Authentifizierung für Super-Admin-Benutzer:
+
+- **MFA-Einrichtung**: Super-Admin-Benutzer können MFA über `/mfa-setup` einrichten
+- **Authenticator-Apps**: Kompatibel mit Google Authenticator, Microsoft Authenticator, Authy
+- **Super-Admin Initialisierung**: Beim ersten Prod-Start wird automatisch ein Super-Admin-Benutzer erstellt
+  - Username: `superadmin`
+  - Passwort: Wird zufällig generiert und in den Logs ausgegeben (nur beim ersten Start)
+  - Das Passwort muss beim ersten Login geändert werden
+  - Optional: Passwort kann via `SUPER_ADMIN_INITIAL_PASSWORD` Environment-Variable gesetzt werden
+
+### 📧 SMTP-Konfiguration
+
+Für E-Mail-Versand (z.B. MFA-Benachrichtigungen) müssen folgende Environment-Variablen gesetzt werden:
+
+- `SMTP_HOST` - SMTP-Server-Hostname
+- `SMTP_PORT` - SMTP-Port (Standard: 587)
+- `SMTP_USERNAME` - SMTP-Benutzername
+- `SMTP_PASSWORD` - SMTP-Passwort
+
+Die Konfiguration erfolgt automatisch über Spring Mail, wenn die Variablen gesetzt sind.
+
+### 🛠️ Scripts
+
 **Port bereits belegt:**
 ```bash
 # Prüfe belegte Ports

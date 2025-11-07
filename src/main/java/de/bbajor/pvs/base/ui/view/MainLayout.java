@@ -3,6 +3,7 @@ package de.bbajor.pvs.base.ui.view;
 import de.bbajor.pvs.institution.service.InstitutionLayoutService;
 import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -17,11 +18,17 @@ import com.vaadin.flow.component.menubar.MenuBarVariant;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.server.menu.MenuConfiguration;
 import com.vaadin.flow.server.menu.MenuEntry;
 import com.vaadin.flow.spring.security.AuthenticationContext;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
 import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -29,17 +36,22 @@ import static com.vaadin.flow.theme.lumo.LumoUtility.*;
 
 @Layout
 @PermitAll // When security is enabled, allow all authenticated users
-public final class MainLayout extends AppLayout {
+public final class MainLayout extends AppLayout implements BeforeEnterObserver {
 
     private final CurrentUser currentUser;
     private final AuthenticationContext authenticationContext;
     private final InstitutionLayoutService layoutService;
+    private final UserAccountRepository userAccountRepository;
+    private final HttpSession httpSession;
 
     MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext, 
-            InstitutionLayoutService layoutService) {
+            InstitutionLayoutService layoutService, UserAccountRepository userAccountRepository,
+            HttpSession httpSession) {
         this.currentUser = currentUser;
         this.authenticationContext = authenticationContext;
         this.layoutService = layoutService;
+        this.userAccountRepository = userAccountRepository;
+        this.httpSession = httpSession;
         setPrimarySection(Section.DRAWER);
         addToDrawer(createHeader(), new Scroller(createSideNav()));
         // Only add user menu if user is authenticated (to avoid CurrentUser.require() exception)
@@ -149,6 +161,66 @@ public final class MainLayout extends AppLayout {
         userMenuItem.getSubMenu().addItem("Ausloggen", event -> authenticationContext.logout());
 
         return userMenu;
+    }
+
+    /**
+     * Checks if MFA is mandatory for a user.
+     * MFA is mandatory for SUPER_ADMIN and INSTITUTION_ADMIN.
+     */
+    private boolean isMfaMandatory(UserAccount userAccount) {
+        if (userAccount == null || userAccount.getRoles() == null) {
+            return false;
+        }
+        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN) 
+                || userAccount.getRoles().contains(AppRoles.INSTITUTION_ADMIN);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // Skip MFA check for MFA-related routes and login
+        String path = event.getLocation().getPath();
+        if (path.contains("/mfa-verify") || path.contains("/mfa-setup") 
+                || path.contains("/dev-login") || path.contains("/password-change")) {
+            return;
+        }
+
+        // Only check MFA for authenticated users
+        if (!authenticationContext.isAuthenticated()) {
+            return; // Let Spring Security handle unauthenticated access
+        }
+
+            // Check if user has MFA enabled and if it's verified
+            currentUser.get().ifPresent(user -> {
+                UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
+                if (userAccount == null) {
+                    return;
+                }
+
+                // First check if password change is required (must happen before MFA)
+                if (userAccount.isPasswordChangeRequired()) {
+                    event.forwardTo("/password-change");
+                    return;
+                }
+
+                // Check if MFA is mandatory for this user (SUPER_ADMIN or INSTITUTION_ADMIN)
+                boolean mfaMandatory = isMfaMandatory(userAccount);
+                
+                if (mfaMandatory && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
+                    // MFA is mandatory but not set up - redirect to setup
+                    event.forwardTo("/mfa-setup");
+                    return;
+                }
+
+                // Check if MFA is enabled for this user
+                if (userAccount.isMfaEnabled() && userAccount.getMfaSecret() != null) {
+                    // Check if MFA is required but not verified
+                    if (MfaAuthenticationFilter.isMfaRequired(httpSession)) {
+                        // MFA is required but not verified - redirect to verification
+                        event.forwardTo("/mfa-verify");
+                        return;
+                    }
+                }
+            });
     }
 
 }

@@ -21,6 +21,7 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
         "de.bbajor.pvs.location.repository",
         "de.bbajor.pvs.appointment.repository",
         "de.bbajor.pvs.security.domain",
+        "de.bbajor.pvs.security.email.repository",
         "de.bbajor.pvs.ai.repository"
 })
 @EntityScan(basePackages = {
@@ -29,6 +30,7 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
         "de.bbajor.pvs.intravitreal.treatment.model",
         "de.bbajor.pvs.surgicalcenter.model",
         "de.bbajor.pvs.security.domain",
+        "de.bbajor.pvs.security.email.model",
         "de.bbajor.pvs.base.domain",
         "de.bbajor.pvs.institution.model",
         "de.bbajor.pvs.location.model",

@@ -10,6 +10,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
 import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
@@ -29,6 +30,7 @@ public class SettingsView extends Main {
     private final Tab locationTab = new Tab("Standorte");
     private final Tab userTab = new Tab("Benutzerverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
+    private final Tab mfaTab = new Tab("Multi-Faktor-Authentifizierung");
 
     private final VerticalLayout content = new VerticalLayout();
 
@@ -36,14 +38,15 @@ public class SettingsView extends Main {
             LayoutSettingsTab layoutSettingsTab,
             LocationManagementTab locationManagementTab,
             UserSettingsTab userSettingsTab,
-            MedicationSettingsTab medicationSettingsTab) {
+            MedicationSettingsTab medicationSettingsTab,
+            MfaSettingsTab mfaSettingsTab) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
                 LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, userTab, medicationTab);
+        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, userTab, medicationTab, mfaTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
@@ -58,6 +61,9 @@ public class SettingsView extends Main {
                 content.add(userSettingsTab);
             } else if (selected == medicationTab) {
                 content.add(medicationSettingsTab);
+            } else if (selected == mfaTab) {
+                mfaSettingsTab.refresh(); // Refresh MFA status when tab is selected
+                content.add(mfaSettingsTab);
             }
         });
 
