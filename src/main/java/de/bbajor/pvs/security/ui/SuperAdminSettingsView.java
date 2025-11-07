@@ -61,7 +61,7 @@ public class SuperAdminSettingsView extends VerticalLayout implements BeforeEnte
 
         // Update MFA status
         currentUser.get().ifPresent(user -> {
-            UserAccount userAccount = userAccountRepository.findByUsername(user.getUsername()).orElse(null);
+            UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
             if (userAccount != null) {
                 if (userAccount.isMfaEnabled()) {
                     mfaStatus.setText("Multi-Faktor-Authentifizierung: Aktiviert");
