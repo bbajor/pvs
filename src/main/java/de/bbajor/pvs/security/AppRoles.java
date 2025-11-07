@@ -100,6 +100,8 @@ public final class AppRoles {
     /**
      * Role for super administrators with full system access.
      * <p>
+     * Super administrators have the highest level of access and can perform all administrative operations.
+     * MFA is required for users with this role.
      * Users with this role have access to all system functions and can manage everything,
      * including institutions and their data. Use this role sparingly.
      * </p>

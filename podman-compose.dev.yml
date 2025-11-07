@@ -72,6 +72,13 @@ services:
       # Whisper service discovery inside Docker network
       AI_WHISPER_LOCAL_HOST: whisper
       AI_WHISPER_LOCAL_PORT: "9000"
+      # SMTP Mail Server Configuration (from podman-compose.dev.env)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+      SMTP_SECURITY_METHOD: ${SMTP_SECURITY_METHOD:-}
+      SMTP_ENABLED: ${SMTP_ENABLED:-}
     ports:
       - "127.0.0.1:8130:8130"  # Nur lokal erreichbar (Port 8080 bereits von OpenWebUI verwendet)
     depends_on:

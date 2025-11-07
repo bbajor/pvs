@@ -54,14 +54,24 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
     implementation 'org.apache.commons:commons-csv:1.14.1'
     implementation 'org.apache.ant:ant:1.10.6'
     
     implementation 'org.apache.pdfbox:pdfbox:3.0.1'
+    
+    // MFA/TOTP support
+    implementation 'com.warrenstrange:googleauth:1.5.0'
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.google.zxing:javase:3.5.3'
+    
+    // OpenPGP support for email encryption
+    implementation 'org.bouncycastle:bcpg-jdk18on:1.78.1'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    // PGPainless - modern OpenPGP library
+    implementation 'org.pgpainless:pgpainless-core:1.6.9'
 
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
@@ -184,6 +194,33 @@ vaadin {
 tasks.named('bootRun') {
     // Vaadin will prepare frontend on first run if needed
     // This allows bootRun to work even if vaadinPrepareFrontend has issues
+    
+    // Load environment variables from podman-compose.dev.env if it exists
+    // These are used as default values when no DB configuration exists
+    def envFile = file('podman-compose.dev.env')
+    if (envFile.exists()) {
+        doFirst {
+            envFile.readLines().each { line ->
+                // Skip comments and empty lines
+                if (line && !line.trim().startsWith('#') && line.contains('=')) {
+                    def parts = line.split('=', 2)
+                    if (parts.length == 2) {
+                        def key = parts[0].trim()
+                        def value = parts[1].trim()
+                        // Remove quotes if present
+                        if ((value.startsWith('"') && value.endsWith('"')) ||
+                            (value.startsWith("'") && value.endsWith("'"))) {
+                            value = value.substring(1, value.length() - 1)
+                        }
+                        // Only set if not already set (don't override existing env vars)
+                        if (System.getenv(key) == null) {
+                            environment[key] = value
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 tasks.named('vaadinPrepareFrontend') {

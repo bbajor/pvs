@@ -96,6 +96,11 @@ CREATE TABLE user_account (
     user_id VARCHAR(255),
     full_name VARCHAR(255),
     email VARCHAR(255),
+    -- MFA fields
+    mfa_enabled BOOLEAN DEFAULT FALSE,
+    mfa_secret VARCHAR(255),
+    password_change_required BOOLEAN DEFAULT FALSE,
+    initial_password_set BOOLEAN DEFAULT FALSE,
     -- Primary: institution assignment (data isolation via institution)
     institution_id BIGINT,
     -- Preferred location within institution (optional)
