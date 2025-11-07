@@ -37,7 +37,7 @@ import jakarta.annotation.security.RolesAllowed;
  */
 @Route("mfa-setup")
 @PageTitle("MFA Einrichtung")
-@RolesAllowed({ AppRoles.SUPER_ADMIN })
+@RolesAllowed({ AppRoles.SUPER_ADMIN, AppRoles.INSTITUTION_ADMIN })
 public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver {
 
     private final CurrentUser currentUser;
@@ -52,6 +52,7 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
     private final TextField verificationCodeField = new TextField("Verifizierungscode");
     private final Button verifyButton = new Button("Verifizieren und aktivieren");
     private final Button generateButton = new Button("Neuen QR-Code generieren");
+    private final Button resetButton = new Button("MFA zurücksetzen");
 
     private String currentSecret;
     private UserAccount userAccount;
@@ -77,7 +78,10 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
 
         generateButton.addClickListener(e -> generateNewSecret());
 
-        add(title, instructions, qrCodeContainer, verificationCodeField, verifyButton, generateButton);
+        resetButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        resetButton.addClickListener(e -> resetMfa());
+
+        add(title, instructions, qrCodeContainer, verificationCodeField, verifyButton, generateButton, resetButton);
 
         // Load user account
         currentUser.get().ifPresent(user -> {
@@ -86,12 +90,17 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
             if (userAccount != null) {
                 if (userAccount.isMfaEnabled()) {
                     title.setText("MFA ist bereits aktiviert");
-                    instructions.setText("Multi-Faktor-Authentifizierung ist für Ihr Konto bereits aktiviert.");
+                    instructions.setText("Multi-Faktor-Authentifizierung ist für Ihr Konto bereits aktiviert. " +
+                            "Sie können MFA zurücksetzen, um einen neuen QR-Code zu generieren.\n\n" +
+                            "⚠️ WICHTIG: Wenn Sie MFA zurücksetzen, müssen Sie die alten Einträge in Ihrer Authenticator-App " +
+                            "manuell löschen, bevor Sie den neuen QR-Code scannen.");
                     generateButton.setVisible(false);
                     verificationCodeField.setVisible(false);
                     verifyButton.setVisible(false);
+                    resetButton.setVisible(true);
                 } else {
                     generateNewSecret();
+                    resetButton.setVisible(false);
                 }
             }
         });
@@ -105,10 +114,14 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
     }
 
     private void generateNewSecret() {
+        generateNewSecret(false);
+    }
+
+    private void generateNewSecret(boolean isReset) {
         currentSecret = mfaService.generateSecret();
         
         currentUser.get().ifPresent(user -> {
-            String qrCodeBase64 = mfaService.generateQrCode(user.getPreferredUsername(), currentSecret);
+            String qrCodeBase64 = mfaService.generateQrCode(user.getPreferredUsername(), currentSecret, isReset);
             
             // Display QR code
             Image qrCodeImage = new Image();
@@ -160,10 +173,44 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
         
         // Update UI
         title.setText("MFA ist aktiviert");
-        instructions.setText("Multi-Faktor-Authentifizierung wurde erfolgreich für Ihr Konto aktiviert.");
+        instructions.setText("Multi-Faktor-Authentifizierung wurde erfolgreich für Ihr Konto aktiviert. " +
+                "Sie können MFA zurücksetzen, um einen neuen QR-Code zu generieren.");
         qrCodeContainer.removeAll();
         verificationCodeField.setVisible(false);
         verifyButton.setVisible(false);
         generateButton.setVisible(false);
+        resetButton.setVisible(true);
+    }
+
+    private void resetMfa() {
+        if (userAccount == null) {
+            Notification.show("Benutzerkonto nicht gefunden", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+
+        // Show warning notification
+        Notification warning = Notification.show(
+                "⚠️ WICHTIG: Bitte löschen Sie zuerst alle alten Einträge für dieses Konto aus Ihrer Authenticator-App, " +
+                "bevor Sie den neuen QR-Code scannen. Andernfalls haben Sie mehrere Einträge mit demselben Namen.",
+                8000, 
+                Notification.Position.MIDDLE
+        );
+        warning.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_WARNING);
+
+        // Reset MFA
+        userAccount.setMfaSecret(null);
+        userAccount.setMfaEnabled(false);
+        userAccountRepository.save(userAccount);
+
+        Notification.show("MFA wurde zurückgesetzt. Bitte richten Sie MFA neu ein.", 3000, Notification.Position.MIDDLE);
+        
+        // Update UI to show setup form
+        title.setText("Multi-Faktor-Authentifizierung einrichten");
+        instructions.setText("⚠️ WICHTIG: Löschen Sie zuerst alle alten Einträge für dieses Konto aus Ihrer Authenticator-App!\n\n" +
+                "Der neue Eintrag wird mit einem Zeitstempel versehen, damit Sie ihn von den alten unterscheiden können.\n\n" +
+                "Scannen Sie dann den neuen QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Microsoft Authenticator) " +
+                "und geben Sie dann einen Code ein, um die Einrichtung zu bestätigen.");
+        resetButton.setVisible(false);
+        generateNewSecret(true); // Pass true to indicate this is a reset
     }
 }

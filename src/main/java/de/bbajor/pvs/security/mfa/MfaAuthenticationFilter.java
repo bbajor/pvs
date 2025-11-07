@@ -4,10 +4,8 @@ import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.vaadin.flow.server.HandlerHelper.RequestType;
@@ -127,7 +125,19 @@ public class MfaAuthenticationFilter extends OncePerRequestFilter {
      */
     private boolean isVaadinInternalRequest(HttpServletRequest request) {
         String parameterValue = request.getParameter(ApplicationConstants.REQUEST_TYPE_PARAMETER);
-        return parameterValue != null
-                && RequestType.valueOf(parameterValue) == RequestType.HEARTBEAT;
+        if (parameterValue == null) {
+            return false;
+        }
+        
+        try {
+            RequestType requestType = RequestType.valueOf(parameterValue);
+            // Skip heartbeat and other internal Vaadin requests
+            // Only skip HEARTBEAT to avoid blocking legitimate requests
+            return requestType == RequestType.HEARTBEAT;
+        } catch (IllegalArgumentException e) {
+            // Unknown request type - treat as regular request (don't skip)
+            log.debug("Unknown Vaadin request type: {}, treating as regular request", parameterValue);
+            return false;
+        }
     }
 }

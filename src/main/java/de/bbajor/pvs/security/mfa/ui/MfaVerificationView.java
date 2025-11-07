@@ -13,11 +13,14 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
+import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.email.EmailService;
 import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
 import de.bbajor.pvs.security.mfa.MfaService;
+import de.bbajor.pvs.security.mfa.service.MfaResetService;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpSession;
 
@@ -37,6 +40,8 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
     private final CurrentUser currentUser;
     private final UserAccountRepository userAccountRepository;
     private final MfaService mfaService;
+    private final MfaResetService mfaResetService;
+    private final EmailService emailService;
     private final AuthenticationContext authenticationContext;
     private final HttpSession httpSession;
 
@@ -45,16 +50,21 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
             "Bitte geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.");
     private final TextField codeField = new TextField("MFA-Code");
     private final Button verifyButton = new Button("Verifizieren");
+    private final Button resetViaEmailButton = new Button("MFA per E-Mail zurücksetzen");
 
     public MfaVerificationView(
             CurrentUser currentUser,
             UserAccountRepository userAccountRepository,
             MfaService mfaService,
+            MfaResetService mfaResetService,
+            EmailService emailService,
             AuthenticationContext authenticationContext,
             HttpSession httpSession) {
         this.currentUser = currentUser;
         this.userAccountRepository = userAccountRepository;
         this.mfaService = mfaService;
+        this.mfaResetService = mfaResetService;
+        this.emailService = emailService;
         this.authenticationContext = authenticationContext;
         this.httpSession = httpSession;
 
@@ -69,7 +79,7 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
         codeField.setPattern("[0-9]{6}");
         codeField.setHelperText("6-stelliger Code aus Ihrer Authenticator-App");
         codeField.addKeyPressListener(e -> {
-            if (e.getKey().equals("Enter")) {
+            if ("Enter".equals(e.getKey())) {
                 verifyCode();
             }
         });
@@ -77,7 +87,10 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
         verifyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         verifyButton.addClickListener(e -> verifyCode());
 
-        add(title, instructions, codeField, verifyButton);
+        resetViaEmailButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        resetViaEmailButton.addClickListener(e -> sendResetEmail());
+
+        add(title, instructions, codeField, verifyButton, resetViaEmailButton);
     }
 
     @Override
@@ -101,6 +114,14 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
             if (userAccount != null && userAccount.isPasswordChangeRequired()) {
                 // Password change required, redirect to password change view
                 event.forwardTo("/password-change");
+            }
+            
+            // Show/hide reset button based on recovery email availability
+            if (userAccount != null) {
+                boolean isSuperAdmin = userAccount.getRoles() != null 
+                        && userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
+                boolean hasRecoveryEmail = mfaResetService.hasVerifiedRecoveryEmail(userAccount);
+                resetViaEmailButton.setVisible(isSuperAdmin && hasRecoveryEmail);
             }
         });
     }
@@ -134,6 +155,13 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
             Notification.show("Ungültiger Code. Bitte versuchen Sie es erneut.", 3000, Notification.Position.MIDDLE);
             codeField.clear();
             codeField.focus();
+            
+            // Show reset option if available
+            boolean isSuperAdmin = userAccount.getRoles() != null 
+                    && userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
+            if (isSuperAdmin && mfaResetService.hasVerifiedRecoveryEmail(userAccount)) {
+                resetViaEmailButton.setVisible(true);
+            }
             return;
         }
 
@@ -142,11 +170,90 @@ public class MfaVerificationView extends VerticalLayout implements BeforeEnterOb
 
         Notification.show("MFA erfolgreich verifiziert!", 2000, Notification.Position.MIDDLE);
 
+        // For SUPER_ADMIN: Check if SMTP and recovery email need to be configured
+        boolean isSuperAdmin = userAccount.getRoles() != null 
+                && userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
+        
+        if (isSuperAdmin && !userAccount.isRecoveryEmailVerified()) {
+            // Redirect to recovery email setup
+            getUI().ifPresent(ui -> ui.navigate("/admin/super-settings"));
+            return;
+        }
+
         // Check if password change is required
         if (userAccount.isPasswordChangeRequired()) {
             getUI().ifPresent(ui -> ui.navigate("/password-change"));
         } else {
             getUI().ifPresent(ui -> ui.navigate("/"));
+        }
+    }
+
+    private void sendResetEmail() {
+        String username = MfaAuthenticationFilter.getMfaUsername(httpSession);
+        if (username == null) {
+            Notification.show("Sitzung abgelaufen. Bitte melden Sie sich erneut an.", 3000, Notification.Position.MIDDLE);
+            getUI().ifPresent(ui -> ui.navigate("/"));
+            return;
+        }
+
+        UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+        if (userAccount == null) {
+            Notification.show("Benutzerkonto nicht gefunden", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+
+        // Check if user is SUPER_ADMIN and has verified recovery email
+        boolean isSuperAdmin = userAccount.getRoles() != null 
+                && userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
+        if (!isSuperAdmin) {
+            Notification.show("MFA-Reset per E-Mail ist nur für Super-Admins verfügbar", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+
+        if (!mfaResetService.hasVerifiedRecoveryEmail(userAccount)) {
+            Notification.show("Keine verifizierte Recovery-E-Mail-Adresse hinterlegt. Bitte konfigurieren Sie diese zuerst in den Einstellungen.", 
+                    5000, Notification.Position.MIDDLE);
+            return;
+        }
+
+        try {
+            // Generate reset token
+            String token = mfaResetService.createResetToken(userAccount);
+            
+            // Create reset URL - use current request URL
+            String resetUrl = getUI().map(ui -> {
+                try {
+                    jakarta.servlet.http.HttpServletRequest request = com.vaadin.flow.server.VaadinServletRequest.getCurrent().getHttpServletRequest();
+                    String scheme = request.getScheme();
+                    String host = request.getServerName();
+                    int port = request.getServerPort();
+                    String contextPath = request.getContextPath();
+                    return scheme + "://" + host + (port != 80 && port != 443 ? ":" + port : "") 
+                            + contextPath + "/mfa-reset?token=" + token;
+                } catch (Exception e) {
+                    return "https://example.com/mfa-reset?token=" + token;
+                }
+            }).orElse("https://example.com/mfa-reset?token=" + token);
+            
+            // Send email with reset link (will be encrypted if PGP key is available)
+            String emailText = String.format(
+                    "Hallo %s,\n\n" +
+                    "Sie haben eine MFA-Zurücksetzung angefordert.\n\n" +
+                    "Klicken Sie auf den folgenden Link, um die Multi-Faktor-Authentifizierung zurückzusetzen:\n" +
+                    "%s\n\n" +
+                    "Dieser Link ist 24 Stunden gültig.\n\n" +
+                    "Falls Sie diese Anfrage nicht gestellt haben, ignorieren Sie diese E-Mail.\n\n" +
+                    "Mit freundlichen Grüßen,\n" +
+                    "PVS System",
+                    userAccount.getUsername(), resetUrl);
+            
+            emailService.sendEmail(userAccount.getRecoveryEmail(), "MFA zurücksetzen", emailText);
+            
+            Notification.show("Eine E-Mail mit einem Reset-Link wurde an Ihre Recovery-E-Mail-Adresse gesendet.", 
+                    5000, Notification.Position.MIDDLE);
+        } catch (Exception e) {
+            Notification.show("Fehler beim Senden der E-Mail: " + e.getMessage(), 
+                    5000, Notification.Position.MIDDLE);
         }
     }
 }

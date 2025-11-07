@@ -2,6 +2,8 @@ package de.bbajor.pvs.security.dev;
 
 import de.bbajor.pvs.security.controlcenter.ControlCenterSecurityConfig;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
+import de.bbajor.pvs.security.mfa.MfaService;
 import com.vaadin.flow.router.RouteConfiguration;
 import com.vaadin.flow.server.VaadinServiceInitListener;
 import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategyConfiguration;
@@ -77,11 +79,19 @@ class DevSecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http, 
+            AuthenticationManager authenticationManager,
+            UserAccountRepository userAccountRepository,
+            MfaService mfaService) throws Exception {
         // Configure API endpoints and login path first, before Vaadin configurer applies anyRequest()
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/ai/**").permitAll()
                 .requestMatchers("/" + DevLoginView.LOGIN_PATH).permitAll());
+        
+        // Add MFA filter before institution authentication filter
+        MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(userAccountRepository, mfaService);
+        http.addFilterBefore(mfaFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         
         // Add custom institution authentication filter before Vaadin security
         InstitutionAuthenticationFilter institutionAuthFilter = new InstitutionAuthenticationFilter("/" + DevLoginView.LOGIN_PATH);
