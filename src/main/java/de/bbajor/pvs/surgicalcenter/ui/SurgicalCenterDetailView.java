@@ -14,8 +14,14 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.presenter.SurgicalCenterListPresenter;
+import de.bbajor.pvs.security.AppRoles;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route(value = "surgicalcenter/:id", layout = MainLayout.class)
@@ -23,13 +29,17 @@ import jakarta.annotation.security.PermitAll;
 @PermitAll
 public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEnterObserver {
 
+    private final InstitutionRepository institutionRepository;
+
     @Value("${domain.bundesland}")
     private String bundesland;
     private final SurgicalCenterListPresenter surgicalCenterListPresenter;
     private final SurgicalCenterLayout surgicalCenterLayout = new SurgicalCenterLayout();
 
-    public SurgicalCenterDetailView(SurgicalCenterListPresenter surgicalCenterListPresenter) {
+    public SurgicalCenterDetailView(SurgicalCenterListPresenter surgicalCenterListPresenter,
+            InstitutionRepository institutionRepository) {
         this.surgicalCenterListPresenter = surgicalCenterListPresenter;
+        this.institutionRepository = institutionRepository;
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
@@ -59,6 +69,17 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // SUPER_ADMIN without institution context should not access surgical center data
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+        boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+        
+        if (isSuperAdmin && !hasInstitutionContext) {
+            // Redirect SUPER_ADMIN to institution management
+            event.forwardTo("admin/institutions");
+            return;
+        }
 
         Optional<String> idParameter = event.getRouteParameters().get("id");
         if (idParameter.isEmpty()) {
@@ -69,8 +90,18 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
         try {
             Integer id = Integer.valueOf(idParameter.get());
             if (-1 == id) {
+                // Create new surgical center - set institution from context
                 SurgicalCenter newDto = new SurgicalCenter();
                 newDto.setId(id);
+                
+                // Set institution from context if available
+                if (hasInstitutionContext) {
+                    Long institutionId = InstitutionContext.getInstitutionId();
+                    Institution institution = institutionRepository.findById(institutionId)
+                            .orElseThrow(() -> new IllegalStateException("Institution not found: " + institutionId));
+                    newDto.setInstitution(institution);
+                }
+                
                 surgicalCenterLayout.setBean(newDto);
             } else {
                 SurgicalCenter dto = surgicalCenterListPresenter.getById(id);
@@ -81,6 +112,9 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
                 surgicalCenterLayout.setBean(dto);
             }
         } catch (NumberFormatException nfe) {
+            event.forwardTo(SurgicalCenterMainView.class);
+        } catch (IllegalStateException e) {
+            // Institution not found or access denied
             event.forwardTo(SurgicalCenterMainView.class);
         }
     }

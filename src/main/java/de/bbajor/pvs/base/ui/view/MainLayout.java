@@ -1,6 +1,8 @@
 package de.bbajor.pvs.base.ui.view;
 
+import de.bbajor.pvs.institution.service.InstitutionLayoutService;
 import de.bbajor.pvs.security.CurrentUser;
+import de.bbajor.pvs.security.AppRoles;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -20,6 +22,8 @@ import com.vaadin.flow.server.menu.MenuConfiguration;
 import com.vaadin.flow.server.menu.MenuEntry;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static com.vaadin.flow.theme.lumo.LumoUtility.*;
 
@@ -29,12 +33,31 @@ public final class MainLayout extends AppLayout {
 
     private final CurrentUser currentUser;
     private final AuthenticationContext authenticationContext;
+    private final InstitutionLayoutService layoutService;
 
-    MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext) {
+    MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext, 
+            InstitutionLayoutService layoutService) {
         this.currentUser = currentUser;
         this.authenticationContext = authenticationContext;
+        this.layoutService = layoutService;
         setPrimarySection(Section.DRAWER);
-        addToDrawer(createHeader(), new Scroller(createSideNav()), createUserMenu());
+        addToDrawer(createHeader(), new Scroller(createSideNav()));
+        // Only add user menu if user is authenticated (to avoid CurrentUser.require() exception)
+        if (authenticationContext.isAuthenticated()) {
+            addToDrawer(createUserMenu());
+        }
+        
+        // Apply institution layout settings after UI is attached
+        UI currentUI = UI.getCurrent();
+        if (currentUI != null) {
+            currentUI.addAttachListener(e -> {
+                layoutService.applyLayoutSettings(currentUI);
+            });
+            // Also apply immediately if already attached
+            if (currentUI.isAttached()) {
+                layoutService.applyLayoutSettings(currentUI);
+            }
+        }
     }
 
     private Div createHeader() {
@@ -42,7 +65,7 @@ public final class MainLayout extends AppLayout {
         var appLogo = VaadinIcon.CALENDAR.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
 
-        var appName = new Span("Praxis Tool-Suite");
+        var appName = new Span("Ophthalmoplan");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
 
         var header = new Div(appLogo, appName);
@@ -53,8 +76,44 @@ public final class MainLayout extends AppLayout {
     private SideNav createSideNav() {
         var nav = new SideNav();
         nav.addClassNames(Margin.Horizontal.MEDIUM);
-        MenuConfiguration.getMenuEntries().forEach(entry -> nav.addItem(createSideNavItem(entry)));
+        
+        // Check if user is SUPER_ADMIN
+        boolean isSuperAdmin = isCurrentUserSuperAdmin();
+        
+        if (isSuperAdmin) {
+            // SUPER_ADMIN sees system settings and medication database
+            nav.addItem(new SideNavItem("System-Einstellungen", "admin/super-settings", 
+                    new Icon("vaadin:cog")));
+            nav.addItem(new SideNavItem("Medikamentendatenbank", "ivom-drugs", 
+                    new Icon("vaadin:pill")));
+        } else {
+            // Regular users see all menu entries
+            MenuConfiguration.getMenuEntries().forEach(entry -> {
+                // Filter out entries that should not be visible to regular users
+                // (e.g., admin/institutions should not be in regular menu)
+                if (!entry.path().equals("admin/institutions")) {
+                    nav.addItem(createSideNavItem(entry));
+                }
+            });
+        }
+        
         return nav;
+    }
+    
+    /**
+     * Checks if the current user has SUPER_ADMIN role.
+     */
+    private boolean isCurrentUserSuperAdmin() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getAuthorities() != null) {
+                return auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+            }
+        } catch (Exception e) {
+            // If we can't determine the user's role, assume not super admin
+        }
+        return false;
     }
 
     private SideNavItem createSideNavItem(MenuEntry menuEntry) {
@@ -66,7 +125,10 @@ public final class MainLayout extends AppLayout {
     }
 
     private Component createUserMenu() {
-        var user = currentUser.require();
+        // Only call this if user is authenticated (checked in constructor)
+        // Use get() with orElseThrow as fallback
+        var user = currentUser.get().orElseThrow(() -> 
+            new IllegalStateException("User menu should only be created for authenticated users"));
 
         var avatar = new Avatar(user.getFullName(), user.getPictureUrl());
         avatar.addThemeVariants(AvatarVariant.LUMO_XSMALL);

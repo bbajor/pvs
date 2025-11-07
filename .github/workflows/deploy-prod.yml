@@ -43,7 +43,7 @@ jobs:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: "docker-compose.production.yml"
+          source: "podman-compose.production.yml"
           target: "~/pvs"
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -54,10 +54,19 @@ jobs:
           script: |
             set -e
             cd ~/pvs
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo ${{ secrets.GITHUB_TOKEN }} | podman login ghcr.io -u ${{ github.actor }} --password-stdin
             export DOCKER_REGISTRY=ghcr.io
             export DOCKER_IMAGE=${{ github.repository }}
-            docker compose -f docker-compose.production.yml --profile prod pull
-            docker compose -f docker-compose.production.yml --profile prod up -d
+            # Try podman compose first, fallback to podman-compose
+            if command -v podman-compose &> /dev/null; then
+              COMPOSE_CMD="podman-compose"
+            elif podman compose version &> /dev/null; then
+              COMPOSE_CMD="podman compose"
+            else
+              echo "Error: Neither podman-compose nor podman compose available"
+              exit 1
+            fi
+            $COMPOSE_CMD -f podman-compose.production.yml --profile prod pull
+            $COMPOSE_CMD -f podman-compose.production.yml --profile prod up -d
 
 

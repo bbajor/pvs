@@ -1,0 +1,123 @@
+services:
+  # PostgreSQL Database für lokale Entwicklung
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: pvs-postgres-dev-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_DEV:-pvs_dev}
+      POSTGRES_USER: ${POSTGRES_USER_DEV:-pvs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "127.0.0.1:5434:5432"  # Nur lokal erreichbar (Port 5434 wegen lokalem PostgreSQL auf 5432)
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    networks:
+      - pvs-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_DEV:-pvs_user} -d ${POSTGRES_DB_DEV:-pvs_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PVS Application (lokale Entwicklung)
+  pvs-app-dev:
+    image: ${PVS_DEV_IMAGE:-ghcr.io/bbajor/pvs:dev-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pvs-app-dev-local
+    restart: unless-stopped
+    labels:
+      # Watchtower: Automatisches Update aktivieren (optional)
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Prüfe nur dieses Image
+      - "com.centurylinklabs.watchtower.monitor-only=true"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      PORT: 8130
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      DATABASE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
+      DATABASE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      DATABASE_DRIVER: org.postgresql.Driver
+      # Explicit Spring datasource binding to ensure Postgres is used (no H2)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-pvs_dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER_DEV:-pvs_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-dev_password_change_in_env}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      # Required for PostgreSQL Large Objects (@Lob) to avoid autocommit error
+      SPRING_DATASOURCE_HIKARI_AUTO_COMMIT: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_JDBC_LOB_NON_CONTEXTUAL_CREATION: "true"
+      FLYWAY_ENABLED: "true"
+      AI_WHISPER_LOCAL_ENABLED: "true"
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
+      VAADIN_PRODUCTION_MODE: "true"
+      # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung
+      VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV: "true"
+      # Disable eGK validation in Docker dev
+      EGK_ENABLED: "false"
+      # Setze user.home auf /app, um Vaadin Home/Cache im Container zu ermöglichen
+      JAVA_TOOL_OPTIONS: "-Duser.home=/app"
+      # Stabilisiere npm in Container: eigener Cache & Registry explizit
+      NPM_CONFIG_CACHE: "/app/.npm"
+      NPM_CONFIG_UPDATE_NOTIFIER: "false"
+      NPM_CONFIG_FUND: "false"
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/"
+      # Whisper service discovery inside Docker network
+      AI_WHISPER_LOCAL_HOST: whisper
+      AI_WHISPER_LOCAL_PORT: "9000"
+    ports:
+      - "127.0.0.1:8130:8130"  # Nur lokal erreichbar (Port 8080 bereits von OpenWebUI verwendet)
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      whisper:
+        condition: service_healthy
+    networks:
+      - pvs-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8130/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Kein Volume-Mount für src nötig: Production Mode verwendet bereits gebaute Dateien aus dem JAR
+    # Hot-Reload funktioniert im Production Mode ohnehin nicht
+
+  # Whisper AI Service (standalone for development)
+  whisper:
+    build:
+      context: .
+      dockerfile: ./docker/whisper/Dockerfile
+    container_name: pvs-whisper
+    ports:
+      - "127.0.0.1:9000:9000"  # Nur lokal erreichbar
+    environment:
+      - PORT=9000
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+      - PYTHONIOENCODING=utf-8
+    networks:
+      - pvs-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pvs-dev-network:
+    driver: bridge
+
+volumes:
+  postgres-dev-data:
+    driver: local
+

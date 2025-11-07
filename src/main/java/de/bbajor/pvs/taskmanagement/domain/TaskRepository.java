@@ -12,18 +12,56 @@ import org.springframework.data.repository.query.Param;
 
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
 
-    Slice<Task> findAllBy(Pageable pageable);
-
-    Slice<Task> findAllByCompleted(boolean completed, Pageable pageable);
-
+    /**
+     * Find all tasks for the current institution.
+     * Filters by institution via Task → SurgicalCenterTimeSlot → SurgicalCenter → Institution.
+     */
     @Query("""
             SELECT t FROM Task t
-            WHERE t.timeSlot.date <= :now
+            WHERE t.timeSlot IS NOT NULL
+            AND t.timeSlot.surgicalCenter IS NOT NULL
+            AND t.timeSlot.surgicalCenter.institution.id = :institutionId
+            """)
+    Slice<Task> findAllByInstitutionId(@Param("institutionId") Long institutionId, Pageable pageable);
+
+    /**
+     * Find all tasks by completion status for the current institution.
+     * Filters by institution via Task → SurgicalCenterTimeSlot → SurgicalCenter → Institution.
+     */
+    @Query("""
+            SELECT t FROM Task t
+            WHERE t.timeSlot IS NOT NULL
+            AND t.timeSlot.surgicalCenter IS NOT NULL
+            AND t.timeSlot.surgicalCenter.institution.id = :institutionId
+            AND t.completed = :completed
+            """)
+    Slice<Task> findAllByInstitutionIdAndCompleted(@Param("institutionId") Long institutionId, 
+            @Param("completed") boolean completed, Pageable pageable);
+
+    /**
+     * Find tasks with unapproved treatments for the current institution.
+     * Filters by institution via Task → SurgicalCenterTimeSlot → SurgicalCenter → Institution.
+     */
+    @Query("""
+            SELECT t FROM Task t
+            WHERE t.timeSlot IS NOT NULL
+            AND t.timeSlot.surgicalCenter IS NOT NULL
+            AND t.timeSlot.surgicalCenter.institution.id = :institutionId
+            AND t.timeSlot.date <= :now
             AND EXISTS (
                 SELECT 1 FROM Treatment tr
                 WHERE tr.surgicalCenterTimeSlot = t.timeSlot
                 AND tr.approvalDate is NULL
             )
             """)
-    List<Task> getTasksWhereExistsNotApprovedTreatment(@Param("now") LocalDate now);
+    List<Task> getTasksWhereExistsNotApprovedTreatment(@Param("institutionId") Long institutionId, 
+            @Param("now") LocalDate now);
+    
+    // Legacy methods without institution filter (for backward compatibility)
+    // These should not be used in production code
+    @Deprecated
+    Slice<Task> findAllBy(Pageable pageable);
+
+    @Deprecated
+    Slice<Task> findAllByCompleted(boolean completed, Pageable pageable);
 }

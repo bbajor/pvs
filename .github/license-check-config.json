@@ -1,0 +1,66 @@
+{
+  "problematicSoftware": [
+    {
+      "name": "Docker Desktop",
+      "pattern": "docker desktop",
+      "severity": "error",
+      "reason": "Docker Desktop erfordert eine kommerzielle Lizenz für Unternehmen mit mehr als 250 Mitarbeitern oder mehr als 10 Millionen USD Jahresumsatz.",
+      "alternative": "Podman Desktop (Apache 2.0, keine kommerziellen Einschränkungen)"
+    },
+    {
+      "name": "Docker Desktop Enterprise",
+      "pattern": "docker desktop enterprise|docker enterprise",
+      "severity": "error",
+      "reason": "Docker Enterprise erfordert eine kommerzielle Lizenz.",
+      "alternative": "Podman (Apache 2.0, keine kommerziellen Einschränkungen)"
+    },
+    {
+      "name": "Docker Hub Pro",
+      "pattern": "docker hub pro",
+      "severity": "error",
+      "reason": "Docker Hub Pro erfordert eine kommerzielle Lizenz.",
+      "alternative": "GitHub Container Registry (ghcr.io) oder andere OCI-kompatible Registries"
+    },
+    {
+      "name": "Docker Desktop Business",
+      "pattern": "docker desktop business",
+      "severity": "error",
+      "reason": "Docker Desktop Business erfordert eine kommerzielle Lizenz.",
+      "alternative": "Podman Desktop (Apache 2.0, keine kommerziellen Einschränkungen)"
+    }
+  ],
+  "warnings": [
+    {
+      "name": "Docker CLI ohne Podman-Alternative",
+      "pattern": "docker\\.",
+      "severity": "warning",
+      "reason": "Docker CLI-Referenzen sollten eine Podman-Alternative haben.",
+      "alternative": "Podman CLI (kompatibel mit Docker-Befehlen)"
+    },
+    {
+      "name": "docker-compose ohne podman-compose",
+      "pattern": "docker-compose",
+      "severity": "warning",
+      "reason": "docker-compose Referenzen sollten eine podman-compose Alternative haben.",
+      "alternative": "podman-compose oder podman compose (ab Podman 4.0+)"
+    }
+  ],
+  "excludedPaths": [
+    ".git",
+    "node_modules",
+    "LICENSE",
+    "license-check",
+    "PODMAN",
+    "Dockerfile",
+    ".github/workflows/license-check.yml",
+    ".github/license-check-config.json"
+  ],
+  "excludedExtensions": [
+    ".lock",
+    ".log",
+    ".jar",
+    ".war",
+    ".ear"
+  ]
+}
+
