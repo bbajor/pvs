@@ -20,20 +20,28 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
+
 import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientListPresenter;
+import de.bbajor.pvs.security.AppRoles;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route("patient-search")
 @PageTitle("Patientenverwaltung")
 @Menu(order = 1, icon = "vaadin:male", title = "Patientenverwaltung")
 @PermitAll
-public class PatientMainView extends Main implements PatientChangeListener {
+public class PatientMainView extends Main implements PatientChangeListener, BeforeEnterObserver {
 
     private final PatientListPresenter patientListPresenter;
     private final VoiceTranscriptionService transcriptionService;
@@ -95,6 +103,20 @@ public class PatientMainView extends Main implements PatientChangeListener {
         });
 
         add(patientGrid);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // SUPER_ADMIN without institution context should not access patient data
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+        boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+        
+        if (isSuperAdmin && !hasInstitutionContext) {
+            // Redirect SUPER_ADMIN to institution management
+            event.forwardTo("admin/institutions");
+        }
     }
 
     private void openPatientDialog(Patient dto) {

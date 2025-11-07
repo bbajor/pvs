@@ -14,16 +14,20 @@ COPY src/ src/
 
 # Build production frontend bundle so runtime doesn't need dev bundling
 # Use npm explicitly to avoid extra pnpm/bootstrap downloads inside container
-RUN gradle clean vaadinBuildFrontend --no-daemon \
+# classes task (includes compileJava + processResources) must run before vaadinBuildFrontend
+# to ensure all compiled classes and dependencies are available for annotation scanning
+RUN gradle clean classes --no-daemon --build-cache --parallel && \
+    gradle vaadinBuildFrontend --no-daemon \
       -Pvaadin.productionMode \
       -Pvaadin.frontend.packageManager=npm \
       -Pvaadin.frontend.forceInstall=true \
-      --build-cache --parallel || \
-    gradle clean vaadinBuildFrontend --no-daemon \
-      -Pvaadin.productionMode \
-      -Pvaadin.frontend.packageManager=npm \
-      -Pvaadin.frontend.forceInstall=true \
-      --build-cache --parallel
+      --build-cache || \
+    (gradle clean classes --no-daemon --build-cache && \
+     gradle vaadinBuildFrontend --no-daemon \
+       -Pvaadin.productionMode \
+       -Pvaadin.frontend.packageManager=npm \
+       -Pvaadin.frontend.forceInstall=true \
+       --build-cache)
 
 # Build the application (Tests bereits im Workflow ausgeführt)
 # Nutze --build-cache und --parallel für schnellere Builds

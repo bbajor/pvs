@@ -88,10 +88,22 @@ public final class AppRoles {
     public static final String OWNER = "OWNER";
 
     /**
+     * Role for institution administrators who can create and manage institutions.
+     * <p>
+     * Users with this role can create institutions and initial admins for those institutions,
+     * but cannot access the data of the institutions themselves (data isolation).
+     * This role is typically used by system administrators who manage the multi-tenant setup.
+     * </p>
+     */
+    public static final String INSTITUTION_ADMIN = "INSTITUTION_ADMIN";
+
+    /**
      * Role for super administrators with full system access.
      * <p>
      * Super administrators have the highest level of access and can perform all administrative operations.
      * MFA is required for users with this role.
+     * Users with this role have access to all system functions and can manage everything,
+     * including institutions and their data. Use this role sparingly.
      * </p>
      */
     public static final String SUPER_ADMIN = "SUPER_ADMIN";

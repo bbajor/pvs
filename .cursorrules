@@ -25,3 +25,17 @@
 - Agent-PRs nur gegen `dev` (wird per CI erzwungen)
 - Deployments: `test` → Test-Hetzner, `master` → Prod-Hetzner
 
+## PowerShell Scripts
+- **Vor dem Abschluss IMMER Syntax prüfen**: PowerShell-Scripts müssen vor dem Commit/PR auf Syntax-Fehler geprüft werden
+- **Vermeide verschachtelte try-catch in try-Blöcken**: PowerShell interpretiert verschachtelte try-catch-Blöcke innerhalb eines äußeren try-Blocks manchmal falsch
+- **Best Practice**: Verschiebe verschachtelte try-catch-Blöcke außerhalb des äußeren try-Blocks oder vereinfache die Struktur
+- **Syntax-Prüfung**: Verwende `powershell -NoProfile -File <script.ps1>` zum Testen oder PowerShell Parser API
+- **try-catch Format**: `try { } catch { }` auf einer Zeile oder klar getrennt - vermeide `try { if { } } catch { }` Strukturen
+
+## Flyway Migrationsskripte
+- **Bei Änderungen an Entities oder TestDataInitializer**: Prüfe und passe die Flyway-Migrationsskripte an
+- **Schema-Änderungen**: Wenn Entity-Klassen geändert werden (@Entity, @Table, @Column, @ManyToOne, etc.), muss V1__initial_schema.sql aktualisiert werden
+- **Testdaten-Änderungen**: Wenn TestDataInitializer geändert wird, muss V2__test_data.sql aktualisiert werden
+- **Neue Migrationen**: Bei größeren Schema-Änderungen ein neues Migrationsskript (V3__, V4__, etc.) erstellen
+- **Synchronisation**: Flyway-Skripte müssen immer mit den aktuellen Entity-Definitionen synchron sein
+

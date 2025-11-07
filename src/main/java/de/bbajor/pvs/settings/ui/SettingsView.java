@@ -10,9 +10,10 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
-import de.bbajor.pvs.settings.ui.tabs.AiSettingsTab;
+import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
+import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
+import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
-import de.bbajor.pvs.settings.ui.tabs.PracticeSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.UserSettingsTab;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
@@ -23,32 +24,38 @@ import jakarta.annotation.security.RolesAllowed;
 @RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 public class SettingsView extends Main {
 
-    private final Tab aiTab = new Tab("KI-Module");
+    private final Tab generalTab = new Tab("Allgemein");
+    private final Tab layoutTab = new Tab("Layout");
+    private final Tab locationTab = new Tab("Standorte");
     private final Tab userTab = new Tab("Benutzerverwaltung");
-    private final Tab practiceTab = new Tab("Praxisverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
 
     private final VerticalLayout content = new VerticalLayout();
 
-    public SettingsView(AiSettingsTab aiSettingsTab, UserSettingsTab userSettingsTab,
-            PracticeSettingsTab practiceSettingsTab, MedicationSettingsTab medicationSettingsTab) {
+    public SettingsView(InstitutionGeneralTab institutionGeneralTab,
+            LayoutSettingsTab layoutSettingsTab,
+            LocationManagementTab locationManagementTab,
+            UserSettingsTab userSettingsTab,
+            MedicationSettingsTab medicationSettingsTab) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
                 LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(aiTab, userTab, practiceTab, medicationTab);
+        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, userTab, medicationTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
-            if (selected == aiTab) {
-                content.add(aiSettingsTab);
+            if (selected == generalTab) {
+                content.add(institutionGeneralTab);
+            } else if (selected == layoutTab) {
+                content.add(layoutSettingsTab);
+            } else if (selected == locationTab) {
+                content.add(locationManagementTab);
             } else if (selected == userTab) {
                 content.add(userSettingsTab);
-            } else if (selected == practiceTab) {
-                content.add(practiceSettingsTab);
             } else if (selected == medicationTab) {
                 content.add(medicationSettingsTab);
             }
@@ -61,8 +68,8 @@ public class SettingsView extends Main {
         add(tabs, content);
 
         // Show first tab by default
-        tabs.setSelectedTab(aiTab);
-        content.add(aiSettingsTab);
+        tabs.setSelectedTab(generalTab);
+        content.add(institutionGeneralTab);
     }
 
 }

@@ -1,0 +1,31 @@
+services:
+  # PostgreSQL Database nur für Migrationstests
+  postgres-test-migrations:
+    image: postgres:15-alpine
+    container_name: pvs-postgres-test-migrations
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pvs_test_migrations
+      POSTGRES_USER: pvs_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "127.0.0.1:5435:5432"  # Port 5435, damit es nicht mit anderen PostgreSQL-Instanzen kollidiert
+    volumes:
+      - postgres-test-migrations-data:/var/lib/postgresql/data
+    networks:
+      - pvs-test-migrations-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pvs_user -d pvs_test_migrations"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  pvs-test-migrations-network:
+    driver: bridge
+
+volumes:
+  postgres-test-migrations-data:
+    driver: local
+

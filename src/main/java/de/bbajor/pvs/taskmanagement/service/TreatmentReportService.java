@@ -1,9 +1,9 @@
 package de.bbajor.pvs.taskmanagement.service;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -20,10 +20,30 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+
+import javax.imageio.ImageIO;
+
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
-import de.bbajor.pvs.practice.model.Practice;
-import de.bbajor.pvs.practice.service.PracticeService;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.location.service.LocationService;
+import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 
 @Service
@@ -33,263 +53,472 @@ public class TreatmentReportService {
     private Clock clock;
     
     @Autowired
-    private PracticeService practiceService;
-
+    private LocationService locationService;
+    
+    @Autowired
+    private UserAccountRepository userAccountRepository;
+    
+    @Autowired
+    private InstitutionRepository institutionRepository;
+    
+    @Autowired
+    private TreatmentRepository treatmentRepository;
+    
+    public byte[] generatePatientPdfReport(Treatment treatment, SurgicalCenterTimeSlot timeSlot, 
+            String treatingDoctor, boolean isApproved) {
+        return generatePdfReportForPatient(java.util.List.of(treatment), timeSlot, treatingDoctor, isApproved);
+    }
+    
     public byte[] generatePdfReport(List<Treatment> treatments, SurgicalCenterTimeSlot timeSlot, 
-            String treatingDoctor) {
+            String treatingDoctor, boolean allApproved) {
+        return generatePdfReportForPatient(treatments, timeSlot, treatingDoctor, allApproved);
+    }
+    
+    private byte[] generatePdfReportForPatient(List<Treatment> treatments, SurgicalCenterTimeSlot timeSlot, 
+            String treatingDoctor, boolean allApproved) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             
-            // Load practice data first
-            Practice practice = practiceService.getPractice();
+            // Load location and institution data
+            Location location = locationService.getDefaultLocation();
+            Institution institution = location != null ? location.getInstitution() : null;
+            
+            // Load full institution data (including watermark and website URL)
+            if (institution != null && institution.getId() != null) {
+                institution = institutionRepository.findById(institution.getId()).orElse(institution);
+            }
             
             // Create first page and add watermark
             PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
             
-            // Add watermark to the page
-            addWatermark(document, page, practice);
+            // Add watermark to the page (from institution if available)
+            addWatermark(document, page, institution);
             
             PDPageContentStream contentStream = new PDPageContentStream(document, page);
             
-            int yPosition = 750;
-            int lineHeight = 20;
+            int yPosition = 780;
+            int lineHeight = 16;
             int margin = 50;
+            int rightMargin = 545;
+            int sectionSpacing = 20; // Professional spacing between sections
             
             PDType1Font titleFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
             PDType1Font headerFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
             PDType1Font normalFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-            PDType1Font smallFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
             
-            // Title with time slot information
-            String titleText = "Behandlungsbericht";
+            // Professional title with German date format
+            String titleText = "Behandlungsprotokoll";
             if (timeSlot != null) {
-                DateTimeFormatter dateFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
-                titleText += " für die Behandlungen vom " + dateFormatter.format(timeSlot.getDate());
-                
-                if (timeSlot.getStartTime() != null && timeSlot.getEndTime() != null) {
-                    titleText += " von " + timeSlot.getStartTime() + " - " + timeSlot.getEndTime() + " Uhr";
-                }
-                
-                if (timeSlot.getSurgicalCenter() != null && timeSlot.getSurgicalCenter().getName() != null) {
-                    titleText += " am Behandlungsort " + timeSlot.getSurgicalCenter().getName();
-                }
+                String germanDate = formatGermanDate(timeSlot.getDate());
+                titleText += " vom " + germanDate;
             }
             
-            contentStream.setFont(titleFont, 16); // Slightly smaller to fit
+            // Title with professional styling (dark blue, high contrast)
+            contentStream.setNonStrokingColor(0f/255f, 51f/255f, 153f/255f); // Dark blue, high contrast
+            contentStream.setFont(titleFont, 20); // Slightly larger for more professional look
+            contentStream.beginText();
+            contentStream.newLineAtOffset(margin, yPosition);
+            contentStream.showText(titleText);
+            contentStream.endText();
+            contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+            yPosition -= 30; // More space after title
             
-            // Wrap title text if too long
-            String[] titleLines = wrapText(titleText, 90);
-            for (int i = 0; i < titleLines.length; i++) {
-                contentStream.beginText();
-                contentStream.newLineAtOffset(margin, yPosition);
-                contentStream.showText(titleLines[i]);
-                contentStream.endText();
-                yPosition -= 22; // Line height for title
-            }
-            yPosition -= 5; // Extra space after title
+            // Compact header section with two columns
+            contentStream.setFont(normalFont, 9);
+            int leftCol = margin;
+            int startY = yPosition;
             
-            // Practice Information (if available)
-            if (practice != null && practice.getPracticeName() != null && !practice.getPracticeName().isBlank()) {
-                contentStream.setFont(headerFont, 12);
-                contentStream.beginText();
-                contentStream.newLineAtOffset(margin, yPosition);
-                contentStream.showText("Praxisinformationen");
-                contentStream.endText();
-                yPosition -= 30;
-                
-                contentStream.setFont(normalFont, 10);
-                yPosition = addTextLine(contentStream, "Praxis: " + practice.getPracticeName(), margin, yPosition, lineHeight);
-                
-                String fullAddress = practice.getFullAddress();
+            // Left column: Behandelnde Einrichtung
+            if (location != null) {
+                contentStream.setNonStrokingColor(0, 0, 0); // Black for headers (high contrast)
+                contentStream.setFont(headerFont, 10);
+                yPosition = addTextLine(contentStream, "Behandelnde Einrichtung", leftCol, yPosition, lineHeight);
+                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                contentStream.setFont(normalFont, 9);
+                if (location.getLocationName() != null && !location.getLocationName().isBlank()) {
+                    yPosition = addTextLine(contentStream, location.getLocationName(), leftCol, yPosition, lineHeight);
+                }
+                String fullAddress = location.getFullAddress();
                 if (fullAddress != null && !fullAddress.isBlank()) {
-                    yPosition = addTextLine(contentStream, "Adresse: " + fullAddress, margin, yPosition, lineHeight);
+                    yPosition = addTextLine(contentStream, fullAddress, leftCol, yPosition, lineHeight);
                 }
-                
-                String ownerWithTitle = practice.getOwnerWithTitle();
-                if (ownerWithTitle != null && !ownerWithTitle.isBlank()) {
-                    yPosition = addTextLine(contentStream, "Praxisinhaber: " + ownerWithTitle, margin, yPosition, lineHeight);
+                if (location.getPhone() != null && !location.getPhone().isBlank()) {
+                    yPosition = addTextLine(contentStream, "Tel: " + location.getPhone(), leftCol, yPosition, lineHeight);
                 }
-                
-                if (practice.getLanr() != null && !practice.getLanr().isBlank()) {
-                    yPosition = addTextLine(contentStream, "LANR: " + practice.getLanr(), margin, yPosition, lineHeight);
+                if (location.getEmail() != null && !location.getEmail().isBlank()) {
+                    yPosition = addTextLine(contentStream, location.getEmail(), leftCol, yPosition, lineHeight);
                 }
-                
-                if (practice.getBsnr() != null && !practice.getBsnr().isBlank()) {
-                    yPosition = addTextLine(contentStream, "BSNR: " + practice.getBsnr(), margin, yPosition, lineHeight);
-                }
-                
-                if (practice.getPhone() != null && !practice.getPhone().isBlank()) {
-                    yPosition = addTextLine(contentStream, "Telefon: " + practice.getPhone(), margin, yPosition, lineHeight);
-                }
-                
-                if (practice.getEmail() != null && !practice.getEmail().isBlank()) {
-                    yPosition = addTextLine(contentStream, "E-Mail: " + practice.getEmail(), margin, yPosition, lineHeight);
-                }
-                
-                yPosition -= 10;
             }
             
-            // Visual separation line
-            yPosition -= 5;
+            // Right column: QR-Code if website URL available
+            yPosition = startY;
+            if (institution != null && institution.getWebsiteUrl() != null && !institution.getWebsiteUrl().isBlank()) {
+                try {
+                    BufferedImage qrImage = generateQRCode(institution.getWebsiteUrl(), 100, 100);
+                    ByteArrayOutputStream qrBaos = new ByteArrayOutputStream();
+                    ImageIO.write(qrImage, "PNG", qrBaos);
+                    PDImageXObject qrCodeImage = PDImageXObject.createFromByteArray(document, qrBaos.toByteArray(), "qr-code");
+                    contentStream.drawImage(qrCodeImage, rightMargin - 100, yPosition - 100, 100, 100);
+                } catch (Exception e) {
+                    // QR code generation failed, continue without it
+                }
+            }
+            
+            // Use minimum Y position from both columns
+            yPosition = Math.min(yPosition, startY - (location != null ? 80 : 40));
+            yPosition -= sectionSpacing;
+            
+            // Section header with separation line: Termindetails (professional styling)
+            contentStream.setNonStrokingColor(0, 0, 0); // Black for headers
+            contentStream.setFont(headerFont, 12); // Slightly larger for better hierarchy
+            yPosition = addTextLine(contentStream, "Termindetails", margin, yPosition, lineHeight);
+            contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+            yPosition -= 6;
+            
+            // Professional separation line (slightly thicker)
+            contentStream.setStrokingColor(100f/255f, 100f/255f, 100f/255f); // Darker gray for better visibility
             contentStream.setLineWidth(1.5f);
             contentStream.moveTo(margin, yPosition);
-            contentStream.lineTo(545, yPosition);
+            contentStream.lineTo(rightMargin, yPosition);
             contentStream.stroke();
-            yPosition -= 15;
+            contentStream.setStrokingColor(0, 0, 0);
+            yPosition -= 12;
             
-            // Treatment Location Information
-            contentStream.setFont(headerFont, 12);
-            contentStream.beginText();
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Behandlungsort");
-            contentStream.endText();
-            yPosition -= 30;
-            
-            contentStream.setFont(normalFont, 10);
-            
+            // Termindetails content
+            contentStream.setFont(normalFont, 9);
             if (timeSlot != null && timeSlot.getSurgicalCenter() != null) {
-                yPosition = addTextLine(contentStream, "Einrichtung: " + timeSlot.getSurgicalCenter().getName(), 
-                        margin, yPosition, lineHeight);
+                yPosition = addTextLine(contentStream, "Behandlungsort: " + timeSlot.getSurgicalCenter().getName(), margin, yPosition, lineHeight);
                 if (timeSlot.getSurgicalCenter().getAddress() != null) {
-                    yPosition = addTextLine(contentStream, "Adresse: " + timeSlot.getSurgicalCenter().getAddress(), 
-                            margin, yPosition, lineHeight);
+                    yPosition = addTextLine(contentStream, "Adresse: " + timeSlot.getSurgicalCenter().getAddress().toString(), margin, yPosition, lineHeight);
                 }
-            }
-            
-            if (timeSlot != null) {
-                DateTimeFormatter dateFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
-                yPosition = addTextLine(contentStream, "Datum: " + dateFormatter.format(timeSlot.getDate()), 
-                        margin, yPosition, lineHeight);
                 if (timeSlot.getStartTime() != null && timeSlot.getEndTime() != null) {
-                    yPosition = addTextLine(contentStream, "Zeitraum: " + timeSlot.getStartTime() + " - " + timeSlot.getEndTime(), 
-                            margin, yPosition, lineHeight);
+                    DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                    String dateTime = dateFormatter.format(timeSlot.getDate()) + " " + timeSlot.getStartTime() + "-" + timeSlot.getEndTime() + " Uhr";
+                    yPosition = addTextLine(contentStream, "Datum/Zeit: " + dateTime, margin, yPosition, lineHeight);
                 }
             }
             
-            yPosition = addTextLine(contentStream, "Behandelnder Arzt: " + treatingDoctor, margin, yPosition, lineHeight);
-            yPosition = addTextLine(contentStream, "Anzahl Behandlungen: " + treatments.size(), margin, yPosition, lineHeight);
+            // Get full name of treating doctor
+            String treatingDoctorFullName = treatingDoctor;
+            try {
+                UserAccount treatingDoctorAccount = userAccountRepository.findByUsername(treatingDoctor).orElse(null);
+                if (treatingDoctorAccount != null && treatingDoctorAccount.getFullName() != null && !treatingDoctorAccount.getFullName().isBlank()) {
+                    treatingDoctorFullName = treatingDoctorAccount.getFullName();
+                }
+            } catch (Exception e) {
+                // Fallback to username if lookup fails
+            }
+            yPosition = addTextLine(contentStream, "Behandelnder Arzt: " + treatingDoctorFullName, margin, yPosition, lineHeight);
+            yPosition -= sectionSpacing;
             
-            // Report creation info
-            java.time.format.DateTimeFormatter formatter = DateAndTimeUtils.getGermanDateTimeFormatter();
-            String creationInfo = "Bericht erstellt: " + 
-                java.time.LocalDateTime.now(clock.getZone()).format(DateAndTimeUtils.getGermanDateTimeFormatter()) + 
-                " von " + treatingDoctor;
-            yPosition = addTextLine(contentStream, creationInfo, margin, yPosition, lineHeight);
+            // Section header with separation line: Behandlungsdetails (professional styling)
+            contentStream.setNonStrokingColor(0, 0, 0);
+            contentStream.setFont(headerFont, 12); // Slightly larger for better hierarchy
+            yPosition = addTextLine(contentStream, "Behandlungsdetails", margin, yPosition, lineHeight);
+            contentStream.setNonStrokingColor(0, 0, 0);
+            yPosition -= 6;
             
-            yPosition -= 20;
+            // Professional separation line (slightly thicker)
+            contentStream.setStrokingColor(100f/255f, 100f/255f, 100f/255f); // Darker gray for better visibility
+            contentStream.setLineWidth(1.5f);
+            contentStream.moveTo(margin, yPosition);
+            contentStream.lineTo(rightMargin, yPosition);
+            contentStream.stroke();
+            contentStream.setStrokingColor(0, 0, 0);
+            yPosition -= 12;
             
-            // Treatments
-            contentStream.setFont(headerFont, 12);
-            contentStream.beginText();
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Behandlungsdetails");
-            contentStream.endText();
-            yPosition -= 30;
-            
+            // Treatments - compact layout
             PDType1Font patientFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-            contentStream.setFont(normalFont, 10);
+            contentStream.setFont(normalFont, 9);
+            
+            // Track which treatment plans we've already shown statistics for
+            java.util.Set<Long> shownPlanStats = new java.util.HashSet<>();
             
             for (Treatment treatment : treatments) {
-                if (yPosition < 150) {
+                // Check if we need new page (leave space for confidentiality clause)
+                if (yPosition < 200) {
                     contentStream.close();
-                    // Add page number to previous page
                     addPageNumber(document, document.getNumberOfPages());
                     
                     page = new PDPage(PDRectangle.A4);
                     document.addPage(page);
-                    
-                    // Add watermark to new page
-                    addWatermark(document, page, practice);
-                    
+                    addWatermark(document, page, institution);
                     contentStream = new PDPageContentStream(document, page);
-                    yPosition = 750;
+                    yPosition = 780;
                 }
                 
-                // Visual separation line before each patient
-                contentStream.setLineWidth(1f);
-                contentStream.moveTo(margin, yPosition);
-                contentStream.lineTo(545, yPosition);
-                contentStream.stroke();
-                yPosition -= 15; // Increased spacing
-                
-                String patientInfo = treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null 
-                    ? treatment.getTreatmentPlan().getPatient().toString() : "-";
-                
-                // Patient name in bold
-                yPosition = addBoldTextLine(contentStream, "Patient: " + patientInfo, margin, yPosition, lineHeight, patientFont);
-                
-                contentStream.setFont(normalFont, 10);
-                String eye = treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-";
-                String eyeText = "Auge: " + eye;
-                
-                // Save the current Y position before drawing text
-                int eyeYPosition = yPosition;
-                
-                // Color code based on eye - draw background first at the text position
-                if (treatment.getSideOfEye() != null) {
-                    if (treatment.getSideOfEye().name().equals("RIGHT")) {
-                        // Right eye: light blue background (#E3F2FD)
-                        contentStream.setNonStrokingColor(227f/255f, 242f/255f, 253f/255f);
-                        contentStream.addRect(margin, eyeYPosition - 3, 495, lineHeight);
-                        contentStream.fill();
-                        contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
-                    } else if (treatment.getSideOfEye().name().equals("LEFT")) {
-                        // Left eye: light orange background (#FFF3E0)
-                        contentStream.setNonStrokingColor(255f/255f, 243f/255f, 224f/255f);
-                        contentStream.addRect(margin, eyeYPosition - 3, 495, lineHeight);
-                        contentStream.fill();
-                        contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                // Patient information with full details
+                Patient patient = treatment.getTreatmentPlan() != null ? treatment.getTreatmentPlan().getPatient() : null;
+                if (patient != null) {
+                    // Patient name in bold with high contrast color
+                    String patientName = patient.getLastName() + ", " + patient.getFirstName();
+                    contentStream.setNonStrokingColor(0f/255f, 51f/255f, 153f/255f); // Dark blue, high contrast
+                    yPosition = addBoldTextLine(contentStream, patientName, margin, yPosition, lineHeight, patientFont);
+                    contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                    
+                    contentStream.setFont(normalFont, 9);
+                    
+                    // Geburtsdatum
+                    if (patient.getBirth() != null) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                        yPosition = addTextLine(contentStream, "Geburtsdatum: " + dateFormatter.format(patient.getBirth()), margin, yPosition, lineHeight);
                     }
+                    
+                    // Adresse
+                    if (patient.getAddress() != null) {
+                        String address = patient.getAddress().toString();
+                        if (address != null && !address.isBlank()) {
+                            yPosition = addTextLine(contentStream, "Adresse: " + address, margin, yPosition, lineHeight);
+                        }
+                    }
+                    
+                    // Krankenkasse
+                    if (patient.getHealthInsurance() != null) {
+                        String insuranceName = patient.getHealthInsurance().getBillingCarrierName();
+                        if (insuranceName != null && !insuranceName.isBlank()) {
+                            yPosition = addTextLine(contentStream, "Krankenkasse: " + insuranceName, margin, yPosition, lineHeight);
+                        }
+                    }
+                    yPosition -= 5;
+                } else {
+                    // Fallback if patient is null
+                    contentStream.setNonStrokingColor(0f/255f, 51f/255f, 153f/255f);
+                    yPosition = addBoldTextLine(contentStream, "Patient: -", margin, yPosition, lineHeight, patientFont);
+                    contentStream.setNonStrokingColor(0, 0, 0);
+                    contentStream.setFont(normalFont, 9);
                 }
                 
-                // Now draw the text on top of the colored background
-                yPosition = addTextLine(contentStream, eyeText, margin, eyeYPosition, lineHeight);
+                // Treatment plan statistics (only once per treatment plan)
+                TreatmentPlan treatmentPlan = treatment.getTreatmentPlan();
+                if (treatmentPlan != null && treatmentPlan.getId() != null && !shownPlanStats.contains(treatmentPlan.getId())) {
+                    shownPlanStats.add(treatmentPlan.getId());
+                    yPosition -= 8;
+                    contentStream.setFont(headerFont, 9);
+                    contentStream.setNonStrokingColor(0, 0, 0);
+                    yPosition = addTextLine(contentStream, "Behandlungsplan-Statistik", margin, yPosition, lineHeight);
+                    contentStream.setFont(normalFont, 9);
+                    
+                    // Get all treatments for this plan, sorted by date
+                    List<Treatment> allPlanTreatments = treatmentRepository
+                            .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlan.getId());
+                    
+                    // Count treatments per eye
+                    long leftEyeCount = allPlanTreatments.stream()
+                            .filter(t -> t.getSideOfEye() == SideOfEye.LEFT)
+                            .count();
+                    long rightEyeCount = allPlanTreatments.stream()
+                            .filter(t -> t.getSideOfEye() == SideOfEye.RIGHT)
+                            .count();
+                    
+                    yPosition = addTextLine(contentStream, 
+                            "Behandlungen: " + leftEyeCount + "x linkes Auge, " + rightEyeCount + "x rechtes Auge", 
+                            margin + 10, yPosition, lineHeight);
+                    
+                    // Start date of treatment plan
+                    LocalDate planStartDate = treatmentPlan.getCreationDate();
+                    if (planStartDate == null && !allPlanTreatments.isEmpty()) {
+                        // Fallback: use first treatment date
+                        planStartDate = allPlanTreatments.stream()
+                                .filter(t -> t.getDate() != null)
+                                .map(Treatment::getDate)
+                                .min(LocalDate::compareTo)
+                                .orElse(null);
+                    }
+                    if (planStartDate != null) {
+                        String germanStartDate = formatGermanDate(planStartDate);
+                        yPosition = addTextLine(contentStream, 
+                                "Behandlungsplan gestartet: " + germanStartDate, 
+                                margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Current treatment date
+                    LocalDate currentTreatmentDate = treatment.getDate();
+                    if (currentTreatmentDate != null) {
+                        // Find previous treatment (before current date)
+                        Treatment previousTreatment = allPlanTreatments.stream()
+                                .filter(t -> t.getDate() != null && t.getDate().isBefore(currentTreatmentDate))
+                                .max((t1, t2) -> t1.getDate().compareTo(t2.getDate()))
+                                .orElse(null);
+                        
+                        if (previousTreatment != null && previousTreatment.getDate() != null) {
+                            long weeksBetween = java.time.temporal.ChronoUnit.WEEKS.between(previousTreatment.getDate(), currentTreatmentDate);
+                            String previousDate = formatGermanDate(previousTreatment.getDate());
+                            yPosition = addTextLine(contentStream, 
+                                    "Letztes Behandlungsintervall: " + weeksBetween + " Wochen (von " + previousDate + " bis " + formatGermanDate(currentTreatmentDate) + ")", 
+                                    margin + 10, yPosition, lineHeight);
+                        } else {
+                            yPosition = addTextLine(contentStream, 
+                                    "Letztes Behandlungsintervall: Erste Behandlung im Behandlungsplan", 
+                                    margin + 10, yPosition, lineHeight);
+                        }
+                        
+                        // Find next treatment (after current date)
+                        Treatment nextTreatment = allPlanTreatments.stream()
+                                .filter(t -> t.getDate() != null && t.getDate().isAfter(currentTreatmentDate))
+                                .min((t1, t2) -> t1.getDate().compareTo(t2.getDate()))
+                                .orElse(null);
+                        
+                        if (nextTreatment != null && nextTreatment.getDate() != null) {
+                            long weeksUntilNext = java.time.temporal.ChronoUnit.WEEKS.between(currentTreatmentDate, nextTreatment.getDate());
+                            String nextDate = formatGermanDate(nextTreatment.getDate());
+                            if (nextTreatment.getDate().isAfter(LocalDate.now())) {
+                                yPosition = addTextLine(contentStream, 
+                                        "Geplantes Behandlungsintervall: " + weeksUntilNext + " Wochen (bis " + nextDate + ")", 
+                                        margin + 10, yPosition, lineHeight);
+                            } else {
+                                yPosition = addTextLine(contentStream, 
+                                        "Nachfolgendes Behandlungsintervall: " + weeksUntilNext + " Wochen (bis " + nextDate + ")", 
+                                        margin + 10, yPosition, lineHeight);
+                            }
+                        }
+                    }
+                    
+                    yPosition -= 5;
+                }
                 
+                // Compact two-column layout for treatment details
+                int detailLeft = margin + 10;
+                int detailRight = 280;
+                int detailY = yPosition;
+                
+                String eye = treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-";
                 String medication = treatment.getMedication() != null 
                     ? treatment.getMedication().getArzneimittelbezeichnung() : "-";
-                yPosition = addTextLine(contentStream, "Medikament: " + medication, margin, yPosition, lineHeight);
-                
                 String dosage = treatment.getDosage() != null ? treatment.getDosage() : "-";
-                yPosition = addTextLine(contentStream, "Dosierung: " + dosage, margin, yPosition, lineHeight);
-                
                 String frequency = treatment.getFrequency() != null ? treatment.getFrequency() : "-";
-                yPosition = addTextLine(contentStream, "Frequenz: " + frequency, margin, yPosition, lineHeight);
                 
-                // Approval status with details
-                DateTimeFormatter dateFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
-                String status = "Offen";
+                // Left column
+                yPosition = addTextLine(contentStream, "Auge: " + eye, detailLeft, detailY, lineHeight);
+                yPosition = addTextLine(contentStream, "Medikament: " + medication, detailLeft, yPosition, lineHeight);
+                
+                // Right column
+                detailY = yPosition - (lineHeight * 2);
+                yPosition = addTextLine(contentStream, "Dosierung: " + dosage, detailRight, detailY, lineHeight);
+                yPosition = addTextLine(contentStream, "Frequenz: " + frequency, detailRight, yPosition, lineHeight);
+                
+                // Approval info with high contrast colors (WCAG AA compliant)
+                String status;
                 if (treatment.getApprovalDate() != null) {
-                    status = "Geprüft am " + dateFormatter.format(treatment.getApprovalDate());
+                    if (treatment.getApprovalDateTime() != null) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+                        status = "Geprüft am: " + dateFormatter.format(treatment.getApprovalDateTime());
+                    } else {
+                        // Fallback: use approvalDate if approvalDateTime is null
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                        status = "Geprüft am: " + dateFormatter.format(treatment.getApprovalDate());
+                    }
                     if (treatment.getApprovedByUserName() != null) {
                         status += " von " + treatment.getApprovedByUserName();
                     }
-                    if (treatment.getSecondApprovalDateTime() != null && treatment.getSecondApprovedByUserName() != null) {
-                        status += " | Zweitprüfung: " + treatment.getSecondApprovedByUserName();
-                    }
+                    // Dark green for approved status (high contrast, avoids red-green confusion)
+                    contentStream.setNonStrokingColor(0f/255f, 102f/255f, 51f/255f); // Dark green, high contrast
+                } else {
+                    // Dark orange for pending status (high contrast)
+                    status = "Nicht genehmigt - Vorläufiger Bericht";
+                    contentStream.setNonStrokingColor(204f/255f, 85f/255f, 0f/255f); // Dark orange, high contrast
                 }
-                yPosition = addTextLine(contentStream, "Status: " + status, margin, yPosition, lineHeight);
+                yPosition = Math.max(yPosition, detailY) + lineHeight;
+                yPosition = addTextLine(contentStream, status, detailLeft, yPosition, lineHeight);
+                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
                 
+                // Additional info with high contrast text (no background box)
                 String additionalInfo = treatment.getAdditionalInfo() != null && !treatment.getAdditionalInfo().isBlank() 
-                    ? treatment.getAdditionalInfo() : "-";
-                yPosition = addTextLine(contentStream, "Zusätzliche Informationen: " + additionalInfo, margin, yPosition, lineHeight);
+                    ? treatment.getAdditionalInfo() : null;
+                if (additionalInfo != null) {
+                    // Text in bold with high contrast color
+                    contentStream.setFont(headerFont, 9);
+                    contentStream.setNonStrokingColor(0, 0, 0); // Black for maximum contrast
+                    yPosition = addTextLine(contentStream, "Bemerkungen: " + additionalInfo, detailLeft, yPosition, lineHeight);
+                    contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                    contentStream.setFont(normalFont, 9);
+                }
                 
-                yPosition -= 15; // Extra space between patients
+                yPosition -= 10; // Space between patients
             }
             
-            // Add confidentiality clause on a new page at the end
-            contentStream.close();
-            // Add page number to previous page
-            addPageNumber(document, document.getNumberOfPages());
+            // Section header with separation line: Prüfung (moved to end, before confidentiality clause)
+            yPosition -= sectionSpacing;
+            contentStream.setNonStrokingColor(0, 0, 0);
+            contentStream.setFont(headerFont, 12); // Slightly larger for better hierarchy
+            yPosition = addTextLine(contentStream, "Prüfung", margin, yPosition, lineHeight);
+            contentStream.setNonStrokingColor(0, 0, 0);
+            yPosition -= 6;
             
-            // Always create a new page for confidentiality clause
-            page = new PDPage(PDRectangle.A4);
-            document.addPage(page);
-            addWatermark(document, page, practice);
-            contentStream = new PDPageContentStream(document, page);
-            yPosition = 750;
+            // Professional separation line (slightly thicker)
+            contentStream.setStrokingColor(100f/255f, 100f/255f, 100f/255f); // Darker gray for better visibility
+            contentStream.setLineWidth(1.5f);
+            contentStream.moveTo(margin, yPosition);
+            contentStream.lineTo(rightMargin, yPosition);
+            contentStream.stroke();
+            contentStream.setStrokingColor(0, 0, 0);
+            yPosition -= 12;
             
-            yPosition = addConfidentialityClause(contentStream, practice, margin, yPosition, lineHeight, headerFont, normalFont);
+            // Prüfungsinformationen
+            contentStream.setFont(normalFont, 9);
+            Treatment firstTreatment = treatments.stream().findFirst().orElse(null);
+            if (firstTreatment != null && firstTreatment.getApprovalDate() != null) {
+                // Find approving doctor from treatments
+                String approvingDoctor = treatments.stream()
+                        .filter(t -> t.getApprovedByUserName() != null)
+                        .map(Treatment::getApprovedByUserName)
+                        .findFirst()
+                        .orElse("-");
+                
+                // Get full name of approving doctor
+                if (!"-".equals(approvingDoctor)) {
+                    try {
+                        UserAccount approvingDoctorAccount = userAccountRepository.findByUsername(approvingDoctor).orElse(null);
+                        if (approvingDoctorAccount != null && approvingDoctorAccount.getFullName() != null && !approvingDoctorAccount.getFullName().isBlank()) {
+                            approvingDoctor = approvingDoctorAccount.getFullName();
+                        }
+                    } catch (Exception e) {
+                        // Fallback to username if lookup fails
+                    }
+                }
+                
+                if (firstTreatment.getApprovalDateTime() != null) {
+                    DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+                    yPosition = addTextLine(contentStream, "Geprüft am: " + dateFormatter.format(firstTreatment.getApprovalDateTime()), margin, yPosition, lineHeight);
+                } else {
+                    DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                    yPosition = addTextLine(contentStream, "Geprüft am: " + dateFormatter.format(firstTreatment.getApprovalDate()), margin, yPosition, lineHeight);
+                }
+                if (!"-".equals(approvingDoctor)) {
+                    yPosition = addTextLine(contentStream, "von: " + approvingDoctor, margin, yPosition, lineHeight);
+                }
+            } else {
+                // Signal color for "Noch nicht geprüft" (red for attention)
+                contentStream.setNonStrokingColor(220f/255f, 50f/255f, 47f/255f); // Signal red
+                contentStream.setFont(headerFont, 10); // Slightly larger and bold for emphasis
+                yPosition = addTextLine(contentStream, "Noch nicht geprüft", margin, yPosition, lineHeight);
+                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                contentStream.setFont(normalFont, 9);
+            }
+            yPosition -= 15;
+            
+            // Add confidentiality clause on same page if space available, otherwise new page
+            if (yPosition < 150) {
+                contentStream.close();
+                addPageNumber(document, document.getNumberOfPages());
+                page = new PDPage(PDRectangle.A4);
+                document.addPage(page);
+                addWatermark(document, page, institution);
+                contentStream = new PDPageContentStream(document, page);
+                yPosition = 750;
+            } else {
+                yPosition -= 10;
+                // Separation line with high contrast
+                contentStream.setStrokingColor(128f/255f, 128f/255f, 128f/255f); // Medium gray for subtle but visible separation
+                contentStream.setLineWidth(1f);
+                contentStream.moveTo(margin, yPosition);
+                contentStream.lineTo(rightMargin, yPosition);
+                contentStream.stroke();
+                contentStream.setStrokingColor(0, 0, 0); // Reset to black
+                yPosition -= 10;
+            }
+            
+            yPosition = addConfidentialityClause(contentStream, location, margin, yPosition, lineHeight, headerFont, normalFont);
             
             contentStream.close();
             
@@ -334,13 +563,24 @@ public class TreatmentReportService {
     }
     
     private int addTextLine(PDPageContentStream contentStream, String text, int x, int y, int lineHeight) throws IOException {
-        // Handle text that might be too long
-        String wrappedText = text.length() > 90 ? text.substring(0, 87) + "..." : text;
-        contentStream.beginText();
-        contentStream.newLineAtOffset(x, y);
-        contentStream.showText(wrappedText);
-        contentStream.endText();
-        return y - lineHeight;
+        // Handle text that might be too long - wrap if needed
+        int maxWidth = 90;
+        if (text.length() > maxWidth) {
+            String[] wrapped = wrapText(text, maxWidth);
+            for (int i = 0; i < wrapped.length; i++) {
+                contentStream.beginText();
+                contentStream.newLineAtOffset(x, y - (i * lineHeight));
+                contentStream.showText(wrapped[i]);
+                contentStream.endText();
+            }
+            return y - (wrapped.length * lineHeight);
+        } else {
+            contentStream.beginText();
+            contentStream.newLineAtOffset(x, y);
+            contentStream.showText(text);
+            contentStream.endText();
+            return y - lineHeight;
+        }
     }
     
     private int addBoldTextLine(PDPageContentStream contentStream, String text, int x, int y, int lineHeight, PDType1Font font) throws IOException {
@@ -354,24 +594,51 @@ public class TreatmentReportService {
         return y - lineHeight;
     }
     
-    private void addWatermark(PDDocument document, PDPage page, Practice practice) throws IOException {
-        PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-        
+    private void addWatermark(PDDocument document, PDPage page, Institution institution) throws IOException {
         try (PDPageContentStream watermarkStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
             // Get page dimensions
             PDRectangle pageSize = page.getMediaBox();
             float width = pageSize.getWidth();
             float height = pageSize.getHeight();
             
-            // Watermark text
-            String watermarkText = "";
-            if (practice != null) {
-                if (practice.getPracticeName() != null && !practice.getPracticeName().isBlank()) {
-                    watermarkText = practice.getPracticeName();
-                    if (practice.getLanr() != null && !practice.getLanr().isBlank()) {
-                        watermarkText += " | LANR: " + practice.getLanr();
+            // Try to load watermark image from institution
+            if (institution != null && institution.getWatermarkImage() != null && institution.getWatermarkImage().length > 0) {
+                try {
+                    // Load image from byte array
+                    BufferedImage watermarkImage = ImageIO.read(new ByteArrayInputStream(institution.getWatermarkImage()));
+                    if (watermarkImage != null) {
+                        // Convert to PDF image
+                        ByteArrayOutputStream imageBaos = new ByteArrayOutputStream();
+                        ImageIO.write(watermarkImage, "PNG", imageBaos);
+                        PDImageXObject watermarkPDImage = PDImageXObject.createFromByteArray(document, imageBaos.toByteArray(), "watermark");
+                        
+                        // Calculate size to fit page (maintain aspect ratio)
+                        float imageWidth = watermarkImage.getWidth();
+                        float imageHeight = watermarkImage.getHeight();
+                        float scale = Math.min(width / imageWidth, height / imageHeight) * 0.6f; // 60% of page size
+                        float scaledWidth = imageWidth * scale;
+                        float scaledHeight = imageHeight * scale;
+                        
+                        // Center the watermark
+                        float x = (width - scaledWidth) / 2;
+                        float y = (height - scaledHeight) / 2;
+                        
+                        // Draw with transparency
+                        watermarkStream.setNonStrokingColor(220f/255f, 220f/255f, 220f/255f);
+                        watermarkStream.drawImage(watermarkPDImage, x, y, scaledWidth, scaledHeight);
+                        watermarkStream.close();
+                        return;
                     }
+                } catch (Exception e) {
+                    // Fallback to text watermark if image loading fails
                 }
+            }
+            
+            // Fallback: Text watermark
+            PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+            String watermarkText = "";
+            if (institution != null && institution.getInstitutionName() != null && !institution.getInstitutionName().isBlank()) {
+                watermarkText = institution.getInstitutionName();
             }
             
             if (!watermarkText.isBlank()) {
@@ -396,78 +663,66 @@ public class TreatmentReportService {
         }
     }
     
-    private int addConfidentialityClause(PDPageContentStream contentStream, Practice practice, 
+    private BufferedImage generateQRCode(String url, int width, int height) throws Exception {
+        java.util.Map<EncodeHintType, Object> hints = new java.util.HashMap<>();
+        hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L);
+        hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+        hints.put(EncodeHintType.MARGIN, 1);
+        
+        QRCodeWriter qrCodeWriter = new QRCodeWriter();
+        BitMatrix bitMatrix = qrCodeWriter.encode(url, BarcodeFormat.QR_CODE, width, height, hints);
+        
+        return MatrixToImageWriter.toBufferedImage(bitMatrix);
+    }
+    
+    private int addConfidentialityClause(PDPageContentStream contentStream, Location location, 
             int margin, int yPosition, int lineHeight, PDType1Font headerFont, PDType1Font normalFont) throws IOException {
         
+        // Compact confidentiality clause with high contrast (no background box for better readability)
         // Separation line
-        yPosition -= 10;
-        contentStream.setLineWidth(1.5f);
+        contentStream.setStrokingColor(128f/255f, 128f/255f, 128f/255f); // Medium gray for subtle separation
+        contentStream.setLineWidth(1f);
         contentStream.moveTo(margin, yPosition);
-        contentStream.lineTo(545, yPosition);
+        contentStream.lineTo(margin + 495, yPosition);
         contentStream.stroke();
-        yPosition -= 20;
+        contentStream.setStrokingColor(0, 0, 0); // Reset to black
+        yPosition -= 10;
         
-        // German Clause
-        contentStream.setFont(headerFont, 11);
+        // Header in bold with high contrast (black for maximum readability)
+        contentStream.setNonStrokingColor(0, 0, 0); // Black for maximum contrast
+        contentStream.setFont(headerFont, 10);
         yPosition = addTextLine(contentStream, "Vertraulichkeitserklärung", margin, yPosition, lineHeight);
         
         contentStream.setFont(normalFont, 9);
-        yPosition = addTextLine(contentStream, 
-            "Dieses Dokument enthält streng vertrauliche und personenbezogene Patientendaten.", 
-            margin, yPosition, lineHeight);
+        String clause = "Dieses Dokument enthält streng vertrauliche Patientendaten. " +
+            "Unbefugte Weitergabe ist gesetzlich verboten (DSGVO).";
+        yPosition = addTextLine(contentStream, clause, margin, yPosition, lineHeight);
         
-        if (practice != null && practice.getPhone() != null && !practice.getPhone().isBlank()) {
+        if (location != null && location.getPhone() != null && !location.getPhone().isBlank()) {
             yPosition = addTextLine(contentStream, 
-                "Bei Verlust oder Fund dieses Dokuments wenden Sie sich bitte umgehend an die Praxis unter: " + practice.getPhone(), 
+                "Bei Verlust: " + location.getPhone(), 
                 margin, yPosition, lineHeight);
-        } else if (practice != null && practice.getEmail() != null && !practice.getEmail().isBlank()) {
+        } else if (location != null && location.getEmail() != null && !location.getEmail().isBlank()) {
             yPosition = addTextLine(contentStream, 
-                "Bei Verlust oder Fund dieses Dokuments wenden Sie sich bitte umgehend an: " + practice.getEmail(), 
-                margin, yPosition, lineHeight);
-        }
-        
-        yPosition = addTextLine(contentStream, 
-            "Die unbefugte Weitergabe, Veröffentlichung oder Vervielfältigung dieses Dokuments ist gesetzlich", 
-            margin, yPosition, lineHeight);
-        yPosition = addTextLine(contentStream, 
-            "verboten und wird strafrechtlich verfolgt. Dieses Dokument ist gemäß Datenschutz-Grundverordnung", 
-            margin, yPosition, lineHeight);
-        yPosition = addTextLine(contentStream, 
-            "(DSGVO) sowie dem Bundesdatenschutzgesetz zu schützen.", 
-            margin, yPosition, lineHeight);
-        
-        yPosition -= 10;
-        
-        // English Clause
-        contentStream.setFont(headerFont, 11);
-        yPosition = addTextLine(contentStream, "Confidentiality Declaration", margin, yPosition, lineHeight);
-        
-        contentStream.setFont(normalFont, 9);
-        yPosition = addTextLine(contentStream, 
-            "This document contains strictly confidential and personally identifiable patient data.", 
-            margin, yPosition, lineHeight);
-        
-        if (practice != null && practice.getPhone() != null && !practice.getPhone().isBlank()) {
-            yPosition = addTextLine(contentStream, 
-                "In case of loss or finding of this document, please contact the practice immediately at: " + practice.getPhone(), 
-                margin, yPosition, lineHeight);
-        } else if (practice != null && practice.getEmail() != null && !practice.getEmail().isBlank()) {
-            yPosition = addTextLine(contentStream, 
-                "In case of loss or finding of this document, please contact immediately: " + practice.getEmail(), 
+                "Bei Verlust: " + location.getEmail(), 
                 margin, yPosition, lineHeight);
         }
         
-        yPosition = addTextLine(contentStream, 
-            "Unauthorized disclosure, publication or reproduction of this document is prohibited by law", 
-            margin, yPosition, lineHeight);
-        yPosition = addTextLine(contentStream, 
-            "and will be prosecuted. This document is protected in accordance with the General Data Protection", 
-            margin, yPosition, lineHeight);
-        yPosition = addTextLine(contentStream, 
-            "Regulation (GDPR) and the Federal Data Protection Act.", 
-            margin, yPosition, lineHeight);
+        contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
         
         return yPosition;
+    }
+    
+    private String formatGermanDate(java.time.LocalDate date) {
+        if (date == null) {
+            return "";
+        }
+        String[] months = {"Januar", "Februar", "März", "April", "Mai", "Juni", 
+                          "Juli", "August", "September", "Oktober", "November", "Dezember"};
+        int day = date.getDayOfMonth();
+        int month = date.getMonthValue();
+        int year = date.getYear();
+        return day + ". " + months[month - 1] + " " + year;
     }
     
     private String[] wrapText(String text, int maxLength) {

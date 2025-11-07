@@ -40,20 +40,20 @@ public class IcdEntry extends BasicEntity<Integer> {
     // Relationship to Star Key (Field 5)
     @ManyToMany
     @JoinTable(
-        name = "icd_star_key",
+        name = "icd_star_key_join",
         joinColumns = @JoinColumn(name = "icd_entry_id"),
-        inverseJoinColumns = @JoinColumn(name = "icd_star_key_id") // Updated inverseJoinColumn name
+        inverseJoinColumns = @JoinColumn(name = "icd_star_key_id")
     )
-    private Set<IcdStarKey> icdStarKeys = new HashSet<>(); // Updated field name
+    private Set<IcdStarKey> icdStarKeys = new HashSet<>();
 
     // Relationship to Additional Key (Field 6)
     @ManyToMany
     @JoinTable(
-        name = "icd_additional_key",
+        name = "icd_additional_key_join",
         joinColumns = @JoinColumn(name = "icd_entry_id"),
-        inverseJoinColumns = @JoinColumn(name = "icd_additional_key_id") // Updated inverseJoinColumn name
+        inverseJoinColumns = @JoinColumn(name = "icd_additional_key_id")
     )
-    private Set<IcdAdditionalKey> icdAdditionalKeys = new HashSet<>(); // Updated field name
+    private Set<IcdAdditionalKey> icdAdditionalKeys = new HashSet<>();
 
     // Relationship to Primary Key 2 (Field 7)
     @ManyToMany

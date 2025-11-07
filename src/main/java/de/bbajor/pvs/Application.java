@@ -4,12 +4,11 @@ import java.time.Clock;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import com.vaadin.flow.component.page.AppShellConfigurator;
-import com.vaadin.flow.theme.Theme;
 
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = {
@@ -18,9 +17,11 @@ import com.vaadin.flow.theme.Theme;
         "de.bbajor.pvs.intravitreal.treatment.repository",
         "de.bbajor.pvs.surgicalcenter.repository",
         "de.bbajor.pvs.taskmanagement.domain",
-        "de.bbajor.pvs.ai.repository",
+        "de.bbajor.pvs.institution.repository",
+        "de.bbajor.pvs.location.repository",
+        "de.bbajor.pvs.appointment.repository",
         "de.bbajor.pvs.security.domain",
-        "de.bbajor.pvs.practice.repository"
+        "de.bbajor.pvs.ai.repository"
 })
 @EntityScan(basePackages = {
         "de.bbajor.pvs.patient.model",
@@ -29,10 +30,12 @@ import com.vaadin.flow.theme.Theme;
         "de.bbajor.pvs.surgicalcenter.model",
         "de.bbajor.pvs.security.domain",
         "de.bbajor.pvs.base.domain",
-        "de.bbajor.pvs.ai.domain",
-        "de.bbajor.pvs.practice.model"
+        "de.bbajor.pvs.institution.model",
+        "de.bbajor.pvs.location.model",
+        "de.bbajor.pvs.appointment.model",
+        "de.bbajor.pvs.taskmanagement.domain",
+        "de.bbajor.pvs.ai.domain"
 })
-@Theme("default")
 public class Application implements AppShellConfigurator {
 
     @Bean

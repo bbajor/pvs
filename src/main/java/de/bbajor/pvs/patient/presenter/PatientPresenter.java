@@ -14,6 +14,8 @@ import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.HealthInsuranceService;
@@ -43,6 +45,8 @@ public class PatientPresenter {
     private EgkReader egkReader;
     @Autowired
     private PatientMapper patientMapper;
+    @Autowired
+    private LocationService locationService;
 
     @Transactional
     public Patient savePatient(Patient update) {
@@ -95,5 +99,9 @@ public class PatientPresenter {
 
     public Collection<Diagnosis> getDiagnoses() {
         return ivomDiagnosisService.getDiagnoses();
+    }
+
+    public List<Location> getLocations() {
+        return locationService.getAllLocations();
     }
 }
