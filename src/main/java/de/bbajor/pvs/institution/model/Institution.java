@@ -5,6 +5,8 @@ import de.bbajor.pvs.location.model.Location;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -247,6 +249,12 @@ public class Institution extends BasicEntity<Long> {
     private List<Location> locations = new ArrayList<>();
 
     /**
+     * Tenant specific settings; acts as anchor when moving to database-per-tenant.
+     */
+    @OneToOne(mappedBy = "institution", fetch = FetchType.LAZY, orphanRemoval = true)
+    private InstitutionSettings settings;
+
+    /**
      * Returns the complete address as a single string.
      */
     public String getFullAddress() {
@@ -280,6 +288,21 @@ public class Institution extends BasicEntity<Long> {
             return institutionName + " " + companyName;
         }
         return institutionName;
+    }
+
+    public InstitutionSettings ensureSettings() {
+        if (settings == null) {
+            settings = InstitutionSettings.createDefault(this);
+        }
+        return settings;
+    }
+
+    public Institution setSettings(InstitutionSettings settings) {
+        this.settings = settings;
+        if (settings != null && settings.getInstitution() != this) {
+            settings.setInstitution(this);
+        }
+        return this;
     }
 
     @Override

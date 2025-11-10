@@ -1,7 +1,9 @@
 package de.bbajor.pvs.institution.service;
 
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.model.InstitutionSettings;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.institution.repository.InstitutionSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import java.util.UUID;
 public class InstitutionService {
 
     private final InstitutionRepository institutionRepository;
+    private final InstitutionSettingsRepository institutionSettingsRepository;
 
     /**
      * Find a institution by its code.
@@ -57,8 +60,16 @@ public class InstitutionService {
                 .setActive(true)
                 .setDatabaseName("pvs_inst_" + normalizedCode)
                 .setContainerName("postgres-inst-" + normalizedCode);
-        
-        return institutionRepository.save(institution);
+
+        Institution savedInstitution = institutionRepository.save(institution);
+
+        if (!institutionSettingsRepository.existsByInstitutionInstitutionCode(institutionCode)) {
+            InstitutionSettings settings = InstitutionSettings.createDefault(savedInstitution);
+            institutionSettingsRepository.save(settings);
+            savedInstitution.setSettings(settings);
+        }
+
+        return savedInstitution;
     }
 
     /**
@@ -66,7 +77,15 @@ public class InstitutionService {
      */
     @Transactional
     public Institution save(Institution institution) {
-        return institutionRepository.save(institution);
+        Institution updated = institutionRepository.save(institution);
+
+        if (updated.getSettings() == null && !institutionSettingsRepository.existsByInstitutionInstitutionCode(updated.getInstitutionCode())) {
+            InstitutionSettings settings = InstitutionSettings.createDefault(updated);
+            institutionSettingsRepository.save(settings);
+            updated.setSettings(settings);
+        }
+
+        return updated;
     }
 
     /**

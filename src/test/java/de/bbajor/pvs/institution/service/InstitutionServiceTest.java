@@ -1,7 +1,9 @@
 package de.bbajor.pvs.institution.service;
 
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.model.InstitutionSettings;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.institution.repository.InstitutionSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,9 @@ class InstitutionServiceTest {
 
     @Mock
     private InstitutionRepository institutionRepository;
+
+    @Mock
+    private InstitutionSettingsRepository institutionSettingsRepository;
 
     @InjectMocks
     private InstitutionService institutionService;
@@ -109,6 +114,8 @@ class InstitutionServiceTest {
             inst.setId(1L);
             return inst;
         });
+        when(institutionSettingsRepository.existsByInstitutionInstitutionCode(anyString())).thenReturn(false);
+        when(institutionSettingsRepository.save(any(InstitutionSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
         Institution result = institutionService.createInstitution("New Praxis");
@@ -121,12 +128,15 @@ class InstitutionServiceTest {
         assertNotNull(result.getDatabaseName());
         assertNotNull(result.getContainerName());
         verify(institutionRepository).save(any(Institution.class));
+        verify(institutionSettingsRepository).existsByInstitutionInstitutionCode(result.getInstitutionCode());
+        verify(institutionSettingsRepository).save(any(InstitutionSettings.class));
     }
 
     @Test
     void testSave_shouldCallRepository() {
         // Given
         when(institutionRepository.save(testInstitution)).thenReturn(testInstitution);
+        when(institutionSettingsRepository.existsByInstitutionInstitutionCode(anyString())).thenReturn(true);
 
         // When
         Institution result = institutionService.save(testInstitution);
@@ -134,6 +144,7 @@ class InstitutionServiceTest {
         // Then
         assertEquals(testInstitution, result);
         verify(institutionRepository).save(testInstitution);
+        verify(institutionSettingsRepository).existsByInstitutionInstitutionCode(testInstitution.getInstitutionCode());
     }
 
     @Test
