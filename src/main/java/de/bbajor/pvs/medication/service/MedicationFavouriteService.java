@@ -31,7 +31,7 @@ public class MedicationFavouriteService {
         if (institutionId == null) {
             return Collections.emptyList();
         }
-        return favouriteRepository.findByInstitutionIdAndActiveTrue(institutionId);
+        return favouriteRepository.findByInstitutionIdAndActiveTrueWithMedication(institutionId);
     }
 
     @Transactional

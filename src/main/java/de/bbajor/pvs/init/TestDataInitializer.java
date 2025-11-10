@@ -185,7 +185,7 @@ public class TestDataInitializer {
                 "inst1-admin",
                 "inst1-admin@pvs.local",
                 "Institution 1 Admin",
-                Set.of(AppRoles.INSTITUTION_ADMIN, AppRoles.USER)
+                Set.of(AppRoles.INSTITUTION_ADMIN, AppRoles.ADMIN, AppRoles.USER)
         );
 
         // Institution 2: Vollständige Testdaten mit allen Rollen

@@ -1,39 +1,40 @@
-package de.bbajor.pvs.appointment.ui;
+package de.bbajor.pvs.settings.ui.tabs;
 
 import java.util.List;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.router.Menu;
-import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.model.SchedulerAssignment;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import de.bbajor.pvs.appointment.ui.OfficeHoursDialog;
+import de.bbajor.pvs.appointment.ui.SchedulerDialog;
 import de.bbajor.pvs.location.service.LocationService;
-import jakarta.annotation.security.RolesAllowed;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 /**
- * View for managing appointment schedulers, office hours, and assignments.
- * Admin/Owner only view.
+ * Tab for managing appointment schedulers, office hours, and assignments.
+ * Moved from SchedulerManagementView to Settings.
  */
-@Route("scheduler-management")
-@PageTitle("Terminplaner-Verwaltung")
-// Menu entry removed - now available in Settings > Terminplaner
-@RolesAllowed({"ADMIN", "OWNER"})
-public class SchedulerManagementView extends Main {
+@Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@RequiredArgsConstructor
+public class SchedulerManagementTab extends VerticalLayout {
 
     private final AppointmentSchedulerService schedulerService;
     private final OfficeHoursService officeHoursService;
@@ -46,39 +47,28 @@ public class SchedulerManagementView extends Main {
     private VerticalLayout contentLayout;
     private AppointmentScheduler selectedScheduler;
 
-    public SchedulerManagementView(
-            AppointmentSchedulerService schedulerService,
-            OfficeHoursService officeHoursService,
-            LocationService locationService) {
-        this.schedulerService = schedulerService;
-        this.officeHoursService = officeHoursService;
-        this.locationService = locationService;
-
-        addClassNames(
-            LumoUtility.BoxSizing.BORDER, 
-            LumoUtility.Display.FLEX, 
-            LumoUtility.FlexDirection.COLUMN,
-            LumoUtility.Padding.MEDIUM, 
-            LumoUtility.Gap.SMALL
-        );
+    @PostConstruct
+    public void init() {
         setSizeFull();
+        setPadding(false);
+        setSpacing(false);
 
-        initializeView();
-    }
-
-    private void initializeView() {
         Button newSchedulerButton = new Button("Neuer Terminplaner", event -> openSchedulerDialog());
         newSchedulerButton.setIcon(VaadinIcon.PLUS.create());
-        newSchedulerButton.getElement().setAttribute("theme", "primary");
+        newSchedulerButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        add(new ViewToolbar("Terminplaner-Verwaltung", ViewToolbar.group(newSchedulerButton)));
+        HorizontalLayout toolbar = new HorizontalLayout(newSchedulerButton);
+        toolbar.setWidthFull();
+        add(toolbar);
 
         Tabs tabs = createTabs();
+        tabs.setWidthFull();
         add(tabs);
 
         contentLayout = new VerticalLayout();
         contentLayout.setSizeFull();
         contentLayout.setPadding(false);
+        contentLayout.setSpacing(false);
         add(contentLayout);
 
         showSchedulersTab();
@@ -141,14 +131,15 @@ public class SchedulerManagementView extends Main {
         }
 
         if (selectedScheduler == null) {
-            contentLayout.add(new Button("Bitte legen Sie zuerst einen Terminplaner an", 
-                event -> showSchedulersTab()));
+            Button createSchedulerButton = new Button("Bitte legen Sie zuerst einen Terminplaner an", 
+                event -> showSchedulersTab());
+            contentLayout.add(createSchedulerButton);
             return;
         }
 
         Button newOfficeHoursButton = new Button("Neue Sprechzeit", event -> openOfficeHoursDialog());
         newOfficeHoursButton.setIcon(VaadinIcon.CLOCK.create());
-        newOfficeHoursButton.getElement().setAttribute("theme", "primary");
+        newOfficeHoursButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         officeHoursGrid = new Grid<>(OfficeHours.class, false);
         officeHoursGrid.addColumn(oh -> oh.getDayOfWeek().name()).setHeader("Wochentag");
@@ -183,14 +174,15 @@ public class SchedulerManagementView extends Main {
         }
 
         if (selectedScheduler == null) {
-            contentLayout.add(new Button("Bitte legen Sie zuerst einen Terminplaner an", 
-                event -> showSchedulersTab()));
+            Button createSchedulerButton = new Button("Bitte legen Sie zuerst einen Terminplaner an", 
+                event -> showSchedulersTab());
+            contentLayout.add(createSchedulerButton);
             return;
         }
 
         Button newAssignmentButton = new Button("Neue Zuordnung", event -> openAssignmentDialog());
         newAssignmentButton.setIcon(VaadinIcon.USER.create());
-        newAssignmentButton.getElement().setAttribute("theme", "primary");
+        newAssignmentButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         assignmentGrid = new Grid<>(SchedulerAssignment.class, false);
         assignmentGrid.addColumn(assignment -> 
@@ -254,3 +246,4 @@ public class SchedulerManagementView extends Main {
         notification.addThemeVariants(variant);
     }
 }
+
