@@ -33,7 +33,6 @@ public class EncryptedEmailService {
 
     private final JavaMailSender mailSender;
     private final OpenPgpService openPgpService;
-    private final BouncyCastlePgpService bouncyCastlePgpService;
     private final SmimeService smimeService;
     private final InstitutionEmailContactRepository emailContactRepository;
     private final OpenPgpKeyServerService keyServerService;
@@ -42,14 +41,12 @@ public class EncryptedEmailService {
     public EncryptedEmailService(
             JavaMailSender mailSender,
             OpenPgpService openPgpService,
-            BouncyCastlePgpService bouncyCastlePgpService,
             SmimeService smimeService,
             InstitutionEmailContactRepository emailContactRepository,
             OpenPgpKeyServerService keyServerService,
             SmtpConfigService smtpConfigService) {
         this.mailSender = mailSender;
         this.openPgpService = openPgpService;
-        this.bouncyCastlePgpService = bouncyCastlePgpService;
         this.smimeService = smimeService;
         this.emailContactRepository = emailContactRepository;
         this.keyServerService = keyServerService;
@@ -209,25 +206,24 @@ public class EncryptedEmailService {
                                 log.debug("Could not validate sender public key from keys.openpgp.org", e);
                             }
                             
-                            // Encrypt and sign the message
-                            // Use BouncyCastle directly for better Thunderbird compatibility
-                            try {
-                                log.debug("Attempting to sign and encrypt message for {} using BouncyCastle", toEmail);
-                                String encryptedAndSigned = bouncyCastlePgpService.encryptAndSignMessage(
-                                        plainText, pgpKeyToUse, decryptedPrivateKey, privateKeyPassphrase);
-                                
-                                if (encryptedAndSigned == null || encryptedAndSigned.isEmpty()) {
-                                    log.error("encryptAndSignMessage returned empty result");
-                                    throw new RuntimeException("Signing failed: empty result");
-                                }
-                                
-                                log.info("Email encrypted and signed for {} using BouncyCastle (encrypted message length: {} chars)", 
-                                        toEmail, encryptedAndSigned.length());
-                                isSigned = true;
-                                // Use the encrypted and signed message
-                                pgpKeyToUse = null; // Mark that we already have encrypted+signed message
-                                plainText = encryptedAndSigned; // This will be used as the encrypted content
-                            } catch (Exception e) {
+                              // Encrypt and sign the message with pgpainless
+                              try {
+                                  log.debug("Attempting to sign and encrypt message for {} using pgpainless", toEmail);
+                                  String encryptedAndSigned = openPgpService.encryptAndSignMessage(
+                                          plainText, pgpKeyToUse, decryptedPrivateKey, privateKeyPassphrase);
+
+                                  if (encryptedAndSigned == null || encryptedAndSigned.isEmpty()) {
+                                      log.error("encryptAndSignMessage returned empty result");
+                                      throw new RuntimeException("Signing failed: empty result");
+                                  }
+
+                                  log.info("Email encrypted and signed for {} using pgpainless (encrypted message length: {} chars)",
+                                          toEmail, encryptedAndSigned.length());
+                                  isSigned = true;
+                                  // Use the encrypted and signed message
+                                  pgpKeyToUse = null; // Mark that we already have encrypted+signed message
+                                  plainText = encryptedAndSigned; // This will be used as the encrypted content
+                              } catch (Exception e) {
                                 // Log as debug/warn instead of error - signing is optional
                                 // Common reasons: no signing key in ring, key not suitable for signing
                                 if (e.getMessage() != null && e.getMessage().contains("No signing key")) {
