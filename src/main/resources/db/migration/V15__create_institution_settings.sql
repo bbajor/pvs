@@ -36,6 +36,9 @@ CREATE TABLE institution_settings (
     layout_accent_color VARCHAR(7),
     layout_border_radius VARCHAR(10),
     layout_font_family VARCHAR(100),
+    kbv_last_import_quarter VARCHAR(20),
+    kbv_last_import_version VARCHAR(50),
+    kbv_last_imported_at TIMESTAMP WITHOUT TIME ZONE,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     CONSTRAINT fk_institution_settings_institution FOREIGN KEY (institution_id) REFERENCES institution(id) ON DELETE CASCADE
@@ -71,7 +74,10 @@ INSERT INTO institution_settings (
     layout_text_color,
     layout_accent_color,
     layout_border_radius,
-    layout_font_family
+    layout_font_family,
+    NULL,
+    NULL,
+    NULL
 )
 SELECT id,
        institution_name,
@@ -98,7 +104,10 @@ SELECT id,
        layout_text_color,
        layout_accent_color,
        layout_border_radius,
-       layout_font_family
+       layout_font_family,
+       NULL,
+       NULL,
+       NULL
 FROM institution;
 
 -- Ensure updated_at reflects initial creation time.

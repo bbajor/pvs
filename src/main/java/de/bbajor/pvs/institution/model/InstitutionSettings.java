@@ -137,6 +137,15 @@ public class InstitutionSettings extends BasicEntity<Long> {
     @Column(name = "layout_font_family", length = 100)
     private String layoutFontFamily;
 
+    @Column(name = "kbv_last_import_quarter", length = 20)
+    private String kbvLastImportQuarter;
+
+    @Column(name = "kbv_last_import_version", length = 50)
+    private String kbvLastImportVersion;
+
+    @Column(name = "kbv_last_imported_at")
+    private OffsetDateTime kbvLastImportedAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

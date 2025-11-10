@@ -11,7 +11,9 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
+import de.bbajor.pvs.settings.ui.tabs.AiSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
+import de.bbajor.pvs.settings.ui.tabs.KbvMasterDataTab;
 import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
@@ -33,6 +35,8 @@ public class SettingsView extends Main {
     private final Tab userTab = new Tab("Benutzerverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
     private final Tab mfaTab = new Tab("Multi-Faktor-Authentifizierung");
+    private final Tab aiTab = new Tab("KI-Einstellungen");
+    private final Tab kbvTab = new Tab("KBV-Stammdaten");
 
     private final VerticalLayout content = new VerticalLayout();
 
@@ -42,14 +46,17 @@ public class SettingsView extends Main {
             SchedulerManagementTab schedulerManagementTab,
             UserSettingsTab userSettingsTab,
             MedicationSettingsTab medicationSettingsTab,
-            MfaSettingsTab mfaSettingsTab) {
+            MfaSettingsTab mfaSettingsTab,
+            AiSettingsTab aiSettingsTab,
+            KbvMasterDataTab kbvMasterDataTab) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
                 LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, mfaTab);
+        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, mfaTab, aiTab,
+                kbvTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
@@ -69,6 +76,11 @@ public class SettingsView extends Main {
             } else if (selected == mfaTab) {
                 mfaSettingsTab.refresh(); // Refresh MFA status when tab is selected
                 content.add(mfaSettingsTab);
+            } else if (selected == aiTab) {
+                content.add(aiSettingsTab);
+            } else if (selected == kbvTab) {
+                kbvMasterDataTab.refresh();
+                content.add(kbvMasterDataTab);
             }
         });
 

@@ -67,3 +67,7 @@ ai:
       monthly-quota: 1000
   extraction:
     confidence-threshold: 0.7
+
+kbv:
+  service:
+    url: ${KBV_SERVICE_URL:http://localhost:8081}

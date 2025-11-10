@@ -1,0 +1,27 @@
+/* KBV Change Marking Styles */
+.change-new {
+    background-color: #d4edda !important;
+    border-left: 4px solid #28a745;
+}
+
+.change-modified {
+    background-color: #fff3cd !important;
+    border-left: 4px solid #ffc107;
+}
+
+.change-deleted {
+    background-color: #f8d7da !important;
+    border-left: 4px solid #dc3545;
+}
+
+.change-new:hover {
+    background-color: #c3e6cb !important;
+}
+
+.change-modified:hover {
+    background-color: #ffeaa7 !important;
+}
+
+.change-deleted:hover {
+    background-color: #f5c6cb !important;
+}

@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -394,6 +395,33 @@ public class Institution extends BasicEntity<Long> {
 
     public Institution setLayoutFontFamily(String layoutFontFamily) {
         ensureSettings().setLayoutFontFamily(layoutFontFamily);
+        return this;
+    }
+
+    public String getKbvLastImportQuarter() {
+        return settings != null ? settings.getKbvLastImportQuarter() : null;
+    }
+
+    public Institution setKbvLastImportQuarter(String quarter) {
+        ensureSettings().setKbvLastImportQuarter(quarter);
+        return this;
+    }
+
+    public String getKbvLastImportVersion() {
+        return settings != null ? settings.getKbvLastImportVersion() : null;
+    }
+
+    public Institution setKbvLastImportVersion(String version) {
+        ensureSettings().setKbvLastImportVersion(version);
+        return this;
+    }
+
+    public OffsetDateTime getKbvLastImportedAt() {
+        return settings != null ? settings.getKbvLastImportedAt() : null;
+    }
+
+    public Institution setKbvLastImportedAt(OffsetDateTime importedAt) {
+        ensureSettings().setKbvLastImportedAt(importedAt);
         return this;
     }
 
