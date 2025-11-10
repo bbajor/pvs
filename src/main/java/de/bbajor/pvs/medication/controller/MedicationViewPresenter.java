@@ -12,8 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationImportService;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.medication.service.MedicationFavouriteService;
 
 @Component
 public class MedicationViewPresenter {
@@ -24,6 +26,8 @@ public class MedicationViewPresenter {
     private IntravitrealMedicationService medicationService;
     @Autowired
     private IntravitrealMedicationImportService importService;
+    @Autowired
+    private MedicationFavouriteService medicationFavouriteService;
 
     public List<Medication> findAllBy(String searchString) {
         return medicationService.findIntravitrealMedication(searchString);
@@ -134,6 +138,18 @@ public class MedicationViewPresenter {
 
     public Medication save(Medication medication) {
         return medicationService.save(medication);
+    }
+
+    public List<MedicationFavourite> getActiveFavouritesForCurrentInstitution() {
+        return medicationFavouriteService.getActiveFavouritesForCurrentInstitution();
+    }
+
+    public MedicationFavourite addFavourite(Long medicationId) {
+        return medicationFavouriteService.addFavouriteForCurrentInstitution(medicationId, null);
+    }
+
+    public void removeFavourite(Long favouriteId) {
+        medicationFavouriteService.deactivateFavourite(favouriteId);
     }
 
 }

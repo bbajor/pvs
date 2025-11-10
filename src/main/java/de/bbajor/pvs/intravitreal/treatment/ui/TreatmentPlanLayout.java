@@ -43,7 +43,7 @@ import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
-import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
@@ -59,7 +59,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     // Filter
     private final ComboBox<SideOfEye> sideOfEye = new ComboBox<>("Welches Auge?");
-    private final ComboBox<Medication> medicationComboBox = new ComboBox<>("Medikament");
+    private final ComboBox<MedicationFavourite> medicationComboBox = new ComboBox<>("Medikament");
     private final DatePicker startDatePicker = new DatePicker("Neue Termine finden ab");
     private final ComboBox<TimeSlotRepetition> repetitionComboBox = new ComboBox<>("Terminintervall");
     private final ComboBox<TimePeriod> timePeriodComboBox = new ComboBox<>("Termine erstellen für");
@@ -101,6 +101,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
             }
         });
         medicationComboBox.setItems(presenter.getDrugs());
+        medicationComboBox.setItemLabelGenerator(MedicationFavourite::getEffectiveDisplayName);
+        medicationComboBox.setClearButtonVisible(true);
 
         sideOfEye.setItems(SideOfEye.values());
         timeSlotGrid.setSizeFull();
@@ -453,7 +455,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         for (SurgicalCenterTimeSlot timeSlot : selectedSlots) {
             Treatment timeSlotToCreate = new Treatment();
             timeSlotToCreate.setSideOfEye(sideOfEye.getValue());
-            timeSlotToCreate.setMedication(medicationComboBox.getValue());
+            timeSlotToCreate.setMedicationFavourite(medicationComboBox.getValue());
             timeSlotToCreate.setSurgicalCenterTimeSlot(timeSlot);
             timeSlotToCreate.setTreatmentPlan(current);
             timeSlotsToCreate.add(timeSlotToCreate);
