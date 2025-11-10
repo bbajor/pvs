@@ -206,10 +206,16 @@ public class VoiceInputDialog extends Dialog {
         upload.setMaxFiles(1);
         upload.setMaxFileSize(50 * 1024 * 1024);
         upload.setAutoUpload(true); // Enable auto-upload
-        upload.addFileRejectedListener(event -> {
-            LOG.error("File upload rejected: {}", event.getErrorMessage());
-            handleError("Upload abgelehnt: " + event.getErrorMessage());
-        });
+        upload.getElement()
+                .addEventListener("file-reject", event -> {
+                    String errorMessage = event.getEventData().getString("event.detail.error");
+                    String message = (errorMessage == null || errorMessage.isBlank())
+                            ? "Unbekannter Fehler"
+                            : errorMessage;
+                    LOG.error("File upload rejected: {}", message);
+                    handleError("Upload abgelehnt: " + message);
+                })
+                .addEventData("event.detail.error");
         
         upload.getElement().getStyle().set("display", "none");
         upload.setId("voice-recording-upload");

@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,11 +26,10 @@ public class InstitutionAuthenticationFilter extends AbstractAuthenticationProce
     private static final String PASSWORD_PARAM = "password";
 
     public InstitutionAuthenticationFilter(String loginPath) {
-        // AntPathRequestMatcher is marked as deprecated but there's no non-deprecated 
-        // alternative for AbstractAuthenticationProcessingFilter in Spring Security 6.x
-        // The deprecated API is still the recommended way for this use case
-        super(new AntPathRequestMatcher(loginPath, "POST"));
-        log.debug("InstitutionAuthenticationFilter initialized for path: {}", loginPath);
+        super(normalizeLoginPath(loginPath));
+        String normalizedPath = normalizeLoginPath(loginPath);
+        setRequiresAuthenticationRequestMatcher(new PostRequestMatcher(normalizedPath));
+        log.debug("InstitutionAuthenticationFilter initialized for path: {}", normalizedPath);
     }
 
     @Override
@@ -62,6 +61,46 @@ public class InstitutionAuthenticationFilter extends AbstractAuthenticationProce
         Authentication authResult = getAuthenticationManager().authenticate(authRequest);
         log.debug("Authentication result: {}", authResult != null ? "success" : "null");
         return authResult;
+    }
+
+    private static String normalizeLoginPath(String loginPath) {
+        if (loginPath == null || loginPath.isBlank()) {
+            throw new IllegalArgumentException("loginPath must not be empty");
+        }
+        return loginPath.startsWith("/") ? loginPath : "/" + loginPath;
+    }
+
+    private static final class PostRequestMatcher implements RequestMatcher {
+
+        private final String loginPath;
+
+        private PostRequestMatcher(String loginPath) {
+            this.loginPath = loginPath;
+        }
+
+        @Override
+        public boolean matches(HttpServletRequest request) {
+            if (!"POST".equalsIgnoreCase(request.getMethod())) {
+                return false;
+            }
+            String requestPath = extractRequestPath(request);
+            return loginPath.equals(requestPath);
+        }
+
+        private String extractRequestPath(HttpServletRequest request) {
+            String servletPath = request.getServletPath();
+            String pathInfo = request.getPathInfo();
+
+            String combined = (servletPath != null ? servletPath : "");
+            if (pathInfo != null) {
+                combined += pathInfo;
+            }
+
+            if (combined.isEmpty()) {
+                combined = "/";
+            }
+            return combined;
+        }
     }
 }
 

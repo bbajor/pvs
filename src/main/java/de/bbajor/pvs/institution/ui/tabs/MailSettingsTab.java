@@ -16,14 +16,15 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import de.bbajor.pvs.institution.model.EmailEncryptionMethod;
 import de.bbajor.pvs.security.email.model.SmtpConfig;
 import de.bbajor.pvs.security.email.model.SmtpSecurityMethod;
 import de.bbajor.pvs.security.email.service.OpenPgpService;
 import de.bbajor.pvs.security.email.service.SmtpConfigService;
-import java.io.InputStream;
+import com.vaadin.flow.server.streams.UploadHandler;
+import com.vaadin.flow.server.streams.UploadMetadata;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -53,14 +54,12 @@ public class MailSettingsTab extends VerticalLayout {
     
     // OpenPGP signing fields
     private Upload privateKeyUpload;
-    private MemoryBuffer privateKeyBuffer;
     private PasswordField privateKeyPassphraseField;
     private Paragraph privateKeyStatusParagraph;
     private Button removePrivateKeyButton;
     
     // OpenPGP public key fields (optional, for Autocrypt header)
     private Upload publicKeyUpload;
-    private MemoryBuffer publicKeyBuffer;
     private Paragraph publicKeyStatusParagraph;
     private Button removePublicKeyButton;
     
@@ -140,19 +139,11 @@ public class MailSettingsTab extends VerticalLayout {
         signingInfo.getStyle().set("color", "var(--lumo-secondary-text-color)");
         signingInfo.getStyle().set("font-size", "var(--lumo-font-size-s)");
         
-        privateKeyBuffer = new MemoryBuffer();
-        privateKeyUpload = new Upload(privateKeyBuffer);
+        privateKeyUpload = new Upload(UploadHandler.inMemory(this::handlePrivateKeyUpload));
         privateKeyUpload.setAcceptedFileTypes(".asc", ".key", "application/pgp-keys", "application/pgp");
         privateKeyUpload.setMaxFileSize(100 * 1024); // 100 KB max
         privateKeyUpload.setDropLabel(new com.vaadin.flow.component.html.Span("Privaten Schlüssel hier ablegen oder klicken zum Auswählen"));
-        privateKeyUpload.addSucceededListener(e -> handlePrivateKeyUpload());
-        privateKeyUpload.addFileRejectedListener(e -> {
-            Notification notification = Notification.show(
-                    "Fehler beim Hochladen: " + e.getErrorMessage(), 
-                    5000, 
-                    Notification.Position.MIDDLE);
-            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-        });
+        registerFileRejectionHandler(privateKeyUpload, "des privaten Schlüssels");
         
         privateKeyPassphraseField = new PasswordField("Passphrase für privaten Schlüssel (optional)");
         privateKeyPassphraseField.setPlaceholder("Nur erforderlich, wenn der Schlüssel passwortgeschützt ist");
@@ -182,19 +173,11 @@ public class MailSettingsTab extends VerticalLayout {
         publicKeyInfo.getStyle().set("color", "var(--lumo-secondary-text-color)");
         publicKeyInfo.getStyle().set("font-size", "var(--lumo-font-size-s)");
         
-        publicKeyBuffer = new MemoryBuffer();
-        publicKeyUpload = new Upload(publicKeyBuffer);
+        publicKeyUpload = new Upload(UploadHandler.inMemory(this::handlePublicKeyUpload));
         publicKeyUpload.setAcceptedFileTypes(".asc", ".key", "application/pgp-keys", "application/pgp");
         publicKeyUpload.setMaxFileSize(100 * 1024); // 100 KB max
         publicKeyUpload.setDropLabel(new com.vaadin.flow.component.html.Span("Öffentlichen Schlüssel hier ablegen oder klicken zum Auswählen"));
-        publicKeyUpload.addSucceededListener(e -> handlePublicKeyUpload());
-        publicKeyUpload.addFileRejectedListener(e -> {
-            Notification notification = Notification.show(
-                    "Fehler beim Hochladen: " + e.getErrorMessage(), 
-                    5000, 
-                    Notification.Position.MIDDLE);
-            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-        });
+        registerFileRejectionHandler(publicKeyUpload, "des öffentlichen Schlüssels");
         
         publicKeyStatusParagraph = new Paragraph();
         publicKeyStatusParagraph.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -397,24 +380,17 @@ public class MailSettingsTab extends VerticalLayout {
         }
     }
     
-    private void handlePrivateKeyUpload() {
+    private void handlePrivateKeyUpload(UploadMetadata metadata, byte[] fileBytes) {
         try {
-            InputStream inputStream = privateKeyBuffer.getInputStream();
-            String privateKeyContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            String privateKeyContent = new String(fileBytes, StandardCharsets.UTF_8);
             
-            // Validate that it's a private key
             if (!privateKeyContent.contains("-----BEGIN PGP PRIVATE KEY BLOCK-----") 
                     && !privateKeyContent.contains("-----BEGIN PGP SECRET KEY BLOCK-----")) {
-                Notification notification = Notification.show(
-                        "Die Datei scheint kein privater OpenPGP-Schlüssel zu sein. " +
-                        "Bitte stellen Sie sicher, dass Sie den privaten Schlüssel exportiert haben.",
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                showUploadError("Die Datei scheint kein privater OpenPGP-Schlüssel zu sein. " +
+                        "Bitte stellen Sie sicher, dass Sie den privaten Schlüssel exportiert haben.");
                 return;
             }
             
-            // Try to parse the key to validate it
             try {
                 openPgpService.parseSecretKey(privateKeyContent);
                 uploadedPrivateKey = privateKeyContent;
@@ -428,19 +404,11 @@ public class MailSettingsTab extends VerticalLayout {
                 privateKeyStatusParagraph.setText("✅ Privater Schlüssel hochgeladen. Bitte speichern Sie die Konfiguration.");
                 privateKeyStatusParagraph.getStyle().set("color", "var(--lumo-success-color)");
             } catch (Exception e) {
-                Notification notification = Notification.show(
-                        "Fehler beim Validieren des privaten Schlüssels: " + e.getMessage(),
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                showUploadError("Fehler beim Validieren des privaten Schlüssels: " + e.getMessage());
                 uploadedPrivateKey = null;
             }
         } catch (Exception e) {
-            Notification notification = Notification.show(
-                    "Fehler beim Lesen der Datei: " + e.getMessage(),
-                    5000, 
-                    Notification.Position.MIDDLE);
-            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            showUploadError("Fehler beim Lesen der Datei: " + e.getMessage());
             uploadedPrivateKey = null;
         }
     }
@@ -465,23 +433,16 @@ public class MailSettingsTab extends VerticalLayout {
         }
     }
     
-    private void handlePublicKeyUpload() {
+    private void handlePublicKeyUpload(UploadMetadata metadata, byte[] fileBytes) {
         try {
-            InputStream inputStream = publicKeyBuffer.getInputStream();
-            String publicKeyContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            String publicKeyContent = new String(fileBytes, StandardCharsets.UTF_8);
             
-            // Validate that it's a public key
             if (!publicKeyContent.contains("-----BEGIN PGP PUBLIC KEY BLOCK-----")) {
-                Notification notification = Notification.show(
-                        "Die Datei scheint kein öffentlicher OpenPGP-Schlüssel zu sein. " +
-                        "Bitte stellen Sie sicher, dass Sie den öffentlichen Schlüssel exportiert haben.",
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                showUploadError("Die Datei scheint kein öffentlicher OpenPGP-Schlüssel zu sein. " +
+                        "Bitte stellen Sie sicher, dass Sie den öffentlichen Schlüssel exportiert haben.");
                 return;
             }
             
-            // Try to parse the key to validate it
             try {
                 openPgpService.parsePublicKey(publicKeyContent);
                 uploadedPublicKey = publicKeyContent;
@@ -495,19 +456,11 @@ public class MailSettingsTab extends VerticalLayout {
                 publicKeyStatusParagraph.setText("✅ Öffentlicher Schlüssel hochgeladen. Bitte speichern Sie die Konfiguration.");
                 publicKeyStatusParagraph.getStyle().set("color", "var(--lumo-success-color)");
             } catch (Exception e) {
-                Notification notification = Notification.show(
-                        "Fehler beim Validieren des öffentlichen Schlüssels: " + e.getMessage(),
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                showUploadError("Fehler beim Validieren des öffentlichen Schlüssels: " + e.getMessage());
                 uploadedPublicKey = null;
             }
         } catch (Exception e) {
-            Notification notification = Notification.show(
-                    "Fehler beim Lesen der Datei: " + e.getMessage(),
-                    5000, 
-                    Notification.Position.MIDDLE);
-            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            showUploadError("Fehler beim Lesen der Datei: " + e.getMessage());
             uploadedPublicKey = null;
         }
     }
@@ -685,6 +638,27 @@ public class MailSettingsTab extends VerticalLayout {
                     Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void registerFileRejectionHandler(Upload upload, String subject) {
+        upload.getElement().addEventListener("file-reject", event -> {
+            String errorMessage = Optional.ofNullable(event.getEventData().getString("event.detail.error"))
+                    .filter(msg -> !msg.isBlank())
+                    .orElse("Unbekannter Fehler");
+            Notification notification = Notification.show(
+                    "Fehler beim Hochladen " + subject + ": " + errorMessage,
+                    5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }).addEventData("event.detail.error");
+    }
+
+    private void showUploadError(String message) {
+        Notification notification = Notification.show(
+                message,
+                5000,
+                Notification.Position.MIDDLE);
+        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 }
 

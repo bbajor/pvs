@@ -1,5 +1,6 @@
 package de.bbajor.pvs.intravitreal.treatment.ui;
 
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -16,8 +17,9 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.server.StreamRegistration;
-import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.dom.Element;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
 
 import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.accordion.AccordionPanel;
@@ -226,28 +228,21 @@ public class TreatmentPlanLayout extends VerticalLayout {
     }
     
     private void downloadPdf(byte[] pdfBytes, String filename) {
-        // Create StreamResource for download
-        StreamResource streamResource = new StreamResource(filename, () -> {
-            return new java.io.ByteArrayInputStream(pdfBytes);
-        });
-        streamResource.setContentType("application/pdf");
-        
-        // Register the resource and get the URL
         getUI().ifPresent(ui -> {
-            StreamRegistration registration = ui.getSession().getResourceRegistry()
-                    .registerResource(streamResource);
-            String resourceUrl = registration.getResourceUri().toString();
-            
-            // Create download link and trigger download via JavaScript
-            ui.getPage().executeJs(
-                "var link = document.createElement('a');" +
-                "link.href = $0;" +
-                "link.download = $1;" +
-                "document.body.appendChild(link);" +
-                "link.click();" +
-                "document.body.removeChild(link);",
-                resourceUrl, filename
-            );
+            DownloadHandler handler = DownloadHandler.fromInputStream(event ->
+                    new DownloadResponse(
+                            new ByteArrayInputStream(pdfBytes),
+                            filename,
+                            "application/pdf",
+                            pdfBytes.length));
+
+            Element anchor = new Element("a");
+            anchor.setAttribute("download", filename);
+            anchor.setAttribute("href", handler);
+            anchor.getStyle().set("display", "none");
+            ui.getElement().appendChild(anchor);
+            anchor.callJsFunction("click");
+            anchor.removeFromTree();
         });
     }
     

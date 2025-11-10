@@ -231,8 +231,15 @@ public class MedicationView extends Main {
         Upload upload = new Upload(inMemory);
         upload.setMaxFiles(1);
         // optional: Benutzer-Friendly-Listener für Rejected/Failed
-        upload.addFileRejectedListener(
-                ev -> Notification.show(ev.getErrorMessage(), 4000, Notification.Position.MIDDLE));
+        upload.getElement()
+                .addEventListener("file-reject", event -> {
+                    String errorMessage = event.getEventData().getString("event.detail.error");
+                    String message = (errorMessage == null || errorMessage.isBlank())
+                            ? "Upload abgelehnt"
+                            : errorMessage;
+                    Notification.show(message, 4000, Notification.Position.MIDDLE);
+                })
+                .addEventData("event.detail.error");
         // add upload to UI
         return upload;
     }
