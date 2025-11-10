@@ -1,10 +1,13 @@
 package de.bbajor.pvs.medication.service;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,100 +21,150 @@ import lombok.RequiredArgsConstructor;
 public class IntravitrealMedicationImportService {
 
     private final MedicationRepository repo;
+    private final MedicationFavouriteService medicationFavouriteService;
 
     @Transactional
     public int importNewIntravitrealMedications(List<Medication> drugListToImport) throws Exception {
 
         LocalDate heute = LocalDate.now();
 
-        // Schritt 1: vorhandene Präparate laden
-        List<Medication> bestehende = repo.findAll();
+        // Schritt 1: aktive Präparate laden
+        List<Medication> alleMedikamente = repo.findAll();
+        Map<Long, Medication> aktiveMedikamenteNachId = new HashMap<>();
+        Map<String, Medication> aktiveNachZulassungsnummer = new HashMap<>();
+        Map<String, Medication> aktiveNachEingangsnummer = new HashMap<>();
 
-        // Map nach Zulassungsnummer und Eingangsnummer für schnellen Abgleich
-        // Verwende beide Felder, da CSV beide enthalten kann
-        Map<String, Medication> bestehendeMap = bestehende.stream()
-                .filter(d -> d.getZulassungsNr() != null && !d.getZulassungsNr().isEmpty())
-                .collect(Collectors.toMap(Medication::getZulassungsNr, d -> d, (d1, d2) -> d1));
-        
-        // Zusätzliche Map für Eingangsnummer (falls ZulassungsNr nicht vorhanden)
-        Map<String, Medication> bestehendeByEingangsnummer = bestehende.stream()
-                .filter(d -> d.getEingangsnummer() != null && !d.getEingangsnummer().isEmpty())
-                .collect(Collectors.toMap(Medication::getEingangsnummer, d -> d, (d1, d2) -> d1));
+        for (Medication medication : alleMedikamente) {
+            if (medication.getValidUntil() == null) {
+                aktiveMedikamenteNachId.put(medication.getId(), medication);
+                if (hasText(medication.getZulassungsNr())) {
+                    aktiveNachZulassungsnummer.put(medication.getZulassungsNr(), medication);
+                }
+                if (hasText(medication.getEingangsnummer())) {
+                    aktiveNachEingangsnummer.put(medication.getEingangsnummer(), medication);
+                }
+            }
+        }
+
+        Set<Long> unangetasteteAktiveIds = new HashSet<>(aktiveMedikamenteNachId.keySet());
 
         AtomicInteger updateCount = new AtomicInteger(0);
         // Schritt 2: Neue/aktualisierte Präparate übernehmen
         for (Medication neu : drugListToImport) {
-            if (neu.getZulassungsNr() == null || neu.getZulassungsNr().isEmpty()) {
-                // Fallback: use eingangsnummer if zulassungsNr is empty
-                if (neu.getEingangsnummer() != null && !neu.getEingangsnummer().isEmpty()) {
-                    neu.setZulassungsNr(neu.getEingangsnummer());
-                }
+            if (!hasText(neu.getZulassungsNr()) && hasText(neu.getEingangsnummer())) {
+                neu.setZulassungsNr(neu.getEingangsnummer());
             }
-            
-            Medication alt = null;
-            if (neu.getZulassungsNr() != null && !neu.getZulassungsNr().isEmpty()) {
-                alt = bestehendeMap.get(neu.getZulassungsNr());
+
+            Medication aktiv = null;
+            if (hasText(neu.getZulassungsNr())) {
+                aktiv = aktiveNachZulassungsnummer.get(neu.getZulassungsNr());
             }
-            // Fallback: try to find by eingangsnummer
-            if (alt == null && neu.getEingangsnummer() != null && !neu.getEingangsnummer().isEmpty()) {
-                alt = bestehendeByEingangsnummer.get(neu.getEingangsnummer());
+            if (aktiv == null && hasText(neu.getEingangsnummer())) {
+                aktiv = aktiveNachEingangsnummer.get(neu.getEingangsnummer());
             }
-            
-            if (alt == null) {
+
+            if (aktiv == null) {
                 // komplett neu → einfügen
                 neu.setValidFrom(heute);
-                repo.save(neu);
+                neu.setValidUntil(null);
+                neu.setId(null);
+                neu.setVersion(0L);
+                Medication gespeichert = repo.save(neu);
+                if (hasText(gespeichert.getZulassungsNr())) {
+                    aktiveNachZulassungsnummer.put(gespeichert.getZulassungsNr(), gespeichert);
+                }
+                if (hasText(gespeichert.getEingangsnummer())) {
+                    aktiveNachEingangsnummer.put(gespeichert.getEingangsnummer(), gespeichert);
+                }
                 updateCount.incrementAndGet();
             } else {
-                // Update existing medication with new data
-                alt.setArzneimittelbezeichnung(neu.getArzneimittelbezeichnung());
-                alt.setDarreichungsform(neu.getDarreichungsform());
-                alt.setZielgruppe(neu.getZielgruppe());
-                alt.setAnwendungsart(neu.getAnwendungsart());
-                alt.setAnwendungsgebiete(neu.getAnwendungsgebiete());
-                alt.setIndikationAtc(neu.getIndikationAtc());
-                alt.setBescheiddatumZulassung(neu.getBescheiddatumZulassung());
-                alt.setZulassungsstatus(neu.getZulassungsstatus());
-                alt.setZulassungsRegNrOderKennziffer(neu.getZulassungsRegNrOderKennziffer());
-                alt.setVerkehrsfaehigkeit(neu.getVerkehrsfaehigkeit());
-                alt.setParallelimportinformationen(neu.getParallelimportinformationen());
-                alt.setEuVerfahrensnummer(neu.getEuVerfahrensnummer());
-                alt.setZulassungsinhaber(neu.getZulassungsinhaber());
-                alt.setHerstellerEndfreigabe(neu.getHerstellerEndfreigabe());
-                alt.setVertreiber(neu.getVertreiber());
-                alt.setOertlicherVertreter(neu.getOertlicherVertreter());
-                alt.setWirkstoffe(neu.getWirkstoffe());
-                alt.setPackungsgroessenGruppe(neu.getPackungsgroessenGruppe());
-                alt.setAmKlassifikationen(neu.getAmKlassifikationen());
-                alt.setEingangsnummer(neu.getEingangsnummer());
-                
-                if (alt.getValidUntil() != null) {
-                    // war schon abgelaufen → reaktivieren
-                    alt.setValidFrom(heute);
-                    alt.setValidUntil(null);
-                }
-                repo.save(alt);
-                updateCount.incrementAndGet();
-                
-                // aus Map entfernen → wurde gesehen
-                if (alt.getZulassungsNr() != null && !alt.getZulassungsNr().isEmpty()) {
-                    bestehendeMap.remove(alt.getZulassungsNr());
-                }
-                if (alt.getEingangsnummer() != null && !alt.getEingangsnummer().isEmpty()) {
-                    bestehendeByEingangsnummer.remove(alt.getEingangsnummer());
+                unangetasteteAktiveIds.remove(aktiv.getId());
+
+                if (hasRelevantDifferences(aktiv, neu)) {
+                    // Bestehenden Datensatz historisieren und neuen anlegen
+                    LocalDate validUntil = determineValidUntil(heute, aktiv.getValidFrom());
+                    aktiv.setValidUntil(validUntil);
+                    repo.save(aktiv);
+
+                    if (hasText(aktiv.getZulassungsNr())) {
+                        aktiveNachZulassungsnummer.remove(aktiv.getZulassungsNr());
+                    }
+                    if (hasText(aktiv.getEingangsnummer())) {
+                        aktiveNachEingangsnummer.remove(aktiv.getEingangsnummer());
+                    }
+
+                    neu.setId(null);
+                    neu.setVersion(0L);
+                    neu.setValidFrom(heute);
+                    neu.setValidUntil(null);
+                    Medication neueVersion = repo.save(neu);
+
+                    if (hasText(neueVersion.getZulassungsNr())) {
+                        aktiveNachZulassungsnummer.put(neueVersion.getZulassungsNr(), neueVersion);
+                    }
+                    if (hasText(neueVersion.getEingangsnummer())) {
+                        aktiveNachEingangsnummer.put(neueVersion.getEingangsnummer(), neueVersion);
+                    }
+
+                    medicationFavouriteService.replaceActiveFavouritesWithNewMedication(aktiv, neueVersion, heute);
+                    updateCount.incrementAndGet();
+                } else if (aktiv.getValidUntil() != null) {
+                    // Datensatz war deaktiviert und wird reaktiviert
+                    aktiv.setValidUntil(null);
+                    repo.save(aktiv);
+                    updateCount.incrementAndGet();
                 }
             }
         }
 
         // Schritt 3: Alles, was übrig bleibt, ist nicht mehr gültig
-        bestehendeMap.values().forEach(drug -> {
-            if (drug.getValidUntil() == null) {
-                drug.setValidUntil(heute);
-                repo.save(drug);
+        for (Long medicationId : unangetasteteAktiveIds) {
+            Medication medication = aktiveMedikamenteNachId.get(medicationId);
+            if (medication != null && medication.getValidUntil() == null) {
+                medication.setValidUntil(heute);
+                repo.save(medication);
                 updateCount.incrementAndGet();
             }
-        });
+        }
         return updateCount.get();
     }
 
+    private boolean hasRelevantDifferences(Medication bestaendiger, Medication neu) {
+        return !Objects.equals(bestaendiger.getArzneimittelbezeichnung(), neu.getArzneimittelbezeichnung())
+                || !Objects.equals(bestaendiger.getDarreichungsform(), neu.getDarreichungsform())
+                || !Objects.equals(bestaendiger.getZielgruppe(), neu.getZielgruppe())
+                || !Objects.equals(bestaendiger.getAnwendungsart(), neu.getAnwendungsart())
+                || !Objects.equals(bestaendiger.getAnwendungsgebiete(), neu.getAnwendungsgebiete())
+                || !Objects.equals(bestaendiger.getIndikationAtc(), neu.getIndikationAtc())
+                || !Objects.equals(bestaendiger.getBescheiddatumZulassung(), neu.getBescheiddatumZulassung())
+                || !Objects.equals(bestaendiger.getZulassungsstatus(), neu.getZulassungsstatus())
+                || !Objects.equals(bestaendiger.getZulassungsRegNrOderKennziffer(), neu.getZulassungsRegNrOderKennziffer())
+                || !Objects.equals(bestaendiger.getVerkehrsfaehigkeit(), neu.getVerkehrsfaehigkeit())
+                || !Objects.equals(bestaendiger.getParallelimportinformationen(), neu.getParallelimportinformationen())
+                || !Objects.equals(bestaendiger.getEuVerfahrensnummer(), neu.getEuVerfahrensnummer())
+                || !Objects.equals(bestaendiger.getZulassungsinhaber(), neu.getZulassungsinhaber())
+                || !Objects.equals(bestaendiger.getHerstellerEndfreigabe(), neu.getHerstellerEndfreigabe())
+                || !Objects.equals(bestaendiger.getVertreiber(), neu.getVertreiber())
+                || !Objects.equals(bestaendiger.getOertlicherVertreter(), neu.getOertlicherVertreter())
+                || !Objects.equals(bestaendiger.getWirkstoffe(), neu.getWirkstoffe())
+                || !Objects.equals(bestaendiger.getPackungsgroessenGruppe(), neu.getPackungsgroessenGruppe())
+                || !Objects.equals(bestaendiger.getAmKlassifikationen(), neu.getAmKlassifikationen())
+                || !Objects.equals(bestaendiger.getDescription(), neu.getDescription())
+                || !Objects.equals(bestaendiger.getAdditionalNotes(), neu.getAdditionalNotes())
+                || !Objects.equals(bestaendiger.getEingangsnummer(), neu.getEingangsnummer());
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private LocalDate determineValidUntil(LocalDate today, LocalDate validFrom) {
+        if (validFrom == null) {
+            return today;
+        }
+        if (today.isAfter(validFrom)) {
+            return today.minusDays(1);
+        }
+        return today;
+    }
 }

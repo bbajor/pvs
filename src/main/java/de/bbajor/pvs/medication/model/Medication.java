@@ -94,9 +94,6 @@ public class Medication extends BasicEntity<Long> {
     @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(name = "is_favourite")
-    private boolean isFavourite;
-
     @Column(name = "valid_from")
     private LocalDate validFrom;
     

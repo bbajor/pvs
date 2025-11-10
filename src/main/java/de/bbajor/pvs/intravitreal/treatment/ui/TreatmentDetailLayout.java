@@ -14,7 +14,7 @@ import com.vaadin.flow.data.binder.Binder;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.service.UserAccountService;
@@ -28,7 +28,7 @@ public class TreatmentDetailLayout extends FormLayout {
     private final NativeLabel surgicalCenterLabel = new NativeLabel("Operationszentrum");
     private final NativeLabel timeSlotLabel = new NativeLabel("Uhrzeit");
 
-    private final ComboBox<Medication> medicationComboBox = new ComboBox<>("Medikament");
+    private final ComboBox<MedicationFavourite> medicationComboBox = new ComboBox<>("Medikament");
     private final MultiSelectComboBox<UserAccount> treatingDoctorsComboBox = new MultiSelectComboBox<>("Behandelnde Ärzte");
     private final TextArea additionalInfoField = new TextArea("Notizen");
     private final DatePicker approvalDatePicker = new DatePicker("Behandlung geprüft am");
@@ -64,8 +64,8 @@ public class TreatmentDetailLayout extends FormLayout {
         add(treatmentDatePicker);
 
         medicationComboBox.setItems(treatmentPlanService.getFavouriteMedications());
-        medicationComboBox.setValue(treatment.getMedication());
-        medicationComboBox.setItemLabelGenerator(Medication::getArzneimittelbezeichnung);
+        medicationComboBox.setValue(treatment.getMedicationFavourite());
+        medicationComboBox.setItemLabelGenerator(MedicationFavourite::getEffectiveDisplayName);
         add(medicationComboBox);
 
         // Treating doctors selection
@@ -99,7 +99,7 @@ public class TreatmentDetailLayout extends FormLayout {
                     // no setter available
                 });
         binder.forField(medicationComboBox).asRequired("Bitte Medikament auswählen")
-                .bind(Treatment::getMedication, Treatment::setMedication);
+                .bind(Treatment::getMedicationFavourite, Treatment::setMedicationFavourite);
         binder.forField(treatingDoctorsComboBox)
                 .bind(t -> t.getTreatingDoctors(), 
                       (t, doctors) -> {

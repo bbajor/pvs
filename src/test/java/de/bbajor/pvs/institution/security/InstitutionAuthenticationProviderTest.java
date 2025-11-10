@@ -89,6 +89,7 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "INVALID", "testuser", "password123");
 
+        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("INVALID")).thenReturn(Optional.empty());
 
         // When & Then
@@ -104,6 +105,7 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "testuser", "password123");
 
+        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
 
         // When & Then
@@ -119,7 +121,6 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "nonexistent", "password123");
 
-        when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
         when(userAccountRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
 
         // When & Then

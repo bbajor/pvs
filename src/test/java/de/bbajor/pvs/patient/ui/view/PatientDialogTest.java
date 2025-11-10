@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.notification.Notification;
 
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientPresenter;
 
@@ -32,7 +33,7 @@ class PatientDialogTest {
     void setUp() {
         presenter = mock(PatientPresenter.class);
         when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
-        when(presenter.getDrugs()).thenReturn(Collections.emptyList());
+        when(presenter.getDrugs()).thenReturn(Collections.<MedicationFavourite>emptyList());
         patient = new Patient();
         patient.setFirstName("Test");
         patient.setLastName("Patient");
@@ -49,7 +50,7 @@ class PatientDialogTest {
     void testDialogInitializesWithCorrectTitleForExistingPatient() {
         patient.setId(123);
         when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
-        when(presenter.getDrugs()).thenReturn(Collections.emptyList());
+        when(presenter.getDrugs()).thenReturn(Collections.<MedicationFavourite>emptyList());
         PatientDialog dialog = new PatientDialog(presenter, patient);
         assertTrue(dialog.getHeaderTitle().contains("Patient"));
     }
@@ -67,7 +68,7 @@ class PatientDialogTest {
     void testSaveButtonLabelForExistingPatient() throws Exception {
         patient.setId(1);
         when(presenter.getHealthInsurances()).thenReturn(Collections.emptyList());
-        when(presenter.getDrugs()).thenReturn(Collections.emptyList());
+        when(presenter.getDrugs()).thenReturn(Collections.<MedicationFavourite>emptyList());
         PatientDialog dialog = new PatientDialog(presenter, patient);
         var saveButtonField = PatientDialog.class.getDeclaredField("saveButton");
         saveButtonField.setAccessible(true);

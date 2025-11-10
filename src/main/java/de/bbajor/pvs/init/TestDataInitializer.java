@@ -35,7 +35,9 @@ import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.medication.service.MedicationFavouriteService;
 import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
@@ -63,6 +65,7 @@ public class TestDataInitializer {
 
     private final PatientService patientService;
     private final IntravitrealMedicationService medicationService;
+    private final MedicationFavouriteService medicationFavouriteService;
     private final SurgicalCenterService surgicalCenterService;
     private final IvomDiagnosisService diagnosisService;
     private final UserAccountRepository userAccountRepository;
@@ -195,6 +198,8 @@ public class TestDataInitializer {
         // Erstelle Testdaten für Institution 2
         List<Medication> savedMedications = medicationService
                 .saveAll(createRealisticMedications(MEDICATION_NAMES.length));
+        List<MedicationFavourite> savedFavourites = createMedicationFavouritesForInstitution(
+                testInstitutions.institution2, savedMedications);
         List<Diagnosis> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
 
         // Erstelle 5 Patienten für Institution 2 (jeweils auf einem der beiden Standorte)
@@ -210,7 +215,7 @@ public class TestDataInitializer {
                 SURGICAL_CENTER_NAMES.length, testInstitutions.institution2Location1);
 
         // Erzeuge Behandlungspläne für alle Patienten (mindestens 5 Termine in Vergangenheit, max 1 in Zukunft)
-        createTreatmentPlansWithTreatments(savedPatients, savedMedications, diagnosisDtos, surgicalCenters);
+        createTreatmentPlansWithTreatments(savedPatients, savedFavourites, diagnosisDtos, surgicalCenters);
 
         // Clear InstitutionContext after initialization to avoid side effects
         InstitutionContext.clear();
@@ -523,13 +528,32 @@ public class TestDataInitializer {
             med.setAnwendungsart("intravitreal");
             med.setDescription(random.nextInt(10, 120) + "mg/ml Injektionslösung");
             med.setZulassungsinhaber("Pharma GmbH");
-            med.setFavourite(random.nextBoolean());
             med.setValidFrom(now.minusYears(random.nextInt(1, 5)));
             med.setValidUntil(now.plusYears(random.nextInt(3, 10)));
             medications.add(med);
         }
 
         return medications;
+    }
+
+    private List<MedicationFavourite> createMedicationFavouritesForInstitution(Institution institution,
+            List<Medication> medications) {
+        List<MedicationFavourite> favourites = new ArrayList<>();
+        if (institution == null || medications == null || medications.isEmpty()) {
+            return favourites;
+        }
+        LocalDate validFrom = LocalDate.now().minusMonths(1);
+        int favouritesCount = Math.min(3, medications.size());
+        for (int i = 0; i < favouritesCount; i++) {
+            Medication medication = medications.get(i);
+            MedicationFavourite favourite = medicationFavouriteService.addOrReactivateFavourite(
+                    institution.getId(),
+                    medication.getId(),
+                    medication.getArzneimittelbezeichnung(),
+                    validFrom);
+            favourites.add(favourite);
+        }
+        return favourites;
     }
 
     /**
@@ -553,7 +577,7 @@ public class TestDataInitializer {
      * Erstellt OP-Zentren mit Zeitslots für Mittwoch und Freitag über 2 Jahre
      */
     private void createPastTimeSlotsWithUnapprovedTreatments(List<Patient> patients, SurgicalCenter center,
-            Medication medication, Diagnosis diagnosis) {
+            MedicationFavourite medication, Diagnosis diagnosis) {
 
         // Erstelle einen TimeSlot der gerade abgelaufen ist
         LocalDate yesterday = LocalDate.now().minusDays(1);
@@ -595,7 +619,7 @@ public class TestDataInitializer {
 
             Treatment treatment = new Treatment()
                     .setSurgicalCenterTimeSlot(pastTimeSlot)
-                    .setMedication(medication)
+                    .setMedicationFavourite(medication)
                     .setSideOfEye(SideOfEye.LEFT);  // Oder random zwischen LEFT/RIGHT
             // Kein ApprovalDate setzen, damit es als unapproved gilt
 
@@ -704,7 +728,7 @@ public class TestDataInitializer {
      * - Mix aus approved und unapproved Behandlungen
      */
     private void createTreatmentPlansWithTreatments(List<Patient> patients,
-            List<Medication> medications,
+            List<MedicationFavourite> favourites,
             List<Diagnosis> diagnoses,
             List<SurgicalCenter> surgicalCenters) {
         Random random = new Random();
@@ -776,7 +800,11 @@ public class TestDataInitializer {
             SurgicalCenter center = surgicalCenters.get(random.nextInt(surgicalCenters.size()));
 
             // Wähle ein bevorzugtes Medikament und eine Seite
-            Medication preferredMedication = medications.get(random.nextInt(medications.size()));
+            if (favourites.isEmpty()) {
+                log.warn("Keine Medikamentenfavoriten verfügbar, überspringe Erstellung von Behandlungen");
+                continue;
+            }
+            MedicationFavourite preferredMedication = favourites.get(random.nextInt(favourites.size()));
             SideOfEye preferredSideOfEye = EYE_SIDES[random.nextInt(EYE_SIDES.length)];
 
             List<Treatment> treatments = new ArrayList<>();
@@ -800,7 +828,7 @@ public class TestDataInitializer {
             int pastTreatmentCount = Math.max(5, Math.min(8, pastSlots.size())); // 5-8 Behandlungen in der Vergangenheit
             for (int i = 0; i < pastTreatmentCount && i < pastSlots.size(); i++) {
                 SurgicalCenterTimeSlot slot = pastSlots.get(i);
-                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, medications, random, true);
+                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, favourites, random, true);
                 treatments.add(treatment);
                 slot.setAvailable(false); // Slot ist belegt
             }
@@ -808,7 +836,7 @@ public class TestDataInitializer {
             // Erstelle maximal 1 Behandlung in der Zukunft
             if (!futureSlots.isEmpty() && random.nextDouble() < 0.7) { // 70% Wahrscheinlichkeit für Zukunftstermin
                 SurgicalCenterTimeSlot slot = futureSlots.get(0);
-                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, medications, random, false);
+                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, favourites, random, false);
                 treatments.add(treatment);
                 slot.setAvailable(false); // Slot ist belegt
             }
@@ -828,8 +856,8 @@ public class TestDataInitializer {
      * Erstellt eine Behandlung für einen Zeitslot
      */
     private Treatment createTreatment(TreatmentPlan plan, SurgicalCenterTimeSlot slot, 
-            Medication preferredMedication, SideOfEye preferredSideOfEye,
-            List<Medication> medications, Random random, boolean isPast) {
+            MedicationFavourite preferredMedication, SideOfEye preferredSideOfEye,
+            List<MedicationFavourite> favourites, Random random, boolean isPast) {
         Treatment treatment = new Treatment();
         treatment.setTreatmentPlan(plan);
         treatment.setSurgicalCenterTimeSlot(slot);
@@ -843,9 +871,10 @@ public class TestDataInitializer {
 
         // 90% Wahrscheinlichkeit für bevorzugtes Medikament
         if (random.nextDouble() < 0.9) {
-            treatment.setMedication(preferredMedication);
+            treatment.setMedicationFavourite(preferredMedication);
         } else {
-            treatment.setMedication(medications.get(random.nextInt(medications.size())));
+            MedicationFavourite alternative = favourites.get(random.nextInt(favourites.size()));
+            treatment.setMedicationFavourite(alternative);
         }
 
         // Verschiedene Bemerkungen

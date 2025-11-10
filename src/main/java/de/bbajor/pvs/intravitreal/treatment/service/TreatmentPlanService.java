@@ -20,8 +20,9 @@ import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
-import de.bbajor.pvs.medication.model.Medication;
-import de.bbajor.pvs.medication.repository.MedicationRepository;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
+import de.bbajor.pvs.medication.repository.MedicationFavouriteRepository;
+import de.bbajor.pvs.medication.service.MedicationFavouriteService;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
@@ -46,8 +47,6 @@ public class TreatmentPlanService {
     @Autowired
     private TreatmentAuditLogRepository auditLogRepository;
     @Autowired
-    private MedicationRepository medicationRepository;
-    @Autowired
     private CurrentUser currentUser;
 
     @Autowired
@@ -57,6 +56,10 @@ public class TreatmentPlanService {
 
     @Autowired
     private InstitutionRepository institutionRepository;
+    @Autowired
+    private MedicationFavouriteRepository medicationFavouriteRepository;
+    @Autowired
+    private MedicationFavouriteService medicationFavouriteService;
 
     @Transactional(readOnly = true)
     public TreatmentPlan findByIdWithDetails(Long id) {
@@ -340,9 +343,13 @@ public class TreatmentPlanService {
             treatmentMapper.updateTreatmentEntity(treatment, treatmentToSave);
             SurgicalCenterTimeSlot surgicalCenterTimeSlot = surgicalCenterTimeSlotRepository
                     .getReferenceById(treatment.getSurgicalCenterTimeSlot().getId());
-            Medication medication = medicationRepository.getReferenceById(treatment.getMedication().getId());
+            if (treatment.getMedicationFavourite() == null || treatment.getMedicationFavourite().getId() == null) {
+                throw new IllegalArgumentException("Medikamentenfavorit erforderlich, um eine Behandlung zu speichern.");
+            }
+            MedicationFavourite medicationFavourite = medicationFavouriteRepository
+                    .getReferenceById(treatment.getMedicationFavourite().getId());
             treatmentToSave.setSurgicalCenterTimeSlot(surgicalCenterTimeSlot);
-            treatmentToSave.setMedication(medication);
+            treatmentToSave.setMedicationFavourite(medicationFavourite);
             treatmentToSave.setTreatmentPlan(saved);
             treatmentEntityList.add(treatmentToSave);
         }
@@ -425,7 +432,11 @@ public class TreatmentPlanService {
         auditLogRepository.save(log);
     }
 
-    public List<Medication> getFavouriteMedications() {
-        return medicationRepository.findAllByIsFavouriteTrue();
+    public List<MedicationFavourite> getFavouriteMedications() {
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            return List.of();
+        }
+        return medicationFavouriteService.getActiveFavouritesForInstitution(institutionId);
     }
 }
