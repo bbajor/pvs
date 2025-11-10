@@ -21,7 +21,7 @@ import jakarta.annotation.security.PermitAll;
 
 @Route("augen-termine")
 @PageTitle("Augenheilkunde - Patiententermine")
-@Menu(order = 5, icon = "vaadin:eye", title = "Augen-Termine")
+// Menu entry removed - will be replaced by patient visit form and patient history tab
 @PermitAll
 public class OphthalmologyAppointmentView extends Main {
 

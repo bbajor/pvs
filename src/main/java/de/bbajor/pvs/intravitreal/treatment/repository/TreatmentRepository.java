@@ -15,7 +15,8 @@ public interface TreatmentRepository
         @Query("""
                         select distinct t from Treatment t
                         inner join fetch t.treatmentPlan tp
-                        left join fetch t.medication
+                        left join fetch t.medicationFavourite mf
+                        left join fetch mf.medication
                         left join fetch t.surgicalCenterTimeSlot ts
                         left join fetch ts.surgicalCenter sc
                         where tp.id = :id
@@ -27,7 +28,8 @@ public interface TreatmentRepository
                         select distinct t from Treatment t
                         left join fetch t.surgicalCenterTimeSlot ts
                         left join fetch ts.surgicalCenter sc
-                        left join fetch t.medication
+                        left join fetch t.medicationFavourite mf
+                        left join fetch mf.medication
                         inner join fetch t.treatmentPlan tp
                         where ts.date between :startDate and :endDate
                         and t.treatmentPlan is not null
@@ -37,9 +39,14 @@ public interface TreatmentRepository
                         LocalDate endDate);
 
         @Query("""
-                        select t from Treatment t
-                        where t.surgicalCenterTimeSlot.id = :timeSlotId
-                        order by t.surgicalCenterTimeSlot.date asc
+                        select distinct t from Treatment t
+                        left join fetch t.medicationFavourite mf
+                        left join fetch mf.medication
+                        left join fetch t.surgicalCenterTimeSlot ts
+                        left join fetch ts.surgicalCenter sc
+                        left join fetch t.treatmentPlan tp
+                        where ts.id = :timeSlotId
+                        order by ts.date asc
                         """)
         List<Treatment> findByTimeSlotId(Long timeSlotId);
 

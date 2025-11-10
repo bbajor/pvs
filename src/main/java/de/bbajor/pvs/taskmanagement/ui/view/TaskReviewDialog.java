@@ -26,9 +26,14 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
@@ -44,19 +49,23 @@ public class TaskReviewDialog extends Dialog {
     private TaskService taskService;
     private AuthenticationContext authenticationContext;
     private TreatmentReportService reportService;
+    private UserAccountRepository userAccountRepository;
 
     private VerticalLayout mainContent;
     private VerticalLayout overviewLayout;
     private VerticalLayout detailLayout;
 
     public TaskReviewDialog(Task task, TreatmentRepository treatmentRepository, TaskService taskService,
-            AuthenticationContext authenticationContext, TreatmentReportService reportService) {
+            AuthenticationContext authenticationContext, TreatmentReportService reportService,
+            UserAccountRepository userAccountRepository) {
         this.task = task;
         this.treatmentRepository = treatmentRepository;
         this.taskService = taskService;
         this.authenticationContext = authenticationContext;
         this.reportService = reportService;
+        this.userAccountRepository = userAccountRepository;
 
+        ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
 
         setHeaderTitle("Behandlungen überprüfen");
@@ -91,8 +100,12 @@ public class TaskReviewDialog extends Dialog {
         Grid<Treatment> grid = new Grid<>(Treatment.class, false);
         grid.addColumn(t -> t.getSideOfEye() != null ? t.getSideOfEye().toString() : "-")
                 .setHeader("Auge");
-        grid.addColumn(t -> t.getMedication() != null ? t.getMedication().getArzneimittelbezeichnung() : "-")
-                .setHeader("Medikament");
+        grid.addColumn(t -> {
+            if (t.getMedicationFavourite() != null && t.getMedicationFavourite().getMedication() != null) {
+                return t.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+            }
+            return "-";
+        }).setHeader("Medikament");
         grid.addColumn(t -> t.getTreatmentPlan() != null && t.getTreatmentPlan().getPatient() != null 
                 ? t.getTreatmentPlan().getPatient().toString() : "-")
                 .setHeader("Patient");
@@ -176,7 +189,11 @@ public class TaskReviewDialog extends Dialog {
         infoLayout.add(new Span("Patient: " + (treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null 
                 ? treatment.getTreatmentPlan().getPatient().toString() : "-")));
         infoLayout.add(new Span("Auge: " + (treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-")));
-        infoLayout.add(new Span("Medikament: " + (treatment.getMedication() != null ? treatment.getMedication().getArzneimittelbezeichnung() : "-")));
+        String medicationName = "-";
+        if (treatment.getMedicationFavourite() != null && treatment.getMedicationFavourite().getMedication() != null) {
+            medicationName = treatment.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+        }
+        infoLayout.add(new Span("Medikament: " + medicationName));
         infoLayout.add(new Span("Dosierung: " + (treatment.getDosage() != null ? treatment.getDosage() : "-")));
         infoLayout.add(new Span("Frequenz: " + (treatment.getFrequency() != null ? treatment.getFrequency() : "-")));
         
@@ -339,11 +356,50 @@ public class TaskReviewDialog extends Dialog {
     }
 
     private void reloadTreatments() {
+        ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
+    }
+
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+     * so the context might not be set.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            try {
+                String username = adapter.getUsername();
+                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (userAccount != null && userAccount.getInstitution() != null) {
+                    Long institutionId = userAccount.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                    log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                            institutionId, userAccount.getInstitution().getInstitutionCode());
+                }
+            } catch (Exception e) {
+                log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+            }
+        }
     }
 
     private void generatePatientReport(Treatment treatment) {
         try {
+            ensureInstitutionContext();
             String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
             boolean isApproved = treatment.getApprovalDate() != null;
             byte[] pdfBytes = reportService.generatePatientPdfReport(treatment, task.getTimeSlot(), treatingDoctor, isApproved);
@@ -372,6 +428,7 @@ public class TaskReviewDialog extends Dialog {
     
     private void generateCombinedReport() {
         try {
+            ensureInstitutionContext();
             boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
             String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
             byte[] pdfBytes = reportService.generatePdfReport(treatments, task.getTimeSlot(), treatingDoctor, allApproved);

@@ -165,14 +165,14 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
 
     /**
      * Checks if MFA is mandatory for a user.
-     * MFA is mandatory for SUPER_ADMIN and INSTITUTION_ADMIN.
+     * MFA is mandatory for SUPER_ADMIN only.
+     * INSTITUTION_ADMIN can use MFA optionally.
      */
     private boolean isMfaMandatory(UserAccount userAccount) {
         if (userAccount == null || userAccount.getRoles() == null) {
             return false;
         }
-        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN) 
-                || userAccount.getRoles().contains(AppRoles.INSTITUTION_ADMIN);
+        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
     }
 
     @Override
@@ -202,7 +202,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
                     return;
                 }
 
-                // Check if MFA is mandatory for this user (SUPER_ADMIN or INSTITUTION_ADMIN)
+                // Check if MFA is mandatory for this user (SUPER_ADMIN only)
                 boolean mfaMandatory = isMfaMandatory(userAccount);
                 
                 if (mfaMandatory && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
