@@ -16,14 +16,14 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
+import com.vaadin.flow.server.streams.InMemoryUploadHandler;
 import de.bbajor.pvs.institution.model.EmailEncryptionMethod;
 import de.bbajor.pvs.security.email.model.SmtpConfig;
 import de.bbajor.pvs.security.email.model.SmtpSecurityMethod;
 import de.bbajor.pvs.security.email.service.OpenPgpService;
 import de.bbajor.pvs.security.email.service.SmtpConfigService;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicReference;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -53,14 +53,14 @@ public class MailSettingsTab extends VerticalLayout {
     
     // OpenPGP signing fields
     private Upload privateKeyUpload;
-    private MemoryBuffer privateKeyBuffer;
+    private final AtomicReference<byte[]> pendingPrivateKeyUpload = new AtomicReference<>();
     private PasswordField privateKeyPassphraseField;
     private Paragraph privateKeyStatusParagraph;
     private Button removePrivateKeyButton;
     
     // OpenPGP public key fields (optional, for Autocrypt header)
     private Upload publicKeyUpload;
-    private MemoryBuffer publicKeyBuffer;
+    private final AtomicReference<byte[]> pendingPublicKeyUpload = new AtomicReference<>();
     private Paragraph publicKeyStatusParagraph;
     private Button removePublicKeyButton;
     
@@ -140,12 +140,13 @@ public class MailSettingsTab extends VerticalLayout {
         signingInfo.getStyle().set("color", "var(--lumo-secondary-text-color)");
         signingInfo.getStyle().set("font-size", "var(--lumo-font-size-s)");
         
-        privateKeyBuffer = new MemoryBuffer();
-        privateKeyUpload = new Upload(privateKeyBuffer);
+        privateKeyUpload = new Upload(new InMemoryUploadHandler((metadata, data) -> {
+            pendingPrivateKeyUpload.set(data);
+            getUI().ifPresent(ui -> ui.access(this::handlePrivateKeyUpload));
+        }));
         privateKeyUpload.setAcceptedFileTypes(".asc", ".key", "application/pgp-keys", "application/pgp");
         privateKeyUpload.setMaxFileSize(100 * 1024); // 100 KB max
         privateKeyUpload.setDropLabel(new com.vaadin.flow.component.html.Span("Privaten Schlüssel hier ablegen oder klicken zum Auswählen"));
-        privateKeyUpload.addSucceededListener(e -> handlePrivateKeyUpload());
         privateKeyUpload.addFileRejectedListener(e -> {
             Notification notification = Notification.show(
                     "Fehler beim Hochladen: " + e.getErrorMessage(), 
@@ -182,12 +183,13 @@ public class MailSettingsTab extends VerticalLayout {
         publicKeyInfo.getStyle().set("color", "var(--lumo-secondary-text-color)");
         publicKeyInfo.getStyle().set("font-size", "var(--lumo-font-size-s)");
         
-        publicKeyBuffer = new MemoryBuffer();
-        publicKeyUpload = new Upload(publicKeyBuffer);
+        publicKeyUpload = new Upload(new InMemoryUploadHandler((metadata, data) -> {
+            pendingPublicKeyUpload.set(data);
+            getUI().ifPresent(ui -> ui.access(this::handlePublicKeyUpload));
+        }));
         publicKeyUpload.setAcceptedFileTypes(".asc", ".key", "application/pgp-keys", "application/pgp");
         publicKeyUpload.setMaxFileSize(100 * 1024); // 100 KB max
         publicKeyUpload.setDropLabel(new com.vaadin.flow.component.html.Span("Öffentlichen Schlüssel hier ablegen oder klicken zum Auswählen"));
-        publicKeyUpload.addSucceededListener(e -> handlePublicKeyUpload());
         publicKeyUpload.addFileRejectedListener(e -> {
             Notification notification = Notification.show(
                     "Fehler beim Hochladen: " + e.getErrorMessage(), 
@@ -398,47 +400,47 @@ public class MailSettingsTab extends VerticalLayout {
     }
     
     private void handlePrivateKeyUpload() {
+        byte[] data = pendingPrivateKeyUpload.getAndSet(null);
+        if (data == null || data.length == 0) {
+            Notification notification = Notification.show(
+                    "Fehler beim Lesen der Datei: Datei ist leer oder konnte nicht gelesen werden.",
+                    5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            uploadedPrivateKey = null;
+            return;
+        }
+
+        String privateKeyContent = new String(data, StandardCharsets.UTF_8);
+
+        if (!privateKeyContent.contains("-----BEGIN PGP PRIVATE KEY BLOCK-----")
+                && !privateKeyContent.contains("-----BEGIN PGP SECRET KEY BLOCK-----")) {
+            Notification notification = Notification.show(
+                    "Die Datei scheint kein privater OpenPGP-Schlüssel zu sein. " +
+                    "Bitte stellen Sie sicher, dass Sie den privaten Schlüssel exportiert haben.",
+                    5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            uploadedPrivateKey = null;
+            return;
+        }
+
         try {
-            InputStream inputStream = privateKeyBuffer.getInputStream();
-            String privateKeyContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-            
-            // Validate that it's a private key
-            if (!privateKeyContent.contains("-----BEGIN PGP PRIVATE KEY BLOCK-----") 
-                    && !privateKeyContent.contains("-----BEGIN PGP SECRET KEY BLOCK-----")) {
-                Notification notification = Notification.show(
-                        "Die Datei scheint kein privater OpenPGP-Schlüssel zu sein. " +
-                        "Bitte stellen Sie sicher, dass Sie den privaten Schlüssel exportiert haben.",
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
-            }
-            
-            // Try to parse the key to validate it
-            try {
-                openPgpService.parseSecretKey(privateKeyContent);
-                uploadedPrivateKey = privateKeyContent;
-                
-                Notification notification = Notification.show(
-                        "Privater Schlüssel erfolgreich hochgeladen. Bitte speichern Sie die Konfiguration.",
-                        3000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                
-                privateKeyStatusParagraph.setText("✅ Privater Schlüssel hochgeladen. Bitte speichern Sie die Konfiguration.");
-                privateKeyStatusParagraph.getStyle().set("color", "var(--lumo-success-color)");
-            } catch (Exception e) {
-                Notification notification = Notification.show(
-                        "Fehler beim Validieren des privaten Schlüssels: " + e.getMessage(),
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                uploadedPrivateKey = null;
-            }
+            openPgpService.parseSecretKey(privateKeyContent);
+            uploadedPrivateKey = privateKeyContent;
+
+            Notification notification = Notification.show(
+                    "Privater Schlüssel erfolgreich hochgeladen. Bitte speichern Sie die Konfiguration.",
+                    3000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+            privateKeyStatusParagraph.setText("✅ Privater Schlüssel hochgeladen. Bitte speichern Sie die Konfiguration.");
+            privateKeyStatusParagraph.getStyle().set("color", "var(--lumo-success-color)");
         } catch (Exception e) {
             Notification notification = Notification.show(
-                    "Fehler beim Lesen der Datei: " + e.getMessage(),
-                    5000, 
+                    "Fehler beim Validieren des privaten Schlüssels: " + e.getMessage(),
+                    5000,
                     Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             uploadedPrivateKey = null;
@@ -447,6 +449,7 @@ public class MailSettingsTab extends VerticalLayout {
     
     private void removePrivateKey() {
         uploadedPrivateKey = null;
+        pendingPrivateKeyUpload.set(null);
         privateKeyPassphraseField.setValue("");
         privateKeyStatusParagraph.setText("ℹ️ Privater Schlüssel wird beim Speichern entfernt.");
         privateKeyStatusParagraph.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -466,46 +469,46 @@ public class MailSettingsTab extends VerticalLayout {
     }
     
     private void handlePublicKeyUpload() {
+        byte[] data = pendingPublicKeyUpload.getAndSet(null);
+        if (data == null || data.length == 0) {
+            Notification notification = Notification.show(
+                    "Fehler beim Lesen der Datei: Datei ist leer oder konnte nicht gelesen werden.",
+                    5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            uploadedPublicKey = null;
+            return;
+        }
+
+        String publicKeyContent = new String(data, StandardCharsets.UTF_8);
+
+        if (!publicKeyContent.contains("-----BEGIN PGP PUBLIC KEY BLOCK-----")) {
+            Notification notification = Notification.show(
+                    "Die Datei scheint kein öffentlicher OpenPGP-Schlüssel zu sein. " +
+                    "Bitte stellen Sie sicher, dass Sie den öffentlichen Schlüssel exportiert haben.",
+                    5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            uploadedPublicKey = null;
+            return;
+        }
+
         try {
-            InputStream inputStream = publicKeyBuffer.getInputStream();
-            String publicKeyContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-            
-            // Validate that it's a public key
-            if (!publicKeyContent.contains("-----BEGIN PGP PUBLIC KEY BLOCK-----")) {
-                Notification notification = Notification.show(
-                        "Die Datei scheint kein öffentlicher OpenPGP-Schlüssel zu sein. " +
-                        "Bitte stellen Sie sicher, dass Sie den öffentlichen Schlüssel exportiert haben.",
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
-            }
-            
-            // Try to parse the key to validate it
-            try {
-                openPgpService.parsePublicKey(publicKeyContent);
-                uploadedPublicKey = publicKeyContent;
-                
-                Notification notification = Notification.show(
-                        "Öffentlicher Schlüssel erfolgreich hochgeladen. Bitte speichern Sie die Konfiguration.",
-                        3000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                
-                publicKeyStatusParagraph.setText("✅ Öffentlicher Schlüssel hochgeladen. Bitte speichern Sie die Konfiguration.");
-                publicKeyStatusParagraph.getStyle().set("color", "var(--lumo-success-color)");
-            } catch (Exception e) {
-                Notification notification = Notification.show(
-                        "Fehler beim Validieren des öffentlichen Schlüssels: " + e.getMessage(),
-                        5000, 
-                        Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                uploadedPublicKey = null;
-            }
+            openPgpService.parsePublicKey(publicKeyContent);
+            uploadedPublicKey = publicKeyContent;
+
+            Notification notification = Notification.show(
+                    "Öffentlicher Schlüssel erfolgreich hochgeladen. Bitte speichern Sie die Konfiguration.",
+                    3000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+            publicKeyStatusParagraph.setText("✅ Öffentlicher Schlüssel hochgeladen. Bitte speichern Sie die Konfiguration.");
+            publicKeyStatusParagraph.getStyle().set("color", "var(--lumo-success-color)");
         } catch (Exception e) {
             Notification notification = Notification.show(
-                    "Fehler beim Lesen der Datei: " + e.getMessage(),
-                    5000, 
+                    "Fehler beim Validieren des öffentlichen Schlüssels: " + e.getMessage(),
+                    5000,
                     Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             uploadedPublicKey = null;
@@ -514,6 +517,7 @@ public class MailSettingsTab extends VerticalLayout {
     
     private void removePublicKey() {
         uploadedPublicKey = null;
+        pendingPublicKeyUpload.set(null);
         publicKeyStatusParagraph.setText("ℹ️ Öffentlicher Schlüssel wird beim Speichern entfernt.");
         publicKeyStatusParagraph.getStyle().set("color", "var(--lumo-secondary-text-color)");
         removePublicKeyButton.setVisible(false);

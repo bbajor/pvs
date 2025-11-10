@@ -6,8 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.http.server.PathContainer;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.util.UrlPathHelper;
+import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,10 +30,7 @@ public class InstitutionAuthenticationFilter extends AbstractAuthenticationProce
     private static final String PASSWORD_PARAM = "password";
 
     public InstitutionAuthenticationFilter(String loginPath) {
-        // AntPathRequestMatcher is marked as deprecated but there's no non-deprecated 
-        // alternative for AbstractAuthenticationProcessingFilter in Spring Security 6.x
-        // The deprecated API is still the recommended way for this use case
-        super(new AntPathRequestMatcher(loginPath, "POST"));
+        super(new PostRequestMatcher(loginPath));
         log.debug("InstitutionAuthenticationFilter initialized for path: {}", loginPath);
     }
 
@@ -62,6 +63,42 @@ public class InstitutionAuthenticationFilter extends AbstractAuthenticationProce
         Authentication authResult = getAuthenticationManager().authenticate(authRequest);
         log.debug("Authentication result: {}", authResult != null ? "success" : "null");
         return authResult;
+    }
+
+    private static final class PostRequestMatcher implements RequestMatcher {
+
+        private static final UrlPathHelper URL_PATH_HELPER = createUrlPathHelper();
+        private final PathPattern pathPattern;
+
+        private PostRequestMatcher(String pattern) {
+            PathPatternParser parser = new PathPatternParser();
+            parser.setMatchOptionalTrailingSeparator(true);
+            this.pathPattern = parser.parse(normalizePattern(pattern));
+        }
+
+        @Override
+        public boolean matches(HttpServletRequest request) {
+            if (!"POST".equalsIgnoreCase(request.getMethod())) {
+                return false;
+            }
+            String lookupPath = URL_PATH_HELPER.getPathWithinApplication(request);
+            PathContainer path = PathContainer.parsePath(lookupPath);
+            return pathPattern.matches(path);
+        }
+
+        private static String normalizePattern(String pattern) {
+            if (pattern == null || pattern.isEmpty()) {
+                throw new IllegalArgumentException("loginPath must not be null or empty");
+            }
+            return pattern.startsWith("/") ? pattern : "/" + pattern;
+        }
+
+        private static UrlPathHelper createUrlPathHelper() {
+            UrlPathHelper helper = new UrlPathHelper();
+            helper.setRemoveSemicolonContent(false);
+            helper.setAlwaysUseFullPath(false);
+            return helper;
+        }
     }
 }
 
