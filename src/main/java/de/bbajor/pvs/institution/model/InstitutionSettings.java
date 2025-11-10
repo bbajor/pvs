@@ -9,6 +9,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -48,6 +49,24 @@ public class InstitutionSettings extends BasicEntity<Long> {
     @Column(name = "legal_name", length = 255)
     private String legalName;
 
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "street", length = 255)
+    private String street;
+
+    @Column(name = "house_number", length = 50)
+    private String houseNumber;
+
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    @Column(name = "city", length = 255)
+    private String city;
+
+    @Column(name = "country", length = 255)
+    private String country;
+
     @Column(name = "timezone", nullable = false, length = 100)
     private String timezone = DEFAULT_TIMEZONE;
 
@@ -63,6 +82,12 @@ public class InstitutionSettings extends BasicEntity<Long> {
     @Column(name = "contact_phone", length = 50)
     private String contactPhone;
 
+    @Column(name = "contact_fax", length = 50)
+    private String contactFax;
+
+    @Column(name = "tax_id", length = 100)
+    private String taxId;
+
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted = false;
 
@@ -71,6 +96,46 @@ public class InstitutionSettings extends BasicEntity<Long> {
 
     @Column(name = "notes")
     private String notes;
+
+    @Column(name = "remote_llm_enabled", nullable = false)
+    private boolean remoteLlmEnabled = false;
+
+    @Column(name = "remote_llm_api_url", length = 500)
+    private String remoteLlmApiUrl;
+
+    @Column(name = "remote_llm_api_key", length = 500)
+    private String remoteLlmApiKey;
+
+    @Column(name = "remote_llm_monthly_quota")
+    private Integer remoteLlmMonthlyQuota;
+
+    @Column(name = "website_url", length = 500)
+    private String websiteUrl;
+
+    @Lob
+    @Column(name = "watermark_image")
+    private byte[] watermarkImage;
+
+    @Column(name = "layout_primary_color", length = 7)
+    private String layoutPrimaryColor;
+
+    @Column(name = "layout_secondary_color", length = 7)
+    private String layoutSecondaryColor;
+
+    @Column(name = "layout_background_color", length = 7)
+    private String layoutBackgroundColor;
+
+    @Column(name = "layout_text_color", length = 7)
+    private String layoutTextColor;
+
+    @Column(name = "layout_accent_color", length = 7)
+    private String layoutAccentColor;
+
+    @Column(name = "layout_border_radius", length = 10)
+    private String layoutBorderRadius;
+
+    @Column(name = "layout_font_family", length = 100)
+    private String layoutFontFamily;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -81,10 +146,15 @@ public class InstitutionSettings extends BasicEntity<Long> {
     public static InstitutionSettings createDefault(Institution institution) {
         return new InstitutionSettings()
                 .setInstitution(institution)
-                .setDisplayName(institution.getInstitutionName())
-                .setLegalName(institution.getCompanyName())
-                .setContactEmail(institution.getEmail())
-                .setContactPhone(institution.getPhone());
+                .setDisplayName(institution.getInstitutionName());
+    }
+
+    public void setWatermarkImage(byte[] watermarkImage) {
+        this.watermarkImage = watermarkImage != null ? watermarkImage.clone() : null;
+    }
+
+    public byte[] getWatermarkImage() {
+        return watermarkImage != null ? watermarkImage.clone() : null;
     }
 
     @PrePersist

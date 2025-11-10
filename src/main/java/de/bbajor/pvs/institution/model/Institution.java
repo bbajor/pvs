@@ -61,73 +61,6 @@ public class Institution extends BasicEntity<Long> {
     private boolean active = true;
 
     /**
-     * Optional description or notes about this institution.
-     */
-    @Column(name = "description", length = 1000)
-    private String description;
-
-    /**
-     * Street address of the institution's headquarters.
-     */
-    @Column(name = "street", length = 255)
-    private String street;
-
-    /**
-     * House number of the institution's headquarters.
-     */
-    @Column(name = "house_number", length = 50)
-    private String houseNumber;
-
-    /**
-     * Postal code of the institution's headquarters.
-     */
-    @Column(name = "postal_code", length = 20)
-    private String postalCode;
-
-    /**
-     * City of the institution's headquarters.
-     */
-    @Column(name = "city", length = 255)
-    private String city;
-
-    /**
-     * Country of the institution's headquarters.
-     */
-    @Column(name = "country", length = 255)
-    private String country;
-
-    /**
-     * Contact phone number of the institution.
-     */
-    @Column(name = "phone", length = 50)
-    private String phone;
-
-    /**
-     * Contact fax number of the institution.
-     */
-    @Column(name = "fax", length = 50)
-    private String fax;
-
-    /**
-     * Contact email address of the institution.
-     */
-    @Column(name = "email", length = 255)
-    private String email;
-
-    /**
-     * Legal form and company name (e.g., "GmbH", "MVZ", "Klinikum").
-     * This is the official company name used for legal/administrative purposes.
-     */
-    @Column(name = "company_name", length = 255)
-    private String companyName;
-
-    /**
-     * Tax ID or registration number (e.g., "Steuernummer", "Handelsregisternummer").
-     */
-    @Column(name = "tax_id", length = 100)
-    private String taxId;
-
-    /**
      * Database name for this institution's dedicated database.
      * Format: "pvs_inst_{institutionCode}"
      * Example: "pvs_inst_abc123"
@@ -158,90 +91,11 @@ public class Institution extends BasicEntity<Long> {
     private String databasePassword;
 
     /**
-     * Remote LLM configuration - each institution can have its own AI model.
-     * If enabled, the institution uses its own remote LLM instead of the system-wide one.
-     */
-    @Column(name = "remote_llm_enabled")
-    private Boolean remoteLlmEnabled = false;
-
-    /**
-     * Remote LLM API URL (e.g., "https://api.aleph-alpha.com/complete").
-     */
-    @Column(name = "remote_llm_api_url", length = 500)
-    private String remoteLlmApiUrl;
-
-    /**
-     * Remote LLM API Key (encrypted/hashed).
-     */
-    @Column(name = "remote_llm_api_key", length = 500)
-    private String remoteLlmApiKey;
-
-    /**
-     * Remote LLM monthly quota for this institution.
-     */
-    @Column(name = "remote_llm_monthly_quota")
-    private Integer remoteLlmMonthlyQuota;
-    
-    /**
-     * Website URL of the institution (for QR code generati?on).
-     */
-    @Column(name = "website_url", length = 500)
-    private String websiteUrl;
-    
-    /**
-     * Watermark image for PDF reports (stored as BLOB).
-     */
-    @Column(name = "watermark_image", columnDefinition = "BYTEA")
-    private byte[] watermarkImage;
-
-    /**
-     * Layout customization: Primary brand color (hex format, e.g., "#1976d2").
-     */
-    @Column(name = "layout_primary_color", length = 7)
-    private String layoutPrimaryColor;
-
-    /**
-     * Layout customization: Secondary brand color (hex format).
-     */
-    @Column(name = "layout_secondary_color", length = 7)
-    private String layoutSecondaryColor;
-
-    /**
-     * Layout customization: Background color for main content areas (hex format).
-     */
-    @Column(name = "layout_background_color", length = 7)
-    private String layoutBackgroundColor;
-
-    /**
-     * Layout customization: Primary text color (hex format).
-     */
-    @Column(name = "layout_text_color", length = 7)
-    private String layoutTextColor;
-
-    /**
-     * Layout customization: Accent color for highlights and call-to-action elements (hex format).
-     */
-    @Column(name = "layout_accent_color", length = 7)
-    private String layoutAccentColor;
-
-    /**
-     * Layout customization: Border radius for UI elements (e.g., "8px", "0.5rem").
-     */
-    @Column(name = "layout_border_radius", length = 10)
-    private String layoutBorderRadius;
-
-    /**
-     * Layout customization: Font family for UI text (e.g., "Arial, sans-serif").
-     */
-    @Column(name = "layout_font_family", length = 100)
-    private String layoutFontFamily;
-
-    /**
      * Note: Locations are stored in the institution's own database,
      * not in the registry database where this Institution entity is stored.
      * Therefore, there is no @OneToMany relationship here - the relationship
      * is maintained only in the institution's database via Location.institutionId.
-     * 
+     *
      * However, for development and testing, we keep a @OneToMany relationship
      * for easier access during migration.
      */
@@ -254,45 +108,63 @@ public class Institution extends BasicEntity<Long> {
     @OneToOne(mappedBy = "institution", fetch = FetchType.LAZY, orphanRemoval = true)
     private InstitutionSettings settings;
 
-    /**
-     * Returns the complete address as a single string.
-     */
     public String getFullAddress() {
         StringBuilder address = new StringBuilder();
+        String street = getStreet();
+        String houseNumber = getHouseNumber();
         if (street != null && !street.isBlank()) {
             address.append(street);
             if (houseNumber != null && !houseNumber.isBlank()) {
                 address.append(" ").append(houseNumber);
             }
         }
+        String postalCode = getPostalCode();
         if (postalCode != null && !postalCode.isBlank()) {
-            if (address.length() > 0) address.append(", ");
+            if (address.length() > 0) {
+                address.append(", ");
+            }
             address.append(postalCode);
         }
+        String city = getCity();
         if (city != null && !city.isBlank()) {
-            if (address.length() > 0) address.append(" ");
+            if (address.length() > 0) {
+                address.append(" ");
+            }
             address.append(city);
         }
+        String country = getCountry();
         if (country != null && !country.isBlank()) {
-            if (address.length() > 0) address.append(", ");
+            if (address.length() > 0) {
+                address.append(", ");
+            }
             address.append(country);
         }
         return address.toString();
     }
 
-    /**
-     * Returns the institution name with company name if available.
-     */
     public String getFullName() {
+        String companyName = getCompanyName();
         if (companyName != null && !companyName.isBlank()) {
             return institutionName + " " + companyName;
         }
         return institutionName;
     }
 
+    public Institution setInstitutionName(String institutionName) {
+        this.institutionName = institutionName;
+        if (settings != null && institutionName != null && !institutionName.isBlank()) {
+            settings.setDisplayName(institutionName);
+        }
+        return this;
+    }
+
     public InstitutionSettings ensureSettings() {
         if (settings == null) {
             settings = InstitutionSettings.createDefault(this);
+        }
+        if ((settings.getDisplayName() == null || settings.getDisplayName().isBlank())
+                && institutionName != null && !institutionName.isBlank()) {
+            settings.setDisplayName(institutionName);
         }
         return settings;
     }
@@ -302,6 +174,226 @@ public class Institution extends BasicEntity<Long> {
         if (settings != null && settings.getInstitution() != this) {
             settings.setInstitution(this);
         }
+        if (settings != null && institutionName != null && !institutionName.isBlank()
+                && (settings.getDisplayName() == null || settings.getDisplayName().isBlank())) {
+            settings.setDisplayName(institutionName);
+        }
+        return this;
+    }
+
+    public String getDescription() {
+        return settings != null ? settings.getDescription() : null;
+    }
+
+    public Institution setDescription(String description) {
+        ensureSettings().setDescription(description);
+        return this;
+    }
+
+    public String getStreet() {
+        return settings != null ? settings.getStreet() : null;
+    }
+
+    public Institution setStreet(String street) {
+        ensureSettings().setStreet(street);
+        return this;
+    }
+
+    public String getHouseNumber() {
+        return settings != null ? settings.getHouseNumber() : null;
+    }
+
+    public Institution setHouseNumber(String houseNumber) {
+        ensureSettings().setHouseNumber(houseNumber);
+        return this;
+    }
+
+    public String getPostalCode() {
+        return settings != null ? settings.getPostalCode() : null;
+    }
+
+    public Institution setPostalCode(String postalCode) {
+        ensureSettings().setPostalCode(postalCode);
+        return this;
+    }
+
+    public String getCity() {
+        return settings != null ? settings.getCity() : null;
+    }
+
+    public Institution setCity(String city) {
+        ensureSettings().setCity(city);
+        return this;
+    }
+
+    public String getCountry() {
+        return settings != null ? settings.getCountry() : null;
+    }
+
+    public Institution setCountry(String country) {
+        ensureSettings().setCountry(country);
+        return this;
+    }
+
+    public String getPhone() {
+        return settings != null ? settings.getContactPhone() : null;
+    }
+
+    public Institution setPhone(String phone) {
+        ensureSettings().setContactPhone(phone);
+        return this;
+    }
+
+    public String getFax() {
+        return settings != null ? settings.getContactFax() : null;
+    }
+
+    public Institution setFax(String fax) {
+        ensureSettings().setContactFax(fax);
+        return this;
+    }
+
+    public String getEmail() {
+        return settings != null ? settings.getContactEmail() : null;
+    }
+
+    public Institution setEmail(String email) {
+        ensureSettings().setContactEmail(email);
+        return this;
+    }
+
+    public String getCompanyName() {
+        return settings != null ? settings.getLegalName() : null;
+    }
+
+    public Institution setCompanyName(String companyName) {
+        ensureSettings().setLegalName(companyName);
+        return this;
+    }
+
+    public String getTaxId() {
+        return settings != null ? settings.getTaxId() : null;
+    }
+
+    public Institution setTaxId(String taxId) {
+        ensureSettings().setTaxId(taxId);
+        return this;
+    }
+
+    public Boolean getRemoteLlmEnabled() {
+        return settings != null ? settings.isRemoteLlmEnabled() : Boolean.FALSE;
+    }
+
+    public Institution setRemoteLlmEnabled(Boolean remoteLlmEnabled) {
+        ensureSettings().setRemoteLlmEnabled(Boolean.TRUE.equals(remoteLlmEnabled));
+        return this;
+    }
+
+    public String getRemoteLlmApiUrl() {
+        return settings != null ? settings.getRemoteLlmApiUrl() : null;
+    }
+
+    public Institution setRemoteLlmApiUrl(String remoteLlmApiUrl) {
+        ensureSettings().setRemoteLlmApiUrl(remoteLlmApiUrl);
+        return this;
+    }
+
+    public String getRemoteLlmApiKey() {
+        return settings != null ? settings.getRemoteLlmApiKey() : null;
+    }
+
+    public Institution setRemoteLlmApiKey(String remoteLlmApiKey) {
+        ensureSettings().setRemoteLlmApiKey(remoteLlmApiKey);
+        return this;
+    }
+
+    public Integer getRemoteLlmMonthlyQuota() {
+        return settings != null ? settings.getRemoteLlmMonthlyQuota() : null;
+    }
+
+    public Institution setRemoteLlmMonthlyQuota(Integer remoteLlmMonthlyQuota) {
+        ensureSettings().setRemoteLlmMonthlyQuota(remoteLlmMonthlyQuota);
+        return this;
+    }
+
+    public String getWebsiteUrl() {
+        return settings != null ? settings.getWebsiteUrl() : null;
+    }
+
+    public Institution setWebsiteUrl(String websiteUrl) {
+        ensureSettings().setWebsiteUrl(websiteUrl);
+        return this;
+    }
+
+    public byte[] getWatermarkImage() {
+        return settings != null ? settings.getWatermarkImage() : null;
+    }
+
+    public Institution setWatermarkImage(byte[] watermarkImage) {
+        ensureSettings().setWatermarkImage(watermarkImage);
+        return this;
+    }
+
+    public String getLayoutPrimaryColor() {
+        return settings != null ? settings.getLayoutPrimaryColor() : null;
+    }
+
+    public Institution setLayoutPrimaryColor(String layoutPrimaryColor) {
+        ensureSettings().setLayoutPrimaryColor(layoutPrimaryColor);
+        return this;
+    }
+
+    public String getLayoutSecondaryColor() {
+        return settings != null ? settings.getLayoutSecondaryColor() : null;
+    }
+
+    public Institution setLayoutSecondaryColor(String layoutSecondaryColor) {
+        ensureSettings().setLayoutSecondaryColor(layoutSecondaryColor);
+        return this;
+    }
+
+    public String getLayoutBackgroundColor() {
+        return settings != null ? settings.getLayoutBackgroundColor() : null;
+    }
+
+    public Institution setLayoutBackgroundColor(String layoutBackgroundColor) {
+        ensureSettings().setLayoutBackgroundColor(layoutBackgroundColor);
+        return this;
+    }
+
+    public String getLayoutTextColor() {
+        return settings != null ? settings.getLayoutTextColor() : null;
+    }
+
+    public Institution setLayoutTextColor(String layoutTextColor) {
+        ensureSettings().setLayoutTextColor(layoutTextColor);
+        return this;
+    }
+
+    public String getLayoutAccentColor() {
+        return settings != null ? settings.getLayoutAccentColor() : null;
+    }
+
+    public Institution setLayoutAccentColor(String layoutAccentColor) {
+        ensureSettings().setLayoutAccentColor(layoutAccentColor);
+        return this;
+    }
+
+    public String getLayoutBorderRadius() {
+        return settings != null ? settings.getLayoutBorderRadius() : null;
+    }
+
+    public Institution setLayoutBorderRadius(String layoutBorderRadius) {
+        ensureSettings().setLayoutBorderRadius(layoutBorderRadius);
+        return this;
+    }
+
+    public String getLayoutFontFamily() {
+        return settings != null ? settings.getLayoutFontFamily() : null;
+    }
+
+    public Institution setLayoutFontFamily(String layoutFontFamily) {
+        ensureSettings().setLayoutFontFamily(layoutFontFamily);
         return this;
     }
 
