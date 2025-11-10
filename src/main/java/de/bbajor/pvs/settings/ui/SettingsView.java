@@ -15,6 +15,7 @@ import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
 import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
+import de.bbajor.pvs.settings.ui.tabs.SchedulerManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.UserSettingsTab;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
@@ -28,6 +29,7 @@ public class SettingsView extends Main {
     private final Tab generalTab = new Tab("Allgemein");
     private final Tab layoutTab = new Tab("Layout");
     private final Tab locationTab = new Tab("Standorte");
+    private final Tab schedulerTab = new Tab("Terminplaner");
     private final Tab userTab = new Tab("Benutzerverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
     private final Tab mfaTab = new Tab("Multi-Faktor-Authentifizierung");
@@ -37,6 +39,7 @@ public class SettingsView extends Main {
     public SettingsView(InstitutionGeneralTab institutionGeneralTab,
             LayoutSettingsTab layoutSettingsTab,
             LocationManagementTab locationManagementTab,
+            SchedulerManagementTab schedulerManagementTab,
             UserSettingsTab userSettingsTab,
             MedicationSettingsTab medicationSettingsTab,
             MfaSettingsTab mfaSettingsTab) {
@@ -46,7 +49,7 @@ public class SettingsView extends Main {
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, userTab, medicationTab, mfaTab);
+        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, mfaTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
@@ -57,6 +60,8 @@ public class SettingsView extends Main {
                 content.add(layoutSettingsTab);
             } else if (selected == locationTab) {
                 content.add(locationManagementTab);
+            } else if (selected == schedulerTab) {
+                content.add(schedulerManagementTab);
             } else if (selected == userTab) {
                 content.add(userSettingsTab);
             } else if (selected == medicationTab) {

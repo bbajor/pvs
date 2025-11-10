@@ -9,6 +9,7 @@ import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.SideOfEyeConverter;
 import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import jakarta.persistence.Convert;
@@ -49,7 +50,8 @@ public class Treatment extends BasicEntity<Long> {
     private String secondApprovedByUserName;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    private Medication medication;
+    @JoinColumn(name = "medication_favourite_id")
+    private MedicationFavourite medicationFavourite;
     private String frequency;
     private String dosage;
     private String billId;
@@ -80,5 +82,9 @@ public class Treatment extends BasicEntity<Long> {
 
     public String getPatientInfo() {
         return treatmentPlan.getPatient().toString();
+    }
+
+    public Medication getMedication() {
+        return medicationFavourite != null ? medicationFavourite.getMedication() : null;
     }
 }

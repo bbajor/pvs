@@ -28,7 +28,7 @@ public class IvomHelpView extends HelpSubPageView {
         section.addClassNames(LumoUtility.Margin.Bottom.LARGE);
 
         section.add(createInfoCard("Übersicht",
-                "Die IVOM-Verwaltung ermöglicht es Ihnen, intravitreale Behandlungspläne zu erstellen, zu verwalten und zu überwachen. "
+                "Der IVOM-Planer ermöglicht es Ihnen, intravitreale Behandlungspläne zu erstellen, zu verwalten und zu überwachen. "
                 + "Hier können Sie Patientenbehandlungen planen, Termine buchen und Wochenlisten generieren."));
 
         section.add(createInfoCard("Funktionen",

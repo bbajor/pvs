@@ -32,8 +32,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route("ivom")
-@PageTitle("IVOM-Verwaltung")
-@Menu(order = 2, icon = "vaadin:calendar-user", title = "IVOM-Verwaltung")
+@PageTitle("IVOM-Planer")
+@Menu(order = 2, icon = "vaadin:calendar-user", title = "IVOM-Planer")
 @PermitAll
 public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeListener, BeforeEnterObserver {
 

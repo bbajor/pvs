@@ -199,6 +199,11 @@ JOIN institution i ON ua.institution_id = i.id
 WHERE ua.username = 'inst1-admin' AND i.institution_code = 'PRAX-001'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_account_roles (user_account_id, roles)
+SELECT ua.id, 'ADMIN' FROM user_account ua
+JOIN institution i ON ua.institution_id = i.id
+WHERE ua.username = 'inst1-admin' AND i.institution_code = 'PRAX-001'
+ON CONFLICT DO NOTHING;
+INSERT INTO user_account_roles (user_account_id, roles)
 SELECT ua.id, 'USER' FROM user_account ua
 JOIN institution i ON ua.institution_id = i.id
 WHERE ua.username = 'inst1-admin' AND i.institution_code = 'PRAX-001'
