@@ -4,10 +4,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.pgpainless.PGPainless;
+import org.pgpainless.algorithm.DocumentSignatureType;
 import org.pgpainless.algorithm.SymmetricKeyAlgorithm;
 import org.pgpainless.encryption_signing.EncryptionOptions;
 import org.pgpainless.encryption_signing.EncryptionStream;
@@ -117,41 +120,70 @@ public class OpenPgpService {
     public String encryptAndSignMessage(String message, String armoredPublicKey, 
             String armoredPrivateKey, String privateKeyPassphrase) throws PGPException, IOException {
         try {
-            // Validate public key (for encryption)
             PGPPublicKeyRing recipientKeyRing = PGPainless.readKeyRing()
                     .publicKeyRing(armoredPublicKey);
-            
-            if (recipientKeyRing == null || recipientKeyRing.getPublicKey() == null) {
+
+            if (recipientKeyRing == null) {
                 throw new PGPException("Invalid public key: no encryption key found");
             }
-            
-            // Encrypt and sign: Standard PGP procedure is sign-then-encrypt
-            // This means the signature is inside the encrypted message
-            // Thunderbird/Enigmail will decrypt first, then verify the signature
-            // Note: The signature will be verified AFTER decryption, which is the standard PGP flow
-            // We do this in two steps to ensure proper PGP structure
-            log.debug("Signing message before encryption...");
-            String signed = signMessage(message, armoredPrivateKey, privateKeyPassphrase);
-            log.debug("Message signed successfully, length: {} chars", signed.length());
-            
-            log.debug("Encrypting signed message...");
-            String encrypted = encryptMessage(signed, armoredPublicKey);
-            
-            // Extract key ID for logging
+
+            PGPPublicKey encryptionKey = null;
+            var publicKeys = recipientKeyRing.getPublicKeys();
+            while (publicKeys.hasNext()) {
+                PGPPublicKey current = publicKeys.next();
+                if (current != null && current.isEncryptionKey()) {
+                    encryptionKey = current;
+                    break;
+                }
+            }
+            if (encryptionKey == null) {
+                throw new PGPException("Invalid public key: no encryption key found");
+            }
+            log.debug("Encrypting with public key ID: {}", Long.toHexString(encryptionKey.getKeyID()).toUpperCase());
+
+            PGPSecretKeyRing secretKeyRing = PGPainless.readKeyRing()
+                    .secretKeyRing(armoredPrivateKey);
+
+            if (secretKeyRing == null || secretKeyRing.getPublicKey() == null) {
+                throw new PGPException("Invalid private key: no signing key found");
+            }
+
+            SecretKeyRingProtector protector;
+            if (privateKeyPassphrase != null && !privateKeyPassphrase.isEmpty()) {
+                protector = SecretKeyRingProtector.unlockAnyKeyWith(
+                        Passphrase.fromPassword(privateKeyPassphrase));
+            } else {
+                protector = SecretKeyRingProtector.unlockAnyKeyWith(Passphrase.emptyPassphrase());
+            }
+
+            SigningOptions signingOptions = SigningOptions.get()
+                    .addInlineSignature(protector, secretKeyRing, DocumentSignatureType.BINARY_DOCUMENT);
+
+            EncryptionOptions encryptionOptions = EncryptionOptions.encryptCommunications()
+                    .addRecipient(recipientKeyRing, EncryptionOptions.encryptToAllCapableSubkeys())
+                    .overrideEncryptionAlgorithm(SymmetricKeyAlgorithm.AES_256);
+
+            ByteArrayOutputStream encryptedOut = new ByteArrayOutputStream();
+            try (EncryptionStream encryptionStream = PGPainless.encryptAndOrSign()
+                    .onOutputStream(encryptedOut)
+                    .withOptions(ProducerOptions.signAndEncrypt(encryptionOptions, signingOptions)
+                            .setAsciiArmor(true))) {
+                encryptionStream.write(message.getBytes(StandardCharsets.UTF_8));
+            }
+
+            String encrypted = normalizeArmoredMessage(encryptedOut.toString(StandardCharsets.UTF_8));
+
             try {
                 String senderKeyId = extractKeyIdFromPrivateKey(armoredPrivateKey);
-                log.info("Email encrypted and signed successfully (sign-then-encrypt). " +
-                        "Message length: {} chars. Signing key ID: {}. " +
-                        "Note: Recipient needs sender's public key in their keyring to verify signature.",
+                log.info(
+                        "Email encrypted and signed successfully via pgpainless. Message length: {} chars. Signing key ID: {}.",
                         encrypted.length(), senderKeyId);
             } catch (Exception e) {
                 log.debug("Could not extract key ID for logging", e);
-                log.info("Email encrypted and signed successfully (sign-then-encrypt). " +
-                        "Message length: {} chars. " +
-                        "Note: Recipient needs sender's public key in their keyring to verify signature.",
+                log.info("Email encrypted and signed successfully via pgpainless. Message length: {} chars.",
                         encrypted.length());
             }
-            
+
             return encrypted;
         } catch (Exception e) {
             log.error("Failed to encrypt and sign message with pgpainless", e);
@@ -365,29 +397,13 @@ public class OpenPgpService {
         
         String normalized = armoredMessage;
         
-        // Remove version lines that can cause issues with some PGP clients
-        // Remove BouncyCastle version lines
-        normalized = normalized.replaceAll("(?m)^Version: BCPG v@RELEASE_NAME@\\r?\\n", "");
-        normalized = normalized.replaceAll("(?m)^Version: BCPG v[^\\r\\n]+\\r?\\n", "");
-        // Remove PGPainless version lines (critical for compatibility)
-        normalized = normalized.replaceAll("(?m)^Version: PGPainless\\r?\\n", "");
-        normalized = normalized.replaceAll("(?m)^Version: PGPainless[^\\r\\n]*\\r?\\n", "");
-        
         // Normalize line endings to LF (Unix-style) for better compatibility
         normalized = normalized.replace("\r\n", "\n");
         normalized = normalized.replace("\r", "\n");
         
-        // Remove leading/trailing whitespace
-        normalized = normalized.trim();
-        
-        // Ensure no blank line after -----BEGIN PGP MESSAGE-----
-        normalized = normalized.replaceAll("(?m)^-----BEGIN PGP MESSAGE-----\\n\\n", "-----BEGIN PGP MESSAGE-----\n");
-        
-        // Ensure no blank line before -----END PGP MESSAGE-----
-        normalized = normalized.replaceAll("(?m)\\n\\n-----END PGP MESSAGE-----$", "\n-----END PGP MESSAGE-----");
-        
-        // Remove trailing newlines
-        normalized = normalized.replaceAll("\\n+$", "");
+        // Remove version lines that can cause issues with some PGP clients
+        normalized = normalized.replaceAll("(?m)^Version: BCPG v[^\\r\\n]+\\n", "");
+        normalized = normalized.replaceAll("(?m)^Version: PGPainless[^\\r\\n]*\\n", "");
         
         return normalized;
     }
