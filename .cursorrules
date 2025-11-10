@@ -5,6 +5,7 @@
 - Wiederverwendung vor Neuentwicklung (Validatoren, Utils, Patterns)
 
 ## Testing
+- Testgetrieben arbeiten: erst die passenden Tests schreiben, dann den Code; Tests ausführen und nachjustieren bis alles grün ist; anschließend Edge Cases sowie fuzzy Tests ergänzen und den Loop wiederholen.
 - Bei nicht-trivialer Business-Logik: Tests vor PR einplanen
 - Edge Cases mitdenken
 
