@@ -18,8 +18,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.model.Medication;
-import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
@@ -38,9 +37,6 @@ public class TreatmentPlanPresenter {
     private SurgicalCenterService surgicalCenterService;
     @Autowired
     private PatientService patientService;
-    @Autowired
-    private IntravitrealMedicationService medicationService;
-
     public TreatmentPlan loadTreatmentPlanByIdWithFullDetails(Long id) throws NoSuchElementException {
         return treatmentPlanService.loadTreatmentPlanWithFullDetails(id);
     }
@@ -55,8 +51,8 @@ public class TreatmentPlanPresenter {
         return patientService.getAll();
     }
 
-    public List<Medication> getDrugs() {
-        return medicationService.getMedicationListFavourites();
+    public List<MedicationFavourite> getDrugs() {
+        return treatmentPlanService.getFavouriteMedications();
     }
 
     public List<SurgicalCenter> getSurgicalCenters() {
@@ -136,7 +132,7 @@ public class TreatmentPlanPresenter {
         return saveNewTreatments(ivomPlanId, timeSlotsToCreate);
     }
 
-    public Collection<Medication> getFavouriteMedications() {
-        return medicationService.getMedicationListFavourites();
+    public Collection<MedicationFavourite> getFavouriteMedications() {
+        return treatmentPlanService.getFavouriteMedications();
     }
 }

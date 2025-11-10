@@ -300,7 +300,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
             // Check if MFA is required before navigating
             UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
             if (userAccount != null) {
-                // Check if MFA is required (mandatory for SUPER_ADMIN and INSTITUTION_ADMIN)
+                // Check if MFA is required (mandatory for SUPER_ADMIN only)
                 boolean mfaRequired = isMfaRequired(userAccount);
                 
                 if (mfaRequired && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
@@ -474,14 +474,14 @@ class DevLoginView extends Main implements BeforeEnterObserver {
 
     /**
      * Checks if MFA is required for a user.
-     * MFA is mandatory for SUPER_ADMIN and INSTITUTION_ADMIN, optional for others.
+     * MFA is mandatory for SUPER_ADMIN only.
+     * INSTITUTION_ADMIN can use MFA optionally.
      */
     private boolean isMfaRequired(UserAccount userAccount) {
         if (userAccount == null || userAccount.getRoles() == null) {
             return false;
         }
-        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN) 
-                || userAccount.getRoles().contains(AppRoles.INSTITUTION_ADMIN);
+        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
     }
 
     @Override

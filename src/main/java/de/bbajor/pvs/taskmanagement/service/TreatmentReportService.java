@@ -383,8 +383,10 @@ public class TreatmentReportService {
                 int detailY = yPosition;
                 
                 String eye = treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-";
-                String medication = treatment.getMedication() != null 
-                    ? treatment.getMedication().getArzneimittelbezeichnung() : "-";
+                String medication = "-";
+                if (treatment.getMedicationFavourite() != null && treatment.getMedicationFavourite().getMedication() != null) {
+                    medication = treatment.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+                }
                 String dosage = treatment.getDosage() != null ? treatment.getDosage() : "-";
                 String frequency = treatment.getFrequency() != null ? treatment.getFrequency() : "-";
                 

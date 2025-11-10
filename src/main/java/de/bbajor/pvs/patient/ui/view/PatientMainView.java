@@ -30,6 +30,7 @@ import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.ophthalmology.presenter.OphthalmologyAppointmentPresenter;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientListPresenter;
 import de.bbajor.pvs.security.AppRoles;

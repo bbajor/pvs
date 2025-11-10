@@ -214,7 +214,7 @@ public class HelpView extends Main {
                 "Nur Administratoren, Ärzte und der Eigentümer können die Aufgabenliste einsehen und Behandlungen genehmigen."));
 
         permissionsLayout.add(createPermissionCard(
-                "IVOM-Verwaltung",
+                "IVOM-Planer",
                 "Alle (Lesezugriff), ADMIN, DOCTOR, TECH_USER (Buchung/Löschung)",
                 "Alle Benutzer können Behandlungspläne einsehen. Termine buchen oder löschen können nur Administratoren, Ärzte und technische Benutzer."));
 
