@@ -7,14 +7,16 @@ import de.bbajor.pvs.medication.model.Medication;
 public class MedicationNode {
     private final String label;
     private final Medication medication; // nur bei Leaf-Knoten gefüllt
+    private final boolean favourite;
 
     public MedicationNode(String label) {
-        this(label, null);
+        this(label, null, false);
     }
 
-    public MedicationNode(String label, Medication medication) {
+    public MedicationNode(String label, Medication medication, boolean favourite) {
         this.label = label != null ? label : "";
         this.medication = medication;
+        this.favourite = favourite;
     }
 
     public String getLabel() {
@@ -46,7 +48,7 @@ public class MedicationNode {
     }
 
     public boolean isFavourite() {
-        return medication == null ? false : medication.isFavourite();
+        return medication != null && favourite;
     }
 
     @Override

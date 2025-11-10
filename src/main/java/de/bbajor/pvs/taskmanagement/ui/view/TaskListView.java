@@ -32,8 +32,12 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
@@ -54,6 +58,7 @@ public class TaskListView extends Main implements BeforeEnterObserver {
         private final TreatmentRepository treatmentRepository;
         private final AuthenticationContext authenticationContext;
         private final TreatmentReportService reportService;
+        private final UserAccountRepository userAccountRepository;
         private final Button refreshButton;
         final TextField description;
         final DatePicker dueDate;
@@ -63,11 +68,12 @@ public class TaskListView extends Main implements BeforeEnterObserver {
         private boolean hideCompleted = false;
 
         public TaskListView(TaskService taskService, TreatmentRepository treatmentRepository, AuthenticationContext authenticationContext, 
-                TreatmentReportService reportService, Clock clock) {
+                TreatmentReportService reportService, UserAccountRepository userAccountRepository, Clock clock) {
                 this.taskService = taskService;
                 this.treatmentRepository = treatmentRepository;
                 this.authenticationContext = authenticationContext;
                 this.reportService = reportService;
+                this.userAccountRepository = userAccountRepository;
 
                 description = new TextField();
                 description.setPlaceholder("Was möchten Sie erledigen?");
@@ -106,7 +112,7 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                         // All authenticated users can open the dialog (ADMIN can view and generate reports)
                         // But only MEDICAL_STAFF, OWNER, DOCTOR can start review
                         TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
-                                        this.authenticationContext, this.reportService);
+                                        this.authenticationContext, this.reportService, this.userAccountRepository);
                         dialog.open();
                 });
 
@@ -114,8 +120,14 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                 refreshButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
                 refreshButton.addClickListener(e -> {
                         try {
+                                // Ensure InstitutionContext is set before service call
+                                ensureInstitutionContext();
                                 taskService.createDailyTaskIfAny();
-                                taskGrid.setItems(query -> taskService.list(toSpringPageRequest(query)).stream());
+                                taskGrid.setItems(query -> {
+                                        // Ensure context is set again for each query
+                                        ensureInstitutionContext();
+                                        return taskService.list(toSpringPageRequest(query)).stream();
+                                });
                                 Notification.show("Aufgabenliste aktualisiert")
                                                 .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                         } catch (Exception ex) {
@@ -170,13 +182,56 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                 // All other cases (including ADMIN with institution context) are allowed
         }
 
+        /**
+         * Ensures InstitutionContext is set before service calls.
+         * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+         * so the context might not be set.
+         */
+        private void ensureInstitutionContext() {
+                // Only set if not already set
+                if (InstitutionContext.hasInstitution()) {
+                        return;
+                }
+                
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                
+                if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+                        if (institutionAuth.getInstitutionId() != null) {
+                                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+                        }
+                } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+                        // Authentication was deserialized from session
+                        try {
+                                String username = adapter.getUsername();
+                                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                                
+                                if (userAccount != null && userAccount.getInstitution() != null) {
+                                        Long institutionId = userAccount.getInstitution().getId();
+                                        InstitutionContext.setInstitutionId(institutionId);
+                                        log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                                                institutionId, userAccount.getInstitution().getInstitutionCode());
+                                }
+                        } catch (Exception e) {
+                                log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+                        }
+                }
+        }
+
         private void refreshGrid() {
+                // Ensure InstitutionContext is set before service call
+                ensureInstitutionContext();
+                
                 taskGrid.setItems(query -> {
+                        // Ensure context is set again for each query (in case it was cleared)
+                        ensureInstitutionContext();
+                        
                         Boolean completedFilter = hideCompleted ? Boolean.FALSE : null;
                         List<Task> tasks = taskService.listByCompleted(completedFilter, toSpringPageRequest(query));
                         
                         // Debug logging and user notification for missing institution context
-                        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+                        Long institutionId = InstitutionContext.getInstitutionId();
                         if (institutionId == null) {
                                 log.warn("No institution context set - cannot load tasks for user: {}", 
                                         authenticationContext.getPrincipalName().orElse("unknown"));

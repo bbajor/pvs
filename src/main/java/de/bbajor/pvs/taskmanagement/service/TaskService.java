@@ -83,36 +83,60 @@ public class TaskService {
      * Internal method for creating daily tasks without security checks.
      * Used by scheduled tasks and startup listeners.
      * Creates tasks for all institutions separately.
+     * If institutionId is null, uses InstitutionContext.
      */
     @Transactional
     public void createDailyTaskIfAnyInternal() {
-        // This method should be called per institution
-        // For now, we require InstitutionContext to be set
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
             // No institution context - cannot create tasks
             return;
         }
+        createDailyTaskIfAnyForInstitution(institutionId);
+    }
+
+    /**
+     * Creates daily tasks for a specific institution.
+     * Used by scheduled tasks to iterate over all institutions.
+     */
+    @Transactional
+    public void createDailyTaskIfAnyForInstitution(Long institutionId) {
+        if (institutionId == null) {
+            return;
+        }
         
-        // 1. Find all timeslots containing not approved treatments until today for this institution
-        List<Long> timeSlotIds = new ArrayList<>();
-        List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(institutionId, LocalDate.now(clock));
-        // Collect the time slot IDs from the tasks, not the task IDs
-        tasks.stream()
-                .map(Task::getTimeSlot)
-                .filter(ts -> ts != null && ts.getId() != null)
-                .map(SurgicalCenterTimeSlot::getId)
-                .forEach(timeSlotIds::add);
-        List<SurgicalCenterTimeSlot> newTimeSlotsforNewTasks = surgicalCenterService
-                .getNewTimeSlotsContainingNotApprovedTreatments(timeSlotIds);
-        newTimeSlotsforNewTasks.forEach(ts -> {
-            String description = "Behandlungen vom "
-                    + DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate()) + " um " + ts.getStartTime()
-                    + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden.";
-            // Setze das Datum eine Woche in die Zukunft
-            LocalDate dueDate = ts.getDate().plusDays(7);
-            createTaskInternal(description, dueDate, ts);
-        });
+        // Temporarily set InstitutionContext for this operation
+        Long previousInstitutionId = InstitutionContext.getInstitutionId();
+        try {
+            InstitutionContext.setInstitutionId(institutionId);
+            
+            // 1. Find all timeslots containing not approved treatments until today for this institution
+            List<Long> timeSlotIds = new ArrayList<>();
+            List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(institutionId, LocalDate.now(clock));
+            // Collect the time slot IDs from the tasks, not the task IDs
+            tasks.stream()
+                    .map(Task::getTimeSlot)
+                    .filter(ts -> ts != null && ts.getId() != null)
+                    .map(SurgicalCenterTimeSlot::getId)
+                    .forEach(timeSlotIds::add);
+            List<SurgicalCenterTimeSlot> newTimeSlotsforNewTasks = surgicalCenterService
+                    .getNewTimeSlotsContainingNotApprovedTreatments(timeSlotIds);
+            newTimeSlotsforNewTasks.forEach(ts -> {
+                String description = "Behandlungen vom "
+                        + DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate()) + " um " + ts.getStartTime()
+                        + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden.";
+                // Setze das Datum eine Woche in die Zukunft
+                LocalDate dueDate = ts.getDate().plusDays(7);
+                createTaskInternal(description, dueDate, ts);
+            });
+        } finally {
+            // Restore previous InstitutionContext
+            if (previousInstitutionId != null) {
+                InstitutionContext.setInstitutionId(previousInstitutionId);
+            } else {
+                InstitutionContext.clear();
+            }
+        }
     }
 
     @Transactional

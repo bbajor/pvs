@@ -93,6 +93,7 @@ public final class AppRoles {
      * Users with this role can create institutions and initial admins for those institutions,
      * but cannot access the data of the institutions themselves (data isolation).
      * This role is typically used by system administrators who manage the multi-tenant setup.
+     * MFA is optional but recommended for users with this role.
      * </p>
      */
     public static final String INSTITUTION_ADMIN = "INSTITUTION_ADMIN";

@@ -31,7 +31,12 @@ public class WeekListDialog extends Dialog {
         grid.addColumn(treatment -> treatment.getDate().format(formatter)).setHeader("Datum");
         grid.addColumn(treatment -> treatment.getPatientInfo()).setHeader("Patient");
         grid.addColumn(treatment -> treatment.getSideOfEye()).setHeader("Zu behandelndes Auge");
-        grid.addColumn(treatment -> treatment.getMedication().getArzneimittelbezeichnung()).setHeader("Medikament")
+        grid.addColumn(treatment -> {
+            if (treatment.getMedicationFavourite() != null && treatment.getMedicationFavourite().getMedication() != null) {
+                return treatment.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+            }
+            return "-";
+        }).setHeader("Medikament")
                 .setWidth("200px");
         grid.addColumn(treatment -> treatment.getAdditionalInfo()).setHeader("Zusätzliche Informationen");
 
