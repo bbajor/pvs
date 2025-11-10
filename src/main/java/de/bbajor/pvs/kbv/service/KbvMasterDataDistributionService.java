@@ -2,8 +2,6 @@ package de.bbajor.pvs.kbv.service;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -11,15 +9,15 @@ import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.kbv.events.KbvTenantDistributionEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Kümmert sich um das Ausrollen der KBV-Stammdaten auf alle aktiven Institutionen.
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class KbvMasterDataDistributionService {
-
-    private static final Logger log = LoggerFactory.getLogger(KbvMasterDataDistributionService.class);
 
     private final InstitutionRepository institutionRepository;
     private final ApplicationEventPublisher eventPublisher;

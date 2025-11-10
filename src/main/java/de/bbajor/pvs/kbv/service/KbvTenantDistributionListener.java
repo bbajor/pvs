@@ -3,8 +3,6 @@ package de.bbajor.pvs.kbv.service;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +12,7 @@ import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.institution.repository.InstitutionSettingsRepository;
 import de.bbajor.pvs.kbv.events.KbvTenantDistributionEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Reagiert auf KBV-Verteilungsereignisse, aktualisiert Meta-Informationen pro Institution
@@ -21,9 +20,8 @@ import lombok.RequiredArgsConstructor;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class KbvTenantDistributionListener {
-
-    private static final Logger log = LoggerFactory.getLogger(KbvTenantDistributionListener.class);
 
     private final InstitutionRepository institutionRepository;
     private final InstitutionSettingsRepository institutionSettingsRepository;
