@@ -41,14 +41,19 @@ import de.bbajor.pvs.base.ui.component.TimelineView;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.kbv.client.dto.KbvIcdEntryDto;
 import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import java.util.Optional;
 
 public class TreatmentPlanLayout extends VerticalLayout {
 
@@ -76,12 +81,14 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private final TreatmentPlanPresenter presenter;
     private TreatmentPlan current;
     private final ApplicationContext context;
+    private final InstitutionRepository institutionRepository;
 
     public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan,
-            ApplicationContext context) {
+            ApplicationContext context, InstitutionRepository institutionRepository) {
         this.presenter = presenter;
         this.current = treatmentPlan;
         this.context = context;
+        this.institutionRepository = institutionRepository;
 
         setSizeFull();
         // overflow entfernt - erlaube Scrollen wenn nötig
@@ -122,29 +129,79 @@ public class TreatmentPlanLayout extends VerticalLayout {
         additionalInformation.setHeight("150px");
         creationDatePicker.setEnabled(false);
 
-        reasonForTreatmentComboBox.setItemLabelGenerator(Diagnosis::getName);
+        reasonForTreatmentComboBox.setItemLabelGenerator(diagnosis -> {
+            if (diagnosis == null) {
+                return "";
+            }
+            String label = diagnosis.getName();
+            if (diagnosis.getIcdCode() != null && !diagnosis.getIcdCode().isBlank()) {
+                label += " (ICD: " + diagnosis.getIcdCode() + ")";
+                // Warnung bei veralteten Codes
+                if (Boolean.TRUE.equals(diagnosis.getValidatedAgainstKbv()) && !diagnosis.isIcdCodeCurrentlyValid()) {
+                    label += " ⚠️ Veraltet";
+                }
+            }
+            return label;
+        });
         reasonForTreatmentComboBox.setAllowCustomValue(true);
         reasonForTreatmentComboBox.setClearButtonVisible(true);
+
+        // Autocomplete mit KBV-Daten
         reasonForTreatmentComboBox.addCustomValueSetListener(event -> {
             String newValue = event.getDetail();
-            // Optional: trim & prüfen
-            if (newValue != null && !newValue.trim().isEmpty()) {
-                // Neues entity
-                Diagnosis newDiagnosis = new Diagnosis();
-                newDiagnosis.setName(newValue.trim());
-
-                // In DB speichern, falls nötig
-                Diagnosis saved = presenter.saveDiagnosis(newDiagnosis);
-
-                // ComboBox aktualisieren
-                List<Diagnosis> items = new ArrayList<>(
-                        reasonForTreatmentComboBox.getDataProvider().fetch(new Query<>()).toList());
-                items.add(saved);
-                reasonForTreatmentComboBox.setItems(items);
-
-                // Setze das neue Entity als ausgewählt
-                reasonForTreatmentComboBox.setValue(saved);
+            if (newValue == null || newValue.trim().isEmpty()) {
+                return;
             }
+
+            String trimmedValue = newValue.trim();
+
+            // Versuche zuerst, ob es ein ICD-Code ist (Format: z.B. "H35.0" oder "H35")
+            // Wenn es wie ein ICD-Code aussieht, suche in KBV-Daten
+            if (trimmedValue.matches("^[A-Z]\\d{2}(\\.\\d+)?$")) {
+                // Sieht aus wie ein ICD-Code - versuche KBV-Lookup
+                String quarter = getCurrentKbvQuarter();
+                List<de.bbajor.pvs.kbv.client.dto.KbvIcdEntryDto> kbvEntries = presenter.searchKbvIcdEntries(trimmedValue, quarter);
+                
+                if (!kbvEntries.isEmpty()) {
+                    // Verwende den ersten Eintrag
+                    de.bbajor.pvs.kbv.client.dto.KbvIcdEntryDto kbvEntry = kbvEntries.get(0);
+                    Optional<Diagnosis> kbvDiagnosis = presenter.createDiagnosisFromKbvIcd(kbvEntry.getCode(), quarter);
+                    
+                    if (kbvDiagnosis.isPresent()) {
+                        Diagnosis saved = kbvDiagnosis.get();
+                        // ComboBox aktualisieren
+                        List<Diagnosis> items = new ArrayList<>(
+                                reasonForTreatmentComboBox.getDataProvider().fetch(new Query<>()).toList());
+                        if (!items.contains(saved)) {
+                            items.add(saved);
+                        }
+                        reasonForTreatmentComboBox.setItems(items);
+                        reasonForTreatmentComboBox.setValue(saved);
+                        Notification.show("Diagnose aus KBV-Stammdaten erstellt: " + saved.getName(), 3000,
+                                Notification.Position.MIDDLE);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: Erstelle normale Diagnosis ohne KBV-Validierung
+            Diagnosis newDiagnosis = new Diagnosis();
+            newDiagnosis.setName(trimmedValue);
+
+            // In DB speichern
+            Diagnosis saved = presenter.saveDiagnosis(newDiagnosis);
+
+            // ComboBox aktualisieren
+            List<Diagnosis> items = new ArrayList<>(
+                    reasonForTreatmentComboBox.getDataProvider().fetch(new Query<>()).toList());
+            items.add(saved);
+            reasonForTreatmentComboBox.setItems(items);
+
+            // Setze das neue Entity als ausgewählt
+            reasonForTreatmentComboBox.setValue(saved);
+            
+            Notification.show("Diagnose erstellt (nicht gegen KBV validiert)", 3000,
+                    Notification.Position.MIDDLE);
         });
         reasonForTreatmentComboBox.setItems(presenter.getResaonsForTreatment());
 
@@ -417,6 +474,33 @@ public class TreatmentPlanLayout extends VerticalLayout {
             ((VerticalLayout) timeLineLayout).expand(accordionLeft); // Accordion soll verfügbaren Platz nutzen
         }
         setLeftEyeTreatmentHistory(current == null ? null : current.getId());
+    }
+
+    /**
+     * Ermittelt das aktuelle KBV-Quartal aus den Institution-Settings.
+     * Falls nicht verfügbar, wird das aktuelle Quartal berechnet.
+     *
+     * @return das Quartal im Format "YYYY-QX" (z.B. "2025-Q1")
+     */
+    private String getCurrentKbvQuarter() {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            Optional<Institution> institutionOpt = institutionRepository.findById(institutionId);
+            if (institutionOpt.isPresent()) {
+                Institution institution = institutionOpt.get();
+                String quarter = institution.getKbvLastImportQuarter();
+                if (quarter != null && !quarter.isBlank()) {
+                    return quarter;
+                }
+            }
+        }
+
+        // Fallback: Berechne aktuelles Quartal
+        LocalDate now = LocalDate.now();
+        int year = now.getYear();
+        int month = now.getMonthValue();
+        int quarter = (month - 1) / 3 + 1;
+        return year + "-Q" + quarter;
     }
 
     private void setLeftEyeTreatmentHistory(Long treatmentPlanId) {

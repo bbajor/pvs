@@ -18,6 +18,7 @@ import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.security.AppRoles;
@@ -42,17 +43,20 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
     private TreatmentPlan treatmentPlan;
     private final ApplicationContext context;
     private final CurrentUser currentUser;
+    private final InstitutionRepository institutionRepository;
 
-    public TreatmentPlanDetailView(TreatmentPlanPresenter treatmenPlanPresenter, ApplicationContext context, CurrentUser currentUser) {
+    public TreatmentPlanDetailView(TreatmentPlanPresenter treatmenPlanPresenter, ApplicationContext context, 
+            CurrentUser currentUser, InstitutionRepository institutionRepository) {
         this.treatmentPlanPresenter = treatmenPlanPresenter;
         this.context = context;
         this.currentUser = currentUser;
+        this.institutionRepository = institutionRepository;
         setSizeFull();
         // Verhindere horizontales Scrollen der gesamten View, aber erlaube vertikales
         getStyle().set("overflow-x", "hidden");
         // overflow-y nicht setzen - erlaube vertikales Scrollen wenn nötig
 
-        treatmentPlanLayout = new TreatmentPlanLayout(treatmenPlanPresenter, treatmentPlan, context);
+        treatmentPlanLayout = new TreatmentPlanLayout(treatmenPlanPresenter, treatmentPlan, context, institutionRepository);
         treatmentPlanLayout.setSizeFull();
         expand(treatmentPlanLayout); // Layout soll verfügbaren Platz nutzen
 

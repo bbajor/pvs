@@ -1,10 +1,10 @@
 package de.bbajor.pvs.intravitreal.treatment.model;
 
+import java.time.LocalDate;
+
 import de.bbajor.pvs.base.domain.BasicEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -20,6 +20,42 @@ public class Diagnosis extends BasicEntity<Long> {
     private String name;
     private String icdCode;
     private String description;
+
+    /**
+     * KBV-Metadaten für Validierung und Synchronisation.
+     * Null, wenn nicht gegen KBV validiert.
+     */
+    @Column(name = "kbv_quarter", length = 20)
+    private String kbvQuarter;
+
+    @Column(name = "kbv_valid_from")
+    private LocalDate kbvValidFrom;
+
+    @Column(name = "kbv_valid_to")
+    private LocalDate kbvValidTo;
+
+    @Column(name = "validated_against_kbv")
+    private Boolean validatedAgainstKbv = false;
+
+    /**
+     * Prüft, ob der ICD-Code zum gegebenen Datum gültig ist.
+     */
+    public boolean isIcdCodeValid(LocalDate date) {
+        if (!Boolean.TRUE.equals(validatedAgainstKbv) || kbvValidFrom == null) {
+            return false;
+        }
+        if (kbvValidTo != null && date.isAfter(kbvValidTo)) {
+            return false;
+        }
+        return !date.isBefore(kbvValidFrom);
+    }
+
+    /**
+     * Prüft, ob der ICD-Code aktuell (heute) gültig ist.
+     */
+    public boolean isIcdCodeCurrentlyValid() {
+        return isIcdCodeValid(LocalDate.now());
+    }
 
     @Override
     public String toString() {

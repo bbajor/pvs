@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
+import de.bbajor.pvs.kbv.client.dto.KbvIcdEntryDto;
 import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
@@ -61,6 +63,40 @@ public class TreatmentPlanPresenter {
 
     public Diagnosis saveDiagnosis(Diagnosis newDto) {
         return ivomDiagnosisService.save(newDto);
+    }
+
+    /**
+     * Erstellt eine Diagnosis aus einem KBV-ICD-Code.
+     *
+     * @param icdCode der ICD-Code
+     * @param quarter das Quartal der KBV-Daten (optional)
+     * @return Optional mit der erstellten Diagnosis
+     */
+    @Transactional
+    public Optional<Diagnosis> createDiagnosisFromKbvIcd(String icdCode, String quarter) {
+        return ivomDiagnosisService.createFromKbvIcd(icdCode, quarter);
+    }
+
+    /**
+     * Sucht nach ICD-Codes in KBV-Daten (für Autocomplete).
+     *
+     * @param searchTerm Suchbegriff
+     * @param quarter das Quartal der KBV-Daten (optional)
+     * @return Liste von KBV-ICD-Einträgen
+     */
+    public List<KbvIcdEntryDto> searchKbvIcdEntries(String searchTerm, String quarter) {
+        return ivomDiagnosisService.searchKbvIcdEntries(searchTerm, quarter);
+    }
+
+    /**
+     * Validiert einen ICD-Code gegen KBV-Daten.
+     *
+     * @param icdCode der ICD-Code
+     * @param quarter das Quartal der KBV-Daten (optional)
+     * @return true wenn der Code gültig ist
+     */
+    public boolean validateIcdCode(String icdCode, String quarter) {
+        return ivomDiagnosisService.validateIcdCodeCurrently(icdCode, quarter);
     }
 
     public List<SurgicalCenterTimeSlot> loadAvailableSurgicalCenterTimeSlots(
