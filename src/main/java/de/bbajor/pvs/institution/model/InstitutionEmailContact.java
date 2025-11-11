@@ -1,6 +1,7 @@
 package de.bbajor.pvs.institution.model;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -11,6 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 /**
  * Entity for storing email contacts of institutions with their OpenPGP public keys.
@@ -24,6 +26,7 @@ import lombok.Setter;
 @Table(name = "institution_email_contact")
 @Getter
 @Setter
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 public class InstitutionEmailContact extends BasicEntity<Long> {
 
     /**

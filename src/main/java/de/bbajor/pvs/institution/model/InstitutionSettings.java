@@ -5,6 +5,7 @@ import java.time.ZoneId;
 import java.util.Locale;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -18,6 +19,9 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 
 /**
  * Tenant-specific configuration that lives inside the tenant database.
@@ -31,6 +35,8 @@ import lombok.experimental.Accessors;
 @Setter
 @Entity
 @Accessors(chain = true)
+@FilterDef(name = "institutionFilter", parameters = @ParamDef(name = "institutionId", type = Long.class))
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 @Table(name = "institution_settings", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "institution_id" })
 })

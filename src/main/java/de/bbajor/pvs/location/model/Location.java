@@ -9,6 +9,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 
 /**
  * Entity representing a location (Standort/Praxis-Standort) of an institution.
@@ -30,6 +33,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 @Table(name = "location")
 public class Location extends BasicEntity<Long> {
 

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -11,11 +12,13 @@ import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Accessors(chain = true)
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 public class HealthInsurance extends BasicEntity<Integer> {
 
     /**

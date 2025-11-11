@@ -5,6 +5,7 @@ import java.util.Set;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import de.bbajor.pvs.location.model.Location;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -17,11 +18,13 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Accessors(chain = true)
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 @Table(name = "user_account", uniqueConstraints = { 
     @UniqueConstraint(columnNames = { "institution_id", "username" })
 })

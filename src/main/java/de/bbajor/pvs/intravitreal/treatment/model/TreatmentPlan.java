@@ -6,6 +6,7 @@ import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import de.bbajor.pvs.patient.model.Patient;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -17,11 +18,13 @@ import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Accessors(chain = true)
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 public class TreatmentPlan extends BasicEntity<Long> {
 
     /**

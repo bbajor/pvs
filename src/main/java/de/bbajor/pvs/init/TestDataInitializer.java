@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import org.instancio.Instancio;
 import static org.instancio.Select.field;
 import javax.sql.DataSource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
@@ -26,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.model.InstitutionSettings;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.institution.repository.InstitutionSettingsRepository;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
@@ -56,6 +59,7 @@ import org.slf4j.LoggerFactory;
 
 @Component
 @Profile("dev")
+@ConditionalOnProperty(name = "app.init.testdata.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class TestDataInitializer {
 
@@ -72,6 +76,7 @@ public class TestDataInitializer {
     private final PasswordEncoder passwordEncoder;
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
+    private final InstitutionSettingsRepository institutionSettingsRepository;
     private final DataSource dataSource;
 
     @PersistenceContext
@@ -363,8 +368,11 @@ public class TestDataInitializer {
                             .setActive(true)
                             .setDatabaseName("pvs_inst_" + normalizedCode)
                             .setContainerName("postgres-inst-" + normalizedCode);
-                    Institution saved = institutionRepository.save(institution);
-                    return saved;
+                      Institution saved = institutionRepository.save(institution);
+                      InstitutionSettings settings = InstitutionSettings.createDefault(saved);
+                      institutionSettingsRepository.save(settings);
+                      saved.setSettings(settings);
+                      return saved;
                 });
     }
 

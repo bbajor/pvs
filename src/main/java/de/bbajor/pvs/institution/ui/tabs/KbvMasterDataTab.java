@@ -22,7 +22,7 @@ import de.bbajor.pvs.kbv.service.KbvMasterDataOrchestrator;
 /**
  * Super-Admin-Tab für das Anstoßen und Überwachen des zentralen KBV-Stammdatenimports.
  */
-@Component
+@Component("superAdminKbvMasterDataTab")
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class KbvMasterDataTab extends VerticalLayout {
 

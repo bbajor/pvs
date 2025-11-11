@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.patient.dto.Salutation;
 import de.bbajor.pvs.patient.dto.Title;
@@ -26,11 +27,13 @@ import jakarta.validation.constraints.Email;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Accessors(chain = true)
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 @Table(name = "patient", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"institution_id", "first_name", "last_name", "birth"}),
     @UniqueConstraint(columnNames = {"institution_id", "insurance_number"})

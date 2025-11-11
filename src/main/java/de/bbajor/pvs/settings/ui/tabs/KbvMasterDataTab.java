@@ -23,7 +23,7 @@ import de.bbajor.pvs.kbv.client.dto.KbvIcdEntryDto;
 import de.bbajor.pvs.kbv.client.dto.KbvInsuranceDto;
 import de.bbajor.pvs.kbv.service.KbvMasterDataService;
 
-@Component
+@Component("kbvMasterDataOverviewTab")
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class KbvMasterDataTab extends VerticalLayout {
 

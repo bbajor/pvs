@@ -3,9 +3,10 @@ package de.bbajor.pvs.surgicalcenter.model;
 import java.util.List;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
+import de.bbajor.pvs.institution.model.Institution; // TODO: Remove after migration
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.patient.model.Address;
-import de.bbajor.pvs.institution.model.Institution; // TODO: Remove after migration
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
@@ -19,11 +20,13 @@ import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Accessors(chain = true)
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 public class SurgicalCenter extends BasicEntity<Integer> {
 
     @ManyToOne(fetch = FetchType.EAGER)

@@ -3,8 +3,11 @@ package de.bbajor.pvs.medication.model;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.Filter;
+
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.persistence.InstitutionFilterConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,6 +25,7 @@ import lombok.experimental.Accessors;
 @Setter
 @Entity
 @Accessors(chain = true)
+@Filter(name = InstitutionFilterConstants.FILTER_NAME, condition = InstitutionFilterConstants.FILTER_CONDITION)
 @Table(name = "medication_favourite", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "institution_id", "medication_id" })
 })
