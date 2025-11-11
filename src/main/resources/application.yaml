@@ -52,3 +52,10 @@ ai:
       monthly-quota: 1000
   extraction:
     confidence-threshold: 0.7
+
+# SMTP-Konfiguration
+# Verschlüsselungsschlüssel für SMTP-Passwörter (NUR über Environment-Variable!)
+# Muss 16, 24 oder 32 Bytes lang sein (AES-128/192/256)
+smtp:
+  encryption:
+    key: ${SMTP_ENCRYPTION_KEY:}
