@@ -36,7 +36,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Tab for managing users of the current institution.
@@ -298,12 +297,11 @@ public class UserSettingsTab extends VerticalLayout {
         // Refresh location list in case locations were added/removed
         locationComboBox.setItems(locationService.getAllLocations(true));
         
-        // Load users for current institution
+        // Load users for current institution with preferredLocation eagerly fetched
+        // This prevents LazyInitializationException when Grid renders the location column
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId != null) {
-            allUsers = userAccountRepository.findAll().stream()
-                    .filter(ua -> ua.getInstitution() != null && ua.getInstitution().getId().equals(institutionId))
-                    .collect(Collectors.toList());
+            allUsers = userAccountRepository.findAllByInstitutionIdWithPreferredLocation(institutionId);
             userGrid.setItems(allUsers);
         } else {
             userGrid.setItems(List.of());
