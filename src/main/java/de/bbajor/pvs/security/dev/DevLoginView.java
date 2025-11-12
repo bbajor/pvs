@@ -26,7 +26,6 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -109,16 +108,12 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         );
         loginForm.getStyle().set("max-width", "420px");
         loginForm.getStyle().set("width", "100%");
-
-        // Create decorative medical icon/image
-        var medicalIcon = createMedicalIcon();
-        medicalIcon.addClassNames("dev-login-medical-icon");
         
         var loginFormContainer = new Div(loginTitle, loginForm);
         loginFormContainer.addClassNames("dev-login-form-container");
         
-        // Create wrapper with icon and form side by side
-        var loginSection = new Div(medicalIcon, loginFormContainer);
+        // Login-Section ohne Icon - professionelleres Design
+        var loginSection = new Div(loginFormContainer);
         loginSection.addClassNames("dev-login-section");
 
         var exampleUsersHeader = new Div();
@@ -446,31 +441,6 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         return card;
     }
 
-    private Component createMedicalIcon() {
-        // Create a large decorative medical icon using SVG
-        var iconContainer = new Div();
-        iconContainer.addClassNames("dev-medical-icon-container");
-        
-        // Use healthicons SVG for medical/healthcare theme
-        try {
-            var healthIcon = new Icon("my-icons-icons", "healthicons--ambulatory-clinic");
-            healthIcon.setSize("200px");
-            healthIcon.getStyle().set("color", "var(--lumo-primary-color)");
-            healthIcon.getStyle().set("opacity", "0.2");
-            healthIcon.addClassNames("dev-login-medical-icon");
-            iconContainer.add(healthIcon);
-        } catch (Exception e) {
-            // Fallback to VaadinIcon with medical theme
-            var fallbackIcon = VaadinIcon.HEART.create();
-            fallbackIcon.setSize("200px");
-            fallbackIcon.getStyle().set("color", "var(--lumo-primary-color)");
-            fallbackIcon.getStyle().set("opacity", "0.2");
-            fallbackIcon.addClassNames("dev-login-medical-icon");
-            iconContainer.add(fallbackIcon);
-        }
-        
-        return iconContainer;
-    }
 
     /**
      * Checks if MFA is required for a user.

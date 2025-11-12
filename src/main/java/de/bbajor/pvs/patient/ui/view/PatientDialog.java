@@ -62,7 +62,7 @@ public class PatientDialog extends Dialog {
 
         // Create the components
         form = new PatientForm(presenter.getHealthInsurances(), patient, 
-                presenter.getLocations(), e -> valueChanged(e));
+                presenter.getLocations(), e -> valueChanged(e), presenter.getHealthInsuranceService());
 
         var readBtn = new Button("Aus Gesundheitskarte einlesen", event -> {
             try {

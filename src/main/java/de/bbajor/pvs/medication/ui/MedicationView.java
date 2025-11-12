@@ -94,17 +94,41 @@ public class MedicationView extends Main {
         Div infoBox = new Div(info, link);
         infoBox.getStyle().set("margin-bottom", "20px");
 
-        // Spalten
-        // Hierarchie-Spalte → zeigt Label
-        grid.addHierarchyColumn(MedicationNode::getLabel).setHeader("Bezeichnung").setResizable(true)
+        // Spalten mit ComponentRenderer für besseres Styling
+        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        
+        // Hierarchie-Spalte → zeigt Label (addHierarchyColumn akzeptiert ValueProvider, nicht ComponentRenderer)
+        grid.addHierarchyColumn(MedicationNode::getLabel)
+                .setHeader("Bezeichnung")
+                .setResizable(true)
                 .setWidth("250px");
-        grid.addColumn(MedicationNode::getWirkstoffe).setHeader("Wirkstoffe").setResizable(true)
-                .setWidth("250px");
-        grid.addColumn(MedicationNode::getEingangsnummer).setHeader("Eingangsnummer").setResizable(true);
-        grid.addColumn(MedicationNode::getZulassungsinhaber).setHeader("Zulassungsinhaber").setResizable(true);
-        grid.addColumn(MedicationNode::getAnwendungsgebiete)
-                .setHeader("Anwendungsgebiete")
-                .setResizable(true);
+        
+        grid.addColumn(new ComponentRenderer<>(node -> {
+            String wirkstoffe = node.getWirkstoffe() != null ? node.getWirkstoffe() : "-";
+            Span span = new Span(wirkstoffe);
+            return span;
+        })).setHeader("Wirkstoffe").setResizable(true).setWidth("250px");
+        
+        grid.addColumn(new ComponentRenderer<>(node -> {
+            String eingangsnummer = node.getEingangsnummer() != null ? node.getEingangsnummer() : "-";
+            Span span = new Span(eingangsnummer);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Eingangsnummer").setResizable(true);
+        
+        grid.addColumn(new ComponentRenderer<>(node -> {
+            String zulassungsinhaber = node.getZulassungsinhaber() != null ? node.getZulassungsinhaber() : "-";
+            Span span = new Span(zulassungsinhaber);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Zulassungsinhaber").setResizable(true);
+        
+        grid.addColumn(new ComponentRenderer<>(node -> {
+            String anwendungsgebiete = node.getAnwendungsgebiete() != null ? node.getAnwendungsgebiete() : "-";
+            Span span = new Span(anwendungsgebiete);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Anwendungsgebiete").setResizable(true);
         grid.addColumn(new ComponentRenderer<>(dto -> {
             if (dto.getMedication() == null) {
                 return new Span("");
@@ -248,26 +272,44 @@ public class MedicationView extends Main {
     }
 
     private void configureFavouritesGrid() {
-        favouritesGrid.addColumn(MedicationFavourite::getEffectiveDisplayName)
-                .setHeader("Bezeichnung")
-                .setAutoWidth(true)
-                .setFlexGrow(2);
-        favouritesGrid.addColumn(f -> f.getMedication() != null ? f.getMedication().getWirkstoffe() : "-")
-                .setHeader("Wirkstoffe")
-                .setAutoWidth(true)
-                .setFlexGrow(2);
-        favouritesGrid.addColumn(f -> f.getMedication() != null ? f.getMedication().getZulassungsNr() : "-")
-                .setHeader("Zulassungsnr.")
-                .setAutoWidth(true)
-                .setFlexGrow(1);
-        favouritesGrid.addColumn(f -> f.getValidFrom() != null ? f.getValidFrom().toString() : "-")
-                .setHeader("Gültig ab")
-                .setWidth("120px")
-                .setFlexGrow(0);
-        favouritesGrid.addColumn(f -> f.getValidUntil() != null ? f.getValidUntil().toString() : "-")
-                .setHeader("Gültig bis")
-                .setWidth("120px")
-                .setFlexGrow(0);
+        favouritesGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        
+        favouritesGrid.addColumn(new ComponentRenderer<>(f -> {
+            String name = f.getEffectiveDisplayName() != null ? f.getEffectiveDisplayName() : "-";
+            Span span = new Span(name);
+            span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            return span;
+        })).setHeader("Bezeichnung").setAutoWidth(true).setFlexGrow(2);
+        
+        favouritesGrid.addColumn(new ComponentRenderer<>(f -> {
+            String wirkstoffe = f.getMedication() != null && f.getMedication().getWirkstoffe() != null 
+                    ? f.getMedication().getWirkstoffe() : "-";
+            Span span = new Span(wirkstoffe);
+            return span;
+        })).setHeader("Wirkstoffe").setAutoWidth(true).setFlexGrow(2);
+        
+        favouritesGrid.addColumn(new ComponentRenderer<>(f -> {
+            String zulassungsnr = f.getMedication() != null && f.getMedication().getZulassungsNr() != null 
+                    ? f.getMedication().getZulassungsNr() : "-";
+            Span span = new Span(zulassungsnr);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Zulassungsnr.").setAutoWidth(true).setFlexGrow(1);
+        
+        favouritesGrid.addColumn(new ComponentRenderer<>(f -> {
+            String validFrom = f.getValidFrom() != null ? f.getValidFrom().toString() : "-";
+            Span span = new Span(validFrom);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Gültig ab").setWidth("120px").setFlexGrow(0);
+        
+        favouritesGrid.addColumn(new ComponentRenderer<>(f -> {
+            String validUntil = f.getValidUntil() != null ? f.getValidUntil().toString() : "-";
+            Span span = new Span(validUntil);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Gültig bis").setWidth("120px").setFlexGrow(0);
+        
         favouritesGrid.setSelectionMode(SelectionMode.SINGLE);
         favouritesGrid.setWidthFull();
         favouritesGrid.setHeight("240px");

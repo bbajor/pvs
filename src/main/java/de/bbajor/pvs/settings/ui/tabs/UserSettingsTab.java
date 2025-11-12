@@ -15,7 +15,11 @@ import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.TextRenderer;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
@@ -89,13 +93,52 @@ public class UserSettingsTab extends VerticalLayout {
 
         // Initialize grid
         userGrid = new Grid<>(UserAccount.class, false);
-        userGrid.addColumn(UserAccount::getUsername).setHeader("Benutzername");
-        userGrid.addColumn(UserAccount::getFullName).setHeader("Name");
-        userGrid.addColumn(UserAccount::getEmail).setHeader("E-Mail");
-        userGrid.addColumn(ua -> String.join(", ", ua.getRoles())).setHeader("Rolle");
-        userGrid.addColumn(ua -> ua.getPreferredLocation() != null ? ua.getPreferredLocation().getLocationName() : "-")
-                .setHeader("Standort");
-        userGrid.addColumn(ua -> ua.isEnabled() ? "Ja" : "Nein").setHeader("Aktiv");
+        userGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        
+        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            String username = ua.getUsername() != null ? ua.getUsername() : "-";
+            Span span = new Span(username);
+            span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            return span;
+        })).setHeader("Benutzername").setAutoWidth(true);
+        
+        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            String name = ua.getFullName() != null ? ua.getFullName() : "-";
+            Span span = new Span(name);
+            return span;
+        })).setHeader("Name").setAutoWidth(true);
+        
+        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            String email = ua.getEmail() != null ? ua.getEmail() : "-";
+            Span span = new Span(email);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("E-Mail").setAutoWidth(true);
+        
+        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            String roles = ua.getRoles() != null ? String.join(", ", ua.getRoles()) : "-";
+            Span span = new Span(roles);
+            return span;
+        })).setHeader("Rolle").setAutoWidth(true);
+        
+        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            String location = ua.getPreferredLocation() != null ? ua.getPreferredLocation().getLocationName() : "-";
+            Span span = new Span(location);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Standort").setAutoWidth(true);
+        
+        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            String status = ua.isEnabled() ? "Ja" : "Nein";
+            Span span = new Span(status);
+            if (ua.isEnabled()) {
+                span.addClassNames(LumoUtility.TextColor.SUCCESS);
+            } else {
+                span.addClassNames(LumoUtility.TextColor.ERROR);
+            }
+            return span;
+        })).setHeader("Aktiv").setAutoWidth(true);
+        
         userGrid.setSizeFull();
         
         userGrid.asSingleSelect().addValueChangeListener(e -> {
@@ -138,12 +181,17 @@ public class UserSettingsTab extends VerticalLayout {
         enabledCheckbox.setValue(true);
 
         saveButton = new Button("Speichern", e -> saveUser());
+        saveButton.setIcon(VaadinIcon.CHECK.create());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
         cancelButton = new Button("Abbrechen", e -> clearForm());
+        cancelButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
         
         deleteButton = new Button("Löschen", e -> deleteUser());
+        deleteButton.setIcon(VaadinIcon.TRASH.create());
         deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        deleteButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
         FormLayout formLayout = new FormLayout();
         formLayout.add(usernameField, fullNameField, emailField, passwordField, 

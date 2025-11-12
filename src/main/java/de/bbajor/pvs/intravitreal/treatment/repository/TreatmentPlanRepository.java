@@ -139,4 +139,26 @@ AND loc IS NOT NULL AND inst.id = :institutionId
         @Query("DELETE FROM TreatmentPlan tp WHERE " +
                "tp.patient.location IS NOT NULL AND tp.patient.location.institution.id = :institutionId")
         void deleteByInstitutionId(@Param("institutionId") Long institutionId);
+        
+        /**
+         * Search treatment plans by multiple criteria within institution.
+         * Searches in: patient first name, patient last name, health insurance name,
+         * diagnosis name, and additional information.
+         * <p>
+         * Data isolation: All filtering is done via institution.
+         * TreatmentPlan → Patient → Location → Institution (primary path).
+         * </p>
+         */
+        @Query("SELECT tp FROM TreatmentPlan tp WHERE " +
+               "tp.patient.location IS NOT NULL AND tp.patient.location.institution.id = :institutionId " +
+               "AND (LOWER(tp.patient.firstName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+               "OR LOWER(tp.patient.lastName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+               "OR (tp.patient.healthInsurance IS NOT NULL AND " +
+               "    (LOWER(tp.patient.healthInsurance.billingCarrierName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+               "     OR LOWER(tp.patient.healthInsurance.costCarrierName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))) " +
+               "OR (tp.diagnosis IS NOT NULL AND LOWER(tp.diagnosis.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
+               "OR (tp.additionalInformation IS NOT NULL AND LOWER(tp.additionalInformation) LIKE LOWER(CONCAT('%', :searchTerm, '%'))))")
+        List<TreatmentPlan> searchInInstitution(
+                @Param("institutionId") Long institutionId,
+                @Param("searchTerm") String searchTerm);
 }

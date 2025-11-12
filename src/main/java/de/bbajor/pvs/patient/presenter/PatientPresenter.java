@@ -104,4 +104,8 @@ public class PatientPresenter {
     public List<Location> getLocations() {
         return locationService.getAllLocations();
     }
+
+    public HealthInsuranceService getHealthInsuranceService() {
+        return healthInsuranceService;
+    }
 }
