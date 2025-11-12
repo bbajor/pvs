@@ -18,21 +18,24 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.renderer.TextRenderer;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Tab for managing users of the current institution.
@@ -67,6 +70,9 @@ public class UserSettingsTab extends VerticalLayout {
     private void init() {
         setSpacing(true);
         setPadding(true);
+
+        // Ensure InstitutionContext is set (important for Institutionsadmins)
+        ensureInstitutionContext();
 
         // Check if InstitutionContext is set
         Long institutionId = InstitutionContext.getInstitutionId();
@@ -166,6 +172,9 @@ public class UserSettingsTab extends VerticalLayout {
     }
 
     private void saveUser() {
+        // Ensure InstitutionContext is set before saving
+        ensureInstitutionContext();
+        
         String username = usernameField.getValue();
         String role = roleSelect.getValue();
         
@@ -254,6 +263,7 @@ public class UserSettingsTab extends VerticalLayout {
         if (!userAccount.getRoles().isEmpty()) {
             roleSelect.setValue(userAccount.getRoles().iterator().next());
         }
+        
         locationComboBox.setValue(userAccount.getPreferredLocation());
         enabledCheckbox.setValue(userAccount.isEnabled());
     }
@@ -282,18 +292,64 @@ public class UserSettingsTab extends VerticalLayout {
     }
 
     private void refreshUsers() {
+        // Ensure InstitutionContext is set before loading users
+        ensureInstitutionContext();
+        
         // Refresh location list in case locations were added/removed
         locationComboBox.setItems(locationService.getAllLocations(true));
         
-        // Load users for current institution
+        // Load users for current institution with preferredLocation eagerly fetched
+        // This prevents LazyInitializationException when Grid renders the location column
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId != null) {
-            allUsers = userAccountRepository.findAll().stream()
-                    .filter(ua -> ua.getInstitution() != null && ua.getInstitution().getId().equals(institutionId))
-                    .collect(Collectors.toList());
+            allUsers = userAccountRepository.findAllByInstitutionIdWithPreferredLocation(institutionId);
             userGrid.setItems(allUsers);
         } else {
             userGrid.setItems(List.of());
+        }
+    }
+    
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+     * so the context might not be set, especially for Institutionsadmins.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            try {
+                String username = adapter.getUsername();
+                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (userAccount != null && userAccount.getInstitution() != null) {
+                    Long institutionId = userAccount.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                    log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                            institutionId, userAccount.getInstitution().getInstitutionCode());
+                } else {
+                    log.warn("UserAccount has no institution - cannot set InstitutionContext");
+                }
+            } catch (Exception e) {
+                log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+            }
+        } else {
+            log.debug("Authentication type: {}, Principal type: {} - cannot set InstitutionContext",
+                    authentication != null ? authentication.getClass().getSimpleName() : "null",
+                    authentication != null && authentication.getPrincipal() != null 
+                        ? authentication.getPrincipal().getClass().getSimpleName() : "null");
         }
     }
 }
