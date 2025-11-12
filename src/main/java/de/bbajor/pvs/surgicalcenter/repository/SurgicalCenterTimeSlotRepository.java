@@ -29,6 +29,32 @@ public interface SurgicalCenterTimeSlotRepository
 
         List<SurgicalCenterTimeSlot> findByDateBetweenAndSurgicalCenter(LocalDate start, LocalDate end,
                         SurgicalCenter surgicalCenter, Sort sort);
+        
+        /**
+         * Findet verfügbare Termine für einen Behandlungsort im Zeitraum.
+         * Filtert direkt nach Institution für bessere Datenisolation.
+         * Lädt auch die Patientenzahl pro Timeslot.
+         */
+        @Query("""
+                select new de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot(
+                    ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
+                    ts.surgicalCenter, ts.isAvailable, ts.isApproved, count(t) as patientCount
+                )
+                from SurgicalCenterTimeSlot ts
+                left join Treatment t on t.surgicalCenterTimeSlot = ts
+                where ts.surgicalCenter.id = :surgicalCenterId
+                and ts.surgicalCenter.institution.id = :institutionId
+                and ts.date between :start and :end
+                and ts.isAvailable = true
+                group by ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
+                         ts.surgicalCenter, ts.isAvailable, ts.isApproved
+                order by ts.date asc, ts.startTime asc
+                """)
+        List<SurgicalCenterTimeSlot> findAvailableTimeSlotsBySurgicalCenterAndInstitution(
+                @Param("surgicalCenterId") Integer surgicalCenterId,
+                @Param("institutionId") Long institutionId,
+                @Param("start") LocalDate start,
+                @Param("end") LocalDate end);
 
         @Query("""
                                         select new de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot(

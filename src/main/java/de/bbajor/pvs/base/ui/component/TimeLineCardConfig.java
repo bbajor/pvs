@@ -16,7 +16,9 @@ public class TimeLineCardConfig {
 
     private Treatment treatment;
     private LocalDate firstDate;
-    private boolean isFirst;
+    private boolean first; // Lombok generiert setFirst() und isFirst()
+    private Integer treatmentCount;
+    private Integer mostCommonInterval; // in Wochen
 
     public String getAdditionalInfo() {
         return treatment != null && treatment.getAdditionalInfo() != null ? treatment.getAdditionalInfo() : "";

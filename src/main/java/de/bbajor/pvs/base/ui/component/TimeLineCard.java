@@ -3,7 +3,6 @@ package de.bbajor.pvs.base.ui.component;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.TextStyle;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 import com.vaadin.flow.component.button.Button;
@@ -20,6 +19,11 @@ public class TimeLineCard extends Card {
 
     public TimeLineCard(TimeLineCardConfig config, Consumer<TimeLineCardConfig> onDelete,
             Consumer<TimeLineCardConfig> onClick) {
+        this(config, onDelete, onClick, null, false);
+    }
+
+    public TimeLineCard(TimeLineCardConfig config, Consumer<TimeLineCardConfig> onDelete,
+            Consumer<TimeLineCardConfig> onClick, Runnable onBookNextTreatment, boolean isLastTreatment) {
         addClassName("timeline-card");
 
         if (config == null) {
@@ -85,11 +89,35 @@ public class TimeLineCard extends Card {
                     + DateAndTimeUtils.getGermanDateTimeFormatter().format(config.getFirstDate())));
             String wochentagString = config.getFirstDate().getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
             setSubtitle(new Div("Wochentag: " + wochentagString));
+            
+            // Statistiken anzeigen, falls vorhanden
+            if (config.getTreatmentCount() != null && config.getTreatmentCount() > 0) {
+                add(new Paragraph("Anzahl Behandlungen: " + config.getTreatmentCount()));
+            }
+            if (config.getMostCommonInterval() != null) {
+                add(new Paragraph("Häufigstes Intervall: " + config.getMostCommonInterval() + " Wochen"));
+            }
+            
             String additionalInfo = config.getAdditionalInfo();
             if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                 add(new Paragraph(additionalInfo));
             }
+            
+            // Button "Nächsten Termin buchen" auf Startkachel, wenn keine Behandlungen vorhanden
+            if (onBookNextTreatment != null && (config.getTreatmentCount() == null || config.getTreatmentCount() == 0)) {
+                Button bookButton = new Button("Nächsten Termin buchen", e -> onBookNextTreatment.run());
+                bookButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+                add(bookButton);
+            }
+            
             addClassName("start");
+        }
+        
+        // Button "Nächsten Termin buchen" auf letzter Behandlung
+        if (!config.isFirst() && isLastTreatment && onBookNextTreatment != null) {
+            Button bookButton = new Button("Nächsten Termin buchen", e -> onBookNextTreatment.run());
+            bookButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            add(bookButton);
         }
         // Styling (optional)
         getStyle().set("border", "1px solid #ddd");

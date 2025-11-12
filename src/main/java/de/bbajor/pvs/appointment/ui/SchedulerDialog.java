@@ -1,5 +1,10 @@
 package de.bbajor.pvs.appointment.ui;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -16,16 +21,24 @@ import com.vaadin.flow.component.textfield.TextField;
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.SchedulerType;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.service.LocationService;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 
 /**
  * Dialog for creating and editing appointment schedulers.
  */
 public class SchedulerDialog extends Dialog {
 
+    private static final Logger log = LoggerFactory.getLogger(SchedulerDialog.class);
+
     private final AppointmentSchedulerService schedulerService;
     private final LocationService locationService;
+    private final UserAccountRepository userAccountRepository;
     private AppointmentScheduler scheduler;
     private Runnable onSaveCallback;
 
@@ -39,8 +52,17 @@ public class SchedulerDialog extends Dialog {
             AppointmentSchedulerService schedulerService,
             LocationService locationService,
             AppointmentScheduler scheduler) {
+        this(schedulerService, locationService, scheduler, null);
+    }
+
+    public SchedulerDialog(
+            AppointmentSchedulerService schedulerService,
+            LocationService locationService,
+            AppointmentScheduler scheduler,
+            UserAccountRepository userAccountRepository) {
         this.schedulerService = schedulerService;
         this.locationService = locationService;
+        this.userAccountRepository = userAccountRepository;
         this.scheduler = scheduler != null ? scheduler : new AppointmentScheduler();
 
         setModal(true);
@@ -72,6 +94,9 @@ public class SchedulerDialog extends Dialog {
         descriptionArea = new TextArea("Beschreibung");
         descriptionArea.setValue(scheduler.getDescription() != null ? scheduler.getDescription() : "");
         descriptionArea.setPlaceholder("Optionale Beschreibung des Terminplaners");
+
+        // Ensure InstitutionContext is set before loading locations
+        ensureInstitutionContext();
 
         locationComboBox = new ComboBox<>("Standort");
         locationComboBox.setItems(locationService.getAllLocations());
@@ -157,5 +182,44 @@ public class SchedulerDialog extends Dialog {
 
     public void setOnSaveCallback(Runnable callback) {
         this.onSaveCallback = callback;
+    }
+
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+     * so the context might not be set.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            if (userAccountRepository != null) {
+                try {
+                    String username = adapter.getUsername();
+                    UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                    
+                    if (userAccount != null && userAccount.getInstitution() != null) {
+                        Long institutionId = userAccount.getInstitution().getId();
+                        InstitutionContext.setInstitutionId(institutionId);
+                        log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                                institutionId, userAccount.getInstitution().getInstitutionCode());
+                    }
+                } catch (Exception e) {
+                    log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+                }
+            }
+        }
     }
 }

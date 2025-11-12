@@ -157,3 +157,28 @@ vaadin-scroller.timeline-scroller::part(content)::-webkit-scrollbar-thumb {
 vaadin-scroller.timeline-scroller::part(content)::-webkit-scrollbar-track {
   background: rgba(0,0,0,0.06);
 }
+
+/* YearCalendar: Markierung verfügbarer Termine */
+.available-date {
+  background-color: var(--lumo-success-color-10pct) !important;
+  border: 1px solid var(--lumo-success-color-50pct) !important;
+  border-radius: var(--lumo-border-radius-s) !important;
+  font-weight: 500 !important;
+  color: var(--lumo-success-color) !important;
+}
+
+.available-date:hover {
+  background-color: var(--lumo-success-color-20pct) !important;
+  border-color: var(--lumo-success-color) !important;
+  cursor: pointer !important;
+}
+
+/* YearCalendar: Markierung bereits gebuchter Termine */
+.booked-date {
+  background-color: var(--lumo-error-color-10pct) !important;
+  border: 1px solid var(--lumo-error-color-50pct) !important;
+  border-radius: var(--lumo-border-radius-s) !important;
+  font-weight: 500 !important;
+  color: var(--lumo-error-color) !important;
+  opacity: 0.7 !important;
+}

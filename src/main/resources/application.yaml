@@ -7,6 +7,7 @@ logging:
 
 vaadin:
   launch-browser: true
+  # Note: com.flowingcode is required for YearMonthCalendarAddon (https://github.com/FlowingCode/YearMonthCalendarAddon)
   allowed-packages: "com.vaadin,org.vaadin,com.flowingcode,de.bbajor.pvs"
   # Production Mode für Docker-Container (überschreibbar via Environment-Variable)
   production-mode: ${VAADIN_PRODUCTION_MODE:false}

@@ -38,18 +38,24 @@ public class PatientDialog extends Dialog {
     private final PatientForm form;
     private final ExtractionClient extractionClient;
     private final VoiceTranscriptionService transcriptionService;
+    private final de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository;
 
     public PatientDialog(PatientPresenter presenter, Patient patient) {
-        this(presenter, patient, null, null);
+        this(presenter, patient, null, null, null);
     }
 
-    public PatientDialog(PatientPresenter presenter, Patient patient, ExtractionClient extractionClient, VoiceTranscriptionService transcriptionService) {
+    public PatientDialog(PatientPresenter presenter, Patient patient, ExtractionClient extractionClient, 
+            VoiceTranscriptionService transcriptionService, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository) {
         this.extractionClient = extractionClient;
         this.transcriptionService = transcriptionService;
         this.presenter = presenter;
+        this.userAccountRepository = userAccountRepository;
         if (patient == null) {
             patient = new Patient();
         }
+
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContext();
 
         setWidth("1400px");
         setHeight("1000px");
@@ -388,6 +394,9 @@ public class PatientDialog extends Dialog {
     }
 
     private void save() throws ValidationException {
+        // Stelle sicher, dass InstitutionContext gesetzt ist vor dem Speichern
+        ensureInstitutionContext();
+        
         if (form.isValidateOk()) {
             form.writeIfValid();
             presenter.savePatient(form.getValue());
@@ -395,6 +404,43 @@ public class PatientDialog extends Dialog {
             close();
         } else {
             Notification.show("Es fehlen noch Angaben. Bitte ergänzen.");
+        }
+    }
+    
+    /**
+     * Stellt sicher, dass der InstitutionContext gesetzt ist.
+     * Dies ist notwendig, da Vaadin Button-Klicks kein BeforeEnterEvent auslösen,
+     * sodass der Context möglicherweise nicht gesetzt ist.
+     */
+    private void ensureInstitutionContext() {
+        // Nur setzen, wenn noch nicht gesetzt
+        if (de.bbajor.pvs.institution.context.InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof de.bbajor.pvs.institution.security.InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                de.bbajor.pvs.institution.context.InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof 
+                   de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter adapter) {
+            // Authentication wurde aus Session deserialisiert
+            if (userAccountRepository != null) {
+                try {
+                    String username = adapter.getUsername();
+                    de.bbajor.pvs.security.domain.UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                    
+                    if (userAccount != null && userAccount.getInstitution() != null) {
+                        Long institutionId = userAccount.getInstitution().getId();
+                        de.bbajor.pvs.institution.context.InstitutionContext.setInstitutionId(institutionId);
+                    }
+                } catch (Exception e) {
+                    // Fehler beim Wiederherstellen des Contexts - ignorieren
+                }
+            }
         }
     }
 
