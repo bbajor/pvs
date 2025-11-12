@@ -11,7 +11,6 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
@@ -23,6 +22,7 @@ import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.location.service.LocationService;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import jakarta.annotation.security.RolesAllowed;
 
 /**
@@ -38,6 +38,7 @@ public class SchedulerManagementView extends Main {
     private final AppointmentSchedulerService schedulerService;
     private final OfficeHoursService officeHoursService;
     private final LocationService locationService;
+    private final UserAccountRepository userAccountRepository;
 
     private Grid<AppointmentScheduler> schedulerGrid;
     private Grid<OfficeHours> officeHoursGrid;
@@ -49,10 +50,12 @@ public class SchedulerManagementView extends Main {
     public SchedulerManagementView(
             AppointmentSchedulerService schedulerService,
             OfficeHoursService officeHoursService,
-            LocationService locationService) {
+            LocationService locationService,
+            UserAccountRepository userAccountRepository) {
         this.schedulerService = schedulerService;
         this.officeHoursService = officeHoursService;
         this.locationService = locationService;
+        this.userAccountRepository = userAccountRepository;
 
         addClassNames(
             LumoUtility.BoxSizing.BORDER, 
@@ -208,7 +211,8 @@ public class SchedulerManagementView extends Main {
         SchedulerDialog dialog = new SchedulerDialog(
             schedulerService, 
             locationService, 
-            null
+            null,
+            userAccountRepository
         );
         dialog.setOnSaveCallback(this::showSchedulersTab);
         dialog.open();
@@ -218,7 +222,8 @@ public class SchedulerManagementView extends Main {
         SchedulerDialog dialog = new SchedulerDialog(
             schedulerService, 
             locationService, 
-            scheduler
+            scheduler,
+            userAccountRepository
         );
         dialog.setOnSaveCallback(this::showSchedulersTab);
         dialog.open();

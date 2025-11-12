@@ -22,7 +22,7 @@ import jakarta.annotation.security.PermitAll;
 
 @Route("help")
 @PageTitle("Hilfe")
-@Menu(order = 98, icon = "vaadin:question-circle", title = "Hilfe")
+@Menu(order = 5, icon = "vaadin:question-circle", title = "Hilfe")
 @PermitAll
 public class HelpView extends Main {
 

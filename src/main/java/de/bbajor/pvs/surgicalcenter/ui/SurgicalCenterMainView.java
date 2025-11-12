@@ -24,8 +24,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.RolesAllowed;
 
 @Route("surgicalcenter")
-@PageTitle("Operationszentren")
-@Menu(order = 4, icon = "vaadin:building", title = "Operationszentren")
+@PageTitle("OP-Planer")
+@Menu(order = 4, icon = "vaadin:building", title = "OP-Planer")
 @RolesAllowed({ AppRoles.TECH_USER, AppRoles.ADMIN, AppRoles.OWNER })
 public class SurgicalCenterMainView extends Main implements BeforeEnterObserver {
 

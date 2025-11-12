@@ -56,7 +56,9 @@ public class OfficeHoursDialog extends Dialog {
         OfficeHours oh = new OfficeHours();
         oh.setScheduler(scheduler);
         oh.setActive(true);
-        oh.setSlotDurationMinutes(30);
+        oh.setSlotDurationMinutes(5);
+        oh.setStartTime(LocalTime.of(8, 0));
+        oh.setEndTime(LocalTime.of(12, 0));
         return oh;
     }
 

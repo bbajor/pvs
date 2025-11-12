@@ -53,7 +53,7 @@ import jakarta.annotation.security.PermitAll;
  */
 @Route("appointment-calendar")
 @PageTitle("Terminkalender")
-@Menu(order = 2, icon = "vaadin:calendar", title = "Terminkalender")
+@Menu(order = 3, icon = "vaadin:calendar", title = "Terminkalender")
 @PermitAll
 public class AppointmentCalendarView extends Main implements BeforeEnterObserver {
 

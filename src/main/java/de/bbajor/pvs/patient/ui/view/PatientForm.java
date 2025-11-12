@@ -6,13 +6,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.vaadin.flow.component.AbstractCompositeField;
-import com.vaadin.flow.component.accordion.Accordion;
-import com.vaadin.flow.component.accordion.AccordionPanel;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.NativeLabel;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
@@ -41,7 +37,7 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         private final ComboBox<HealthInsurance> healthInsuranceField = new ComboBox<>("Krankenversicherung");
         private final TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
-        private final TextArea descriptionField = new TextArea();
+        private final TextArea descriptionField = new TextArea("Beschreibung");
         private final AddressField<Address> addressField = new AddressField<>(new Address());
         private final TextField phoneField = new TextField("Telefonnummer");
         private final TextField emailField = new TextField("E-Mail");
@@ -72,11 +68,19 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
 
                 descriptionField.setWidthFull();
                 descriptionField.setHeight("150px");
+                descriptionField.setMinHeight("150px");
+                descriptionField.setMaxHeight("300px");
 
-                // Persönliche Daten
+                // Hauptformular konfigurieren - Sections in zwei Spalten
+                var formLayout = getContent();
+                formLayout.setWidthFull();
+                formLayout.setMinColumns(2);
+                
+                // Section für Persönliche Daten
+                com.vaadin.flow.component.html.Div personalSection = createSection("Persönliche Daten");
                 FormLayout personalDataLayout = new FormLayout();
                 personalDataLayout.setWidthFull();
-                personalDataLayout.setMinColumns(3);
+                personalDataLayout.setMinColumns(1);
                 personalDataLayout.add(salutationComboBox);
                 personalDataLayout.add(titleComboBox);
                 personalDataLayout.add(firstNameField);
@@ -86,61 +90,63 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                 if (canEditLocation) {
                     personalDataLayout.add(locationField);
                 }
-                AccordionPanel personalPanel = new AccordionPanel("Persönliche Daten", personalDataLayout);
-                personalPanel.setOpened(true);
-                personalPanel.setWidthFull();
-
-                // Kontaktdaten
+                personalSection.add(personalDataLayout);
+                formLayout.add(personalSection);
+                
+                // Section für Kontaktdaten
+                com.vaadin.flow.component.html.Div contactSection = createSection("Kontaktdaten");
                 FormLayout contactDataLayout = new FormLayout();
                 contactDataLayout.setWidthFull();
-                contactDataLayout.add(addressField,2);
+                contactDataLayout.setMinColumns(1);
+                contactDataLayout.add(addressField);
                 contactDataLayout.add(phoneField);
                 contactDataLayout.add(emailField);
-                AccordionPanel contactPanel = new AccordionPanel("Kontaktdaten", contactDataLayout);
-                contactPanel.setOpened(true);
-                contactPanel.setWidthFull();
-
-                // Versicherungsdaten
+                contactSection.add(contactDataLayout);
+                formLayout.add(contactSection);
+                
+                // Section für Versicherungsdaten
+                com.vaadin.flow.component.html.Div insuranceSection = createSection("Versicherungsdaten");
                 FormLayout insuranceDataLayout = new FormLayout();
                 insuranceDataLayout.setWidthFull();
+                insuranceDataLayout.setMinColumns(1);
                 insuranceDataLayout.add(healthInsuranceField);
                 insuranceDataLayout.add(healthInsuranceNumberField);
-                AccordionPanel insurancePanel = new AccordionPanel("Versicherungsdaten", insuranceDataLayout);
-                insurancePanel.setOpened(true);
-                insurancePanel.setWidthFull();
-
-                // Zusätzliche Informationen
+                insuranceSection.add(insuranceDataLayout);
+                formLayout.add(insuranceSection);
+                
+                // Section für Zusätzliche Informationen
+                com.vaadin.flow.component.html.Div additionalSection = createSection("Zusätzliche Informationen");
                 FormLayout additionalInfoLayout = new FormLayout();
                 additionalInfoLayout.setWidthFull();
-                additionalInfoLayout.add(descriptionField, 2); // Über volle Breite
-                AccordionPanel additionalPanel = new AccordionPanel("Zusätzliche Informationen", additionalInfoLayout);
-                additionalPanel.setOpened(true);
-                additionalPanel.setWidthFull();
+                additionalInfoLayout.setMinColumns(1);
+                additionalInfoLayout.add(descriptionField);
+                additionalSection.add(additionalInfoLayout);
+                formLayout.add(additionalSection);
 
-                // Description Feld soll die verfügbare Höhe nutzen
-                descriptionField.setMinHeight("150px");
-                descriptionField.setMaxHeight("300px");
-
-                // Hauptformular konfigurieren
-                var formLayout = getContent();
-                formLayout.setWidthFull();
-                formLayout.add(new Accordion().add(personalPanel), 2);
-                formLayout.add(new Accordion().add(contactPanel), 2);
-                formLayout.add(new Accordion().add(insurancePanel), 2);
-                formLayout.add(new Accordion().add(additionalPanel), 2);
-
+                // Pflichtfelder markieren
+                firstNameField.setRequired(true);
+                firstNameField.setRequiredIndicatorVisible(true);
                 binder.forField(firstNameField).asRequired("Bitte geben Sie einen gültigen Vornamen ein")
                                 .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 100,
                                                 "Der Vorname muss zwischen 1 und 100 Zeichen enthalten")
                                 .bind(Patient::getFirstName, Patient::setFirstName);
+                
+                lastNameField.setRequired(true);
+                lastNameField.setRequiredIndicatorVisible(true);
                 binder.forField(lastNameField).asRequired("Bitte geben Sie einen gültigen Nachnamen ein")
                                 .withValidator(item -> !item.trim().isEmpty() && item.trim().length() < 100,
                                                 "Der Nachname muss zwischen 1 und 100 Zeichen enthalten")
                                 .bind(Patient::getLastName, Patient::setLastName);
+                
+                birthDateField.setRequired(true);
+                birthDateField.setRequiredIndicatorVisible(true);
                 binder.forField(birthDateField).asRequired("Bitte geben Sie ein gültiges Geburtsdatum ein")
                                 .withValidator(item -> item != null && item.isBefore(java.time.LocalDate.now()),
                                                 "Das Geburtsdatum muss in der Vergangenheit liegen")
                                 .bind(Patient::getBirth, Patient::setBirth);
+                
+                healthInsuranceField.setRequired(true);
+                healthInsuranceField.setRequiredIndicatorVisible(true);
                 binder.forField(phoneField).withValidator(item -> item.isEmpty() || item.trim().length() < 30,
                                 "Die Telefonnummer darf maximal 30 Zeichen enthalten")
                                 .bind(Patient::getPhone, Patient::setPhone);
@@ -154,7 +160,9 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                                                 "Die Versichertennummer darf maximal 30 Zeichen enthalten")
                                 .bind(Patient::getInsuranceNumber,
                                                 Patient::setInsuranceNumber);
-                binder.bind(healthInsuranceField, Patient::getHealthInsurance, Patient::setHealthInsurance);
+                binder.forField(healthInsuranceField)
+                                .asRequired("Bitte wählen Sie eine Krankenversicherung aus")
+                                .bind(Patient::getHealthInsurance, Patient::setHealthInsurance);
                 binder.bind(titleComboBox, Patient::getTitle, Patient::setTitle);
                 binder.forField(descriptionField).withValidator(item -> item.isEmpty() || item.trim().length() < 2000,
                                 "Die Beschreibung darf maximal 2000 Zeichen enthalten")
@@ -166,6 +174,31 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                 }
                 binder.addValueChangeListener(listener);
                 setValue(patient);
+        }
+        
+        /**
+         * Erstellt eine optisch getrennte Section mit Titel.
+         */
+        private com.vaadin.flow.component.html.Div createSection(String title) {
+            com.vaadin.flow.component.html.Div section = new com.vaadin.flow.component.html.Div();
+            section.addClassName("dialog-section");
+            section.setWidthFull();
+            section.getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+            section.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
+            section.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
+            section.getStyle().set("padding", "var(--lumo-space-m)");
+            section.getStyle().set("box-sizing", "border-box");
+            section.getStyle().set("margin-bottom", "var(--lumo-space-m)");
+            
+            com.vaadin.flow.component.html.H4 sectionTitle = new com.vaadin.flow.component.html.H4(title);
+            sectionTitle.getStyle().set("margin-top", "0");
+            sectionTitle.getStyle().set("margin-bottom", "var(--lumo-space-s)");
+            sectionTitle.getStyle().set("color", "var(--lumo-primary-text-color)");
+            sectionTitle.getStyle().set("font-size", "var(--lumo-font-size-m)");
+            sectionTitle.getStyle().set("font-weight", "600");
+            section.add(sectionTitle);
+            
+            return section;
         }
 
         /**

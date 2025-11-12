@@ -55,8 +55,16 @@ public class TreatmentPlanPresenter {
         return treatmentPlanService.getFavouriteMedications();
     }
 
+    public List<MedicationFavourite> getDrugsForInstitution(Long institutionId) {
+        return treatmentPlanService.getFavouriteMedicationsForInstitution(institutionId);
+    }
+
     public List<SurgicalCenter> getSurgicalCenters() {
         return surgicalCenterService.getSurgicalCenters();
+    }
+
+    public List<SurgicalCenter> getSurgicalCentersForInstitution(Long institutionId) {
+        return surgicalCenterService.getSurgicalCentersForInstitution(institutionId);
     }
 
     public Diagnosis saveDiagnosis(Diagnosis newDto) {

@@ -437,6 +437,14 @@ public class TreatmentPlanService {
         if (institutionId == null) {
             return List.of();
         }
-        return medicationFavouriteService.getActiveFavouritesForInstitution(institutionId);
+        return getFavouriteMedicationsForInstitution(institutionId);
+    }
+
+    public List<MedicationFavourite> getFavouriteMedicationsForInstitution(Long institutionId) {
+        if (institutionId == null) {
+            return List.of();
+        }
+        // Verwende die Methode mit JOIN FETCH, um die Medication-Entity zu laden
+        return medicationFavouriteRepository.findByInstitutionIdAndActiveTrueWithMedication(institutionId);
     }
 }

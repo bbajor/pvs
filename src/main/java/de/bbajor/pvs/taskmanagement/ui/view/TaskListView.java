@@ -48,7 +48,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 @Route("aufgabenliste")
 @PageTitle("Zurückliegende Behandlungen die noch überprüft werden müssen")
-@Menu(order = 0, icon = "vaadin:clipboard-check", title = "Zu überprüfende Behandlungen")
 @PermitAll
 public class TaskListView extends Main implements BeforeEnterObserver {
 

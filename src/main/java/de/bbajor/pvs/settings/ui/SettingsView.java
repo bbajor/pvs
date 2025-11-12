@@ -22,7 +22,7 @@ import jakarta.annotation.security.RolesAllowed;
 
 @Route("settings")
 @PageTitle("Einstellungen")
-@Menu(order = 100, icon = "vaadin:cog", title = "Einstellungen")
+@Menu(order = 6, icon = "vaadin:cog", title = "Einstellungen")
 @RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
 public class SettingsView extends Main {
 

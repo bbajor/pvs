@@ -21,6 +21,7 @@ import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.appointment.ui.OfficeHoursDialog;
 import de.bbajor.pvs.appointment.ui.SchedulerDialog;
 import de.bbajor.pvs.location.service.LocationService;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -39,6 +40,7 @@ public class SchedulerManagementTab extends VerticalLayout {
     private final AppointmentSchedulerService schedulerService;
     private final OfficeHoursService officeHoursService;
     private final LocationService locationService;
+    private final UserAccountRepository userAccountRepository;
 
     private Grid<AppointmentScheduler> schedulerGrid;
     private Grid<OfficeHours> officeHoursGrid;
@@ -200,7 +202,8 @@ public class SchedulerManagementTab extends VerticalLayout {
         SchedulerDialog dialog = new SchedulerDialog(
             schedulerService, 
             locationService, 
-            null
+            null,
+            userAccountRepository
         );
         dialog.setOnSaveCallback(this::showSchedulersTab);
         dialog.open();
@@ -210,7 +213,8 @@ public class SchedulerManagementTab extends VerticalLayout {
         SchedulerDialog dialog = new SchedulerDialog(
             schedulerService, 
             locationService, 
-            scheduler
+            scheduler,
+            userAccountRepository
         );
         dialog.setOnSaveCallback(this::showSchedulersTab);
         dialog.open();
