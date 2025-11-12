@@ -76,18 +76,26 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         // TODO Replace with real application logo and name
         var appLogo = VaadinIcon.CALENDAR.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
+        // Mindestabstand zum Rand - Business-App Style
+        appLogo.getStyle()
+                .set("margin-left", "var(--lumo-space-s, 0.75rem)")
+                .set("min-width", "var(--lumo-icon-size-l, 1.5rem)")
+                .set("flex-shrink", "0");
 
         var appName = new Span("Ophthalmoplan");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
 
         var header = new Div(appLogo, appName);
         header.addClassNames(Display.FLEX, Padding.MEDIUM, Gap.MEDIUM, AlignItems.CENTER);
+        header.getStyle()
+                .set("min-height", "var(--lumo-size-xl, 3rem)")
+                .set("border-bottom", "1px solid var(--lumo-contrast-20pct)");
         return header;
     }
 
     private SideNav createSideNav() {
         var nav = new SideNav();
-        nav.addClassNames(Margin.Horizontal.MEDIUM);
+        nav.addClassNames(Margin.Horizontal.MEDIUM, Padding.Vertical.SMALL);
         
         // Check if user is SUPER_ADMIN
         boolean isSuperAdmin = isCurrentUserSuperAdmin();

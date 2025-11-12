@@ -6,9 +6,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.vaadin.flow.component.AbstractCompositeField;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
@@ -22,6 +24,7 @@ import de.bbajor.pvs.patient.dto.Title;
 import de.bbajor.pvs.patient.model.Address;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.patient.service.HealthInsuranceService;
 import de.bbajor.pvs.security.AppRoles;
 
 public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm, Patient> {
@@ -34,6 +37,7 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         private final TextField firstNameField = new TextField("Vorname");
         private final TextField lastNameField = new TextField("Nachname");
         private final DatePicker birthDateField = new DatePicker("Geburtsdatum");
+        private final Checkbox isPrivateInsuranceCheckbox = new Checkbox("Privat versichert");
         private final ComboBox<HealthInsurance> healthInsuranceField = new ComboBox<>("Krankenversicherung");
         private final TextField healthInsuranceNumberField = new TextField("Versichertennummer");
 
@@ -43,18 +47,33 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
         private final TextField emailField = new TextField("E-Mail");
         private final ComboBox<Location> locationField = new ComboBox<>("Standort");
 
+        private HealthInsuranceService healthInsuranceService;
+        private List<HealthInsurance> availableInsurances;
+
         public PatientForm(List<HealthInsurance> healthInsurances, Patient patient,
                         ValueChangeListener<? super ValueChangeEvent<?>> listener) {
-                this(healthInsurances, patient, null, listener);
+                this(healthInsurances, patient, null, listener, null);
         }
 
         public PatientForm(List<HealthInsurance> healthInsurances, Patient patient,
                         List<Location> locations, ValueChangeListener<? super ValueChangeEvent<?>> listener) {
+                this(healthInsurances, patient, locations, listener, null);
+        }
+
+        public PatientForm(List<HealthInsurance> healthInsurances, Patient patient,
+                        List<Location> locations, ValueChangeListener<? super ValueChangeEvent<?>> listener,
+                        HealthInsuranceService healthInsuranceService) {
                 super(patient);
+                this.healthInsuranceService = healthInsuranceService;
+                this.availableInsurances = healthInsurances != null ? new java.util.ArrayList<>(healthInsurances) : new java.util.ArrayList<>();
 
                 titleComboBox.setItems(Title.values());
                 salutationComboBox.setItems(Salutation.values());
-                healthInsuranceField.setItems(healthInsurances);
+                healthInsuranceField.setItems(availableInsurances);
+                healthInsuranceField.setAllowCustomValue(true);
+                healthInsuranceField.setItemLabelGenerator(insurance -> 
+                        insurance != null && insurance.getCostCarrierName() != null 
+                                ? insurance.getCostCarrierName() : "");
 
                 // Location field: Only visible/editable for TECH_USER, ADMIN, OWNER
                 boolean canEditLocation = canUserEditLocation();
@@ -109,10 +128,44 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                 FormLayout insuranceDataLayout = new FormLayout();
                 insuranceDataLayout.setWidthFull();
                 insuranceDataLayout.setMinColumns(1);
+                insuranceDataLayout.add(isPrivateInsuranceCheckbox);
                 insuranceDataLayout.add(healthInsuranceField);
                 insuranceDataLayout.add(healthInsuranceNumberField);
                 insuranceSection.add(insuranceDataLayout);
                 formLayout.add(insuranceSection);
+                
+                // Toggle visibility/enabled state based on private insurance checkbox
+                isPrivateInsuranceCheckbox.addValueChangeListener(e -> {
+                    boolean isPrivate = e.getValue() != null && e.getValue();
+                    healthInsuranceField.setRequired(!isPrivate);
+                    healthInsuranceField.setRequiredIndicatorVisible(!isPrivate);
+                    healthInsuranceField.setEnabled(!isPrivate);
+                    if (isPrivate) {
+                        healthInsuranceField.clear();
+                    }
+                });
+                
+                // Handle custom value entry in ComboBox
+                healthInsuranceField.addCustomValueSetListener(e -> {
+                    String customValue = e.getDetail();
+                    if (customValue != null && !customValue.trim().isEmpty() && healthInsuranceService != null) {
+                        // Create new insurance from custom value
+                        HealthInsurance newInsurance = new HealthInsurance();
+                        newInsurance.setCostCarrierName(customValue.trim());
+                        newInsurance.setInsuranceType("Gesetzlich");
+                        try {
+                            HealthInsurance saved = healthInsuranceService.save(newInsurance);
+                            availableInsurances.add(saved);
+                            healthInsuranceField.setItems(availableInsurances);
+                            healthInsuranceField.setValue(saved);
+                            Notification.show("Versicherung '" + customValue + "' wurde gespeichert.", 
+                                    3000, Notification.Position.BOTTOM_END);
+                        } catch (Exception ex) {
+                            Notification.show("Fehler beim Speichern der Versicherung: " + ex.getMessage(),
+                                    5000, Notification.Position.MIDDLE);
+                        }
+                    }
+                });
                 
                 // Section für Zusätzliche Informationen
                 com.vaadin.flow.component.html.Div additionalSection = createSection("Zusätzliche Informationen");
@@ -145,8 +198,22 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                                                 "Das Geburtsdatum muss in der Vergangenheit liegen")
                                 .bind(Patient::getBirth, Patient::setBirth);
                 
-                healthInsuranceField.setRequired(true);
-                healthInsuranceField.setRequiredIndicatorVisible(true);
+                // Bind isPrivateInsurance checkbox
+                binder.bind(isPrivateInsuranceCheckbox, 
+                        p -> p.getIsPrivateInsurance() != null ? p.getIsPrivateInsurance() : false,
+                        (p, value) -> p.setIsPrivateInsurance(value != null ? value : false));
+                
+                // Conditional validation for health insurance
+                binder.forField(healthInsuranceField)
+                        .withValidator(insurance -> {
+                            Patient currentPatient = binder.getBean();
+                            if (currentPatient != null && currentPatient.getIsPrivateInsurance() != null && currentPatient.getIsPrivateInsurance()) {
+                                return true; // Not required if private insurance
+                            }
+                            return insurance != null;
+                        }, "Bitte wählen Sie eine Krankenversicherung aus")
+                        .bind(Patient::getHealthInsurance, Patient::setHealthInsurance);
+                
                 binder.forField(phoneField).withValidator(item -> item.isEmpty() || item.trim().length() < 30,
                                 "Die Telefonnummer darf maximal 30 Zeichen enthalten")
                                 .bind(Patient::getPhone, Patient::setPhone);
@@ -160,9 +227,6 @@ public class PatientForm extends AbstractCompositeField<FormLayout, PatientForm,
                                                 "Die Versichertennummer darf maximal 30 Zeichen enthalten")
                                 .bind(Patient::getInsuranceNumber,
                                                 Patient::setInsuranceNumber);
-                binder.forField(healthInsuranceField)
-                                .asRequired("Bitte wählen Sie eine Krankenversicherung aus")
-                                .bind(Patient::getHealthInsurance, Patient::setHealthInsurance);
                 binder.bind(titleComboBox, Patient::getTitle, Patient::setTitle);
                 binder.forField(descriptionField).withValidator(item -> item.isEmpty() || item.trim().length() < 2000,
                                 "Die Beschreibung darf maximal 2000 Zeichen enthalten")

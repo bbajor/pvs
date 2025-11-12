@@ -5,20 +5,23 @@ import java.util.function.Consumer;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.grid.dataview.GridListDataView;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.NativeLabel;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.textfield.TextFieldVariant;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -62,8 +65,9 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         setSizeFull();
 
         Button newPatientButton = new Button("Patienten anlegen", event -> openPatientDialog(new Patient()));
-        newPatientButton.setIcon(VaadinIcon.USER.create());
-        newPatientButton.getElement().setAttribute("theme", "primary");
+        newPatientButton.setIcon(VaadinIcon.PLUS.create());
+        newPatientButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        newPatientButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
 
         add(new ViewToolbar("Übersicht Patienten", ViewToolbar.group(newPatientButton)));
         configureGrid();
@@ -74,13 +78,40 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
             remove(patientGrid);
         }
         patientGrid = new Grid<>(Patient.class, false);
-        Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(Patient::getLastName).setHeader("Nachname");
-        Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(Patient::getFirstName).setHeader("Vorname");
-        Grid.Column<Patient> birthColumn = patientGrid
-                .addColumn(dto -> dto != null && dto.getBirth() != null ? germanFormatter.format(dto.getBirth()) : "-")
-                .setHeader("Geburtsdatum");
-        Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(Patient::getHealthInsurance)
-                .setHeader("Krankenkasse");
+        patientGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        
+        Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String lastName = patient.getLastName() != null ? patient.getLastName() : "-";
+                    Span span = new Span(lastName);
+                    span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+                    return span;
+                })).setHeader("Nachname").setAutoWidth(true);
+        
+        Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String firstName = patient.getFirstName() != null ? patient.getFirstName() : "-";
+                    Span span = new Span(firstName);
+                    return span;
+                })).setHeader("Vorname").setAutoWidth(true);
+        
+        Grid.Column<Patient> birthColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String birth = patient != null && patient.getBirth() != null 
+                            ? germanFormatter.format(patient.getBirth()) : "-";
+                    Span span = new Span(birth);
+                    span.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    return span;
+                })).setHeader("Geburtsdatum").setAutoWidth(true);
+        
+        Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String insurance = patient.getHealthInsurance() != null 
+                            ? patient.getHealthInsurance().toString() : "-";
+                    Span span = new Span(insurance);
+                    span.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    return span;
+                })).setHeader("Krankenkasse").setAutoWidth(true);
 
         GridListDataView<Patient> dataView = patientGrid.setItems(patientListPresenter.findAll());
         PatientFilter patientFilter = new PatientFilter(dataView);
