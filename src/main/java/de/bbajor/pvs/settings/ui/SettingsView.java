@@ -12,6 +12,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
+import de.bbajor.pvs.settings.ui.tabs.InsuranceSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
@@ -32,6 +33,7 @@ public class SettingsView extends Main {
     private final Tab schedulerTab = new Tab("Terminplaner");
     private final Tab userTab = new Tab("Benutzerverwaltung");
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
+    private final Tab insuranceTab = new Tab("Versicherungen");
     private final Tab mfaTab = new Tab("Multi-Faktor-Authentifizierung");
 
     private final VerticalLayout content = new VerticalLayout();
@@ -42,6 +44,7 @@ public class SettingsView extends Main {
             SchedulerManagementTab schedulerManagementTab,
             UserSettingsTab userSettingsTab,
             MedicationSettingsTab medicationSettingsTab,
+            InsuranceSettingsTab insuranceSettingsTab,
             MfaSettingsTab mfaSettingsTab) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
@@ -49,7 +52,7 @@ public class SettingsView extends Main {
 
         add(new ViewToolbar("Einstellungen"));
 
-        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, mfaTab);
+        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
@@ -66,6 +69,8 @@ public class SettingsView extends Main {
                 content.add(userSettingsTab);
             } else if (selected == medicationTab) {
                 content.add(medicationSettingsTab);
+            } else if (selected == insuranceTab) {
+                content.add(insuranceSettingsTab);
             } else if (selected == mfaTab) {
                 mfaSettingsTab.refresh(); // Refresh MFA status when tab is selected
                 content.add(mfaSettingsTab);

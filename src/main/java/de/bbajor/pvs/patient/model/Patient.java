@@ -65,6 +65,8 @@ public class Patient extends BasicEntity<Integer> {
     private HealthInsurance healthInsurance;
     @Column(name = "insurance_number", nullable = true)
     private String insuranceNumber;
+    @Column(name = "is_private_insurance", nullable = false)
+    private Boolean isPrivateInsurance = false;
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private PatientHistory patientHistory;
     private String description;

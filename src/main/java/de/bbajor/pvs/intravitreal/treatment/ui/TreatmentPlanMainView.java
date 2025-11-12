@@ -23,6 +23,8 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
@@ -76,7 +78,6 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
     // Treatment Plans Tab Components
     private final TextField searchField = new TextField();
-    private final Button searchButton = new Button(VaadinIcon.SEARCH.create());
     private final Button createButton = new Button(VaadinIcon.PLUS.create());
     private final Button generateDailyListButton = new Button("Wochenliste anzeigen");
     private final Grid<TreatmentPlan> ivomPlanGrid = new Grid<>(TreatmentPlan.class, false);
@@ -92,7 +93,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
     // Tab Components
     private final Tab treatmentPlansTab = new Tab("Behandlungspläne");
-    private final Tab taskReviewTab = new Tab("Zu überprüfende Behandlungen");
+    private final Tab taskReviewTab = new Tab("Behandlungsprüfung");
     private final Tabs tabs = new Tabs(treatmentPlansTab, taskReviewTab);
     private final VerticalLayout tabContent = new VerticalLayout();
 
@@ -132,7 +133,6 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         tabContent.setPadding(false);
         tabContent.setSpacing(false);
 
-        add(new ViewToolbar("IVOM-Planer"));
         add(tabs);
         add(tabContent);
 
@@ -146,6 +146,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     }
 
     private void initializeTreatmentPlansTab() {
+        createButton.setText("Neuer Behandlungsplan");
         createButton.addClickListener(event -> {
             Optional<TreatmentPlan> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
@@ -156,7 +157,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 navigateToDetailView(newTreatmentPlan);
             }
         });
-        createButton.getElement().setAttribute("theme", "primary");
+        createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
         
         // Button nur für berechtigte Rollen aktivieren
         boolean canBook = currentUser.getPrincipal()
@@ -175,8 +177,10 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             createButton.setTooltipText("Sie benötigen die Rolle ADMIN, DOCTOR oder TECH_USER, um Termine zu buchen");
         }
 
-        searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsdatum oder Krankenkasse");
+        searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsjahr, Krankenkasse, Diagnose oder zusätzlichen Informationen");
         searchField.setWidthFull();
+        searchField.setClearButtonVisible(true);
+        searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
 
         generateDailyListButton.addClickListener(event -> {
             LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
@@ -186,18 +190,38 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             WeekListDialog dailyTreatmentsDialog = new WeekListDialog(config);
             dailyTreatmentsDialog.open();
         });
+        generateDailyListButton.setIcon(VaadinIcon.FILE_TEXT.create());
         generateDailyListButton
                 .setTooltipText("Erzeugt eine Tagesliste für die tagesaktuellen OP-Slots. " +
                         "Dabei werden die zu behandelnden Patienten, sowie die jeweiligen " +
                         "Einrichtungen aufgelistet, an denen die Behandlung stattfindet.");
-        generateDailyListButton.getElement().setAttribute("theme", "primary");
+        generateDailyListButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        generateDailyListButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
 
-        treatmentPlansContent.add(new ViewToolbar("IVOM-Behandlungspläne",
-                ViewToolbar.group(createButton, searchField, searchButton, generateDailyListButton)));
+        // Professionelle Button-Anordnung - Business-App Style
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setSpacing(true);
+        buttonLayout.setWidthFull();
+        buttonLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
+        buttonLayout.add(createButton, generateDailyListButton);
+        buttonLayout.setFlexGrow(1, new Div()); // Spacer
+        
+        HorizontalLayout searchLayout = new HorizontalLayout();
+        searchLayout.setSpacing(true);
+        searchLayout.setWidthFull();
+        searchLayout.add(searchField);
+        searchLayout.setFlexGrow(1, searchField);
+        
+        VerticalLayout toolbarContent = new VerticalLayout();
+        toolbarContent.setSpacing(true);
+        toolbarContent.setPadding(false);
+        toolbarContent.add(buttonLayout, searchLayout);
+        
+        treatmentPlansContent.add(toolbarContent);
         treatmentPlansContent.add(ivomPlanGrid);
         treatmentPlansContent.setSizeFull();
         treatmentPlansContent.setPadding(false);
-        treatmentPlansContent.setSpacing(false);
+        treatmentPlansContent.setSpacing(true);
 
         configureGrid();
         configureSearch();
@@ -213,19 +237,39 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             ensureInstitutionContext();
             return taskService.list(toSpringPageRequest(query)).stream();
         });
+        // Verbesserte Grid-Spalten mit ComponentRenderer
         taskGrid.addColumn(new ComponentRenderer<>(task -> {
             Span s = new Span(task.getDescription());
             if (task.isCompleted()) {
-                s.getStyle().set("opacity", "0.6");
+                s.addClassNames(LumoUtility.TextColor.SECONDARY);
+                s.getStyle().set("text-decoration", "line-through");
+            } else {
+                s.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
             }
             return s;
-        })).setHeader("Beschreibung");
-        taskGrid.addColumn(task -> Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie"))
-                .setHeader("Fälligkeitsdatum");
-        taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
+        })).setHeader("Beschreibung").setAutoWidth(true);
+        
+        taskGrid.addColumn(new ComponentRenderer<>(task -> {
+            String dueDate = Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie");
+            Span dateSpan = new Span(dueDate);
+            if (task.getDueDate() != null && task.getDueDate().isBefore(java.time.LocalDate.now()) && !task.isCompleted()) {
+                dateSpan.addClassNames(LumoUtility.TextColor.ERROR);
+            } else {
+                dateSpan.addClassNames(LumoUtility.TextColor.SECONDARY);
+            }
+            return dateSpan;
+        })).setHeader("Fälligkeitsdatum").setAutoWidth(true);
+        
+        taskGrid.addColumn(new ComponentRenderer<>(task -> {
+            Span dateSpan = new Span(dateTimeFormatter.format(task.getCreationDate()));
+            dateSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            return dateSpan;
+        })).setHeader("Erstellt am").setAutoWidth(true);
+        
         taskGrid.setPartNameGenerator(task -> task.isCompleted() ? "row-completed" : "");
         taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
         taskGrid.setSizeFull();
+        taskGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         taskGrid.getStyle().set("min-height", "10em");
         taskGrid.addItemDoubleClickListener(ev -> {
             Task t = ev.getItem();
@@ -234,7 +278,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             dialog.open();
         });
 
+        taskRefreshButton.setIcon(VaadinIcon.REFRESH.create());
         taskRefreshButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        taskRefreshButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
         taskRefreshButton.addClickListener(e -> {
             try {
                 ensureInstitutionContext();
@@ -251,13 +297,34 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         });
 
         taskFilterText.setPlaceholder("Filter Beschreibung...");
+        taskFilterText.setClearButtonVisible(true);
+        taskToggleCompleted.setIcon(VaadinIcon.EYE.create());
+        taskToggleCompleted.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
         taskToggleCompleted.addClickListener(e -> {
             hideCompleted = !hideCompleted;
             refreshTaskGrid();
         });
 
-        taskReviewContent.add(new ViewToolbar("Zu überprüfende Behandlungen",
-                ViewToolbar.group(taskFilterText, taskToggleCompleted, taskRefreshButton)));
+        // Moderne Anordnung für Task Review Tab
+        HorizontalLayout taskButtonLayout = new HorizontalLayout();
+        taskButtonLayout.setSpacing(true);
+        taskButtonLayout.setWidthFull();
+        taskButtonLayout.add(taskRefreshButton, taskToggleCompleted);
+        taskButtonLayout.setFlexGrow(1, new Div()); // Spacer
+        
+        HorizontalLayout taskSearchLayout = new HorizontalLayout();
+        taskSearchLayout.setSpacing(true);
+        taskSearchLayout.setWidthFull();
+        taskSearchLayout.add(taskFilterText);
+        taskSearchLayout.setFlexGrow(1, taskFilterText);
+        
+        VerticalLayout taskToolbarContent = new VerticalLayout();
+        taskToolbarContent.setSpacing(true);
+        taskToolbarContent.setPadding(false);
+        taskToolbarContent.add(taskButtonLayout, taskSearchLayout);
+        
+        taskReviewContent.add(new ViewToolbar("Behandlungsprüfung",
+                taskToolbarContent));
         taskReviewContent.add(taskGrid);
         taskReviewContent.setSizeFull();
         taskReviewContent.setPadding(false);
@@ -357,31 +424,75 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     }
 
     private void configureGrid() {
-        ivomPlanGrid.addColumn(TreatmentPlan::getLastName).setHeader("Nachname");
-        ivomPlanGrid.addColumn(TreatmentPlan::getFirstName).setHeader("Vorname");
-        ivomPlanGrid
-                .addColumn(
-                        treatmentPlan -> DateAndTimeUtils.getGermanDateTimeFormatter().format(treatmentPlan.getBirth()))
-                .setHeader("Geburtsdatum");
-        ivomPlanGrid.addColumn(TreatmentPlan::getHealthInsurance).setHeader("Krankenkasse");
-        ivomPlanGrid.addColumn(TreatmentPlan::getDiagnosis).setHeader("Grund der Behandlung");
-        ivomPlanGrid.addColumn(TreatmentPlan::getAdditionalInformation).setHeader("Zusätzliche Informationen");
+        // Verbesserte Grid-Spalten mit ComponentRenderer für bessere Darstellung
+        ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
+            Span name = new Span(plan.getLastName() != null ? plan.getLastName() : "");
+            name.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            return name;
+        })).setHeader("Nachname").setAutoWidth(true);
+        
+        ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
+            Span name = new Span(plan.getFirstName() != null ? plan.getFirstName() : "");
+            return name;
+        })).setHeader("Vorname").setAutoWidth(true);
+        
+        ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
+            if (plan.getBirth() != null) {
+                Span date = new Span(DateAndTimeUtils.getGermanDateTimeFormatter().format(plan.getBirth()));
+                date.addClassNames(LumoUtility.TextColor.SECONDARY);
+                return date;
+            }
+            return new Span("-");
+        })).setHeader("Geburtsdatum").setAutoWidth(true);
+        
+        ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
+            String insurance = plan.getHealthInsurance() != null ? plan.getHealthInsurance() : "-";
+            Span insuranceSpan = new Span(insurance);
+            insuranceSpan.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return insuranceSpan;
+        })).setHeader("Krankenkasse").setAutoWidth(true);
+        
+        ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
+            String diagnosis = plan.getDiagnosis() != null ? plan.getDiagnosis().getName() : "-";
+            Span diagnosisSpan = new Span(diagnosis);
+            return diagnosisSpan;
+        })).setHeader("Grund der Behandlung").setAutoWidth(true);
+        
+        ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
+            String info = plan.getAdditionalInformation();
+            if (info != null && !info.trim().isEmpty()) {
+                Span infoSpan = new Span(info.length() > 50 ? info.substring(0, 50) + "..." : info);
+                infoSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+                return infoSpan;
+            }
+            return new Span("-");
+        })).setHeader("Zusätzliche Informationen").setAutoWidth(true);
+        
         ivomPlanGrid.setSizeFull();
+        ivomPlanGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {
             TreatmentPlan ivomDto = event.getValue();
             if (ivomDto != null) {
                 navigateToDetailView(ivomDto);
             }
         });
+        
+        // Ensure InstitutionContext is set before loading initial data
+        ensureInstitutionContext();
         ivomPlanGrid.setItems(ivomListPresenter.findAll());
     }
 
     private void configureSearch() {
-        searchButton.addClickListener(e -> refresh(searchField.getValue()));
+        // Suche bei jeder Änderung im Suchfeld
         searchField.addValueChangeListener(e -> refresh(e.getValue()));
+        // Zusätzlich bei KeyUp für sofortige Reaktion während der Eingabe
+        searchField.addKeyUpListener(e -> refresh(searchField.getValue()));
     }
 
     public void refresh(String searchString) {
+        // Ensure InstitutionContext is set before service call
+        ensureInstitutionContext();
+        
         List<TreatmentPlan> ivomList = ivomListPresenter.findAllBy(searchString);
         ivomPlanGrid.setItems(ivomList);
     }

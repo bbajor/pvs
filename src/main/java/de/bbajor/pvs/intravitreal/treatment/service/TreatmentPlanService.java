@@ -133,6 +133,9 @@ public class TreatmentPlanService {
      * institution. IMPORTANT: Only searches within treatment plans that belong
      * to the current institution to comply with data protection regulations
      * (DSGVO).
+     * 
+     * Searches in: patient first name, patient last name, health insurance name
+     * (billing and cost carrier), diagnosis name, additional information, and birth year.
      */
     public List<TreatmentPlan> findTreatmentPlans(String filter) {
         Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
@@ -142,48 +145,29 @@ public class TreatmentPlanService {
             return List.of(); // TODO: throw exception or require explicit institution context
         }
 
-        // First, get all treatment plans for current institution
-        List<TreatmentPlan> institutionTreatmentPlans = treatmentPlanRepository.findByInstitutionId(institutionId);
-
         if (filter == null || filter.trim().isEmpty()) {
-            return institutionTreatmentPlans;
+            return treatmentPlanRepository.findByInstitutionId(institutionId);
         }
 
-        // Filter by search criteria within institution treatment plans
-        String lowerFilter = filter.toLowerCase();
-        return institutionTreatmentPlans.stream()
-                .filter(tp -> {
-                    // Check description
-                    if (tp.getDescription() != null && tp.getDescription().toLowerCase().contains(lowerFilter)) {
-                        return true;
-                    }
-                    // Check additional information
-                    if (tp.getAdditionalInformation() != null && tp.getAdditionalInformation().toLowerCase().contains(lowerFilter)) {
-                        return true;
-                    }
-                    // Check patient first name
-                    if (tp.getPatient() != null && tp.getPatient().getFirstName() != null
-                            && tp.getPatient().getFirstName().toLowerCase().contains(lowerFilter)) {
-                        return true;
-                    }
-                    // Check patient last name
-                    if (tp.getPatient() != null && tp.getPatient().getLastName() != null
-                            && tp.getPatient().getLastName().toLowerCase().contains(lowerFilter)) {
-                        return true;
-                    }
-                    // Check birth year (if filter is numeric)
-                    try {
-                        Integer birthYear = Integer.parseInt(filter);
-                        if (tp.getBirth() != null && tp.getBirth().getYear() == birthYear) {
-                            return true;
-                        }
-                    } catch (NumberFormatException ignored) {
-                        // Not a number, ignore
-                    }
-                    // TODO: Add more fields like health insurance name, diagnosis, etc.
-                    return false;
-                })
-                .toList();
+        // Use repository search method for efficient database-level filtering
+        List<TreatmentPlan> results = new ArrayList<>(
+                treatmentPlanRepository.searchInInstitution(institutionId, filter.trim()));
+        
+        // Additionally filter by birth year if search term is numeric
+        try {
+            Integer birthYear = Integer.parseInt(filter.trim());
+            // Also include treatment plans matching birth year
+            List<TreatmentPlan> allPlans = treatmentPlanRepository.findByInstitutionId(institutionId);
+            List<TreatmentPlan> yearMatches = allPlans.stream()
+                    .filter(tp -> tp.getBirth() != null && tp.getBirth().getYear() == birthYear)
+                    .filter(tp -> !results.contains(tp)) // Avoid duplicates
+                    .toList();
+            results.addAll(yearMatches);
+        } catch (NumberFormatException ignored) {
+            // Not a number, ignore - search already handled by repository query
+        }
+        
+        return results;
     }
 
     /**
