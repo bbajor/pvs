@@ -263,6 +263,7 @@ public class UserSettingsTab extends VerticalLayout {
         if (!userAccount.getRoles().isEmpty()) {
             roleSelect.setValue(userAccount.getRoles().iterator().next());
         }
+        
         locationComboBox.setValue(userAccount.getPreferredLocation());
         enabledCheckbox.setValue(userAccount.isEnabled());
     }
