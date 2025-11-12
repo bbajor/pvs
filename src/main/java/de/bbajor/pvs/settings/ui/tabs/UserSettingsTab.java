@@ -94,8 +94,21 @@ public class UserSettingsTab extends VerticalLayout {
         userGrid.addColumn(UserAccount::getFullName).setHeader("Name");
         userGrid.addColumn(UserAccount::getEmail).setHeader("E-Mail");
         userGrid.addColumn(ua -> String.join(", ", ua.getRoles())).setHeader("Rolle");
-        userGrid.addColumn(ua -> ua.getPreferredLocation() != null ? ua.getPreferredLocation().getLocationName() : "-")
-                .setHeader("Standort");
+        userGrid.addColumn(ua -> {
+            // Safely access preferredLocation to avoid LazyInitializationException
+            try {
+                Location loc = ua.getPreferredLocation();
+                return loc != null ? loc.getLocationName() : "-";
+            } catch (org.hibernate.LazyInitializationException e) {
+                // Location not loaded - try to get it from the locationService
+                if (ua.getPreferredLocation() != null && ua.getPreferredLocation().getId() != null) {
+                    return locationService.findById(ua.getPreferredLocation().getId())
+                            .map(Location::getLocationName)
+                            .orElse("-");
+                }
+                return "-";
+            }
+        }).setHeader("Standort");
         userGrid.addColumn(ua -> ua.isEnabled() ? "Ja" : "Nein").setHeader("Aktiv");
         userGrid.setSizeFull();
         
@@ -264,7 +277,24 @@ public class UserSettingsTab extends VerticalLayout {
         if (!userAccount.getRoles().isEmpty()) {
             roleSelect.setValue(userAccount.getRoles().iterator().next());
         }
-        locationComboBox.setValue(userAccount.getPreferredLocation());
+        
+        // Safely load preferredLocation to avoid LazyInitializationException
+        Location preferredLocation = null;
+        try {
+            Location loc = userAccount.getPreferredLocation();
+            if (loc != null) {
+                // Try to access location name to initialize lazy proxy
+                loc.getLocationName();
+                preferredLocation = loc;
+            }
+        } catch (org.hibernate.LazyInitializationException e) {
+            // Location not loaded - try to get it from the locationService
+            if (userAccount.getPreferredLocation() != null && userAccount.getPreferredLocation().getId() != null) {
+                preferredLocation = locationService.findById(userAccount.getPreferredLocation().getId())
+                        .orElse(null);
+            }
+        }
+        locationComboBox.setValue(preferredLocation);
         enabledCheckbox.setValue(userAccount.isEnabled());
     }
 
@@ -301,13 +331,22 @@ public class UserSettingsTab extends VerticalLayout {
         // Load users for current institution
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId != null) {
-            allUsers = userAccountRepository.findAll().stream()
-                    .filter(ua -> ua.getInstitution() != null && ua.getInstitution().getId().equals(institutionId))
-                    .collect(Collectors.toList());
+            // Load users within a transaction and initialize lazy-loaded Location entities
+            allUsers = loadUsersWithLocations(institutionId);
             userGrid.setItems(allUsers);
         } else {
             userGrid.setItems(List.of());
         }
+    }
+    
+    /**
+     * Loads users for the current institution.
+     * Note: Location entities are loaded lazily and will be accessed safely in the Grid column renderer.
+     */
+    private List<UserAccount> loadUsersWithLocations(Long institutionId) {
+        return userAccountRepository.findAll().stream()
+                .filter(ua -> ua.getInstitution() != null && ua.getInstitution().getId().equals(institutionId))
+                .collect(Collectors.toList());
     }
     
     /**
