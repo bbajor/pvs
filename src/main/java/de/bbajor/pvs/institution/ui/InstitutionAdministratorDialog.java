@@ -11,12 +11,14 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.TextField;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.email.EmailService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +30,7 @@ import java.util.UUID;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class InstitutionAdministratorDialog extends Dialog {
 
     private final UserAccountRepository userAccountRepository;
@@ -44,6 +47,13 @@ public class InstitutionAdministratorDialog extends Dialog {
 
     public void openForInstitution(Institution institution) {
         this.institution = institution;
+        
+        // Set InstitutionContext for the institution we're creating an admin for
+        // This ensures that any service calls (e.g., email service) use the correct institution context
+        if (institution != null && institution.getId() != null) {
+            InstitutionContext.setInstitutionId(institution.getId());
+            log.debug("InstitutionContext set for InstitutionAdministratorDialog: {}", institution.getId());
+        }
         
         removeAll();
         
@@ -135,6 +145,8 @@ public class InstitutionAdministratorDialog extends Dialog {
                     5000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             
+            // Clear InstitutionContext after dialog closes (it was only set for this operation)
+            // The context will be restored by VaadinInstitutionContextInitializer on next navigation
             close();
         } catch (Exception e) {
             Notification.show("Fehler beim Anlegen des Administrators: " + e.getMessage(),
