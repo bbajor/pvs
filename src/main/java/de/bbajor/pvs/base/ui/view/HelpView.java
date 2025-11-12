@@ -19,6 +19,8 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.PermitAll;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Route("help")
 @PageTitle("Hilfe")
@@ -43,15 +45,55 @@ public class HelpView extends Main {
         Section welcomeSection = createWelcomeSection();
         content.add(welcomeSection);
 
-        // Funktionsübersicht
+        // Funktionsübersicht - rollenbasiert
         Section functionsSection = createFunctionsSection();
         content.add(functionsSection);
 
-        // Rollen-/Rechtesystem
+        // Rollen-/Rechtesystem - rollenbasiert
         Section rolesSection = createRolesSection();
         content.add(rolesSection);
 
         add(content);
+    }
+    
+    /**
+     * Prüft, ob der Benutzer eine bestimmte Rolle hat.
+     */
+    private boolean hasRole(String role) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) {
+            return false;
+        }
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
+    }
+    
+    /**
+     * Prüft, ob der Benutzer Zugriff auf einen Bereich hat.
+     */
+    private boolean hasAccessToArea(String area) {
+        // IVOM-Planer: Alle haben Lesezugriff
+        if (area.contains("IVOM") || area.contains("ivom")) {
+            return true;
+        }
+        // Zu überprüfende Behandlungen: ADMIN, DOCTOR, OWNER
+        if (area.contains("überprüfende") || area.contains("Aufgabenliste")) {
+            return hasRole(AppRoles.ADMIN) || hasRole(AppRoles.DOCTOR) || hasRole(AppRoles.OWNER);
+        }
+        // Medikamentendatenbank: ADMIN, TECH_USER, OWNER
+        if (area.contains("Medikament")) {
+            return hasRole(AppRoles.ADMIN) || hasRole(AppRoles.TECH_USER) || hasRole(AppRoles.OWNER);
+        }
+        // Operationszentren: TECH_USER, ADMIN, OWNER
+        if (area.contains("Operationszentren") || area.contains("OP-Planer")) {
+            return hasRole(AppRoles.TECH_USER) || hasRole(AppRoles.ADMIN) || hasRole(AppRoles.OWNER);
+        }
+        // Einstellungen: ADMIN, TECH_USER, OWNER
+        if (area.contains("Einstellungen")) {
+            return hasRole(AppRoles.ADMIN) || hasRole(AppRoles.TECH_USER) || hasRole(AppRoles.OWNER);
+        }
+        // Standard: Alle haben Zugriff
+        return true;
     }
 
     private Section createWelcomeSection() {
@@ -85,28 +127,46 @@ public class HelpView extends Main {
         cardsRow1.setSpacing(true);
         cardsRow1.getStyle().set("flex-wrap", "wrap");
 
-        cardsRow1.add(createFunctionCard("IVOM-Behandlungsplan", "Verwaltung von intravitrealen Behandlungsplänen",
-                VaadinIcon.CALENDAR_USER, "help/ivom", "var(--lumo-primary-color)"));
-        cardsRow1.add(createFunctionCard("Patientensuche", "Patientenverwaltung und Suche",
-                VaadinIcon.MALE, "help/patient-search", "var(--lumo-success-color)"));
-        cardsRow1.add(createFunctionCard("Terminkalender", "Terminverwaltung und Buchung",
-                VaadinIcon.CALENDAR, "help/appointment-calendar", "var(--lumo-primary-color)"));
-        cardsRow1.add(createFunctionCard("Aufgabenliste", "Zu überprüfende Behandlungen",
-                VaadinIcon.CLIPBOARD_CHECK, "help/aufgabenliste", "var(--lumo-error-color)"));
+        // Nur anzeigen, wenn Benutzer Zugriff hat
+        if (hasAccessToArea("IVOM")) {
+            cardsRow1.add(createFunctionCard("IVOM-Behandlungsplan", "Verwaltung von intravitrealen Behandlungsplänen",
+                    VaadinIcon.CALENDAR_USER, "help/ivom", "var(--lumo-primary-color)"));
+        }
+        if (hasAccessToArea("Patient")) {
+            cardsRow1.add(createFunctionCard("Patientensuche", "Patientenverwaltung und Suche",
+                    VaadinIcon.MALE, "help/patient-search", "var(--lumo-success-color)"));
+        }
+        if (hasAccessToArea("Termin")) {
+            cardsRow1.add(createFunctionCard("Terminkalender", "Terminverwaltung und Buchung",
+                    VaadinIcon.CALENDAR, "help/appointment-calendar", "var(--lumo-primary-color)"));
+        }
+        if (hasAccessToArea("überprüfende")) {
+            cardsRow1.add(createFunctionCard("Aufgabenliste", "Zu überprüfende Behandlungen",
+                    VaadinIcon.CLIPBOARD_CHECK, "help/aufgabenliste", "var(--lumo-error-color)"));
+        }
 
         HorizontalLayout cardsRow2 = new HorizontalLayout();
         cardsRow2.setWidthFull();
         cardsRow2.setSpacing(true);
         cardsRow2.getStyle().set("flex-wrap", "wrap");
 
-        cardsRow2.add(createFunctionCard("Medikamentendatenbank", "Verwaltung der Medikamentendatenbank",
-                VaadinIcon.PILL, "help/ivom-drugs", "var(--lumo-success-color)"));
-        cardsRow2.add(createFunctionCard("Augen-Termine", "Augenheilkundliche Patiententermine",
-                VaadinIcon.EYE, "help/augen-termine", "var(--lumo-primary-color)"));
-        cardsRow2.add(createFunctionCard("Operationszentren", "Verwaltung von Operationszentren",
-                VaadinIcon.BUILDING, "help/surgicalcenter", "var(--lumo-contrast-50pct)"));
-        cardsRow2.add(createFunctionCard("Einstellungen", "System- und Benutzereinstellungen",
-                VaadinIcon.COG, "help/settings", "var(--lumo-contrast-50pct)"));
+        // Nur anzeigen, wenn Benutzer Zugriff hat
+        if (hasAccessToArea("Medikament")) {
+            cardsRow2.add(createFunctionCard("Medikamentendatenbank", "Verwaltung der Medikamentendatenbank",
+                    VaadinIcon.PILL, "help/ivom-drugs", "var(--lumo-success-color)"));
+        }
+        if (hasAccessToArea("Augen")) {
+            cardsRow2.add(createFunctionCard("Augen-Termine", "Augenheilkundliche Patiententermine",
+                    VaadinIcon.EYE, "help/augen-termine", "var(--lumo-primary-color)"));
+        }
+        if (hasAccessToArea("Operationszentren")) {
+            cardsRow2.add(createFunctionCard("Operationszentren", "Verwaltung von Operationszentren",
+                    VaadinIcon.BUILDING, "help/surgicalcenter", "var(--lumo-contrast-50pct)"));
+        }
+        if (hasAccessToArea("Einstellungen")) {
+            cardsRow2.add(createFunctionCard("Einstellungen", "System- und Benutzereinstellungen",
+                    VaadinIcon.COG, "help/settings", "var(--lumo-contrast-50pct)"));
+        }
 
         section.add(cardsRow1, cardsRow2);
 

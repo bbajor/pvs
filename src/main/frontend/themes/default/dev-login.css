@@ -1,10 +1,10 @@
-/* This CSS is used by the development mode login view */
+/* This CSS is used by the development mode login view - Vaadin Business App Styling */
 
 .dev-login-view {
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
-    background: linear-gradient(135deg, var(--lumo-primary-color-10pct, #e3f2fd) 0%, var(--lumo-shade-5pct, #f5f5f5) 100%);
+    background: linear-gradient(135deg, var(--lumo-primary-color-10pct, #e3f2fd) 0%, var(--lumo-contrast-5pct, #f5f5f5) 100%);
     padding: var(--lumo-space-l, 1.5rem);
     min-height: 100vh;
     width: 100%;
@@ -13,14 +13,19 @@
 .dev-login-view .dev-content-div {
     display: flex !important;
     flex-direction: row !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-    border: 1px solid var(--lumo-shade-20pct, #e0e0e0);
-    border-radius: 16px;
-    background-color: var(--lumo-base-color, #ffffff);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid var(--lumo-contrast-20pct, #e0e0e0) !important;
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    background: linear-gradient(135deg, var(--lumo-base-color, #ffffff) 0%, var(--lumo-contrast-5pct, #fafafa) 100%) !important;
     overflow: hidden;
     max-width: 1200px;
     max-height: 90vh;
     width: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.dev-login-view .dev-content-div:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 6px 20px rgba(0, 0, 0, 0.1) !important;
 }
 
 .dev-login-view .dev-login-form-wrapper {
@@ -31,7 +36,7 @@
     min-width: 650px;
     flex-shrink: 0;
     width: auto;
-    background-color: var(--lumo-base-color, #ffffff);
+    background: transparent !important;
 }
 
 .dev-login-view .dev-login-section {
@@ -49,9 +54,16 @@
     width: 220px;
     height: 220px;
     position: relative;
-    background: linear-gradient(135deg, var(--lumo-primary-color-10pct, #e3f2fd) 0%, transparent 100%);
-    border-radius: 50%;
+    background: linear-gradient(135deg, var(--lumo-primary-color-10pct, #e3f2fd) 0%, var(--lumo-primary-color-5pct, rgba(25, 118, 210, 0.05)) 100%) !important;
+    border-radius: 50% !important;
     padding: var(--lumo-space-m, 1rem);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.dev-login-view .dev-medical-icon-container:hover {
+    transform: scale(1.05) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(0, 0, 0, 0.08) !important;
 }
 
 .dev-login-view .dev-login-medical-icon {
@@ -61,6 +73,7 @@
     animation: float 6s ease-in-out infinite;
     position: relative;
     z-index: 1;
+    transition: all 0.3s ease !important;
 }
 
 .dev-login-view .dev-login-medical-icon svg {
@@ -83,12 +96,56 @@
     flex: 1;
 }
 
+/* Form-Layout mit besserem Spacing */
+.dev-login-view vaadin-form-layout {
+    gap: var(--lumo-space-l, 1.5rem) !important;
+}
+
+/* Form-Felder mit Business-App Styling */
+.dev-login-view vaadin-text-field,
+.dev-login-view vaadin-password-field {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+.dev-login-view vaadin-text-field:hover,
+.dev-login-view vaadin-password-field:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+.dev-login-view vaadin-text-field:focus,
+.dev-login-view vaadin-password-field:focus {
+    box-shadow: 0 0 0 3px var(--lumo-primary-color-10pct) !important;
+    border-color: var(--lumo-primary-color) !important;
+}
+
+/* Login-Button mit Business-App Styling */
+.dev-login-view vaadin-button[theme~="primary"] {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 2px 8px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.3) !important;
+    font-weight: 600 !important;
+    padding: var(--lumo-space-s, 0.75rem) var(--lumo-space-l, 1.5rem) !important;
+}
+
+.dev-login-view vaadin-button[theme~="primary"]:hover {
+    box-shadow: 0 4px 12px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.4) !important;
+    transform: translateY(-1px) !important;
+}
+
+.dev-login-view vaadin-button[theme~="primary"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 6px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.3) !important;
+}
+
 .dev-login-view .dev-login-title {
-    margin: 0 0 var(--lumo-space-l, 1.5rem) 0;
+    margin: 0 0 var(--lumo-space-xl, 2rem) 0;
     font-size: var(--lumo-font-size-xxxl, 2rem);
     font-weight: 600;
     color: var(--lumo-primary-text-color, #1a1a1a);
     text-align: center;
+    letter-spacing: -0.02em;
 }
 
 .dev-login-view .dev-users-scroll-container {
@@ -97,8 +154,8 @@
     width: 500px;
     max-width: 500px;
     min-width: 500px;
-    border-left: 1px solid var(--lumo-shade-20pct, #e0e0e0);
-    background: linear-gradient(to bottom, var(--lumo-shade-5pct, #f5f5f5), var(--lumo-base-color, #ffffff));
+    border-left: 1px solid var(--lumo-contrast-20pct, #e0e0e0) !important;
+    background: linear-gradient(to bottom, var(--lumo-contrast-5pct, #f5f5f5), var(--lumo-base-color, #ffffff)) !important;
     overflow: hidden;
     flex-shrink: 0;
 }
@@ -108,19 +165,19 @@
     font-weight: 600;
     font-size: var(--lumo-font-size-m, 1rem);
     color: var(--lumo-primary-text-color, #1a1a1a);
-    border-bottom: 2px solid var(--lumo-shade-20pct, #e0e0e0);
+    border-bottom: 2px solid var(--lumo-contrast-20pct, #e0e0e0) !important;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: var(--lumo-space-s, 0.5rem);
-    background-color: var(--lumo-base-color, #ffffff);
+    background: var(--lumo-contrast-5pct, #fafafa) !important;
 }
 
 .dev-login-view .dev-users {
     display: flex;
     padding: var(--lumo-space-m);
     flex-direction: column;
-    background-color: var(--lumo-shade-5pct);
+    background-color: var(--lumo-contrast-5pct, #fafafa);
     color: var(--lumo-secondary-text-color);
     row-gap: var(--lumo-space-m);
     overflow-y: auto;
@@ -131,19 +188,19 @@
 .dev-login-view .dev-user-card {
     display: flex;
     flex-direction: column;
-    border-radius: 12px;
-    padding: var(--lumo-space-m, 1rem);
-    background-color: var(--lumo-base-color, #ffffff);
-    border: 1px solid var(--lumo-shade-20pct, #e0e0e0);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    transition: all 0.2s ease;
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    padding: var(--lumo-space-l, 1.5rem) !important;
+    background: linear-gradient(135deg, var(--lumo-base-color, #ffffff) 0%, var(--lumo-contrast-5pct, #fafafa) 100%) !important;
+    border: 1px solid var(--lumo-contrast-20pct, #e0e0e0) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     gap: var(--lumo-space-m, 1rem);
 }
 
 .dev-login-view .dev-user-card:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    transform: translateY(-2px);
-    border-color: var(--lumo-primary-color-50pct, #90caf9);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-4px) scale(1.02) !important;
+    border-color: var(--lumo-primary-color-50pct, #90caf9) !important;
 }
 
 .dev-login-view .dev-user-card-content {
@@ -164,6 +221,7 @@
     font-weight: 600;
     margin: 0;
     color: var(--lumo-primary-text-color, #1a1a1a);
+    letter-spacing: -0.01em;
 }
 
 .dev-login-view .dev-user-card dl {
@@ -192,16 +250,42 @@
     margin-top: var(--lumo-space-xs, 0.25rem);
 }
 
+/* Buttons in User-Cards mit Business-App Styling */
+.dev-login-view .dev-user-card vaadin-button {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dev-login-view .dev-user-card vaadin-button:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px) !important;
+}
+
+.dev-login-view .dev-user-card vaadin-button[theme~="primary"] {
+    box-shadow: 0 2px 8px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.3) !important;
+}
+
+.dev-login-view .dev-user-card vaadin-button[theme~="primary"]:hover {
+    box-shadow: 0 4px 12px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.4) !important;
+}
+
 .dev-login-view .dev-mode-speech-bubble {
     position: absolute;
     background: var(--lumo-success-color);
     color: var(--lumo-success-contrast-color);
-    border-radius: var(--lumo-border-radius-l);
-    box-shadow: var(--lumo-box-shadow-s);
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1) !important;
     padding: var(--lumo-space-m);
     right: 10px;
     bottom: 60px;
     cursor: default;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.dev-login-view .dev-mode-speech-bubble:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.15) !important;
 }
 
 .dev-login-view .dev-mode-speech-bubble:after {

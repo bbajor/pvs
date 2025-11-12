@@ -4,6 +4,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -11,6 +12,9 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
@@ -94,13 +98,18 @@ public class LocationManagementTab extends VerticalLayout {
         additionalInfoField.setHeight("100px");
 
         Button createButton = new Button("Neuen Standort anlegen", e -> createLocation());
+        createButton.setIcon(VaadinIcon.PLUS.create());
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
         saveButton = new Button("Änderungen speichern", e -> saveLocation());
+        saveButton.setIcon(VaadinIcon.CHECK.create());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
         saveButton.setEnabled(false);
 
         Button cancelButton = new Button("Abbrechen", e -> clearForm());
+        cancelButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
         FormLayout formLayout = new FormLayout();
         formLayout.add(locationNameField, 2);
@@ -117,12 +126,46 @@ public class LocationManagementTab extends VerticalLayout {
         );
 
         // Configure grid
-        grid.addColumn(Location::getLocationName).setHeader("Name").setSortable(true);
-        grid.addColumn(Location::getFullAddress).setHeader("Adresse");
-        grid.addColumn(Location::getPhone).setHeader("Telefon");
-        grid.addColumn(Location::getEmail).setHeader("E-Mail");
-        grid.addColumn(location -> location.isActive() ? "Aktiv" : "Inaktiv")
-                .setHeader("Status").setSortable(true);
+        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        
+        grid.addColumn(new ComponentRenderer<>(location -> {
+            String name = location.getLocationName() != null ? location.getLocationName() : "-";
+            Span span = new Span(name);
+            span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            return span;
+        })).setHeader("Name").setSortable(true).setAutoWidth(true);
+        
+        grid.addColumn(new ComponentRenderer<>(location -> {
+            String address = location.getFullAddress() != null ? location.getFullAddress() : "-";
+            Span span = new Span(address);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Adresse").setAutoWidth(true);
+        
+        grid.addColumn(new ComponentRenderer<>(location -> {
+            String phone = location.getPhone() != null ? location.getPhone() : "-";
+            Span span = new Span(phone);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("Telefon").setAutoWidth(true);
+        
+        grid.addColumn(new ComponentRenderer<>(location -> {
+            String email = location.getEmail() != null ? location.getEmail() : "-";
+            Span span = new Span(email);
+            span.addClassNames(LumoUtility.TextColor.SECONDARY);
+            return span;
+        })).setHeader("E-Mail").setAutoWidth(true);
+        
+        grid.addColumn(new ComponentRenderer<>(location -> {
+            String status = location.isActive() ? "Aktiv" : "Inaktiv";
+            Span span = new Span(status);
+            if (location.isActive()) {
+                span.addClassNames(LumoUtility.TextColor.SUCCESS);
+            } else {
+                span.addClassNames(LumoUtility.TextColor.ERROR);
+            }
+            return span;
+        })).setHeader("Status").setSortable(true).setAutoWidth(true);
 
         grid.addComponentColumn(location -> {
             Button editButton = new Button("Bearbeiten", e -> editLocation(location));

@@ -124,14 +124,16 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
 
     private void initializeView() {
         Button newAppointmentButton = new Button("Neuer Termin", event -> openAppointmentDialog());
-        newAppointmentButton.setIcon(VaadinIcon.CALENDAR.create());
-        newAppointmentButton.getElement().setAttribute("theme", "primary");
+        newAppointmentButton.setIcon(VaadinIcon.PLUS.create());
+        newAppointmentButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY);
+        newAppointmentButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
         // Global next available slot button
-        Button globalNextSlotButton = new Button("Nächster freier Termin (alle Ärzte)", 
+        Button globalNextSlotButton = new Button("Nächster freier Termin", 
             event -> findGlobalNextSlot());
         globalNextSlotButton.setIcon(VaadinIcon.SEARCH.create());
         globalNextSlotButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_SUCCESS);
+        globalNextSlotButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
         // Add SchedulerSwitcher for quick switching between calendars
         SchedulerSwitcher schedulerSwitcher = new SchedulerSwitcher(schedulerService);

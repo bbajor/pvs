@@ -1,0 +1,342 @@
+/* Vaadin Business App Styling - Konsistentes Design für alle Views und Layouts */
+
+/* ============================================
+   Globale Karten-Styles (Cards)
+   ============================================ */
+
+/* Basis-Karten-Style für alle Karten in der App */
+.card,
+.dashboard-menu-card,
+[class*="card"],
+vaadin-grid {
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    border: 1px solid var(--lumo-contrast-20pct) !important;
+    background: linear-gradient(135deg, var(--lumo-base-color) 0%, var(--lumo-contrast-5pct) 100%) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover-Effekt für interaktive Karten */
+.card:hover,
+.dashboard-menu-card:hover,
+[class*="card"]:hover {
+    transform: translateY(-4px) scale(1.02) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08) !important;
+    border-color: var(--lumo-primary-color-50pct) !important;
+}
+
+/* ============================================
+   Grid-Styling
+   ============================================ */
+
+/* Modernes Grid-Styling */
+vaadin-grid {
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    border: 1px solid var(--lumo-contrast-20pct) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+    background: var(--lumo-base-color) !important;
+    overflow: hidden !important;
+}
+
+/* Grid-Zellen mit besserem Padding - Business-App Style */
+vaadin-grid::part(cell) {
+    padding: var(--lumo-space-m, 1rem) var(--lumo-space-s, 0.75rem) !important;
+    border-bottom: 1px solid var(--lumo-contrast-10pct) !important;
+}
+
+vaadin-grid::part(cell):last-child {
+    border-bottom: none !important;
+}
+
+/* Grid-Header mit modernem Styling - Business-App Style */
+vaadin-grid::part(header-cell) {
+    background: linear-gradient(to bottom, var(--lumo-contrast-5pct, #fafafa), var(--lumo-base-color, #ffffff)) !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid var(--lumo-contrast-20pct) !important;
+    padding: var(--lumo-space-m, 1rem) var(--lumo-space-s, 0.75rem) !important;
+    color: var(--lumo-primary-text-color) !important;
+    text-transform: uppercase !important;
+    font-size: var(--lumo-font-size-xs, 0.75rem) !important;
+    letter-spacing: 0.05em !important;
+}
+
+/* ============================================
+   Button-Styling
+   ============================================ */
+
+/* Moderne Buttons mit besserem Schatten - Business-App Style */
+vaadin-button {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    font-weight: 500 !important;
+    padding: var(--lumo-space-xs, 0.5rem) var(--lumo-space-m, 1rem) !important;
+}
+
+vaadin-button:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px) !important;
+}
+
+vaadin-button[theme~="primary"] {
+    box-shadow: 0 2px 8px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.3) !important;
+    font-weight: 600 !important;
+}
+
+vaadin-button[theme~="primary"]:hover {
+    box-shadow: 0 4px 12px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.4) !important;
+}
+
+vaadin-button[theme~="primary"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 6px rgba(var(--lumo-primary-color-rgb, 25, 118, 210), 0.3) !important;
+}
+
+vaadin-button[theme~="success"] {
+    box-shadow: 0 2px 8px rgba(var(--lumo-success-color-rgb, 46, 125, 50), 0.3) !important;
+}
+
+vaadin-button[theme~="success"]:hover {
+    box-shadow: 0 4px 12px rgba(var(--lumo-success-color-rgb, 46, 125, 50), 0.4) !important;
+}
+
+/* ============================================
+   Form-Felder
+   ============================================ */
+
+/* Moderne Form-Felder */
+vaadin-text-field,
+vaadin-text-area,
+vaadin-combo-box,
+vaadin-date-picker,
+vaadin-select {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+vaadin-text-field:focus,
+vaadin-text-area:focus,
+vaadin-combo-box:focus,
+vaadin-date-picker:focus,
+vaadin-select:focus {
+    box-shadow: 0 0 0 3px var(--lumo-primary-color-10pct) !important;
+    border-color: var(--lumo-primary-color) !important;
+}
+
+/* ============================================
+   Dialog-Styling
+   ============================================ */
+
+/* Moderne Dialoge */
+vaadin-dialog-overlay::part(overlay) {
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid var(--lumo-contrast-20pct) !important;
+}
+
+/* Dialog-Header */
+vaadin-dialog-overlay::part(header) {
+    border-bottom: 1px solid var(--lumo-contrast-20pct) !important;
+    padding: var(--lumo-space-l, 1.5rem) !important;
+    background: var(--lumo-contrast-5pct) !important;
+}
+
+/* Dialog-Footer */
+vaadin-dialog-overlay::part(footer) {
+    border-top: 1px solid var(--lumo-contrast-20pct) !important;
+    padding: var(--lumo-space-m, 1rem) var(--lumo-space-l, 1.5rem) !important;
+    background: var(--lumo-contrast-5pct) !important;
+}
+
+/* ============================================
+   Tab-Styling
+   ============================================ */
+
+/* Moderne Tabs */
+vaadin-tabs {
+    border-bottom: 2px solid var(--lumo-contrast-20pct) !important;
+}
+
+vaadin-tab {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) var(--lumo-border-radius-m, 0.5rem) 0 0 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin-right: var(--lumo-space-xs, 0.25rem) !important;
+}
+
+vaadin-tab:hover {
+    background: var(--lumo-contrast-5pct) !important;
+}
+
+vaadin-tab[selected] {
+    background: var(--lumo-primary-color-10pct) !important;
+    border-bottom: 3px solid var(--lumo-primary-color) !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   View-Layouts
+   ============================================ */
+
+/* Haupt-Container für Views */
+main,
+[role="main"] {
+    padding: var(--lumo-space-l, 1.5rem) !important;
+    background: var(--lumo-base-color) !important;
+    min-height: 100vh !important;
+}
+
+/* View Content Spacing */
+main > *,
+[role="main"] > * {
+    margin-bottom: var(--lumo-space-m, 1rem) !important;
+}
+
+main > *:last-child,
+[role="main"] > *:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* ViewToolbar Styling - Business-App Style */
+header[class*="toolbar"],
+[class*="toolbar"] {
+    border-bottom: 1px solid var(--lumo-contrast-20pct) !important;
+    padding: var(--lumo-space-m, 1rem) var(--lumo-space-l, 1.5rem) !important;
+    background: linear-gradient(to bottom, var(--lumo-contrast-5pct, #fafafa), var(--lumo-base-color, #ffffff)) !important;
+    margin-bottom: var(--lumo-space-l, 1.5rem) !important;
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ViewToolbar Title */
+header[class*="toolbar"] h1,
+[class*="toolbar"] h1 {
+    color: var(--lumo-primary-text-color) !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* ============================================
+   Section-Styling
+   ============================================ */
+
+/* Sections mit modernem Styling - Business-App Style */
+section,
+[class*="section"] {
+    border-radius: var(--lumo-border-radius-l, 0.75rem) !important;
+    border: 1px solid var(--lumo-contrast-20pct) !important;
+    background: linear-gradient(135deg, var(--lumo-base-color) 0%, var(--lumo-contrast-5pct) 100%) !important;
+    padding: var(--lumo-space-l, 1.5rem) !important;
+    margin-bottom: var(--lumo-space-l, 1.5rem) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Section Headers */
+section h2,
+section h3,
+section h4,
+[class*="section"] h2,
+[class*="section"] h3,
+[class*="section"] h4 {
+    color: var(--lumo-primary-text-color) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+    margin-top: 0 !important;
+}
+
+/* ============================================
+   Icon-Container
+   ============================================ */
+
+/* Icon-Container mit Hintergrund */
+.icon-container,
+[class*="icon-container"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    background: var(--lumo-primary-color-10pct) !important;
+    transition: all 0.3s ease !important;
+}
+
+.icon-container:hover,
+[class*="icon-container"]:hover {
+    background: var(--lumo-primary-color-20pct) !important;
+    transform: scale(1.1) !important;
+}
+
+/* ============================================
+   Notification-Styling
+   ============================================ */
+
+/* Moderne Notifications */
+vaadin-notification-card {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid var(--lumo-contrast-20pct) !important;
+}
+
+/* ============================================
+   App-Layout
+   ============================================ */
+
+/* Drawer mit modernem Styling */
+vaadin-app-layout::part(drawer) {
+    border-right: 1px solid var(--lumo-contrast-20pct) !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
+    background: var(--lumo-base-color) !important;
+}
+
+/* SideNav Styling - Business-App Style */
+vaadin-side-nav {
+    background: transparent !important;
+}
+
+vaadin-side-nav-item {
+    border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
+    margin: var(--lumo-space-xs, 0.25rem) 0 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+vaadin-side-nav-item:hover {
+    background: var(--lumo-contrast-5pct) !important;
+}
+
+vaadin-side-nav-item[selected] {
+    background: var(--lumo-primary-color-10pct) !important;
+    color: var(--lumo-primary-text-color) !important;
+    font-weight: 600 !important;
+}
+
+/* Header Icon Spacing - Business-App Style */
+vaadin-app-layout::part(navbar) [class*="icon"] {
+    margin-left: var(--lumo-space-s, 0.75rem) !important;
+    min-width: var(--lumo-icon-size-l, 1.5rem) !important;
+    flex-shrink: 0 !important;
+}
+
+/* ============================================
+   Utility-Klassen
+   ============================================ */
+
+/* Moderne Schatten */
+.shadow-sm {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+.shadow-md {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+.shadow-lg {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Moderne Transitions */
+.transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover-Lift-Effekt */
+.hover-lift:hover {
+    transform: translateY(-4px) scale(1.02) !important;
+}
+
