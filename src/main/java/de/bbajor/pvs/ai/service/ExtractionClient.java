@@ -28,19 +28,24 @@ public class ExtractionClient {
             
             LOG.info("Extraction successful!");
             if (patient != null) {
+                // Mask PII in logs (DSGVO compliance)
+                String maskedFirstName = de.bbajor.pvs.base.util.PiiMasker.maskName(patient.getFirstName());
+                String maskedLastName = de.bbajor.pvs.base.util.PiiMasker.maskName(patient.getLastName());
+                String maskedBirth = patient.getBirth() != null 
+                        ? de.bbajor.pvs.base.util.PiiMasker.maskBirthDate(patient.getBirth().toString())
+                        : "null";
+                String maskedInsurance = patient.getInsuranceNumber() != null
+                        ? de.bbajor.pvs.base.util.PiiMasker.maskInsuranceNumber(patient.getInsuranceNumber())
+                        : "null";
+                
                 LOG.info("Extracted patient - Name: {} {}, Birth: {}, Insurance: {}", 
-                        patient.getFirstName(),
-                        patient.getLastName(),
-                        patient.getBirth(),
-                        patient.getHealthInsurance() != null ? patient.getHealthInsurance().toString() : "null");
+                        maskedFirstName, maskedLastName, maskedBirth, maskedInsurance);
                 if (patient.getAddress() != null) {
-                    LOG.info("Address: {} {}, {} {}", 
-                            patient.getAddress().getStreet(),
-                            patient.getAddress().getHouseNo(),
+                    LOG.info("Address extracted - Postal Code: {}, City: {}", 
                             patient.getAddress().getPostalCode(),
                             patient.getAddress().getCity());
                 }
-                LOG.info("Insurance Number: {}", patient.getInsuranceNumber());
+                LOG.debug("Insurance Number: {}", maskedInsurance);
             }
             LOG.info("Confidence: {}", result.getConfidence());
             if (result.getFieldConfidences() != null) {

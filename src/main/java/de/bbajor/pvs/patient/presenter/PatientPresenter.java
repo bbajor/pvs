@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.egk.reader.EgkReader;
+import de.bbajor.pvs.egk.config.EgkToolProperties;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
@@ -44,6 +45,8 @@ public class PatientPresenter {
     @Autowired
     private EgkReader egkReader;
     @Autowired
+    private EgkToolProperties egkToolProperties;
+    @Autowired
     private PatientMapper patientMapper;
     @Autowired
     private LocationService locationService;
@@ -63,6 +66,15 @@ public class PatientPresenter {
     }
 
     public Patient readDataFromEgk() throws Exception {
+        // In Cloud-Umgebung ist eGK-Tool deaktiviert - Daten kommen über API vom Agent
+        if (!egkToolProperties.isEnabled()) {
+            throw new UnsupportedOperationException(
+                    "eGK-Tool ist in Cloud-Umgebung deaktiviert. " +
+                    "Bitte verwenden Sie den eGK-Agent für die Kartenlesung. " +
+                    "Die Daten werden automatisch über die API übertragen.");
+        }
+        
+        // Lokale Umgebung: eGK-Tool verwenden
         Patient patientDto = egkReader.readPatientFromCard();
         HealthInsurance healthInsurance = egkReader.readHealthInsuranceFromCard();
         patientDto.setHealthInsurance(healthInsurance);

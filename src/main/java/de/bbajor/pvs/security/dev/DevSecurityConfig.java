@@ -87,6 +87,8 @@ class DevSecurityConfig {
         // Configure API endpoints and login path first, before Vaadin configurer applies anyRequest()
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/ai/**").permitAll()
+                .requestMatchers("/api/egk/health").permitAll()
+                .requestMatchers("/api/egk/**").authenticated()
                 .requestMatchers("/" + DevLoginView.LOGIN_PATH).permitAll());
         
         // Add MFA filter before institution authentication filter

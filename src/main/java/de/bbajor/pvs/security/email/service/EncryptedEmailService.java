@@ -37,6 +37,7 @@ public class EncryptedEmailService {
     private final InstitutionEmailContactRepository emailContactRepository;
     private final OpenPgpKeyServerService keyServerService;
     private final SmtpConfigService smtpConfigService;
+    private final EmailRateLimiter rateLimiter;
 
     public EncryptedEmailService(
             JavaMailSender mailSender,
@@ -44,13 +45,15 @@ public class EncryptedEmailService {
             SmimeService smimeService,
             InstitutionEmailContactRepository emailContactRepository,
             OpenPgpKeyServerService keyServerService,
-            SmtpConfigService smtpConfigService) {
+            SmtpConfigService smtpConfigService,
+            EmailRateLimiter rateLimiter) {
         this.mailSender = mailSender;
         this.openPgpService = openPgpService;
         this.smimeService = smimeService;
         this.emailContactRepository = emailContactRepository;
         this.keyServerService = keyServerService;
         this.smtpConfigService = smtpConfigService;
+        this.rateLimiter = rateLimiter;
     }
 
     /**
@@ -78,6 +81,45 @@ public class EncryptedEmailService {
      * @return true if email was sent successfully, false otherwise
      */
     public boolean sendEmail(String toEmail, String subject, String plainText, String fromAddress, String temporaryPgpKey) {
+        // Check rate limit
+        if (!rateLimiter.canSendEmail(toEmail)) {
+            log.warn("Email rate limit exceeded for {}, email not sent", toEmail);
+            return false;
+        }
+        
+        // Retry logic with exponential backoff
+        int maxRetries = 3;
+        long baseDelayMs = 1000; // 1 second
+        
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                return sendEmailInternal(toEmail, subject, plainText, fromAddress, temporaryPgpKey);
+            } catch (Exception e) {
+                if (attempt < maxRetries - 1) {
+                    long delayMs = baseDelayMs * (1L << attempt); // Exponential backoff: 1s, 2s, 4s
+                    log.warn("Email send attempt {} failed for {}, retrying in {} ms: {}", 
+                            attempt + 1, toEmail, delayMs, e.getMessage());
+                    try {
+                        Thread.sleep(delayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.error("Retry interrupted for email to {}", toEmail);
+                        return false;
+                    }
+                } else {
+                    log.error("Failed to send email to {} after {} attempts", toEmail, maxRetries, e);
+                    return false;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Internal method to send email (without retry logic).
+     */
+    private boolean sendEmailInternal(String toEmail, String subject, String plainText, String fromAddress, String temporaryPgpKey) {
         try {
             // Check contact configuration for this email
             InstitutionEmailContact contact = emailContactRepository.findByEmail(toEmail)
@@ -444,7 +486,8 @@ public class EncryptedEmailService {
             return true;
         } catch (MailException | MessagingException e) {
             log.error("Failed to send email to {}", toEmail, e);
-            return false;
+            // Re-throw for retry logic
+            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
         }
     }
 

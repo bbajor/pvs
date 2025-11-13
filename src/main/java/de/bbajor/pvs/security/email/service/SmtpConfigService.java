@@ -111,31 +111,44 @@ public class SmtpConfigService {
     }
 
     /**
-     * Gets the encryption key from environment variable or generates/uses a default.
+     * Gets the encryption key from environment variable.
      * The key must be exactly 32 bytes for AES-256 (used by Encryptors.stronger()).
+     * 
+     * @throws IllegalStateException if SMTP_ENCRYPTION_KEY is not set (required for cloud deployment)
      */
     private static String getEncryptionKey() {
         String envKey = System.getenv("SMTP_ENCRYPTION_KEY");
-        if (envKey != null && !envKey.isEmpty()) {
-            // Ensure it's exactly 32 bytes
-            byte[] keyBytes = envKey.getBytes(StandardCharsets.UTF_8);
-            if (keyBytes.length == 32) {
-                return envKey;
-            } else if (keyBytes.length < 32) {
-                // Pad with zeros if too short
-                byte[] padded = new byte[32];
-                System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
-                return new String(padded, StandardCharsets.UTF_8);
-            } else {
-                // Truncate if too long
-                return new String(keyBytes, 0, 32, StandardCharsets.UTF_8);
+        if (envKey == null || envKey.isEmpty()) {
+            // In cloud/production, the encryption key MUST be provided via environment variable
+            // This prevents using a default key that could be compromised
+            String activeProfile = System.getProperty("spring.profiles.active", 
+                    System.getenv("SPRING_PROFILES_ACTIVE"));
+            if (activeProfile != null && (activeProfile.contains("cloud") || 
+                    activeProfile.contains("prod") || activeProfile.contains("production"))) {
+                throw new IllegalStateException(
+                    "SMTP_ENCRYPTION_KEY environment variable is required for cloud/production deployment. " +
+                    "Please set a secure 32-byte encryption key via environment variable."
+                );
             }
+            // Only allow default key in dev/test environments
+            log.warn("SMTP_ENCRYPTION_KEY not set. Using default key (ONLY for dev/test). " +
+                    "Set SMTP_ENCRYPTION_KEY environment variable for production!");
+            return "default-smtp-encryption-key-32!!"; // Exactly 32 characters
         }
         
-        // Default key - MUST be exactly 32 bytes for AES-256
-        // In production, this should be set via SMTP_ENCRYPTION_KEY environment variable
-        // WARNING: Changing this key will make existing encrypted data unreadable!
-        return "default-smtp-encryption-key-32!!"; // Exactly 32 characters
+        // Ensure it's exactly 32 bytes
+        byte[] keyBytes = envKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length == 32) {
+            return envKey;
+        } else if (keyBytes.length < 32) {
+            // Pad with zeros if too short
+            byte[] padded = new byte[32];
+            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
+            return new String(padded, StandardCharsets.UTF_8);
+        } else {
+            // Truncate if too long
+            return new String(keyBytes, 0, 32, StandardCharsets.UTF_8);
+        }
     }
 
     /**

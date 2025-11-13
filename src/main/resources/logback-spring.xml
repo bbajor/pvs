@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Cloud-Profile: JSON-Logging (strukturiert, maschinenlesbar, keine PII) -->
+    <springProfile name="cloud">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>UTC</timeZone>
+                    </timestamp>
+                    <version/>
+                    <logLevel/>
+                    <message/>
+                    <loggerName/>
+                    <threadName/>
+                    <mdc/>
+                    <stackTrace/>
+                </providers>
+            </encoder>
+        </appender>
+        
+        <!-- File-Appender für persistente Logs -->
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_FILE:-/var/log/pvs/application.log}</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>UTC</timeZone>
+                    </timestamp>
+                    <version/>
+                    <logLevel/>
+                    <message/>
+                    <loggerName/>
+                    <threadName/>
+                    <mdc/>
+                    <stackTrace/>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_FILE:-/var/log/pvs/application.log}-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <maxFileSize>${LOG_MAX_SIZE:-100MB}</maxFileSize>
+                <maxHistory>${LOG_MAX_HISTORY:-30}</maxHistory>
+                <totalSizeCap>${LOG_TOTAL_SIZE_CAP:-3GB}</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+        
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+        
+        <logger name="de.bbajor.pvs" level="INFO"/>
+    </springProfile>
+
+    <!-- Dev/Test-Profile: Standard-Logging (lesbar für Entwickler) -->
+    <springProfile name="!cloud">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        
+        <logger name="de.bbajor.pvs" level="DEBUG"/>
+    </springProfile>
+</configuration>
