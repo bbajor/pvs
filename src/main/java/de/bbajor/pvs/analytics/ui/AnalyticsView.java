@@ -1,5 +1,8 @@
 package de.bbajor.pvs.analytics.ui;
 
+import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -13,6 +16,15 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoUtility.Border;
+import com.vaadin.flow.theme.lumo.LumoUtility.BorderRadius;
+import com.vaadin.flow.theme.lumo.LumoUtility.Display;
+import com.vaadin.flow.theme.lumo.LumoUtility.FlexWrap;
+import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
+import com.vaadin.flow.theme.lumo.LumoUtility.Margin;
+import com.vaadin.flow.theme.lumo.LumoUtility.Padding;
+import com.vaadin.flow.theme.lumo.LumoUtility.Width;
+
 import de.bbajor.pvs.analytics.dto.AnalyticsData;
 import de.bbajor.pvs.analytics.dto.TimeSeriesData;
 import de.bbajor.pvs.analytics.service.AnalyticsService;
@@ -24,11 +36,6 @@ import elemental.json.JsonObject;
 import jakarta.annotation.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
-import java.util.Map;
-
-import static com.vaadin.flow.theme.lumo.LumoUtility.*;
 
 /**
  * View für Analytics und Auswertungen mit verschiedenen Charts.

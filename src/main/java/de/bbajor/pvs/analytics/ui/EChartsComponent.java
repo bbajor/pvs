@@ -3,6 +3,7 @@ package de.bbajor.pvs.analytics.ui;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.Div;
+
 import elemental.json.Json;
 import elemental.json.JsonObject;
 
