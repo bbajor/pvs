@@ -77,4 +77,3 @@ spring:
 app:
   mfa:
     issuer: ${MFA_ISSUER:PVS}
-
