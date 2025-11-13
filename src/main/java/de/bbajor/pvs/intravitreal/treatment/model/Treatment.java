@@ -56,6 +56,13 @@ public class Treatment extends BasicEntity<Long> {
     private String dosage;
     private String billId;
     private String additionalInfo;
+    
+    /**
+     * Indicates whether the patient appeared for this treatment appointment.
+     * If false, this treatment should not be counted in "actual treatments" statistics.
+     * Used to distinguish between planned and actual treatments.
+     */
+    private Boolean patientAppeared;
 
     /**
      * Treating doctors assigned to this treatment.
