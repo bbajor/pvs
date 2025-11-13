@@ -39,14 +39,12 @@ ai:
       host: ${AI_WHISPER_LOCAL_HOST:whisper-test}
       port: ${AI_WHISPER_LOCAL_PORT:9001}
 
-<<<<<<< Updated upstream
 # SMTP-Konfiguration für Tests
 # Für Tests kann optional ein Test-Schlüssel verwendet werden
 smtp:
   encryption:
     key: ${SMTP_ENCRYPTION_KEY:}
 
-=======
 # eGK: Deaktiviert in Test (wird über Agent gehandhabt)
 egk:
   enabled: false
@@ -57,4 +55,3 @@ logging:
   level:
     root: INFO
     de.bbajor.pvs: DEBUG
->>>>>>> Stashed changes
