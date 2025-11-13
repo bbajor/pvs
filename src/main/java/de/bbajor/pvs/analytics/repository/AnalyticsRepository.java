@@ -2,8 +2,8 @@ package de.bbajor.pvs.analytics.repository;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.patient.model.Patient;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -12,8 +12,11 @@ import java.util.List;
  * Repository für Analytics-Queries.
  * Alle Queries filtern automatisch nach Institution über die Beziehung:
  * Treatment → TreatmentPlan → Patient → Institution
+ * 
+ * Note: Uses Treatment as entity type for Spring Data JPA registration,
+ * but queries can return any entity type (Treatment, Patient, etc.)
  */
-public interface AnalyticsRepository extends JpaRepository<Object, Long> {
+public interface AnalyticsRepository extends Repository<Treatment, Long> {
 
     /**
      * Lädt alle Behandlungen mit Zeitslot für eine Institution.

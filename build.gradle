@@ -34,6 +34,7 @@ repositories {
 dependencyManagement {
     imports {
         mavenBom "com.vaadin:vaadin-bom:${vaadinVersion}"
+        mavenBom "io.github.resilience4j:resilience4j-bom:2.2.0"
     }
 }
 
@@ -63,6 +64,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    
+    // Resilience4j for circuit breaker and retry
+    implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.2.0'
+    implementation 'io.github.resilience4j:resilience4j-retry:2.2.0'
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 
     implementation 'org.apache.commons:commons-csv:1.14.1'
     implementation 'org.apache.ant:ant:1.10.6'

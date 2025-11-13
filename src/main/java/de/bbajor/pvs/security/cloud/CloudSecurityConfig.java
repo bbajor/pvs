@@ -22,7 +22,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 
 /**
@@ -38,7 +37,7 @@ import de.bbajor.pvs.security.domain.UserAccountRepository;
  */
 @Configuration
 @EnableWebSecurity
-@ConditionalOnProfile("cloud")
+@Profile("cloud")
 @Slf4j
 public class CloudSecurityConfig {
 
@@ -73,9 +72,7 @@ public class CloudSecurityConfig {
                         .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'"))
                 .frameOptions(frame -> frame.deny())
                 .httpStrictTransportSecurity(hsts -> hsts
-                        .maxAgeInSeconds(31536000)
-                        .includeSubdomains(true)
-                        .preload(true))
+                        .maxAgeInSeconds(31536000))
                 .referrerPolicy(referrer -> referrer
                         .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                 .permissionsPolicy(permissions -> permissions
