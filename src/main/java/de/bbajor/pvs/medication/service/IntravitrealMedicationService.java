@@ -55,13 +55,17 @@ public class IntravitrealMedicationService {
         }
     }
 
-    public List<Medication> getMedicationListFavourites() {
-        return medicationRepository.findAllByIsFavouriteTrue();
-    }
-
     @Transactional
     public List<Medication> saveAll(List<Medication> medications) {
         return medicationRepository.saveAll(medications);
+    }
+
+    public Optional<Medication> findActiveByZulassungsNr(String zulassungsNr) {
+        return medicationRepository.findFirstByZulassungsNrAndValidUntilIsNull(zulassungsNr);
+    }
+
+    public Optional<Medication> findActiveByEingangsnummer(String eingangsnummer) {
+        return medicationRepository.findFirstByEingangsnummerAndValidUntilIsNull(eingangsnummer);
     }
 
 }

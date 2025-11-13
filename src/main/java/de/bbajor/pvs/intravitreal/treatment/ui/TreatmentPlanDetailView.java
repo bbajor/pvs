@@ -17,10 +17,13 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.base.ui.view.MainLayout;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.CurrentUser;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route(value = "ivom/:id", layout = MainLayout.class)
@@ -102,6 +105,17 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // SUPER_ADMIN without institution context should not access treatment plan data
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+        boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+        
+        if (isSuperAdmin && !hasInstitutionContext) {
+            // Redirect SUPER_ADMIN to institution management
+            event.forwardTo("admin/institutions");
+            return;
+        }
 
         Optional<String> idParameter = event.getRouteParameters().get("id");
         if (idParameter.isEmpty()) {

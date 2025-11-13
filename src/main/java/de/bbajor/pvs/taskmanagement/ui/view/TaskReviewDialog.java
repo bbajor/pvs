@@ -1,7 +1,9 @@
 package de.bbajor.pvs.taskmanagement.ui.view;
 
-import java.io.ByteArrayInputStream;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -11,6 +13,8 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.StreamRegistration;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -19,14 +23,24 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
 
 public class TaskReviewDialog extends Dialog {
+
+    private static final Logger log = LoggerFactory.getLogger(TaskReviewDialog.class);
 
     private List<Treatment> treatments;
     private int currentTreatmentIndex = 0;
@@ -35,19 +49,23 @@ public class TaskReviewDialog extends Dialog {
     private TaskService taskService;
     private AuthenticationContext authenticationContext;
     private TreatmentReportService reportService;
+    private UserAccountRepository userAccountRepository;
 
     private VerticalLayout mainContent;
     private VerticalLayout overviewLayout;
     private VerticalLayout detailLayout;
 
     public TaskReviewDialog(Task task, TreatmentRepository treatmentRepository, TaskService taskService,
-            AuthenticationContext authenticationContext, TreatmentReportService reportService) {
+            AuthenticationContext authenticationContext, TreatmentReportService reportService,
+            UserAccountRepository userAccountRepository) {
         this.task = task;
         this.treatmentRepository = treatmentRepository;
         this.taskService = taskService;
         this.authenticationContext = authenticationContext;
         this.reportService = reportService;
+        this.userAccountRepository = userAccountRepository;
 
+        ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
 
         setHeaderTitle("Behandlungen überprüfen");
@@ -82,13 +100,31 @@ public class TaskReviewDialog extends Dialog {
         Grid<Treatment> grid = new Grid<>(Treatment.class, false);
         grid.addColumn(t -> t.getSideOfEye() != null ? t.getSideOfEye().toString() : "-")
                 .setHeader("Auge");
-        grid.addColumn(t -> t.getMedication() != null ? t.getMedication().getArzneimittelbezeichnung() : "-")
-                .setHeader("Medikament");
+        grid.addColumn(t -> {
+            if (t.getMedicationFavourite() != null && t.getMedicationFavourite().getMedication() != null) {
+                return t.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+            }
+            return "-";
+        }).setHeader("Medikament");
         grid.addColumn(t -> t.getTreatmentPlan() != null && t.getTreatmentPlan().getPatient() != null 
                 ? t.getTreatmentPlan().getPatient().toString() : "-")
                 .setHeader("Patient");
         grid.addColumn(t -> t.getApprovalDate() != null ? "Genehmigt" : "Offen")
                 .setHeader("Status");
+        
+        // Add report button column - always enabled, can generate preliminary reports
+        grid.addComponentColumn(treatment -> {
+            Button reportButton = new Button(VaadinIcon.FILE_TEXT.create(), e -> generatePatientReport(treatment));
+            reportButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+            boolean isApproved = treatment.getApprovalDate() != null;
+            if (isApproved) {
+                reportButton.setTooltipText("Bericht für diesen Patienten generieren");
+            } else {
+                reportButton.setTooltipText("Vorläufigen Bericht generieren (Behandlung noch nicht genehmigt)");
+            }
+            reportButton.setEnabled(true); // Always enabled
+            return reportButton;
+        }).setHeader("Bericht");
         
         grid.setItems(treatments);
         grid.setSizeFull();
@@ -107,14 +143,16 @@ public class TaskReviewDialog extends Dialog {
         startReview.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty());
         
-        Button viewReport = new Button("Bericht generieren", e -> generateReport());
+        Button viewReport = new Button("Sammelbericht generieren", VaadinIcon.FILE_TEXT.create(), e -> generateCombinedReport());
         viewReport.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         
-        // Check if all treatments are approved
+        // Always enabled - can generate preliminary reports
+        viewReport.setEnabled(!treatments.isEmpty());
         boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
-        viewReport.setEnabled(allApproved && !treatments.isEmpty());
         if (!allApproved && !treatments.isEmpty()) {
-            viewReport.setTooltipText("Alle Behandlungen müssen genehmigt sein, bevor ein Bericht generiert werden kann");
+            viewReport.setTooltipText("Vorläufiger Sammelbericht (nicht alle Behandlungen sind genehmigt)");
+        } else if (!treatments.isEmpty()) {
+            viewReport.setTooltipText("Sammelbericht generieren");
         }
         
         buttonLayout.add(startReview, viewReport);
@@ -151,7 +189,11 @@ public class TaskReviewDialog extends Dialog {
         infoLayout.add(new Span("Patient: " + (treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null 
                 ? treatment.getTreatmentPlan().getPatient().toString() : "-")));
         infoLayout.add(new Span("Auge: " + (treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-")));
-        infoLayout.add(new Span("Medikament: " + (treatment.getMedication() != null ? treatment.getMedication().getArzneimittelbezeichnung() : "-")));
+        String medicationName = "-";
+        if (treatment.getMedicationFavourite() != null && treatment.getMedicationFavourite().getMedication() != null) {
+            medicationName = treatment.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+        }
+        infoLayout.add(new Span("Medikament: " + medicationName));
         infoLayout.add(new Span("Dosierung: " + (treatment.getDosage() != null ? treatment.getDosage() : "-")));
         infoLayout.add(new Span("Frequenz: " + (treatment.getFrequency() != null ? treatment.getFrequency() : "-")));
         
@@ -202,13 +244,16 @@ public class TaskReviewDialog extends Dialog {
         });
         nextButton.setEnabled(index < treatments.size() - 1);
         
-        Button approveSelected = new Button("Approbieren", e -> {
+        // Check if user can approve (only MEDICAL_STAFF, OWNER, DOCTOR - not ADMIN)
+        boolean canApprove = hasReviewPermission();
+        
+        Button approveSelected = new Button("Genehmigen", e -> {
             try {
                 String user = authenticationContext.getPrincipalName().orElse("unknown");
                 String userId = user;
                 taskService.approveTreatment(treatment.getId(), userId, user, false);
                 saveAdditionalInfo(treatment, additionalInfoField.getValue());
-                Notification.show("Behandlung approbiert");
+                Notification.show("Behandlung genehmigt");
                 reloadTreatments();
                 
                 // Navigate to next treatment if available, otherwise go back to overview
@@ -219,8 +264,8 @@ public class TaskReviewDialog extends Dialog {
                 }
             } catch (AccessDeniedException ex) {
                 Notification errorNotification = new Notification(
-                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu approbieren. " +
-                    "Bitte wenden Sie sich an einen berechtigten Benutzer (z.B. einen Arzt).",
+                    ex.getMessage() != null ? ex.getMessage() : 
+                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu genehmigen.",
                     10000,
                     Notification.Position.MIDDLE
                 );
@@ -228,7 +273,7 @@ public class TaskReviewDialog extends Dialog {
                 errorNotification.open();
             } catch (Exception ex) {
                 Notification errorNotification = new Notification(
-                    "Fehler beim Approbieren der Behandlung: " + ex.getMessage(),
+                    "Fehler beim Genehmigen der Behandlung: " + ex.getMessage(),
                     5000,
                     Notification.Position.MIDDLE
                 );
@@ -237,7 +282,10 @@ public class TaskReviewDialog extends Dialog {
             }
         });
         approveSelected.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        approveSelected.setEnabled(!task.isCompleted());
+        approveSelected.setEnabled(!task.isCompleted() && canApprove);
+        if (!canApprove) {
+            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen genehmigen");
+        }
         
         Button approveSecond = new Button("Als Zweitprüfer bestätigen", e -> {
             try {
@@ -256,8 +304,8 @@ public class TaskReviewDialog extends Dialog {
                 }
             } catch (AccessDeniedException ex) {
                 Notification errorNotification = new Notification(
-                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu approbieren. " +
-                    "Bitte wenden Sie sich an einen berechtigten Benutzer (z.B. einen Arzt).",
+                    ex.getMessage() != null ? ex.getMessage() : 
+                    "Sie haben nicht die erforderlichen Berechtigungen für die Zweitprüfung.",
                     10000,
                     Notification.Position.MIDDLE
                 );
@@ -274,7 +322,10 @@ public class TaskReviewDialog extends Dialog {
             }
         });
         approveSecond.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        approveSecond.setEnabled(!task.isCompleted());
+        approveSecond.setEnabled(!task.isCompleted() && canApprove);
+        if (!canApprove) {
+            approveSecond.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen genehmigen");
+        }
         
         buttonLayout.add(backToOverview, prevButton, nextButton, approveSelected, approveSecond);
         detailLayout.add(buttonLayout);
@@ -285,38 +336,145 @@ public class TaskReviewDialog extends Dialog {
     private void saveAdditionalInfo(Treatment treatment, String additionalInfo) {
         taskService.updateTreatmentAdditionalInfo(treatment.getId(), additionalInfo);
     }
+    
+    /**
+     * Check if the current user has permission to review/approve treatments.
+     * Only MEDICAL_STAFF, OWNER, and DOCTOR can approve. ADMIN cannot approve.
+     */
+    private boolean hasReviewPermission() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) {
+            return false;
+        }
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> {
+                    String authority = a.getAuthority();
+                    return authority.equals("ROLE_" + AppRoles.MEDICAL_STAFF) ||
+                           authority.equals("ROLE_" + AppRoles.OWNER) ||
+                           authority.equals("ROLE_" + AppRoles.DOCTOR);
+                });
+    }
 
     private void reloadTreatments() {
+        ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
     }
 
-    private void generateReport() {
-        try {
-            // Verify all treatments are approved
-            boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
-            if (!allApproved) {
-                Notification.show("Bitte genehmigen Sie zunächst alle Behandlungen, bevor Sie einen Bericht generieren.", 5000, 
-                        com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
-                return;
-            }
-            
-            String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
-            byte[] pdfBytes = reportService.generatePdfReport(treatments, task.getTimeSlot(), treatingDoctor);
-            
-            com.vaadin.flow.server.StreamResource resource = new com.vaadin.flow.server.StreamResource("Behandlungsbericht.pdf", 
-                () -> new ByteArrayInputStream(pdfBytes));
-            
-            getUI().ifPresent(ui -> {
-                com.vaadin.flow.server.StreamRegistration registration = ui.getSession()
-                        .getResourceRegistry()
-                        .registerResource(resource);
-                ui.getPage().open(registration.getResourceUri().toString(), "_blank");
-            });
-            
-            Notification.show("Bericht wird heruntergeladen");
-        } catch (Exception e) {
-            Notification.show("Fehler beim Generieren des Berichts: " + e.getMessage(), 5000, 
-                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+     * so the context might not be set.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
         }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            try {
+                String username = adapter.getUsername();
+                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (userAccount != null && userAccount.getInstitution() != null) {
+                    Long institutionId = userAccount.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                    log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                            institutionId, userAccount.getInstitution().getInstitutionCode());
+                }
+            } catch (Exception e) {
+                log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void generatePatientReport(Treatment treatment) {
+        try {
+            ensureInstitutionContext();
+            String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
+            boolean isApproved = treatment.getApprovalDate() != null;
+            byte[] pdfBytes = reportService.generatePatientPdfReport(treatment, task.getTimeSlot(), treatingDoctor, isApproved);
+            
+            // Create filename with patient name
+            String patientName = treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null
+                    ? treatment.getTreatmentPlan().getPatient().getLastName() + "_" + treatment.getTreatmentPlan().getPatient().getFirstName()
+                    : "Patient";
+            String prefix = isApproved ? "Behandlungsbericht" : "Vorläufiger_Behandlungsbericht";
+            String filename = prefix + "_" + patientName + "_" + 
+                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+            
+            downloadPdf(pdfBytes, filename);
+            
+            String message = isApproved ? "Bericht wird heruntergeladen" : "Vorläufiger Bericht wird heruntergeladen";
+            Notification.show(message, 3000, 
+                    com.vaadin.flow.component.notification.Notification.Position.BOTTOM_CENTER);
+        } catch (Exception e) {
+            log.error("Fehler beim Generieren des Patienten-Berichts", e);
+            Notification notification = Notification.show(
+                    "Fehler beim Generieren des Berichts: " + e.getMessage(), 5000, 
+                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
+            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    private void generateCombinedReport() {
+        try {
+            ensureInstitutionContext();
+            boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
+            String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
+            byte[] pdfBytes = reportService.generatePdfReport(treatments, task.getTimeSlot(), treatingDoctor, allApproved);
+            
+            // Create filename with timestamp
+            String prefix = allApproved ? "Sammelbericht" : "Vorläufiger_Sammelbericht";
+            String filename = prefix + "_" + 
+                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+            
+            downloadPdf(pdfBytes, filename);
+            
+            String message = allApproved ? "Sammelbericht wird heruntergeladen" : "Vorläufiger Sammelbericht wird heruntergeladen";
+            Notification.show(message, 3000, 
+                    com.vaadin.flow.component.notification.Notification.Position.BOTTOM_CENTER);
+        } catch (Exception e) {
+            log.error("Fehler beim Generieren des Sammelberichts", e);
+            Notification notification = Notification.show(
+                    "Fehler beim Generieren des Sammelberichts: " + e.getMessage(), 5000, 
+                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
+            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    private void downloadPdf(byte[] pdfBytes, String filename) {
+        // Create StreamResource for download
+        StreamResource streamResource = new StreamResource(filename, () -> {
+            return new java.io.ByteArrayInputStream(pdfBytes);
+        });
+        streamResource.setContentType("application/pdf");
+        
+        // Register the resource and get the URL
+        getUI().ifPresent(ui -> {
+            StreamRegistration registration = ui.getSession().getResourceRegistry()
+                    .registerResource(streamResource);
+            String resourceUrl = registration.getResourceUri().toString();
+            
+            // Create download link and trigger download via JavaScript
+            ui.getPage().executeJs(
+                "var link = document.createElement('a');" +
+                "link.href = $0;" +
+                "link.download = $1;" +
+                "document.body.appendChild(link);" +
+                "link.click();" +
+                "document.body.removeChild(link);",
+                resourceUrl, filename
+            );
+        });
     }
 }

@@ -2,16 +2,22 @@ package de.bbajor.pvs.intravitreal.treatment.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.SideOfEyeConverter;
 import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
+import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +28,8 @@ import lombok.experimental.Accessors;
 @Entity
 @Accessors(chain = true)
 public class Treatment extends BasicEntity<Long> {
+
+    // Tenant isolation is ensured via treatmentPlan.patient.practice.tenant relationship
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "treatment_plan_id")
@@ -42,11 +50,24 @@ public class Treatment extends BasicEntity<Long> {
     private String secondApprovedByUserName;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    private Medication medication;
+    @JoinColumn(name = "medication_favourite_id")
+    private MedicationFavourite medicationFavourite;
     private String frequency;
     private String dosage;
     private String billId;
     private String additionalInfo;
+
+    /**
+     * Treating doctors assigned to this treatment.
+     * Allows selection of one or more doctors who will perform the treatment.
+     */
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "treatment_doctor",
+        joinColumns = @JoinColumn(name = "treatment_id"),
+        inverseJoinColumns = @JoinColumn(name = "doctor_id")
+    )
+    private Set<UserAccount> treatingDoctors = new HashSet<>();
 
     public String getSurgicalCenterString() {
         if (surgicalCenterTimeSlot != null && surgicalCenterTimeSlot.getSurgicalCenter() != null) {
@@ -61,5 +82,9 @@ public class Treatment extends BasicEntity<Long> {
 
     public String getPatientInfo() {
         return treatmentPlan.getPatient().toString();
+    }
+
+    public Medication getMedication() {
+        return medicationFavourite != null ? medicationFavourite.getMedication() : null;
     }
 }

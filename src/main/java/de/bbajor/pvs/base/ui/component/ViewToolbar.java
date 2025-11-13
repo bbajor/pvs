@@ -11,14 +11,14 @@ import com.vaadin.flow.theme.lumo.LumoUtility.*;
 public final class ViewToolbar extends Composite<Header> {
 
     public ViewToolbar(String viewTitle, Component... components) {
-        addClassNames(Display.FLEX, FlexDirection.COLUMN, JustifyContent.BETWEEN, AlignItems.STRETCH, Gap.MEDIUM,
+        addClassNames("toolbar", Display.FLEX, FlexDirection.COLUMN, JustifyContent.BETWEEN, AlignItems.STRETCH, Gap.MEDIUM,
                 FlexDirection.Breakpoint.Medium.ROW, AlignItems.Breakpoint.Medium.CENTER);
 
         var drawerToggle = new DrawerToggle();
         drawerToggle.addClassNames(Margin.NONE);
 
         var title = new H1(viewTitle);
-        title.addClassNames(FontSize.XLARGE, Margin.NONE, FontWeight.LIGHT);
+        title.addClassNames(FontSize.XLARGE, Margin.NONE, FontWeight.SEMIBOLD);
 
         var toggleAndTitle = new Div(drawerToggle, title);
         toggleAndTitle.addClassNames(Display.FLEX, AlignItems.CENTER);

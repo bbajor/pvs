@@ -44,6 +44,7 @@ public class TimelineView extends VerticalLayout {
     private boolean isOnlyShowFutureAndPresentCards = false;
     private LocalDate startOfTreatmentPlan = LocalDate.now();
     private final ApplicationContext context;
+    private Runnable onBookNextTreatmentCallback;
 
     public TimelineView(ApplicationContext context) {
         addClassName("timeline-view");
@@ -109,6 +110,11 @@ public class TimelineView extends VerticalLayout {
         refresh(); // UI mit den neuen Daten aktualisieren
     }
 
+    public void setOnBookNextTreatmentCallback(Runnable callback) {
+        this.onBookNextTreatmentCallback = callback;
+    }
+
+
     /**
      * NEU: Zentrale Methode, die die Timeline basierend auf den aktuellen Daten und
      * Einstellungen neu aufbaut.
@@ -128,6 +134,20 @@ public class TimelineView extends VerticalLayout {
                 i -> i.getTreatmentDate() != null ? i.getTreatmentDate() : LocalDate.MAX));
 
         TimeLineCardConfig prev = null;
+        TimeLineCardConfig lastTreatment = null;
+        
+        // Finde die letzte Behandlung (nicht die Startkachel)
+        for (TimeLineCardConfig item : itemsToRender) {
+            if (!item.isFirst() && item.getTreatment() != null) {
+                if (lastTreatment == null || 
+                    (item.getTreatmentDate() != null && 
+                     (lastTreatment.getTreatmentDate() == null || 
+                      item.getTreatmentDate().isAfter(lastTreatment.getTreatmentDate())))) {
+                    lastTreatment = item;
+                }
+            }
+        }
+        
         for (TimeLineCardConfig current : itemsToRender) {
             // Fügt die Verbindungslinie zwischen den Karten hinzu
             if (prev != null) {
@@ -135,7 +155,8 @@ public class TimelineView extends VerticalLayout {
             }
 
             // Fügt die Karte selbst hinzu
-            TimeLineCard card = createCard(current);
+            boolean isLastTreatment = current.equals(lastTreatment);
+            TimeLineCard card = createCard(current, isLastTreatment);
             timelineLayout.add(card);
             configToComponentMap.put(current, card);
 
@@ -155,8 +176,10 @@ public class TimelineView extends VerticalLayout {
         List<TimeLineCardConfig> result = new ArrayList<>(this.itemList);
         
         // Füge nur die "Erste"-Karte hinzu, wenn sie noch nicht vorhanden ist
+        // (wird jetzt manuell in TreatmentPlanLayout hinzugefügt, daher nur als Fallback)
         boolean hasFirstCard = result.stream().anyMatch(TimeLineCardConfig::isFirst);
-        if (!hasFirstCard) {
+        if (!hasFirstCard && !result.isEmpty()) {
+            // Nur hinzufügen, wenn Liste nicht leer ist und keine Startkachel vorhanden
             result.add(0, new TimeLineCardConfig().setFirst(true).setFirstDate(startOfTreatmentPlan));
         }
 
@@ -224,7 +247,7 @@ public class TimelineView extends VerticalLayout {
         return lineWithLabel;
     }
 
-    private TimeLineCard createCard(TimeLineCardConfig config) {
+    private TimeLineCard createCard(TimeLineCardConfig config, boolean isLastTreatment) {
         // Das Entfernen aus der Liste sollte auch ein Neuzeichnen auslösen
         TimeLineCard card = new TimeLineCard(config, t -> {
             // Try to delete via service (secured by roles)
@@ -240,10 +263,15 @@ public class TimelineView extends VerticalLayout {
         },
                 t2 -> {
                     // Hier können Sie die Logik für den Klick-Handler hinzufügen
-                    TreatmentDetailDialog dialog = new TreatmentDetailDialog(t2.getTreatment(),
-                            context.getBean(TreatmentPlanService.class));
+                    TreatmentDetailDialog dialog = new TreatmentDetailDialog(
+                        t2.getTreatment(),
+                        context.getBean(TreatmentPlanService.class),
+                        context.getBean(de.bbajor.pvs.security.service.UserAccountService.class)
+                    );
                     dialog.open();
-                });
+                },
+                onBookNextTreatmentCallback,
+                isLastTreatment);
         return card;
     }
 

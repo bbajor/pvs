@@ -89,21 +89,21 @@ echo ""
 
 # 3. PostgreSQL Container prüfen
 echo "=== 3. PostgreSQL Container Status ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -1
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep postgres || echo "⚠️  Keine PostgreSQL Container gefunden"
+podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -1
+podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep postgres || echo "⚠️  Keine PostgreSQL Container gefunden"
 
 echo ""
 
-# 4. Docker Compose Datei prüfen
-echo "=== 4. Docker Compose Konfiguration ==="
-if [ -f docker-compose.production.yml ]; then
-  echo "✅ docker-compose.production.yml gefunden"
+# 4. Podman Compose Datei prüfen
+echo "=== 4. Podman Compose Konfiguration ==="
+if [ -f podman-compose.production.yml ]; then
+  echo "✅ podman-compose.production.yml gefunden"
   
   # Prüfe welche Profile definiert sind
   echo "Verfügbare Profile:"
-  grep -E "^  [a-z-]+:" docker-compose.production.yml | grep -E "profiles:" -A 5 | grep -E "^\s+-" | sed 's/^[ ]*- /  - /' || echo "  Standard-Profile (keine expliziten Profile)"
+  grep -E "^  [a-z-]+:" podman-compose.production.yml | grep -E "profiles:" -A 5 | grep -E "^\s+-" | sed 's/^[ ]*- /  - /' || echo "  Standard-Profile (keine expliziten Profile)"
 else
-  echo "❌ docker-compose.production.yml nicht gefunden"
+  echo "❌ podman-compose.production.yml nicht gefunden"
 fi
 
 echo ""
@@ -127,15 +127,15 @@ for STAGE in dev test prod; do
   DB_USER="${!DB_USER_VAR:-pvs_user}"
   DB_NAME="${!DB_NAME_VAR:-pvs_${STAGE}}"
   
-  if docker ps --format "{{.Names}}" | grep -q "^${CONTAINER}$"; then
+  if podman ps --format "{{.Names}}" | grep -q "^${CONTAINER}$"; then
     echo -n "Testing ${CONTAINER} (${DB_USER}@${DB_NAME})... "
     
     # Teste Verbindung
-    if docker exec "${CONTAINER}" pg_isready -U "${DB_USER}" >/dev/null 2>&1; then
+    if podman exec "${CONTAINER}" pg_isready -U "${DB_USER}" >/dev/null 2>&1; then
       echo "✅ OK"
       
       # Teste Query
-      if docker exec "${CONTAINER}" psql -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT version();" >/dev/null 2>&1; then
+      if podman exec "${CONTAINER}" psql -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT version();" >/dev/null 2>&1; then
         echo "   └─ Query erfolgreich"
       else
         echo "   └─ ⚠️  Query fehlgeschlagen (möglicherweise DB existiert noch nicht)"
@@ -146,17 +146,17 @@ for STAGE in dev test prod; do
     fi
   else
     echo "⚠️  ${CONTAINER} läuft nicht"
-    echo "   └─ Starte mit: docker-compose -f docker-compose.production.yml --profile ${STAGE} up -d postgres-${STAGE}"
+    echo "   └─ Starte mit: podman-compose -f podman-compose.production.yml --profile ${STAGE} up -d postgres-${STAGE}"
   fi
 done
 
 # Prüfe auch den aktuellen pvs-postgres Container (falls vorhanden)
-if docker ps --format "{{.Names}}" | grep -q "^pvs-postgres$"; then
+if podman ps --format "{{.Names}}" | grep -q "^pvs-postgres$"; then
   echo ""
   echo "=== Info: Alten pvs-postgres Container gefunden ==="
   echo "⚠️  Du hast einen Container 'pvs-postgres' (nicht pvs-postgres-dev/test/prod)"
   echo "    Prüfe ob das der richtige ist oder ob du die neuen Container starten solltest"
-  docker inspect pvs-postgres | grep -E "POSTGRES_DB|POSTGRES_USER" | head -5
+  podman inspect pvs-postgres | grep -E "POSTGRES_DB|POSTGRES_USER" | head -5
 fi
 
 echo ""

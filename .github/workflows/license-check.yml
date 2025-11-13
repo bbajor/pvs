@@ -1,0 +1,67 @@
+name: License Check
+
+on:
+  push:
+    branches: [ dev, test, master ]
+  pull_request:
+    branches: [ dev, test, master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check dependency licenses
+        id: license-check
+        run: |
+          node .github/scripts/check-dependency-licenses.js
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const summaryPath = path.join(process.env.GITHUB_WORKSPACE, '.github', 'license-check-results.md');
+            
+            let comment = '## 🔍 Dependency-Lizenzprüfung\n\n';
+            
+            if (fs.existsSync(summaryPath)) {
+              const summary = fs.readFileSync(summaryPath, 'utf8');
+              comment += summary;
+            } else {
+              comment += '✅ Keine problematischen Lizenzen gefunden\n\n';
+            }
+            
+            comment += '\n---\n';
+            comment += '**Hinweis:** Diese Prüfung analysiert alle Dependencies in `build.gradle` und prüft deren Lizenzen.\n';
+            comment += 'Nur Dependencies mit kommerziellen Lizenzen oder Lizenzen, die kommerzielle Nutzung verbieten, werden als problematisch markiert.\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail on errors
+        if: steps.license-check.outputs.exit_code != '0'
+        run: |
+          echo "::error::Problematische Lizenzen in Dependencies gefunden!"
+          exit 1
+

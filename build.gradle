@@ -27,6 +27,7 @@ ext {
 repositories {
     mavenCentral()
     maven { url 'https://maven.vaadin.com/vaadin-addons' }
+    maven { url 'https://repo1.maven.org/maven2' }
 }
 
 dependencyManagement {
@@ -39,8 +40,13 @@ dependencies {
     implementation 'com.vaadin:vaadin'
     implementation 'com.vaadin:vaadin-spring-boot-starter'
     implementation 'com.vaadin:control-center-starter'
+    
+    // YearMonthCalendarAddon for Vaadin Flow
+    implementation 'org.vaadin.addons.flowingcode:year-month-calendar:4.5.2'
 
+    implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework:spring-context'
     runtimeOnly 'org.postgresql:postgresql'
     // In-memory DB for local development (fixes missing JDBC driver)
     runtimeOnly 'com.h2database:h2'
@@ -52,12 +58,24 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
     implementation 'org.apache.commons:commons-csv:1.14.1'
     implementation 'org.apache.ant:ant:1.10.6'
     
     implementation 'org.apache.pdfbox:pdfbox:3.0.1'
+    
+    // MFA/TOTP support
+    implementation 'com.warrenstrange:googleauth:1.5.0'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.zxing:javase:3.5.3'
+    
+    // OpenPGP support for email encryption
+    implementation 'org.bouncycastle:bcpg-jdk18on:1.78.1'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    // PGPainless - modern OpenPGP library
+    implementation 'org.pgpainless:pgpainless-core:1.6.9'
 
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
@@ -91,6 +109,7 @@ configurations {
     outputs.cacheIf { true }
     
     // Test-Parallelisierung für schnellere Ausführung
+    // Runtime.runtime is safe to use in configureEach as it's evaluated at configuration time
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     
     // Test-Timeouts
@@ -114,13 +133,11 @@ tasks.withType(JavaCompile).configureEach {
     options.incremental = true
     options.compilerArgs.add('-parameters')
     
+    // Annotation Processing optimieren
+    options.annotationProcessorPath = configurations.annotationProcessor
+    
     // Caching für Compilation
     inputs.property("javaVersion", sourceCompatibility)
-}
-
-// Annotation Processing optimieren
-tasks.withType(JavaCompile).configureEach {
-    options.annotationProcessorPath = configurations.annotationProcessor
 }
 
 // Jar-Task optimieren
@@ -131,6 +148,7 @@ tasks.withType(Jar).configureEach {
 // BootJar optimieren (für Spring Boot)
 tasks.named('bootJar') {
     enabled = true
+    // String interpolation is safe here as project.name and version are evaluated at configuration time
     archiveFileName = "${project.name}-${project.version}.jar"
     
     // Layered Jars für Docker-Caching
@@ -141,13 +159,8 @@ tasks.named('bootJar') {
     // Cache-Output für inkrementelle Builds
     outputs.cacheIf { true }
     
-    // Nur neu bauen wenn Inputs sich geändert haben
-    inputs.files(sourceSets.main.output.classesDirs)
-        .withPropertyName("classes")
-        .optional()
-    inputs.files(sourceSets.main.resources)
-        .withPropertyName("resources")
-        .optional()
+    // Inputs werden automatisch von Spring Boot erkannt, manuelles Setzen nur wenn nötig
+    // Spring Boot erkennt automatisch: classes, resources, dependencies
 }
 
 // Dependency-Cache optimieren
@@ -162,5 +175,112 @@ configurations.all {
 
 vaadin {
     // default configuration; prepare/build frontend tasks available
+    // Ensure the plugin uses the correct classpath for annotation scanning
+    // The plugin needs access to runtime dependencies to scan Spring annotations
+}
+
+// Sicherstellen, dass vaadinPrepareFrontend nach der Kompilierung läuft
+// damit alle Klassen und Annotationen verfügbar sind
+// 
+// IMPORTANT: The Vaadin plugin needs runtime dependencies in the classpath to scan
+// annotations that reference Spring classes (e.g., @Theme annotation).
+// The Vaadin plugin uses its own classloader, so we need to ensure dependencies are resolved.
+// 
+// NOTE: Only depend on compileJava, NOT classes, to avoid circular dependency
+// (processResources depends on vaadinPrepareFrontend, which would create a cycle)
+// 
+// Solution:
+// 1. Depend on compileJava (not classes) to avoid circular dependency
+// 2. Disable configuration cache for this task to allow doFirst usage
+// 3. Resolve runtimeClasspath in doFirst to ensure dependencies are available
+// Configure bootRun to skip vaadinPrepareFrontend if it fails
+// This allows the application to start even if frontend preparation fails
+tasks.named('bootRun') {
+    // Vaadin will prepare frontend on first run if needed
+    // This allows bootRun to work even if vaadinPrepareFrontend has issues
+    
+    // Load environment variables from podman-compose.dev.env if it exists
+    // These are used as default values when no DB configuration exists
+    def envFile = file('podman-compose.dev.env')
+    if (envFile.exists()) {
+        doFirst {
+            envFile.readLines().each { line ->
+                // Skip comments and empty lines
+                if (line && !line.trim().startsWith('#') && line.contains('=')) {
+                    def parts = line.split('=', 2)
+                    if (parts.length == 2) {
+                        def key = parts[0].trim()
+                        def value = parts[1].trim()
+                        // Remove quotes if present
+                        if ((value.startsWith('"') && value.endsWith('"')) ||
+                            (value.startsWith("'") && value.endsWith("'"))) {
+                            value = value.substring(1, value.length() - 1)
+                        }
+                        // Only set if not already set (don't override existing env vars)
+                        if (System.getenv(key) == null) {
+                            environment[key] = value
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.named('vaadinPrepareFrontend') {
+    // compileJava only, not classes, to avoid circular dependency with processResources
+    dependsOn compileJava
+    
+    // Disable configuration cache for this task to allow doFirst usage
+    // This is necessary because we need to resolve dependencies at runtime
+    notCompatibleWithConfigurationCache("Vaadin plugin needs runtime dependencies resolved at execution time")
+    
+    // Skip this task if bootRun is the target (allows app to start without frontend prep)
+    onlyIf { !gradle.startParameter.taskNames.contains('bootRun') }
+    
+    // Ensure runtime dependencies are available for annotation scanning
+    // This is needed because Vaadin needs to read annotations that reference Spring classes
+    doFirst {
+        // Ensure all dependencies are resolved before Vaadin tries to scan annotations
+        // This ensures Spring Context classes are available when Vaadin scans @Theme annotation
+        // Both compileClasspath and runtimeClasspath are needed because Vaadin uses both
+        configurations.compileClasspath.resolve()
+        configurations.runtimeClasspath.resolve()
+        // Also ensure annotation processor path is available
+        configurations.annotationProcessor.resolve()
+    }
+    
+    // Explicitly define inputs to ensure dependencies are resolved
+    // This ensures Gradle resolves the dependencies before the task runs
+    inputs.files(configurations.compileClasspath, configurations.runtimeClasspath)
+        .withPropertyName("classpath")
+        .optional()
+}
+
+// ============================================
+// Flyway Migration Testing Tasks
+// ============================================
+
+// Test Flyway migrations locally with H2 database
+// Usage: ./gradlew testMigrations -PtestDbUrl=jdbc:h2:mem:testdb
+task testMigrations(type: JavaExec) {
+    group = 'verification'
+    description = 'Test Flyway migrations locally with H2 database'
+    
+    classpath = sourceSets.main.runtimeClasspath
+    
+    mainClass = 'de.bbajor.pvs.test.FlywayMigrationTester'
+    
+    def dbUrl = project.findProperty('testDbUrl') ?: 'jdbc:h2:mem:testdb'
+    def dbUser = project.findProperty('testDbUser') ?: 'sa'
+    def dbPassword = project.findProperty('testDbPassword') ?: ''
+    
+    args = [dbUrl, dbUser, dbPassword]
+    
+    doFirst {
+        println "Testing Flyway migrations..."
+        println "Database URL: ${dbUrl}"
+        println "Locations: src/main/resources/db/migration"
+    }
 }
 

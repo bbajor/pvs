@@ -1,6 +1,9 @@
 package de.bbajor.pvs.base.ui.view;
 
+import de.bbajor.pvs.institution.service.InstitutionLayoutService;
 import de.bbajor.pvs.security.CurrentUser;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -15,46 +18,122 @@ import com.vaadin.flow.component.menubar.MenuBarVariant;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.server.menu.MenuConfiguration;
 import com.vaadin.flow.server.menu.MenuEntry;
 import com.vaadin.flow.spring.security.AuthenticationContext;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
 import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static com.vaadin.flow.theme.lumo.LumoUtility.*;
 
 @Layout
 @PermitAll // When security is enabled, allow all authenticated users
-public final class MainLayout extends AppLayout {
+public final class MainLayout extends AppLayout implements BeforeEnterObserver {
 
     private final CurrentUser currentUser;
     private final AuthenticationContext authenticationContext;
+    private final InstitutionLayoutService layoutService;
+    private final UserAccountRepository userAccountRepository;
+    private final HttpSession httpSession;
 
-    MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext) {
+    MainLayout(CurrentUser currentUser, AuthenticationContext authenticationContext, 
+            InstitutionLayoutService layoutService, UserAccountRepository userAccountRepository,
+            HttpSession httpSession) {
         this.currentUser = currentUser;
         this.authenticationContext = authenticationContext;
+        this.layoutService = layoutService;
+        this.userAccountRepository = userAccountRepository;
+        this.httpSession = httpSession;
         setPrimarySection(Section.DRAWER);
-        addToDrawer(createHeader(), new Scroller(createSideNav()), createUserMenu());
+        addToDrawer(createHeader(), new Scroller(createSideNav()));
+        // Only add user menu if user is authenticated (to avoid CurrentUser.require() exception)
+        if (authenticationContext.isAuthenticated()) {
+            addToDrawer(createUserMenu());
+        }
+        
+        // Apply institution layout settings after UI is attached
+        UI currentUI = UI.getCurrent();
+        if (currentUI != null) {
+            currentUI.addAttachListener(e -> {
+                layoutService.applyLayoutSettings(currentUI);
+            });
+            // Also apply immediately if already attached
+            if (currentUI.isAttached()) {
+                layoutService.applyLayoutSettings(currentUI);
+            }
+        }
     }
 
     private Div createHeader() {
         // TODO Replace with real application logo and name
         var appLogo = VaadinIcon.CALENDAR.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
+        // Mindestabstand zum Rand - Business-App Style
+        appLogo.getStyle()
+                .set("margin-left", "var(--lumo-space-s, 0.75rem)")
+                .set("min-width", "var(--lumo-icon-size-l, 1.5rem)")
+                .set("flex-shrink", "0");
 
-        var appName = new Span("Praxis Tool-Suite");
+        var appName = new Span("Ophthalmoplan");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
 
         var header = new Div(appLogo, appName);
         header.addClassNames(Display.FLEX, Padding.MEDIUM, Gap.MEDIUM, AlignItems.CENTER);
+        header.getStyle()
+                .set("min-height", "var(--lumo-size-xl, 3rem)")
+                .set("border-bottom", "1px solid var(--lumo-contrast-20pct)");
         return header;
     }
 
     private SideNav createSideNav() {
         var nav = new SideNav();
-        nav.addClassNames(Margin.Horizontal.MEDIUM);
-        MenuConfiguration.getMenuEntries().forEach(entry -> nav.addItem(createSideNavItem(entry)));
+        nav.addClassNames(Margin.Horizontal.MEDIUM, Padding.Vertical.SMALL);
+        
+        // Check if user is SUPER_ADMIN
+        boolean isSuperAdmin = isCurrentUserSuperAdmin();
+        
+        if (isSuperAdmin) {
+            // SUPER_ADMIN sees system settings and medication database
+            nav.addItem(new SideNavItem("System-Einstellungen", "admin/super-settings", 
+                    new Icon("vaadin:cog")));
+            nav.addItem(new SideNavItem("Medikamentendatenbank", "ivom-drugs", 
+                    new Icon("vaadin:pill")));
+        } else {
+            // Regular users see all menu entries
+            MenuConfiguration.getMenuEntries().forEach(entry -> {
+                // Filter out entries that should not be visible to regular users
+                // (e.g., admin/institutions should not be in regular menu)
+                if (!entry.path().equals("admin/institutions")) {
+                    nav.addItem(createSideNavItem(entry));
+                }
+            });
+        }
+        
         return nav;
+    }
+    
+    /**
+     * Checks if the current user has SUPER_ADMIN role.
+     */
+    private boolean isCurrentUserSuperAdmin() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getAuthorities() != null) {
+                return auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+            }
+        } catch (Exception e) {
+            // If we can't determine the user's role, assume not super admin
+        }
+        return false;
     }
 
     private SideNavItem createSideNavItem(MenuEntry menuEntry) {
@@ -66,7 +145,10 @@ public final class MainLayout extends AppLayout {
     }
 
     private Component createUserMenu() {
-        var user = currentUser.require();
+        // Only call this if user is authenticated (checked in constructor)
+        // Use get() with orElseThrow as fallback
+        var user = currentUser.get().orElseThrow(() -> 
+            new IllegalStateException("User menu should only be created for authenticated users"));
 
         var avatar = new Avatar(user.getFullName(), user.getPictureUrl());
         avatar.addThemeVariants(AvatarVariant.LUMO_XSMALL);
@@ -87,6 +169,66 @@ public final class MainLayout extends AppLayout {
         userMenuItem.getSubMenu().addItem("Ausloggen", event -> authenticationContext.logout());
 
         return userMenu;
+    }
+
+    /**
+     * Checks if MFA is mandatory for a user.
+     * MFA is mandatory for SUPER_ADMIN only.
+     * INSTITUTION_ADMIN can use MFA optionally.
+     */
+    private boolean isMfaMandatory(UserAccount userAccount) {
+        if (userAccount == null || userAccount.getRoles() == null) {
+            return false;
+        }
+        return userAccount.getRoles().contains(AppRoles.SUPER_ADMIN);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // Skip MFA check for MFA-related routes and login
+        String path = event.getLocation().getPath();
+        if (path.contains("/mfa-verify") || path.contains("/mfa-setup") 
+                || path.contains("/dev-login") || path.contains("/password-change")) {
+            return;
+        }
+
+        // Only check MFA for authenticated users
+        if (!authenticationContext.isAuthenticated()) {
+            return; // Let Spring Security handle unauthenticated access
+        }
+
+            // Check if user has MFA enabled and if it's verified
+            currentUser.get().ifPresent(user -> {
+                UserAccount userAccount = userAccountRepository.findByUsername(user.getPreferredUsername()).orElse(null);
+                if (userAccount == null) {
+                    return;
+                }
+
+                // First check if password change is required (must happen before MFA)
+                if (userAccount.isPasswordChangeRequired()) {
+                    event.forwardTo("/password-change");
+                    return;
+                }
+
+                // Check if MFA is mandatory for this user (SUPER_ADMIN only)
+                boolean mfaMandatory = isMfaMandatory(userAccount);
+                
+                if (mfaMandatory && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
+                    // MFA is mandatory but not set up - redirect to setup
+                    event.forwardTo("/mfa-setup");
+                    return;
+                }
+
+                // Check if MFA is enabled for this user
+                if (userAccount.isMfaEnabled() && userAccount.getMfaSecret() != null) {
+                    // Check if MFA is required but not verified
+                    if (MfaAuthenticationFilter.isMfaRequired(httpSession)) {
+                        // MFA is required but not verified - redirect to verification
+                        event.forwardTo("/mfa-verify");
+                        return;
+                    }
+                }
+            });
     }
 
 }

@@ -1,0 +1,127 @@
+version: '3.9'
+
+services:
+  # Main Application
+  pvs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pvs-app:latest
+    container_name: pvs-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - PORT=8080
+      # Vaadin Production Mode aktiv (Frontend-Bundle ist im JAR enthalten)
+      - VAADIN_PRODUCTION_MODE=true
+      # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung
+      - VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV=true
+      # Whisper Container URL - use service name for internal Docker network
+      - AI_WHISPER_LOCAL_HOST=whisper
+      - AI_WHISPER_LOCAL_PORT=9000
+    depends_on:
+      - db-app
+      - kbv-service
+      - whisper
+    networks:
+      - pvs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Main Application Database
+  db-app:
+    image: postgres:16-alpine
+    container_name: pvs-app-db
+    environment:
+      - POSTGRES_DB=pvs
+      - POSTGRES_USER=pvs
+      - POSTGRES_PASSWORD=pvs
+    ports:
+      - "5432:5432"
+    volumes:
+      - pvs_app_pg:/var/lib/postgresql/data
+    networks:
+      - pvs-network
+    restart: unless-stopped
+
+  # KBV Master Data Database
+  kbv-db:
+    image: postgres:16-alpine
+    container_name: pvs-kbv-db
+    environment:
+      - POSTGRES_DB=kbv
+      - POSTGRES_USER=kbv
+      - POSTGRES_PASSWORD=kbv
+    ports:
+      - "5433:5432"
+    volumes:
+      - pvs_kbv_pg:/var/lib/postgresql/data
+    networks:
+      - pvs-network
+    restart: unless-stopped
+
+  # KBV Master Data Service
+  kbv-service:
+    build:
+      context: ./kbv-masterdata-service
+      dockerfile: Dockerfile
+    image: kbv-masterdata-service:latest
+    container_name: pvs-kbv-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    volumes:
+      - kbv_data:/data/kbv
+    depends_on:
+      - kbv-db
+    networks:
+      - pvs-network
+    restart: unless-stopped
+
+  # KBV Distribution Job
+  kbv-distrib-job:
+    image: eclipse-temurin:21-jre
+    container_name: kbv-distrib-job
+    command: ["bash", "-lc", "set -euo pipefail && cd /work && wget -q -O kbv-distrib.jar https://update.kbv.de/ita-update/Stammdateien/KBV_Stammdateien/KBV_Stammdateien.jar && java -jar kbv-distrib.jar && find . -maxdepth 2 -type f -name '*.xml' -o -name '*.xsd' -print0 | xargs -0 -I{} cp --parents '{}' /data/kbv/"]
+    working_dir: /work
+    volumes:
+      - kbv_data:/data/kbv
+    networks:
+      - pvs-network
+
+  # Whisper AI Service
+  whisper:
+    build:
+      context: .
+      dockerfile: docker/whisper/Dockerfile
+    container_name: pvs-whisper
+    ports:
+      - "9000:9000"
+    environment:
+      - PORT=9000
+    networks:
+      - pvs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pvs-network:
+    driver: bridge
+
+volumes:
+  pvs_app_pg:
+    driver: local
+  pvs_kbv_pg:
+    driver: local
+  kbv_data:
+    driver: local

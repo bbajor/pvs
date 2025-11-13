@@ -1,7 +1,8 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: validate
+      # update statt validate: Testdaten bleiben erhalten, keine Neubefüllung nötig
+      ddl-auto: update
     show-sql: false
   datasource:
     url: ${DATABASE_URL}

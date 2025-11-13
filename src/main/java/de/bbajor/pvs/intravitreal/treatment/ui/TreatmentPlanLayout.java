@@ -10,9 +10,17 @@ import java.util.Set;
 
 import org.springframework.context.ApplicationContext;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.server.StreamRegistration;
+import com.vaadin.flow.server.StreamResource;
+
 import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.accordion.AccordionPanel;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -25,6 +33,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
 
+import de.bbajor.pvs.appointment.service.AppointmentReportService;
 import de.bbajor.pvs.base.ui.component.TimeLineCardConfig;
 import de.bbajor.pvs.base.ui.component.TimelineView;
 import de.bbajor.pvs.base.util.SideOfEye;
@@ -34,7 +43,7 @@ import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
-import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
@@ -50,7 +59,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     // Filter
     private final ComboBox<SideOfEye> sideOfEye = new ComboBox<>("Welches Auge?");
-    private final ComboBox<Medication> medicationComboBox = new ComboBox<>("Medikament");
+    private final ComboBox<MedicationFavourite> medicationComboBox = new ComboBox<>("Medikament");
     private final DatePicker startDatePicker = new DatePicker("Neue Termine finden ab");
     private final ComboBox<TimeSlotRepetition> repetitionComboBox = new ComboBox<>("Terminintervall");
     private final ComboBox<TimePeriod> timePeriodComboBox = new ComboBox<>("Termine erstellen für");
@@ -64,11 +73,13 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private final TabSheet tabSheet = new TabSheet();
     private final TreatmentPlanPresenter presenter;
     private TreatmentPlan current;
+    private final ApplicationContext context;
 
     public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan,
             ApplicationContext context) {
         this.presenter = presenter;
         this.current = treatmentPlan;
+        this.context = context;
 
         setSizeFull();
         // overflow entfernt - erlaube Scrollen wenn nötig
@@ -90,6 +101,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
             }
         });
         medicationComboBox.setItems(presenter.getDrugs());
+        medicationComboBox.setItemLabelGenerator(MedicationFavourite::getEffectiveDisplayName);
+        medicationComboBox.setClearButtonVisible(true);
 
         sideOfEye.setItems(SideOfEye.values());
         timeSlotGrid.setSizeFull();
@@ -147,6 +160,17 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineLayout.setSpacing(false);
         // Kein overflow hidden - erlaube Scrollen wenn nötig
         
+        // Export-Button für Patienten-Ausdruck
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setWidthFull();
+        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.END);
+        
+        Button exportButton = new Button("Termine ausdrucken", new Icon(VaadinIcon.PRINT));
+        exportButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        exportButton.addClickListener(e -> generateAppointmentReport());
+        buttonLayout.add(exportButton);
+        timeLineLayout.add(buttonLayout);
+        
         // Orientation toggle controls both timelines
         RadioButtonGroup<TimelineView.Orientation> orientationToggle = new RadioButtonGroup<>();
         orientationToggle.setLabel("Ausrichtung");
@@ -170,6 +194,61 @@ public class TreatmentPlanLayout extends VerticalLayout {
         updateTimelineLayout(timeLineLayout, TimelineView.Orientation.HORIZONTAL);
         
         tabSheet.add("Behandlungsübersicht", timeLineLayout);
+    }
+    
+    private void generateAppointmentReport() {
+        if (current == null || current.getPatient() == null) {
+            Notification.show("Kein Patient ausgewählt", 3000, 
+                    Notification.Position.BOTTOM_CENTER);
+            return;
+        }
+        
+        try {
+            AppointmentReportService reportService = context.getBean(AppointmentReportService.class);
+            Patient patient = current.getPatient();
+            byte[] pdfBytes = reportService.generatePatientAppointmentReport(patient);
+            
+            // Erstelle Download-Link
+            String patientName = patient.getLastName() + "_" + patient.getFirstName();
+            String filename = "Geplante_Termine_" + patientName + "_" + 
+                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+            
+            downloadPdf(pdfBytes, filename);
+            
+            Notification.show("Termin-Ausdruck wird heruntergeladen", 3000, 
+                    Notification.Position.BOTTOM_CENTER);
+        } catch (Exception e) {
+            Notification notification = Notification.show(
+                    "Fehler beim Generieren des Termin-Ausdrucks: " + e.getMessage(), 5000, 
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    private void downloadPdf(byte[] pdfBytes, String filename) {
+        // Create StreamResource for download
+        StreamResource streamResource = new StreamResource(filename, () -> {
+            return new java.io.ByteArrayInputStream(pdfBytes);
+        });
+        streamResource.setContentType("application/pdf");
+        
+        // Register the resource and get the URL
+        getUI().ifPresent(ui -> {
+            StreamRegistration registration = ui.getSession().getResourceRegistry()
+                    .registerResource(streamResource);
+            String resourceUrl = registration.getResourceUri().toString();
+            
+            // Create download link and trigger download via JavaScript
+            ui.getPage().executeJs(
+                "var link = document.createElement('a');" +
+                "link.href = $0;" +
+                "link.download = $1;" +
+                "document.body.appendChild(link);" +
+                "link.click();" +
+                "document.body.removeChild(link);",
+                resourceUrl, filename
+            );
+        });
     }
     
     private void updateTimelineLayout(VerticalLayout timeLineLayout, TimelineView.Orientation orientation) {
@@ -294,14 +373,38 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void setRightEyeTreatmentHistory(Long treatmentPlanId) {
         List<TimeLineCardConfig> rightEyeTreatments = new ArrayList<>();
+        int treatmentCount = 0;
+        Integer mostCommonInterval = null;
+        
         if (treatmentPlanId != null) {
             List<Treatment> treatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, treatmentPlanId);
+            treatmentCount = treatments.size();
+            
+            // Berechne häufigstes Intervall
+            mostCommonInterval = calculateMostCommonInterval(treatments);
+            
             for (Treatment treatment : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig()
                         .setTreatment(treatment);
                 rightEyeTreatments.add(config);
             }
         }
+        
+        // Startkachel mit Statistiken erstellen
+        TimeLineCardConfig firstCard = new TimeLineCardConfig()
+                .setFirst(true)
+                .setFirstDate(current != null && current.getCreationDate() != null 
+                        ? current.getCreationDate() 
+                        : LocalDate.now())
+                .setTreatmentCount(treatmentCount)
+                .setMostCommonInterval(mostCommonInterval);
+        rightEyeTreatments.add(0, firstCard);
+        
+        // Callback für Button setzen
+        timeLineViewRightEye.setOnBookNextTreatmentCallback(() -> {
+            openNextTreatmentBookingDialog(SideOfEye.RIGHT);
+        });
+        
         // Auch bei null (neuer Plan) initialisieren - zeigt dann wenigstens Start-Marker
         timeLineViewRightEye.setStartOfTreatmentPlan(
                 current != null && current.getCreationDate() != null 
@@ -311,17 +414,113 @@ public class TreatmentPlanLayout extends VerticalLayout {
     }
 
     private void initializeGeneralDetailsTab() {
+        VerticalLayout tabContent = new VerticalLayout();
+        tabContent.setSpacing(true);
+        tabContent.setPadding(true);
+        
+        // Patientendaten-Block (immer sichtbar, wenn Patient vorhanden)
+        if (current != null && current.getPatient() != null) {
+            tabContent.add(createPatientInfoCard());
+        }
+        
+        // Formular für Behandlungsplan-Details
         FormLayout formLayout = new FormLayout();
         formLayout.add(creationDatePicker);
         formLayout.add(patientSelectComboBox);
         formLayout.add(reasonForTreatmentComboBox);
         formLayout.add(additionalInformation, 2);
+        
         AccordionPanel generalDetailsPanel = new AccordionPanel();
         Accordion generalDetails = new Accordion();
         generalDetailsPanel.add(formLayout);
         generalDetailsPanel.setOpened(true);
         generalDetails.add(generalDetailsPanel);
-        tabSheet.add("Allgemeine Informationen", generalDetails);
+        
+        tabContent.add(generalDetails);
+        tabContent.expand(generalDetails);
+        
+        tabSheet.add("Allgemeine Informationen", tabContent);
+    }
+    
+    /**
+     * Erstellt eine Card mit den wichtigsten Patientendaten.
+     * Diese ist immer sichtbar, damit der Arzt schnell die wichtigsten Infos sieht.
+     */
+    private com.vaadin.flow.component.html.Div createPatientInfoCard() {
+        Patient patient = current.getPatient();
+        com.vaadin.flow.component.html.Div card = new com.vaadin.flow.component.html.Div();
+        card.addClassName("patient-info-card");
+        card.getStyle().set("background-color", "var(--lumo-base-color)");
+        card.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
+        card.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
+        card.getStyle().set("padding", "var(--lumo-space-m)");
+        card.getStyle().set("margin-bottom", "var(--lumo-space-m)");
+        
+        // Titel
+        com.vaadin.flow.component.html.H3 title = new com.vaadin.flow.component.html.H3("Patientendaten");
+        title.getStyle().set("margin-top", "0");
+        title.getStyle().set("margin-bottom", "var(--lumo-space-s)");
+        title.getStyle().set("color", "var(--lumo-primary-text-color)");
+        card.add(title);
+        
+        // Patientendaten in strukturierter Form
+        VerticalLayout infoLayout = new VerticalLayout();
+        infoLayout.setSpacing(false);
+        infoLayout.setPadding(false);
+        
+        // Name
+        if (patient.getFirstName() != null || patient.getLastName() != null) {
+            String name = (patient.getLastName() != null ? patient.getLastName() : "") 
+                    + (patient.getFirstName() != null ? ", " + patient.getFirstName() : "");
+            if (!name.isEmpty()) {
+                infoLayout.add(createInfoRow("Name", name));
+            }
+        }
+        
+        // Geburtsdatum
+        if (patient.getBirth() != null) {
+            String birthDate = patient.getBirth().format(
+                    java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy", java.util.Locale.GERMAN));
+            infoLayout.add(createInfoRow("Geburtsdatum", birthDate));
+        }
+        
+        // Adresse
+        if (patient.getAddress() != null) {
+            String address = patient.getAddress().toString();
+            if (address != null && !address.trim().isEmpty()) {
+                infoLayout.add(createInfoRow("Adresse", address));
+            }
+        }
+        
+        // Krankenkasse
+        if (patient.getHealthInsurance() != null) {
+            String insuranceName = patient.getHealthInsurance().getBillingCarrierName();
+            if (insuranceName != null && !insuranceName.trim().isEmpty()) {
+                infoLayout.add(createInfoRow("Krankenkasse", insuranceName));
+            }
+        }
+        
+        card.add(infoLayout);
+        return card;
+    }
+    
+    private HorizontalLayout createInfoRow(String label, String value) {
+        HorizontalLayout row = new HorizontalLayout();
+        row.setSpacing(true);
+        row.setWidthFull();
+        row.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE);
+        
+        com.vaadin.flow.component.html.Span labelSpan = new com.vaadin.flow.component.html.Span(label + ":");
+        labelSpan.getStyle().set("font-weight", "600");
+        labelSpan.getStyle().set("min-width", "120px");
+        labelSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        
+        com.vaadin.flow.component.html.Span valueSpan = new com.vaadin.flow.component.html.Span(value);
+        valueSpan.getStyle().set("color", "var(--lumo-body-text-color)");
+        
+        row.add(labelSpan, valueSpan);
+        row.expand(valueSpan);
+        return row;
     }
 
     private void initializeTimeLineLeftEye(VerticalLayout timeLineLayout) {
@@ -347,14 +546,38 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
     private void setLeftEyeTreatmentHistory(Long treatmentPlanId) {
         List<TimeLineCardConfig> leftEyeTreatments = new ArrayList<>();
+        int treatmentCount = 0;
+        Integer mostCommonInterval = null;
+        
         if (treatmentPlanId != null) {
             List<Treatment> treatments = presenter.getTreatmentDtos(SideOfEye.LEFT, treatmentPlanId);
+            treatmentCount = treatments.size();
+            
+            // Berechne häufigstes Intervall
+            mostCommonInterval = calculateMostCommonInterval(treatments);
+            
             for (Treatment treatment : treatments) {
                 TimeLineCardConfig config = new TimeLineCardConfig()
                         .setTreatment(treatment);
                 leftEyeTreatments.add(config);
             }
         }
+        
+        // Startkachel mit Statistiken erstellen
+        TimeLineCardConfig firstCard = new TimeLineCardConfig()
+                .setFirst(true)
+                .setFirstDate(current != null && current.getCreationDate() != null 
+                        ? current.getCreationDate() 
+                        : LocalDate.now())
+                .setTreatmentCount(treatmentCount)
+                .setMostCommonInterval(mostCommonInterval);
+        leftEyeTreatments.add(0, firstCard);
+        
+        // Callback für Button setzen
+        timeLineViewLeftEye.setOnBookNextTreatmentCallback(() -> {
+            openNextTreatmentBookingDialog(SideOfEye.LEFT);
+        });
+        
         // Auch bei null (neuer Plan) initialisieren - zeigt dann wenigstens Start-Marker
         timeLineViewLeftEye.setStartOfTreatmentPlan(
                 current != null && current.getCreationDate() != null 
@@ -376,7 +599,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         for (SurgicalCenterTimeSlot timeSlot : selectedSlots) {
             Treatment timeSlotToCreate = new Treatment();
             timeSlotToCreate.setSideOfEye(sideOfEye.getValue());
-            timeSlotToCreate.setMedication(medicationComboBox.getValue());
+            timeSlotToCreate.setMedicationFavourite(medicationComboBox.getValue());
             timeSlotToCreate.setSurgicalCenterTimeSlot(timeSlot);
             timeSlotToCreate.setTreatmentPlan(current);
             timeSlotsToCreate.add(timeSlotToCreate);
@@ -393,8 +616,113 @@ public class TreatmentPlanLayout extends VerticalLayout {
         setLeftEyeTreatmentHistory(newCurrent.getId());
         setRightEyeTreatmentHistory(newCurrent.getId());
         
+        // Aktualisiere Patientendaten-Card im Tab "Allgemeine Informationen"
+        updatePatientInfoCard();
+        
         // Refresh timeline display if orientation toggle exists
         // Note: This will be called after the layout is already built, so we need to update it
         // The accordions will be re-added by updateTimelineLayout if needed
+    }
+    
+    /**
+     * Aktualisiert die Patientendaten-Card im Tab "Allgemeine Informationen".
+     */
+    private void updatePatientInfoCard() {
+        // Finde den Tab "Allgemeine Informationen"
+        tabSheet.getChildren()
+            .filter(child -> {
+                if (child instanceof com.vaadin.flow.component.tabs.Tab) {
+                    com.vaadin.flow.component.tabs.Tab tab = (com.vaadin.flow.component.tabs.Tab) child;
+                    return "Allgemeine Informationen".equals(tab.getLabel());
+                }
+                return false;
+            })
+            .findFirst()
+            .ifPresent(tab -> {
+                // Finde den Content des Tabs
+                com.vaadin.flow.component.Component tabContent = tabSheet.getChildren()
+                    .filter(c -> c instanceof com.vaadin.flow.component.tabs.Tab 
+                        && "Allgemeine Informationen".equals(((com.vaadin.flow.component.tabs.Tab) c).getLabel()))
+                    .findFirst()
+                    .map(t -> {
+                        int index = tabSheet.getChildren()
+                            .collect(java.util.stream.Collectors.toList())
+                            .indexOf(t);
+                        return tabSheet.getChildren()
+                            .skip(index + 1)
+                            .findFirst()
+                            .orElse(null);
+                    })
+                    .orElse(null);
+                
+                if (tabContent instanceof VerticalLayout) {
+                    VerticalLayout content = (VerticalLayout) tabContent;
+                    // Entferne alte Patientendaten-Card falls vorhanden
+                    content.getChildren()
+                        .filter(c -> c.getClass().getSimpleName().equals("Div") 
+                            && c.getElement().getClassList().contains("patient-info-card"))
+                        .findFirst()
+                        .ifPresent(content::remove);
+                    
+                    // Füge neue Patientendaten-Card hinzu, falls Patient vorhanden
+                    if (current != null && current.getPatient() != null) {
+                        content.addComponentAtIndex(0, createPatientInfoCard());
+                    }
+                }
+            });
+    }
+
+    private void openNextTreatmentBookingDialog(SideOfEye sideOfEye) {
+        if (current == null || current.getId() == null) {
+            com.vaadin.flow.component.notification.Notification.show(
+                    "Bitte speichern Sie zuerst den Behandlungsplan.", 3000,
+                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
+            return;
+        }
+
+        NextTreatmentBookingDialog dialog = new NextTreatmentBookingDialog(
+                current, sideOfEye, context, presenter, treatment -> {
+                    // Nach erfolgreicher Buchung: Timeline aktualisieren
+                    setLeftEyeTreatmentHistory(current.getId());
+                    setRightEyeTreatmentHistory(current.getId());
+                });
+        dialog.open();
+    }
+
+    private Integer calculateMostCommonInterval(List<Treatment> treatments) {
+        if (treatments == null || treatments.size() < 2) {
+            return null;
+        }
+
+        // Sortiere Behandlungen nach Datum
+        List<Treatment> sorted = new ArrayList<>(treatments);
+        sorted.sort((a, b) -> {
+            LocalDate dateA = a.getDate();
+            LocalDate dateB = b.getDate();
+            if (dateA == null && dateB == null) return 0;
+            if (dateA == null) return 1;
+            if (dateB == null) return -1;
+            return dateA.compareTo(dateB);
+        });
+
+        // Berechne Intervalle zwischen aufeinanderfolgenden Behandlungen
+        java.util.Map<Integer, Integer> intervalCounts = new java.util.HashMap<>();
+        for (int i = 1; i < sorted.size(); i++) {
+            LocalDate prevDate = sorted.get(i - 1).getDate();
+            LocalDate currDate = sorted.get(i).getDate();
+            if (prevDate != null && currDate != null) {
+                long weeks = java.time.temporal.ChronoUnit.WEEKS.between(prevDate, currDate);
+                if (weeks > 0 && weeks <= 16) {
+                    int weeksInt = (int) weeks;
+                    intervalCounts.put(weeksInt, intervalCounts.getOrDefault(weeksInt, 0) + 1);
+                }
+            }
+        }
+
+        // Finde das häufigste Intervall
+        return intervalCounts.entrySet().stream()
+                .max(java.util.Map.Entry.comparingByValue())
+                .map(java.util.Map.Entry::getKey)
+                .orElse(null);
     }
 }

@@ -12,8 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.medication.model.Medication;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationImportService;
 import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.medication.service.MedicationFavouriteService;
 
 @Component
 public class MedicationViewPresenter {
@@ -24,6 +26,8 @@ public class MedicationViewPresenter {
     private IntravitrealMedicationService medicationService;
     @Autowired
     private IntravitrealMedicationImportService importService;
+    @Autowired
+    private MedicationFavouriteService medicationFavouriteService;
 
     public List<Medication> findAllBy(String searchString) {
         return medicationService.findIntravitrealMedication(searchString);
@@ -46,54 +50,75 @@ public class MedicationViewPresenter {
                             "Wirkstoffe", "Packungsgrößen-Gruppe/Verkaufsabgrenzung", "AM-Klassifikationen")
                     .get();
 
-            // Debug: Headers und erste Zeile ausgeben
+            // Parse CSV records
             Iterable<CSVRecord> records = csvFormat.parse(in);
-            records.iterator().next();
-            CSVRecord firstRecord = records.iterator().next();
-
-            LOGGER.debug("Headers gefunden: " + String.join(", ", firstRecord.getParser().getHeaderNames()));
-            LOGGER.debug("Erste Zeile: " + firstRecord.toString());
-
+            
             List<Medication> newMedicationEntityList = new ArrayList<>();
+            int recordCount = 0;
+            boolean firstDataRow = true;
 
             for (CSVRecord record : records) {
-                // Skip empty records
-                if (record.size() <= 1)
+                recordCount++;
+                
+                // Skip first data row (after header) due to line break issues in CSV generation
+                if (firstDataRow) {
+                    LOGGER.debug("Skipping first data row at line " + recordCount + " due to CSV generation line break issues");
+                    firstDataRow = false;
                     continue;
+                }
+                
+                // Skip empty records
+                if (record.size() <= 1) {
+                    LOGGER.debug("Skipping empty record at line " + recordCount);
+                    continue;
+                }
 
-                // Clean Eingangsnummer (remove quotes and leading/trailing spaces)
-                String eingangsnummer = record.get("Eingangsnummer")
-                        .replace("'", "")
-                        .trim();
+                try {
+                    // Clean Eingangsnummer (remove quotes and leading/trailing spaces)
+                    String eingangsnummer = record.get("Eingangsnummer")
+                            .replace("'", "")
+                            .replace("\"", "")
+                            .trim();
+                    
+                    // Get Zulassungs-/Reg.-Nr. for matching existing records
+                    String zulassungsNr = record.get("Zulassungs-/Reg.-Nr. (AMG 1976), Register-Nr. (AMG 1961) oder Kennziffer")
+                            .replace("'", "")
+                            .replace("\"", "")
+                            .trim();
 
-                Medication drug = new Medication()
-                        .setEingangsnummer(eingangsnummer)
-                        .setArzneimittelbezeichnung(record.get("Arzneimittelbezeichnung"))
-                        .setDarreichungsform(record.get("Darreichungsform"))
-                        .setZielgruppe(record.get("Zielgruppe"))
-                        .setAnwendungsart(record.get("Anwendungsart"))
-                        .setAnwendungsgebiete(record.get("Anwendungsgebiete"))
-                        .setIndikationAtc(record.get("Indikation/ATC"))
-                        .setBescheiddatumZulassung(record.get("Bescheiddatum der Zulassung"))
-                        .setZulassungsstatus(record.get("Zulassungsstatus"))
-                        .setZulassungsRegNrOderKennziffer(
-                                record.get("Zulassungs-/Reg.-Nr. (AMG 1976), Register-Nr. (AMG 1961) oder Kennziffer"))
-                        .setVerkehrsfaehigkeit(record.get("Verkehrsfähigkeit"))
-                        .setParallelimportinformationen(record.get("Parallelimportinformationen"))
-                        .setEuVerfahrensnummer(record.get("EU-Verfahrensnummer"))
-                        .setZulassungsinhaber(record.get("Zulassungsinhaber"))
-                        .setHerstellerEndfreigabe(record.get("Hersteller/Endfreigabe"))
-                        .setVertreiber(record.get("Vertreiber"))
-                        .setOertlicherVertreter(record.get("Örtlicher Vertreter"))
-                        .setWirkstoffe(record.get("Wirkstoffe"))
-                        .setPackungsgroessenGruppe(record.get("Packungsgrößen-Gruppe/Verkaufsabgrenzung"))
-                        .setAmKlassifikationen(record.get("AM-Klassifikationen"));
+                    Medication drug = new Medication()
+                            .setEingangsnummer(eingangsnummer)
+                            .setZulassungsNr(zulassungsNr.isEmpty() ? eingangsnummer : zulassungsNr) // Use eingangsnummer as fallback
+                            .setArzneimittelbezeichnung(record.get("Arzneimittelbezeichnung"))
+                            .setDarreichungsform(record.get("Darreichungsform"))
+                            .setZielgruppe(record.get("Zielgruppe"))
+                            .setAnwendungsart(record.get("Anwendungsart"))
+                            .setAnwendungsgebiete(record.get("Anwendungsgebiete"))
+                            .setIndikationAtc(record.get("Indikation/ATC"))
+                            .setBescheiddatumZulassung(record.get("Bescheiddatum der Zulassung"))
+                            .setZulassungsstatus(record.get("Zulassungsstatus"))
+                            .setZulassungsRegNrOderKennziffer(zulassungsNr)
+                            .setVerkehrsfaehigkeit(record.get("Verkehrsfähigkeit"))
+                            .setParallelimportinformationen(record.get("Parallelimportinformationen"))
+                            .setEuVerfahrensnummer(record.get("EU-Verfahrensnummer"))
+                            .setZulassungsinhaber(record.get("Zulassungsinhaber"))
+                            .setHerstellerEndfreigabe(record.get("Hersteller/Endfreigabe"))
+                            .setVertreiber(record.get("Vertreiber"))
+                            .setOertlicherVertreter(record.get("Örtlicher Vertreter"))
+                            .setWirkstoffe(record.get("Wirkstoffe"))
+                            .setPackungsgroessenGruppe(record.get("Packungsgrößen-Gruppe/Verkaufsabgrenzung"))
+                            .setAmKlassifikationen(record.get("AM-Klassifikationen"));
 
-                // Debug output
-                LOGGER.debug("Parsed drug: " + drug.getArzneimittelbezeichnung() +
-                        " (Eingangsnummer: " + drug.getEingangsnummer() + ")");
+                    // Debug output
+                    LOGGER.debug("Parsed drug: " + drug.getArzneimittelbezeichnung() +
+                            " (Eingangsnummer: " + drug.getEingangsnummer() + 
+                            ", ZulassungsNr: " + drug.getZulassungsNr() + ")");
 
-                newMedicationEntityList.add(drug);
+                    newMedicationEntityList.add(drug);
+                } catch (Exception e) {
+                    LOGGER.warn("Error parsing record at line " + recordCount + ": " + e.getMessage(), e);
+                    // Continue with next record
+                }
             }
 
             LOGGER.debug("Anzahl gefundener Datensätze: " + newMedicationEntityList.size());
@@ -113,6 +138,18 @@ public class MedicationViewPresenter {
 
     public Medication save(Medication medication) {
         return medicationService.save(medication);
+    }
+
+    public List<MedicationFavourite> getActiveFavouritesForCurrentInstitution() {
+        return medicationFavouriteService.getActiveFavouritesForCurrentInstitution();
+    }
+
+    public MedicationFavourite addFavourite(Long medicationId) {
+        return medicationFavouriteService.addFavouriteForCurrentInstitution(medicationId, null);
+    }
+
+    public void removeFavourite(Long favouriteId) {
+        medicationFavouriteService.deactivateFavourite(favouriteId);
     }
 
 }

@@ -5,55 +5,69 @@ import java.util.function.Consumer;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.grid.dataview.GridListDataView;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.NativeLabel;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.textfield.TextFieldVariant;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
+
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 
 import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientListPresenter;
+import de.bbajor.pvs.security.AppRoles;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route("patient-search")
-@PageTitle("Patientenverwaltung")
-@Menu(order = 1, icon = "vaadin:male", title = "Patientenverwaltung")
+@PageTitle("Patienten")
+@Menu(order = 2, icon = "vaadin:male", title = "Patienten")
 @PermitAll
-public class PatientMainView extends Main implements PatientChangeListener {
+public class PatientMainView extends Main implements PatientChangeListener, BeforeEnterObserver {
 
     private final PatientListPresenter patientListPresenter;
     private final VoiceTranscriptionService transcriptionService;
     private final ExtractionOrchestrator extractionOrchestrator;
+    private final de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository;
     private Grid<Patient> patientGrid;
 
     private final DateTimeFormatter germanFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
 
-    public PatientMainView(PatientListPresenter patientListPresenter, VoiceTranscriptionService transcriptionService, ExtractionOrchestrator extractionOrchestrator) {
+    public PatientMainView(PatientListPresenter patientListPresenter, VoiceTranscriptionService transcriptionService, 
+            ExtractionOrchestrator extractionOrchestrator, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository) {
         this.patientListPresenter = patientListPresenter;
         this.transcriptionService = transcriptionService;
         this.extractionOrchestrator = extractionOrchestrator;
+        this.userAccountRepository = userAccountRepository;
         
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                 LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
         setSizeFull();
 
         Button newPatientButton = new Button("Patienten anlegen", event -> openPatientDialog(new Patient()));
-        newPatientButton.setIcon(VaadinIcon.USER.create());
-        newPatientButton.getElement().setAttribute("theme", "primary");
+        newPatientButton.setIcon(VaadinIcon.PLUS.create());
+        newPatientButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        newPatientButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
 
         add(new ViewToolbar("Übersicht Patienten", ViewToolbar.group(newPatientButton)));
         configureGrid();
@@ -64,13 +78,40 @@ public class PatientMainView extends Main implements PatientChangeListener {
             remove(patientGrid);
         }
         patientGrid = new Grid<>(Patient.class, false);
-        Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(Patient::getLastName).setHeader("Nachname");
-        Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(Patient::getFirstName).setHeader("Vorname");
-        Grid.Column<Patient> birthColumn = patientGrid
-                .addColumn(dto -> dto != null && dto.getBirth() != null ? germanFormatter.format(dto.getBirth()) : "-")
-                .setHeader("Geburtsdatum");
-        Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(Patient::getHealthInsurance)
-                .setHeader("Krankenkasse");
+        patientGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        
+        Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String lastName = patient.getLastName() != null ? patient.getLastName() : "-";
+                    Span span = new Span(lastName);
+                    span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+                    return span;
+                })).setHeader("Nachname").setAutoWidth(true);
+        
+        Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String firstName = patient.getFirstName() != null ? patient.getFirstName() : "-";
+                    Span span = new Span(firstName);
+                    return span;
+                })).setHeader("Vorname").setAutoWidth(true);
+        
+        Grid.Column<Patient> birthColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String birth = patient != null && patient.getBirth() != null 
+                            ? germanFormatter.format(patient.getBirth()) : "-";
+                    Span span = new Span(birth);
+                    span.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    return span;
+                })).setHeader("Geburtsdatum").setAutoWidth(true);
+        
+        Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    String insurance = patient.getHealthInsurance() != null 
+                            ? patient.getHealthInsurance().toString() : "-";
+                    Span span = new Span(insurance);
+                    span.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    return span;
+                })).setHeader("Krankenkasse").setAutoWidth(true);
 
         GridListDataView<Patient> dataView = patientGrid.setItems(patientListPresenter.findAll());
         PatientFilter patientFilter = new PatientFilter(dataView);
@@ -97,11 +138,59 @@ public class PatientMainView extends Main implements PatientChangeListener {
         add(patientGrid);
     }
 
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // SUPER_ADMIN without institution context should not access patient data
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
+        boolean hasInstitutionContext = InstitutionContext.hasInstitution();
+        
+        if (isSuperAdmin && !hasInstitutionContext) {
+            // Redirect SUPER_ADMIN to institution management
+            event.forwardTo("admin/institutions");
+        }
+    }
+
     private void openPatientDialog(Patient dto) {
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContext();
+        
         PatientDialog dialog = new PatientDialog(patientListPresenter.getDialogPresenter(), dto, 
-                new ExtractionClient(extractionOrchestrator), transcriptionService);
+                new ExtractionClient(extractionOrchestrator), transcriptionService, userAccountRepository);
         dialog.addChangeListener(this);
         dialog.open();
+    }
+    
+    /**
+     * Stellt sicher, dass der InstitutionContext gesetzt ist.
+     */
+    private void ensureInstitutionContext() {
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof de.bbajor.pvs.institution.security.InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof 
+                   de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter adapter) {
+            // Authentication wurde aus Session deserialisiert
+            try {
+                String username = adapter.getUsername();
+                de.bbajor.pvs.security.domain.UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (userAccount != null && userAccount.getInstitution() != null) {
+                    Long institutionId = userAccount.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                }
+            } catch (Exception e) {
+                // Fehler beim Wiederherstellen des Contexts - ignorieren
+            }
+        }
     }
 
     @Override

@@ -77,8 +77,6 @@ public class MedicationDetailDialog extends Dialog {
                 TextArea amKlassifikationen = new TextArea("AM-Klassifikationen");
                 amKlassifikationen.setHeight("80px");
                 amKlassifikationen.setReadOnly(isReadOnly);
-                Checkbox favourite = new Checkbox("Favorit");
-
                 FormLayout detailLayout = new FormLayout();
                 detailLayout.setMinColumns(3);
                 detailLayout.setColumnSpacing("5em");
@@ -120,7 +118,7 @@ public class MedicationDetailDialog extends Dialog {
                         close();
                 });
 
-                getFooter().add(favourite, saveButton, cancelButton);
+        getFooter().add(saveButton, cancelButton);
 
                 binder.forField(nr).bind(Medication::getZulassungsNr, Medication::setZulassungsNr);
                 binder.forField(eingangsnummer).bind(Medication::getEingangsnummer,
@@ -156,9 +154,8 @@ public class MedicationDetailDialog extends Dialog {
                 binder.forField(wirkstoffe).bind(Medication::getWirkstoffe, Medication::setWirkstoffe);
                 binder.forField(packungsGroessenGruppeVerkaufsabgrenzung).bind(Medication::getPackungsgroessenGruppe,
                                 Medication::setPackungsgroessenGruppe);
-                binder.forField(amKlassifikationen).bind(Medication::getAmKlassifikationen,
-                                Medication::setAmKlassifikationen);
-                binder.forField(favourite).bind(Medication::isFavourite, Medication::setFavourite);
+        binder.forField(amKlassifikationen).bind(Medication::getAmKlassifikationen,
+                        Medication::setAmKlassifikationen);
 
                 binder.setBean(medication);
         }

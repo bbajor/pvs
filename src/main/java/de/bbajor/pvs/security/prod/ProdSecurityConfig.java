@@ -6,17 +6,24 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategyConfiguration;
 import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
 
 import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
+import de.bbajor.pvs.security.mfa.MfaAuthenticationProvider;
+import de.bbajor.pvs.security.mfa.MfaService;
 import de.bbajor.pvs.security.prod.service.ProdUserDetailsService;
 
 /**
@@ -50,10 +57,17 @@ public class ProdSecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            UserAccountRepository userAccountRepository,
+            MfaService mfaService) throws Exception {
         // Configure API endpoints first
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/ai/**").permitAll());
+        
+        // Add MFA filter before Vaadin security
+        MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(userAccountRepository, mfaService);
+        http.addFilterBefore(mfaFilter, UsernamePasswordAuthenticationFilter.class);
         
         // Apply Vaadin security with standard login (no dev conveniences)
         return http
@@ -71,6 +85,22 @@ public class ProdSecurityConfig {
     @Bean
     UserDetailsService userDetailsService(UserAccountRepository userAccountRepository) {
         return new ProdUserDetailsService(userAccountRepository);
+    }
+
+    @Bean
+    MfaAuthenticationProvider mfaAuthenticationProvider(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder,
+            UserAccountRepository userAccountRepository,
+            MfaService mfaService) {
+        return new MfaAuthenticationProvider(userDetailsService, passwordEncoder, userAccountRepository, mfaService);
+    }
+
+    @Bean
+    AuthenticationManager authenticationManager(
+            AuthenticationConfiguration authConfig,
+            MfaAuthenticationProvider mfaAuthenticationProvider) throws Exception {
+        return new ProviderManager(mfaAuthenticationProvider);
     }
 }
 

@@ -76,6 +76,23 @@ services:
       - key: WHISPER_ENABLED
         value: "false"
         sync: false
+      # SMTP configuration for email sending (set via Render dashboard)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      # MFA issuer name
+      - key: MFA_ISSUER
+        value: "PVS"
+        sync: false
+      # Super-Admin initial password (optional - if not set, random password is generated)
+      - key: SUPER_ADMIN_INITIAL_PASSWORD
+        sync: false
     branch: main
     healthCheckPath: /actuator/health
     autoDeploy: false  # Manual deployment only

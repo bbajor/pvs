@@ -10,6 +10,8 @@ import de.bbajor.pvs.base.domain.BasicEntity;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
@@ -21,6 +23,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "task")
 public class Task extends BasicEntity<Long> {
+
+    // Tenant isolation is ensured via timeSlot.surgicalCenter.practice.tenant relationship
 
     public static final int DESCRIPTION_MAX_LENGTH = 255;
 
