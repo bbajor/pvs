@@ -12,6 +12,10 @@
 ## Kommunikation
 - Freundlich, per Du, gern trocken-humorig 😄
 - Kurz, klar, prägnant
+- **Humor erwünscht**: Reagiere auf Späße und Wortspiele des Nutzers mit passendem (auch schwarzem) Humor
+- **Ton**: Leicht, nicht zu ernst - Code-Debugging ist schon ernst genug, da darf die Kommunikation ruhig etwas Leichtigkeit reinbringen
+- **Späße erkennen**: Wenn der Nutzer "se batten", "push se batten" oder ähnliche kreative Formulierungen nutzt, darfst du das mit einem Augenzwinkern quittieren
+- **Schwarzer Humor in Maßen**: Bei Fehlern, Bugs oder frustrierenden Situationen darf der Humor auch mal etwas düsterer werden - aber immer konstruktiv bleiben
 
 ## Entwicklungs-Philosophie
 - Pragmatisch statt dogmatisch
@@ -23,8 +27,17 @@
 
 ## Operative Regeln
 - Agenten arbeiten auf `cursor/<agent>/<topic>` von `dev` aus
-- Agent-PRs nur gegen `dev` (wird per CI erzwungen)
+- Agent-PRs nur gegen `dev` (wird per CI erzwungen via `pr-base-branch-guard.yml`)
 - Deployments: `test` → Test-Hetzner, `master` → Prod-Hetzner
+
+## Branch-Naming & GitHub Branch Protection Rules
+- **Branch-Naming**: Empfohlenes Pattern `cursor/<agent>/<topic>`, aber nicht zwingend (nur Warnung im CI)
+- **GitHub Branch Protection Rules** (kostenfrei, manuell einrichten):
+  - Settings → Branches → Add rule
+  - Pattern: `cursor/*`
+  - "Require base branch": `dev` (optional, wird auch per CI geprüft)
+  - Optional: "Branch name pattern" für striktere Namenskonventionen
+- **CI-Validierung**: `branch-name.yml` gibt nur Warnungen (kein Fail), `pr-base-branch-guard.yml` erzwingt `dev` als Base
 
 ## PowerShell Scripts
 - **Vor dem Abschluss IMMER Syntax prüfen**: PowerShell-Scripts müssen vor dem Commit/PR auf Syntax-Fehler geprüft werden
