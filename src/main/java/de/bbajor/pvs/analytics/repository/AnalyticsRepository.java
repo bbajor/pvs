@@ -56,5 +56,9 @@ public interface AnalyticsRepository extends JpaRepository<Object, Long> {
         WHERE i.id = :institutionId
         """)
     List<de.bbajor.pvs.patient.model.Patient> findAllPatientsByInstitution(@Param("institutionId") Long institutionId);
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/dev
 }
 
