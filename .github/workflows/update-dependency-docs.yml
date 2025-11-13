@@ -1,0 +1,68 @@
+name: Update Dependency Documentation
+
+on:
+  pull_request:
+    branches: [ dev ]
+    paths:
+      - 'build.gradle'
+      - 'gradle.properties'
+      - 'settings.gradle'
+      - '.github/workflows/update-dependency-docs.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Generate dependency documentation
+        run: |
+          ./gradlew generateThirdPartyLicenses cyclonedxBom --no-daemon
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain THIRD-PARTY-LICENSES.md 2>/dev/null)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add THIRD-PARTY-LICENSES.md
+          git commit -m "docs: update dependency documentation (THIRD-PARTY-LICENSES.md)" || exit 0
+          git push || echo "No changes to commit or push failed"
+
+      - name: Comment on PR
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Dependency-Dokumentation wurde automatisch aktualisiert:\n- THIRD-PARTY-LICENSES.md\n\n**Hinweis:** Die SBOM (build/reports/sbom.json) wird bei jedem Build neu generiert und ist nicht im Repository gespeichert.'
+            })
+
