@@ -35,6 +35,25 @@ public class SmtpConfigService {
 
     public SmtpConfigService(SmtpConfigRepository smtpConfigRepository) {
         this.smtpConfigRepository = smtpConfigRepository;
+        
+        // Validate encryption key before initializing encryptor
+        if (ENCRYPTION_KEY == null || ENCRYPTION_KEY.isBlank()) {
+            String activeProfile = System.getProperty("spring.profiles.active", 
+                    System.getenv().getOrDefault("SPRING_PROFILES_ACTIVE", ""));
+            boolean isProduction = activeProfile.contains("prod") || 
+                    System.getenv("SPRING_PROFILES_ACTIVE") != null && 
+                    System.getenv("SPRING_PROFILES_ACTIVE").contains("prod");
+            
+            if (isProduction) {
+                throw new IllegalStateException(
+                    "SMTP_ENCRYPTION_KEY muss als Environment-Variable gesetzt sein. " +
+                    "Keine Secrets im Code erlaubt!"
+                );
+            }
+            // In dev/test, log warning but allow empty key (encryption will fail gracefully)
+            log.warn("SMTP_ENCRYPTION_KEY ist nicht gesetzt. SMTP-Verschlüsselung wird nicht funktionieren.");
+        }
+        
         // Initialize encryptor with key and salt
         // Encryptors.stronger() uses AES-256 and expects hex-encoded strings
         // Encryptors.standard() uses AES-128 (16-byte key), stronger() uses AES-256 (32-byte key)

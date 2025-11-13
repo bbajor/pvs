@@ -49,6 +49,13 @@ ai:
     local:
       enabled: ${WHISPER_ENABLED:false}
 
+# SMTP-Konfiguration für Production
+# KRITISCH: SMTP_ENCRYPTION_KEY MUSS als Environment-Variable gesetzt sein!
+# Keine Default-Werte in Production erlaubt!
+smtp:
+  encryption:
+    key: ${SMTP_ENCRYPTION_KEY}
+
 # SMTP configuration for email sending
 spring:
   mail:
@@ -70,4 +77,3 @@ spring:
 app:
   mfa:
     issuer: ${MFA_ISSUER:PVS}
-

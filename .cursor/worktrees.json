@@ -1,0 +1,30 @@
+{
+  "setup-worktree": [
+    "./gradlew build --no-daemon"
+  ],
+  "_comment": "Wichtige Hinweise für Multi-Agent-Worktrees:",
+  "_notes": {
+    "gradle": {
+      "daemon": "--no-daemon verhindert Konflikte zwischen mehreren Worktrees",
+      "cache": "Gradle-Cache wird geteilt (schneller), aber Build-Verzeichnisse sind isoliert"
+    },
+    "ports": {
+      "server": "Standard: 8080. Für parallele Worktrees unterschiedliche Ports via PORT-Env-Var setzen (z.B. PORT=8081, PORT=8082)",
+      "whisper": "Standard: 9000. Bei lokalem Whisper-Service auf Port-Konflikte achten"
+    },
+    "isolation": {
+      "build": "build/ und target/ sind pro Worktree isoliert",
+      "node_modules": "node_modules/ ist pro Worktree isoliert",
+      "database": "H2 in-memory DB ist pro Prozess isoliert (gut für parallele Tests)",
+      "gradle_cache": "Gradle-Cache (~/.gradle/caches) wird geteilt - kann bei gleichzeitigen Builds zu Konflikten führen"
+    },
+    "best_practices": [
+      "Jeder Agent sollte einen eigenen Branch verwenden (cursor/<agent>/<topic>)",
+      "Unterschiedliche Server-Ports pro Worktree setzen (PORT=8081, PORT=8082, etc.)",
+      "Bei lokalem Whisper: Port 9000 nur einmal verwenden oder unterschiedliche Ports",
+      "Regelmäßig pushen/pullen um Merge-Konflikte zu minimieren",
+      "Gradle-Builds können parallel laufen, aber --no-daemon ist wichtig"
+    ]
+  }
+}
+
