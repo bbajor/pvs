@@ -444,7 +444,7 @@ All dependencies have been reviewed and are suitable for commercial use. The lic
 ## Notes
 
 - This file is auto-generated during the build process
-- For the most up-to-date list including transitive dependencies, see `build/reports/sbom.json`
+- For the most up-to-date list including transitive dependencies, see `build/sbom.json`
 - All license texts are available in the respective library JAR files under `META-INF/LICENSE*`
 
 ---

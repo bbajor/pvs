@@ -169,17 +169,24 @@ src/test/java/de/bbajor/pvs/analytics/
 ```json
 {
   "dependencies": {
-    "echarts": "^5.4.0"
+    "echarts": "^5.4.3"
   }
 }
 ```
 
+**Hinweis:** `npm install` wird automatisch von Vaadin über die Gradle-Tasks ausgeführt:
+- `vaadinPrepareFrontend` (Dev-Mode) - läuft automatisch bei `./gradlew bootRun`
+- `vaadinBuildFrontend` (Production) - läuft automatisch bei `./gradlew build`
+- Konfiguriert in `application.yaml`: `vaadin.frontend.force-install: true`
+
+**Keine manuelle npm-Installation nötig!** 🎉
+
 ### 6. 🎯 Implementierungs-Schritte
 
 1. **Setup:**
-   - [ ] ECharts-Dependency hinzufügen (npm install)
-   - [ ] Vaadin JavaScript-Integration vorbereiten
-   - [ ] AnalyticsService-Skeleton erstellen
+   - [x] ECharts-Dependency hinzufügen (package.json) - wird automatisch via Gradle installiert
+   - [x] Vaadin JavaScript-Integration vorbereiten
+   - [x] AnalyticsService-Skeleton erstellen
 
 2. **Backend:**
    - [ ] AnalyticsService mit Datenaggregation implementieren
