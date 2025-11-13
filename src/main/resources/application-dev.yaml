@@ -34,3 +34,9 @@ ai:
     local:
       enabled: true
 
+# SMTP-Konfiguration für Development
+# In Dev kann optional ein Test-Schlüssel verwendet werden (nur lokal!)
+smtp:
+  encryption:
+    key: ${SMTP_ENCRYPTION_KEY:}
+

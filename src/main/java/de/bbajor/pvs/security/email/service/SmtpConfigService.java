@@ -35,6 +35,25 @@ public class SmtpConfigService {
 
     public SmtpConfigService(SmtpConfigRepository smtpConfigRepository) {
         this.smtpConfigRepository = smtpConfigRepository;
+        
+        // Validate encryption key before initializing encryptor
+        if (ENCRYPTION_KEY == null || ENCRYPTION_KEY.isBlank()) {
+            String activeProfile = System.getProperty("spring.profiles.active", 
+                    System.getenv().getOrDefault("SPRING_PROFILES_ACTIVE", ""));
+            boolean isProduction = activeProfile.contains("prod") || 
+                    System.getenv("SPRING_PROFILES_ACTIVE") != null && 
+                    System.getenv("SPRING_PROFILES_ACTIVE").contains("prod");
+            
+            if (isProduction) {
+                throw new IllegalStateException(
+                    "SMTP_ENCRYPTION_KEY muss als Environment-Variable gesetzt sein. " +
+                    "Keine Secrets im Code erlaubt!"
+                );
+            }
+            // In dev/test, log warning but allow empty key (encryption will fail gracefully)
+            log.warn("SMTP_ENCRYPTION_KEY ist nicht gesetzt. SMTP-Verschlüsselung wird nicht funktionieren.");
+        }
+        
         // Initialize encryptor with key and salt
         // Encryptors.stronger() uses AES-256 and expects hex-encoded strings
         // Encryptors.standard() uses AES-128 (16-byte key), stronger() uses AES-256 (32-byte key)
@@ -111,31 +130,49 @@ public class SmtpConfigService {
     }
 
     /**
-     * Gets the encryption key from environment variable or generates/uses a default.
-     * The key must be exactly 32 bytes for AES-256 (used by Encryptors.stronger()).
+     * Gets the encryption key from environment variable.
+     * The key must be 16, 24, or 32 bytes (AES-128, AES-192, or AES-256).
+     * 
+     * <p>In production, the key MUST be set via SMTP_ENCRYPTION_KEY environment variable.
+     * No default key is allowed for security reasons.</p>
+     * 
+     * @throws IllegalStateException if the key is not set (especially in production)
+     * @throws IllegalArgumentException if the key has an invalid length
      */
     private static String getEncryptionKey() {
         String envKey = System.getenv("SMTP_ENCRYPTION_KEY");
-        if (envKey != null && !envKey.isEmpty()) {
-            // Ensure it's exactly 32 bytes
-            byte[] keyBytes = envKey.getBytes(StandardCharsets.UTF_8);
-            if (keyBytes.length == 32) {
-                return envKey;
-            } else if (keyBytes.length < 32) {
-                // Pad with zeros if too short
-                byte[] padded = new byte[32];
-                System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
-                return new String(padded, StandardCharsets.UTF_8);
-            } else {
-                // Truncate if too long
-                return new String(keyBytes, 0, 32, StandardCharsets.UTF_8);
+        if (envKey == null || envKey.isBlank()) {
+            // Check if we're in production mode
+            String activeProfile = System.getProperty("spring.profiles.active", 
+                    System.getenv().getOrDefault("SPRING_PROFILES_ACTIVE", ""));
+            boolean isProduction = activeProfile.contains("prod") || 
+                    System.getenv("SPRING_PROFILES_ACTIVE") != null && 
+                    System.getenv("SPRING_PROFILES_ACTIVE").contains("prod");
+            
+            if (isProduction) {
+                throw new IllegalStateException(
+                    "SMTP_ENCRYPTION_KEY muss als Environment-Variable gesetzt sein. " +
+                    "Keine Secrets im Code erlaubt!"
+                );
             }
+            
+            // In dev/test, we allow empty key but log a warning
+            log.warn("SMTP_ENCRYPTION_KEY ist nicht gesetzt. " +
+                    "SMTP-Verschlüsselung wird nicht funktionieren. " +
+                    "Setze SMTP_ENCRYPTION_KEY als Environment-Variable.");
+            return ""; // Return empty string, encryption will fail gracefully
         }
         
-        // Default key - MUST be exactly 32 bytes for AES-256
-        // In production, this should be set via SMTP_ENCRYPTION_KEY environment variable
-        // WARNING: Changing this key will make existing encrypted data unreadable!
-        return "default-smtp-encryption-key-32!!"; // Exactly 32 characters
+        // Validate key length: must be 16, 24, or 32 bytes (AES-128/192/256)
+        byte[] keyBytes = envKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length != 16 && keyBytes.length != 24 && keyBytes.length != 32) {
+            throw new IllegalArgumentException(
+                "SMTP_ENCRYPTION_KEY muss 16, 24 oder 32 Bytes lang sein (AES-128/192/256). " +
+                "Aktuelle Länge: " + keyBytes.length + " Bytes"
+            );
+        }
+        
+        return envKey;
     }
 
     /**
