@@ -1,6 +1,7 @@
 package de.bbajor.pvs.analytics.service;
 
 import de.bbajor.pvs.analytics.dto.AgeGroupStatistics;
+import de.bbajor.pvs.analytics.dto.AnalyticsData;
 import de.bbajor.pvs.analytics.dto.InsuranceStatistics;
 import de.bbajor.pvs.analytics.dto.MedicationStatistics;
 import de.bbajor.pvs.analytics.dto.TreatmentStatistics;
