@@ -19,6 +19,8 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
@@ -28,8 +30,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
+import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.intravitreal.treatment.ui.NextTreatmentBookingDialog;
+import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
@@ -37,6 +43,7 @@ import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
+import org.springframework.context.ApplicationContext;
 
 public class TaskReviewDialog extends Dialog {
 
@@ -50,20 +57,28 @@ public class TaskReviewDialog extends Dialog {
     private AuthenticationContext authenticationContext;
     private TreatmentReportService reportService;
     private UserAccountRepository userAccountRepository;
+    private ApplicationContext applicationContext;
+    private TreatmentPlanPresenter treatmentPlanPresenter;
 
     private VerticalLayout mainContent;
     private VerticalLayout overviewLayout;
     private VerticalLayout detailLayout;
+    
+    // Track which treatments have follow-up bookings for visual feedback
+    private java.util.Set<Long> treatmentsWithFollowUpBooking = new java.util.HashSet<>();
 
     public TaskReviewDialog(Task task, TreatmentRepository treatmentRepository, TaskService taskService,
             AuthenticationContext authenticationContext, TreatmentReportService reportService,
-            UserAccountRepository userAccountRepository) {
+            UserAccountRepository userAccountRepository, ApplicationContext applicationContext,
+            TreatmentPlanPresenter treatmentPlanPresenter) {
         this.task = task;
         this.treatmentRepository = treatmentRepository;
         this.taskService = taskService;
         this.authenticationContext = authenticationContext;
         this.reportService = reportService;
         this.userAccountRepository = userAccountRepository;
+        this.applicationContext = applicationContext;
+        this.treatmentPlanPresenter = treatmentPlanPresenter;
 
         ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
@@ -217,6 +232,29 @@ public class TaskReviewDialog extends Dialog {
         
         detailLayout.add(infoLayout);
         
+        // Patient appeared checkbox
+        Checkbox patientAppearedCheckbox = new Checkbox("Patient ist zum Termin erschienen");
+        patientAppearedCheckbox.setValue(treatment.getPatientAppeared() != null ? treatment.getPatientAppeared() : true);
+        patientAppearedCheckbox.addValueChangeListener(e -> {
+            try {
+                taskService.updateTreatmentPatientAppeared(treatment.getId(), e.getValue());
+                treatment.setPatientAppeared(e.getValue());
+                Notification.show("Status aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
+            } catch (Exception ex) {
+                log.error("Fehler beim Aktualisieren des Patient-Erschienen-Status", ex);
+                Notification errorNotification = new Notification(
+                    "Fehler beim Aktualisieren: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+                // Reset checkbox to previous value
+                patientAppearedCheckbox.setValue(!e.getValue());
+            }
+        });
+        detailLayout.add(patientAppearedCheckbox);
+        
         // Additional info input
         TextArea additionalInfoField = new TextArea("Zusätzliche Informationen");
         additionalInfoField.setWidthFull();
@@ -327,7 +365,33 @@ public class TaskReviewDialog extends Dialog {
             approveSecond.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen genehmigen");
         }
         
-        buttonLayout.add(backToOverview, prevButton, nextButton, approveSelected, approveSecond);
+        // Follow-up booking button
+        Button followUpBookingButton = new Button("Folgetermin planen", VaadinIcon.CALENDAR.create(), e -> {
+            openFollowUpBookingDialog(treatment, index);
+        });
+        followUpBookingButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        
+        // Check if follow-up booking is possible
+        boolean canBookFollowUp = false;
+        try {
+            canBookFollowUp = taskService.canBookFollowUpTreatment(treatment.getId());
+        } catch (Exception ex) {
+            log.warn("Fehler beim Prüfen der Folgetermin-Buchungsmöglichkeit", ex);
+        }
+        followUpBookingButton.setEnabled(canBookFollowUp && !task.isCompleted());
+        if (!canBookFollowUp) {
+            followUpBookingButton.setTooltipText("Folgetermin kann nur gebucht werden, wenn der Task noch offen ist und noch keine Folgebuchung existiert");
+        }
+        
+        // Visual indicator if follow-up was already booked
+        if (treatmentsWithFollowUpBooking.contains(treatment.getId())) {
+            followUpBookingButton.setIcon(VaadinIcon.CHECK_CIRCLE.create());
+            followUpBookingButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+            followUpBookingButton.setText("Folgetermin gebucht");
+            followUpBookingButton.setEnabled(false);
+        }
+        
+        buttonLayout.add(backToOverview, prevButton, nextButton, approveSelected, approveSecond, followUpBookingButton);
         detailLayout.add(buttonLayout);
         
         mainContent.add(detailLayout);
@@ -335,6 +399,119 @@ public class TaskReviewDialog extends Dialog {
 
     private void saveAdditionalInfo(Treatment treatment, String additionalInfo) {
         taskService.updateTreatmentAdditionalInfo(treatment.getId(), additionalInfo);
+    }
+    
+    private void openFollowUpBookingDialog(Treatment treatment, int index) {
+        try {
+            ensureInstitutionContext();
+            
+            // Check if there's already a follow-up treatment
+            Treatment existingFollowUp = taskService.findExistingFollowUpTreatment(treatment.getId());
+            
+            if (existingFollowUp != null) {
+                // Show confirmation dialog to ask if user wants to adjust the existing appointment
+                ConfirmDialog confirmDialog = new ConfirmDialog();
+                confirmDialog.setHeader("Folgetermin bereits vorhanden");
+                confirmDialog.setText(
+                    "Für diese Behandlung existiert bereits ein Folgetermin am " +
+                    (existingFollowUp.getDate() != null ? 
+                        existingFollowUp.getDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")) : 
+                        "unbekanntem Datum") +
+                    ". Möchten Sie diesen Termin anpassen?"
+                );
+                confirmDialog.setConfirmText("Termin anpassen");
+                confirmDialog.setCancelText("Abbrechen");
+                confirmDialog.setCancelable(true);
+                
+                confirmDialog.addConfirmListener(e -> {
+                    // Open existing treatment in treatment plan view for editing
+                    // This would require navigation to the treatment plan detail view
+                    // For now, we'll show a notification that this feature needs to be implemented
+                    Notification.show(
+                        "Termin-Anpassung: Bitte öffnen Sie den Behandlungsplan im Ivom-Planer, um den Termin anzupassen.",
+                        5000,
+                        Notification.Position.MIDDLE
+                    );
+                });
+                
+                confirmDialog.open();
+                return;
+            }
+            
+            // Check if follow-up booking is still possible
+            if (!taskService.canBookFollowUpTreatment(treatment.getId())) {
+                Notification errorNotification = new Notification(
+                    "Folgetermin kann nicht gebucht werden. Der Task ist möglicherweise bereits abgeschlossen oder es existiert bereits ein Folgetermin.",
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+                return;
+            }
+            
+            // Get treatment plan and side of eye
+            TreatmentPlan treatmentPlan = treatment.getTreatmentPlan();
+            if (treatmentPlan == null) {
+                Notification errorNotification = new Notification(
+                    "Behandlung hat keinen Behandlungsplan.",
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+                return;
+            }
+            
+            SideOfEye sideOfEye = treatment.getSideOfEye();
+            if (sideOfEye == null) {
+                Notification errorNotification = new Notification(
+                    "Behandlung hat kein Auge zugewiesen.",
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+                return;
+            }
+            
+            // Open NextTreatmentBookingDialog
+            NextTreatmentBookingDialog bookingDialog = new NextTreatmentBookingDialog(
+                treatmentPlan,
+                sideOfEye,
+                applicationContext,
+                treatmentPlanPresenter,
+                newTreatment -> {
+                    // Callback after successful booking
+                    treatmentsWithFollowUpBooking.add(treatment.getId());
+                    Notification successNotification = new Notification(
+                        "Folgetermin erfolgreich gebucht",
+                        3000,
+                        Notification.Position.BOTTOM_CENTER
+                    );
+                    successNotification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    successNotification.open();
+                    
+                    // Reload treatments to get the new follow-up treatment
+                    reloadTreatments();
+                    
+                    // Refresh the current view to show the green icon
+                    showTreatmentDetail(index);
+                }
+            );
+            
+            bookingDialog.open();
+            
+        } catch (Exception ex) {
+            log.error("Fehler beim Öffnen des Folgetermin-Buchungsdialogs", ex);
+            Notification errorNotification = new Notification(
+                "Fehler beim Öffnen des Folgetermin-Buchungsdialogs: " + ex.getMessage(),
+                5000,
+                Notification.Position.MIDDLE
+            );
+            errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            errorNotification.open();
+        }
     }
     
     /**
