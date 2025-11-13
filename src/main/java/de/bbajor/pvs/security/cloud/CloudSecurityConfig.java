@@ -4,11 +4,13 @@ import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
 import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
 import de.bbajor.pvs.security.mfa.MfaAuthenticationProvider;
 import de.bbajor.pvs.security.mfa.MfaService;
-import de.bbajor.pvs.security.prod.ProdUserDetailsService;
+import de.bbajor.pvs.security.prod.service.ProdUserDetailsService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProfile;
+
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -131,4 +133,6 @@ public class CloudSecurityConfig {
         return authConfig.getAuthenticationManager();
     }
 }
+
+
 
