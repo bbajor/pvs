@@ -17,116 +17,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check for license-problematic software
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check dependency licenses
         id: license-check
         run: |
-          echo "🔍 Prüfe Code auf lizenzrechtlich problematische Software..."
-          
-          ISSUES_FOUND=0
-          WARNINGS=()
-          ERRORS=()
-          
-          # Prüfe auf Docker Desktop (kommerzielle Lizenz)
-          if grep -r -i "docker desktop" . --include="*.md" --include="*.yml" --include="*.yaml" --include="*.txt" --include="*.sh" --include="*.ps1" 2>/dev/null | grep -v ".git" | grep -v "node_modules" | grep -v "LICENSE" | grep -v "license-check" | grep -v "PODMAN"; then
-            ERRORS+=("⚠️  Docker Desktop Referenzen gefunden - kommerzielle Lizenz erforderlich!")
-            ISSUES_FOUND=1
-          fi
-          
-          # Prüfe auf Docker-CLI ohne Podman-Alternative
-          DOCKER_REFS=$(grep -r -i "\bdocker\b" . --include="*.md" --include="*.yml" --include="*.yaml" --include="*.sh" --include="*.ps1" --include="*.java" --include="*.properties" --include="*.yaml" 2>/dev/null | grep -v ".git" | grep -v "node_modules" | grep -v "LICENSE" | grep -v "license-check" | grep -v "podman" | grep -v "Dockerfile" | wc -l)
-          
-          if [ "$DOCKER_REFS" -gt 5 ]; then
-            WARNINGS+=("⚠️  Mehrere Docker-Referenzen gefunden - prüfe ob Podman-Alternative verfügbar ist")
-          fi
-          
-          # Prüfe auf bekannte problematische Software
-          PROBLEMATIC_SOFTWARE=(
-            "docker desktop"
-            "docker desktop enterprise"
-            "docker enterprise"
-            "docker hub pro"
-            "docker desktop business"
-          )
-          
-          for software in "${PROBLEMATIC_SOFTWARE[@]}"; do
-            if grep -r -i "$software" . --include="*.md" --include="*.yml" --include="*.yaml" --include="*.txt" --include="*.sh" --include="*.ps1" 2>/dev/null | grep -v ".git" | grep -v "node_modules" | grep -v "LICENSE" | grep -v "license-check" | grep -v "PODMAN" > /dev/null; then
-              ERRORS+=("❌ Problematische Software gefunden: $software (kommerzielle Lizenz erforderlich)")
-              ISSUES_FOUND=1
-            fi
-          done
-          
-          # Prüfe auf Docker-Referenzen in Code ohne Podman-Fallback
-          if grep -r "docker\." . --include="*.java" --include="*.properties" 2>/dev/null | grep -v ".git" | grep -v "node_modules" | grep -v "Podman" | grep -v "podman" > /dev/null; then
-            WARNINGS+=("⚠️  Docker-Referenzen in Code gefunden - prüfe ob Podman-Fallback vorhanden ist")
-          fi
-          
-          # Prüfe auf Docker-compose ohne podman-compose Alternative
-          if grep -r "docker-compose" . --include="*.yml" --include="*.yaml" --include="*.sh" --include="*.ps1" 2>/dev/null | grep -v ".git" | grep -v "node_modules" | grep -v "podman-compose" | grep -v "podman compose" | grep -v "PODMAN" > /dev/null; then
-            WARNINGS+=("⚠️  docker-compose Referenzen gefunden ohne podman-compose Alternative")
-          fi
-          
-          # Zusammenfassung ausgeben
-          echo "## 📋 Lizenzprüfung - Zusammenfassung" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ $ISSUES_FOUND -eq 0 ] && [ ${#WARNINGS[@]} -eq 0 ]; then
-            echo "✅ Keine lizenzrechtlich problematischen Referenzen gefunden" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Keine lizenzrechtlich problematischen Referenzen gefunden"
-            exit 0
-          fi
-          
-          if [ ${#ERRORS[@]} -gt 0 ]; then
-            echo "## ❌ Fehler gefunden:" >> $GITHUB_STEP_SUMMARY
-            for error in "${ERRORS[@]}"; do
-              echo "- $error" >> $GITHUB_STEP_SUMMARY
-              echo "$error"
-            done
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ ${#WARNINGS[@]} -gt 0 ]; then
-            echo "## ⚠️  Warnungen:" >> $GITHUB_STEP_SUMMARY
-            for warning in "${WARNINGS[@]}"; do
-              echo "- $warning" >> $GITHUB_STEP_SUMMARY
-              echo "$warning"
-            done
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "## 📝 Empfehlungen:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Verwende Podman statt Docker Desktop (Apache 2.0, keine kommerziellen Einschränkungen)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Prüfe alle Docker-Referenzen auf Podman-Alternativen" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Dokumentiere alle verwendeten Software-Lizenzen" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Exit-Code basierend auf Fehlern
-          if [ ${#ERRORS[@]} -gt 0 ]; then
-            echo "::error::Lizenzrechtlich problematische Software gefunden!"
-            exit 1
-          fi
-          
-          exit 0
+          node .github/scripts/check-dependency-licenses.js
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Comment PR with results
-        if: github.event_name == 'pull_request' && (steps.license-check.outcome == 'failure' || steps.license-check.outcome == 'success')
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+            const path = require('path');
             
-            let comment = '## 🔍 Lizenzprüfung\n\n';
+            const summaryPath = path.join(process.env.GITHUB_WORKSPACE, '.github', 'license-check-results.md');
+            
+            let comment = '## 🔍 Dependency-Lizenzprüfung\n\n';
             
             if (fs.existsSync(summaryPath)) {
               const summary = fs.readFileSync(summaryPath, 'utf8');
               comment += summary;
             } else {
-              comment += '✅ Keine lizenzrechtlich problematischen Referenzen gefunden\n\n';
+              comment += '✅ Keine problematischen Lizenzen gefunden\n\n';
             }
             
             comment += '\n---\n';
-            comment += '**Hinweis:** Diese Prüfung sucht nach Software mit kommerziellen Lizenzanforderungen.\n';
-            comment += 'Empfohlen: Verwende Podman statt Docker Desktop (Apache 2.0, keine kommerziellen Einschränkungen).\n';
+            comment += '**Hinweis:** Diese Prüfung analysiert alle Dependencies in `build.gradle` und prüft deren Lizenzen.\n';
+            comment += 'Nur Dependencies mit kommerziellen Lizenzen oder Lizenzen, die kommerzielle Nutzung verbieten, werden als problematisch markiert.\n';
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -134,4 +58,10 @@ jobs:
               repo: context.repo.repo,
               body: comment
             });
+
+      - name: Fail on errors
+        if: steps.license-check.outputs.exit_code != '0'
+        run: |
+          echo "::error::Problematische Lizenzen in Dependencies gefunden!"
+          exit 1
 
