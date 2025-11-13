@@ -204,6 +204,25 @@ services:
     profiles:
       - prod
 
+  # Redis für Session-Storage (Cloud)
+  redis:
+    image: redis:7-alpine
+    container_name: pvs-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+    networks:
+      - pvs-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - cloud
+      - prod
+
   # Traefik Reverse Proxy mit SSL
   traefik:
     image: traefik:v2.11
@@ -239,12 +258,14 @@ networks:
   pvs-network:
     driver: bridge
 
-volumes:
+  volumes:
   postgres-data-dev:
     driver: local
   postgres-data-test:
     driver: local
   postgres-data-prod:
+    driver: local
+  redis-data:
     driver: local
   letsencrypt:
     driver: local

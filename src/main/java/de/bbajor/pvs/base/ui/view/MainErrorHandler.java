@@ -18,13 +18,17 @@ class MainErrorHandler {
     public VaadinServiceInitListener errorHandlerInitializer() {
         return (event) -> event.getSource().addSessionInitListener(
                 sessionInitEvent -> sessionInitEvent.getSession().setErrorHandler(errorEvent -> {
-                    log.error("An unexpected error occurred", errorEvent.getThrowable());
+                    Throwable throwable = errorEvent.getThrowable();
+                    // Log error without PII (DSGVO compliance)
+                    log.error("An unexpected error occurred: {}", throwable.getMessage(), throwable);
+                    
                     errorEvent.getComponent().flatMap(Component::getUI).ifPresent(ui -> {
+                        // DSGVO-compliant error message (no PII, no technical details)
                         var notification = new Notification(
-                                "An unexpected error has occurred. Please try again later.");
+                                "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie den Administrator.");
                         notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                         notification.setPosition(Notification.Position.TOP_CENTER);
-                        notification.setDuration(3000);
+                        notification.setDuration(5000);
                         ui.access(notification::open);
                     });
                 }));

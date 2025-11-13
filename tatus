@@ -1,0 +1,384 @@
+[33m5cdadee[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcursor/auto/issue-87-follow-up-booking[m[33m, [m[1;31morigin/cursor/auto/issue-87-follow-up-booking[m[33m)[m Update THIRD-PARTY-LICENSES.md with new timestamps and correct path for SBOM report
+[33m49bc340[m revert: Application.java Analytics-Änderung entfernt - gehört zu PR #89
+[33mb276d84[m fix: AnalyticsRepository zu @EnableJpaRepositories hinzugefügt
+[33m7ae3ee7[m fix: Vaadin Import-Fehler behoben
+[33med4e615[m feat: Folgebehandlung aus Prüfmodul heraus buchen (Issue #87)
+[33mba506e7[m[33m ([m[1;32mdev[m[33m)[m Merge pull request #86 from bbajor/feature/dependency-documentation
+[33m4d495d9[m[33m ([m[1;32mfeature/dependency-documentation[m[33m)[m feat: add dependency documentation (THIRD-PARTY-LICENSES.md, SBOM generation)
+[33m92de046[m Merge pull request #85 from bbajor/dependabot/maven/org.apache.ant-ant-1.10.11
+[33mac59344[m chore(deps): bump org.apache.ant:ant from 1.10.6 to 1.10.11
+[33m9c0558d[m Merge pull request #84 from bbajor/cursor/worktree-config
+[33m4d7c2d3[m[33m ([m[1;32mcursor/worktree-config[m[33m)[m Add Cursor worktree configuration for multi-agent development
+[33mcb2b46c[m Merge pull request #81 from bbajor/cursor/license-validator-improvement
+[33m266a75e[m Merge pull request #82 from bbajor/cursor/branch-naming-improvement
+[33mf6ecfdd[m[33m ([m[1;32mcursor/branch-naming-improvement[m[33m)[m Branch-Naming: Workflow gelockert, nur noch Warnungen
+[33m615e141[m[33m ([m[1;32mcursor/license-validator-improvement[m[33m)[m Cursor Rules: Humor & schwarzer Humor in Kommunikation erlaubt
+[33m470efe2[m License-Validatoren: build.gradle Dependency-Prüfung statt Docker-Keyword-Suche
+[33mfc329a2[m[33m ([m[1;32mfeat-prepare-for-cloud-aR4QN[m[33m, [m[1;32mfeat-cloud-prep-cfPqY[m[33m, [m[1;32mfeat-cloud-migrate-issues-nciIi[m[33m, [m[1;32m2025-11-12-44en-qq4dN[m[33m)[m Merge pull request #80 from bbajor/cursor/bugfix/ui-improvements-and-features
+[33m4451249[m[33m ([m[1;32mcursor/bugfix/ui-improvements-and-features[m[33m)[m Enhance UI styling and functionality across various components. Updated dev-login.css for improved layout and hover effects. Added business app styling to buttons and forms in multiple views. Implemented role-based access checks in HelpView. Enhanced TreatmentPlan repository with search functionality. Improved user experience in PatientForm and PatientMainView with better validation and display. Refactored grid components for cleaner presentation in SurgicalCenterMainView and UserSettingsTab. Overall, these changes aim to provide a more cohesive and visually appealing user interface.
+[33m8c38aa9[m fixed institutioncontext issue for usersettingstab
+[33med1ed21[m[33m ([m[1;32mcursor/institution-context-analysis-and-setup-0879[m[33m)[m Merge remote: Use JOIN FETCH solution for LazyInitializationException
+[33m9ffa1cf[m Fix LazyInitializationException in UserSettingsTab by eagerly fetching preferredLocation
+[33m5a01b4e[m Fix: Handle LazyInitializationException for preferredLocation in UserSettingsTab
+[33m44b094d[m checkpoint before checking out cursor/institution-context-analysis-and-setup-0879
+[33m6a2fc0f[m Refactor: Ensure InstitutionContext is set for all operations
+[33mc2d43cf[m WIP: UI-Updates für Treatment Plan, Appointment Calendar und Scheduler Management
+[33m48deb75[m[33m ([m[1;32mcursor/analyze-branch-for-cloud-multi-tenancy-and-data-integration-53bf[m[33m)[m Merge pull request #46 from bbajor/cursor/update-cursor-rules-with-tdd-1c70
+[33mf925200[m Add test-driven development to documentation
+[33mcde54c7[m Merge pull request #44 from bbajor/cursor/institution-specific-medication-favorites-management-6381
+[33m50d36ff[m[33m ([m[1;32mcursor/institution-specific-medication-favorites-management-6381[m[33m)[m feat: Medikamentendatenbank-Verwaltung und Institution-Kontext-Fixes
+[33mb891e7f[m Refactor: Introduce MedicationFavourite entity and service
+[33m8f3cf83[m Merge pull request #43 from bbajor/cursor/fix-pgp-signature-recognition-in-recovery-emails-f50a
+[33m122e39c[m Refactor: Use PGPainless for encryption and signing
+[33m6566a3f[m Merge pull request #42 from bbajor/cursor/implement-mfa-for-super-admins-fb31
+[33mc64ac10[m[33m ([m[1;31morigin/cursor/implement-mfa-for-super-admins-fb31[m[33m, [m[1;32mcursor/implement-mfa-for-super-admins-fb31[m[33m)[m feat: E-Mail-VerschlÃ¼sselung mit OpenPGP, S/MIME und Klartext-Option
+[33mbc9c9f6[m Merge dev branch: Integrate institution/location/appointment features with MFA support
+[33m3cd4026[m Add practice repository and model to component scan
+[33mb1921e1[m Add AI and security domain packages to component scan
+[33m1bb7b78[m Refactor: Use preferredUsername and add mail dependency
+[33m7635a7c[m feat: Implement MFA and initial password setup
+[33m57c8845[m Merge pull request #38 from bbajor/cursor/auto/podman-migration
+[33m07270a0[m[33m ([m[1;32mcursor/auto/podman-migration[m[33m)[m edited migration scripts. now podman compose works for dev local. also improved reporting funcionality and fixed several smaller issues
+[33m7ffa063[m feat: Allow ADMIN to view TaskListView and generate reports, but disable approval buttons
+[33m3cce3fa[m Merge pull request #37 from bbajor/cursor/auto/podman-migration
+[33m7fac95a[m Refactor Dockerfile and Gradle build configuration for Vaadin compatibility; update TaskReviewDialog to use DownloadHandler for PDF downloads. Added comments for clarity on dependency management and deprecated API usage in InstitutionAuthenticationFilter.
+[33mc302166[m refactor: Optimize build.gradle for better configuration cache compatibility
+[33m7793d8b[m fix: Replace doFirst closure with inputs.files for configuration cache compatibility
+[33m045619b[m fix: Resolve circular dependency between classes and vaadinPrepareFrontend
+[33mfb74146[m fix: Ensure classes task and runtime dependencies available for vaadinPrepareFrontend
+[33mcf0bf93[m fix: Dockerfile - ensure compileJava runs before vaadinBuildFrontend
+[33m3a0d132[m fix: Podman Windows - Warnung vor docker-compose.exe und bevorzuge podman-compose
+[33mab77de8[m podman deployment
+[33mc473516[m fix: Institution isolation in LocationService methods
+[33m898e29c[m fix: Institution context validation in approveTreatment method
+[33mc3cfc7a[m feat: VollstÃ¤ndige Migration auf Podman - Docker-Referenzen entfernt
+[33m5cbbaa3[m Merge pull request #33 from bbajor/cursor/auto/settings-restructure
+[33mbfceebb[m[33m ([m[1;32mcursor/auto/settings-restructure[m[33m)[m Added Multi-User mode and reorganized role-/access-rights. Also edited backend model.
+[33m1f90682[m feat: Restructure settings tabs and add institution-based task filtering
+[33m125268d[m[33m ([m[1;32mcursor/fix/practice-tenant-null[m[33m)[m Fix: Tenant automatisch bei Practice-Erstellung setzen
+[33m1daca09[m Merge pull request #32 from bbajor/cursor/integrate-multi-tenancy-into-calendar-c303
+[33mce86585[m feat: Integrate multi-tenancy for appointments and schedulers
+[33m64074fe[m Merge pull request #31 from bbajor/cursor/start-multi-tenancy-implementation-e903
+[33mf72c854[m feat: Implement multi-tenancy with data isolation and 3-factor login
+[33m424b899[m docs: Add Phase 3 feature planning document
+[33md6e28cc[m feat: Implement multi-tenancy with repository and service layer isolation
+[33m14400f9[m feat: Implement multi-tenancy support
+[33mfff7ef0[m Merge pull request #29 from bbajor/cursor/respond-to-github-pr-comment-629f
+[33m7b908f1[m feat: Implement appointment scheduling module and UI
+[33m0691d33[m feat: Implement appointment scheduling module
+[33mf6a27fe[m Merge pull request #27 from bbajor/cursor/organize-security-hardening-tasks-for-agents-84eb
+[33m84ad944[m[33m ([m[1;32mcursor/organize-security-hardening-tasks-for-agents-84eb[m[33m)[m Merge branch 'cursor/organize-security-hardening-tasks-for-agents-84eb' of https://github.com/bbajor/pvs into cursor/organize-security-hardening-tasks-for-agents-84eb
+[33m606b356[m Merge branch 'dev' into cursor/organize
+                   SSUUMMMMAARRYY OOFF LLEESSSS CCOOMMMMAANNDDSS
+
+      Commands marked with * may be preceded by a number, _N.
+      Notes in parentheses indicate the behavior if _N is given.
+      A key preceded by a caret indicates the Ctrl key; thus ^K is ctrl-K.
+
+  h  H                 Display this help.
+  q  :q  Q  :Q  ZZ     Exit.
+ ---------------------------------------------------------------------------
+
+                           MMOOVVIINNGG
+
+  e  ^E  j  ^N  CR  *  Forward  one line   (or _N lines).
+  y  ^Y  k  ^K  ^P  *  Backward one line   (or _N lines).
+  f  ^F  ^V  SPACE  *  Forward  one window (or _N lines).
+  b  ^B  ESC-v      *  Backward one window (or _N lines).
+  z                 *  Forward  one window (and set window to _N).
+  w                 *  Backward one window (and set window to _N).
+  ESC-SPACE         *  Forward  one window, but don't stop at end-of-file.
+  d  ^D             *  Forward  one half-window (and set half-window to _N).
+  u  ^U             *  Backward one half-window (and set half-window to _N).
+  ESC-)  RightArrow *  Right one half screen width (or _N positions).
+  ESC-(  LeftArrow  *  Left  one half screen width (or _N positions).
+  ESC-}  ^RightArrow   Right to last column displayed.
+  ESC-{  ^LeftArrow    Left  to first column.
+  F                    Forward forever; like "tail -f".
+  ESC-F                Like F but stop when search pattern is found.
+  r  ^R  ^L            Repaint screen.
+  R                    Repaint screen, discarding buffered input.
+        ---------------------------------------------------
+        Default "window" is the screen height.
+        Default "half-window" is half of the screen height.
+ ---------------------------------------------------------------------------
+
+                          SSEEAARRCCHHIINNGG
+
+  /_p_a_t_t_e_r_n          *  Search forward for (_N-th) matching line.
+  ?_p_a_t_t_e_r_n          *  Search backward for (_N-th) matching line.
+  n                 *  Repeat previous search (for _N-th occurrence).
+  N                 *  Repeat previous search in reverse direction.
+  ESC-n             *  Repeat previous search, spanning files.
+  ESC-N             *  Repeat previous search, reverse dir. & spanning files.
+  ^O^N  ^On         *  Search forward for (_N-th) OSC8 hyperlink.
+  ^O^P  ^Op         *  Search backward for (_N-th) OSC8 hyperlink.
+  ^O^L  ^Ol            Jump to the currently selected OSC8 hyperlink.
+  ESC-u                Undo (toggle) search highlighting.
+  ESC-U                Clear search highlighting.
+  &_p_a_t_t_e_r_n          *  Display only matching lines.
+        ---------------------------------------------------
+        A search pattern may begin with one or more of:
+        ^N or !  Search for NON-matching lines.
+        ^E or *  Search multiple files (pass thru END OF FILE).
+        ^F or @  Start search at FIRST file (for /) or last file (for ?).
+        ^K       Highlight matches, but don't move (KEEP position).
+        ^R       Don't use REGULAR EXPRESSIONS.
+        ^S _n     Search for match in _n-th parenthesized subpattern.
+        ^W       WRAP search if no match found.
+        ^L       Enter next character literally into pattern.
+ ---------------------------------------------------------------------------
+
+                           JJUUMMPPIINNGG
+
+  g  <  ESC-<       *  Go to first line in file (or line _N).
+  G  >  ESC->       *  Go to last line in file (or line _N).
+  p  %              *  Go to beginning of file (or _N percent into file).
+  t                 *  Go to the (_N-th) next tag.
+  T                 *  Go to the (_N-th) previous tag.
+  {  (  [           *  Find close bracket } ) ].
+  }  )  ]           *  Find open bracket { ( [.
+  ESC-^F _<_c_1_> _<_c_2_>  *  Find close bracket _<_c_2_>.
+  ESC-^B _<_c_1_> _<_c_2_>  *  Find open bracket _<_c_1_>.
+        ---------------------------------------------------
+        Each "find close bracket" command goes forward to the close bracket 
+          matching the (_N-th) open bracket in the top line.
+        Each "find open bracket" command goes backward to the open bracket 
+          matching the (_N-th) close bracket in the bottom line.
+
+  m_<_l_e_t_t_e_r_>            Mark the current top line with <letter>.
+  M_<_l_e_t_t_e_r_>            Mark the current bottom line with <letter>.
+  '_<_l_e_t_t_e_r_>            Go to a previously marked position.
+  ''                   Go to the previous position.
+  ^X^X                 Same as '.
+  ESC-m_<_l_e_t_t_e_r_>        Clear a mark.
+        ---------------------------------------------------
+        A mark is any upper-case or lower-case letter.
+        Certain marks are predefined:
+             ^  means  beginning of the file
+             $  means  end of the file
+ ---------------------------------------------------------------------------
+
+                        CCHHAANNGGIINNGG FFIILLEESS
+
+  :e [_f_i_l_e]            Examine a new file.
+  ^X^V                 Same as :e.
+  :n                *  Examine the (_N-th) next file from the command line.
+  :p                *  Examine the (_N-th) previous file from the command line.
+  :x                *  Examine the first (or _N-th) file from the command line.
+  ^O^O                 Open the currently selected OSC8 hyperlink.
+  :d                   Delete the current file from the command line list.
+  =  ^G  :f            Print current file name.
+ ---------------------------------------------------------------------------
+
+                    MMIISSCCEELLLLAANNEEOOUUSS CCOOMMMMAANNDDSS
+
+  -_<_f_l_a_g_>              Toggle a command line option [see OPTIONS below].
+  --_<_n_a_m_e_>             Toggle a command line option, by name.
+  __<_f_l_a_g_>              Display the setting of a command line option.
+  ___<_n_a_m_e_>             Display the setting of an option, by name.
+  +_c_m_d                 Execute the less cmd each time a new file is examined.
+
+  !_c_o_m_m_a_n_d             Execute the shell command with $SHELL.
+  #_c_o_m_m_a_n_d             Execute the shell command, expanded like a prompt.
+  |XX_c_o_m_m_a_n_d            Pipe file between current pos & mark XX to shell command.
+  s _f_i_l_e               Save input to a file.
+  v                    Edit the current file with $VISUAL or $EDITOR.
+  V                    Print version number of "less".
+ ---------------------------------------------------------------------------
+
+                           OOPPTTIIOONNSS
+
+        Most options may be changed either on the command line,
+        or from within less by using the - or -- command.
+        Options may be given in one of two forms: either a single
+        character preceded by a -, or a name preceded by --.
+
+  -?  ........  --help
+                  Display help (from command line).
+  -a  ........  --search-skip-screen
+                  Search skips current screen.
+  -A  ........  --SEARCH-SKIP-SCREEN
+                  Search starts just after target line.
+  -b [_N]  ....  --buffers=[_N]
+                  Number of buffers.
+  -B  ........  --auto-buffers
+                  Don't automatically allocate buffers for pipes.
+  -c  ........  --clear-screen
+                  Repaint by clearing rather than scrolling.
+  -d  ........  --dumb
+                  Dumb terminal.
+  -D xx_c_o_l_o_r  .  --color=xx_c_o_l_o_r
+                  Set screen colors.
+  -e  -E  ....  --quit-at-eof  --QUIT-AT-EOF
+                  Quit at end of file.
+  -f  ........  --force
+                  Force open non-regular files.
+  -F  ........  --quit-if-one-screen
+                  Quit if entire file fits on first screen.
+  -g  ........  --hilite-search
+                  Highlight only last match for searches.
+  -G  ........  --HILITE-SEARCH
+                  Don't highlight any matches for searches.
+  -h [_N]  ....  --max-back-scroll=[_N]
+                  Backward scroll limit.
+  -i  ........  --ignore-case
+                  Ignore case in searches that do not contain uppercase.
+  -I  ........  --IGNORE-CASE
+                  Ignore case in all searches.
+  -j [_N]  ....  --jump-target=[_N]
+                  Screen position of target lines.
+  -J  ........  --status-column
+                  Display a status column at left edge of screen.
+  -k _f_i_l_e  ...  --lesskey-file=_f_i_l_e
+                  Use a compiled lesskey file.
+  -K  ........  --quit-on-intr
+                  Exit less in response to ctrl-C.
+  -L  ........  --no-lessopen
+                  Ignore the LESSOPEN environment variable.
+  -m  -M  ....  --long-prompt  --LONG-PROMPT
+                  Set prompt style.
+  -n .........  --line-numbers
+                  Suppress line numbers in prompts and messages.
+  -N .........  --LINE-NUMBERS
+                  Display line number at start of each line.
+  -o [_f_i_l_e] ..  --log-file=[_f_i_l_e]
+                  Copy to log file (standard input only).
+  -O [_f_i_l_e] ..  --LOG-FILE=[_f_i_l_e]
+                  Copy to log file (unconditionally overwrite).
+  -p _p_a_t_t_e_r_n .  --pattern=[_p_a_t_t_e_r_n]
+                  Start at pattern (from command line).
+  -P [_p_r_o_m_p_t]   --prompt=[_p_r_o_m_p_t]
+                  Define new prompt.
+  -q  -Q  ....  --quiet  --QUIET  --silent --SILENT
+                  Quiet the terminal bell.
+  -r  -R  ....  --raw-control-chars  --RAW-CONTROL-CHARS
+                  Output "raw" control characters.
+  -s  ........  --squeeze-blank-lines
+                  Squeeze multiple blank lines.
+  -S  ........  --chop-long-lines
+                  Chop (truncate) long lines rather than wrapping.
+  -t _t_a_g  ....  --tag=[_t_a_g]
+                  Find a tag.
+  -T [_t_a_g_s_f_i_l_e] --tag-file=[_t_a_g_s_f_i_l_e]
+                  Use an alternate tags file.
+  -u  -U  ....  --underline-special  --UNDERLINE-SPECIAL
+                  Change handling of backspaces, tabs and carriage returns.
+  -V  ........  --version
+                  Display the version number of "less".
+  -w  ........  --hilite-unread
+                  Highlight first new line after forward-screen.
+  -W  ........  --HILITE-UNREAD
+                  Highlight first new line after any forward movement.
+  -x [_N[,...]]  --tabs=[_N[,...]]
+                  Set tab stops.
+  -X  ........  --no-init
+                  Don't use termcap init/deinit strings.
+  -y [_N]  ....  --max-forw-scroll=[_N]
+                  Forward scroll limit.
+  -z [_N]  ....  --window=[_N]
+                  Set size of window.
+  -" [_c[_c]]  .  --quotes=[_c[_c]]
+                  Set shell quote characters.
+  -~  ........  --tilde
+                  Don't display tildes after end of file.
+  -# [_N]  ....  --shift=[_N]
+                  Set horizontal scroll amount (0 = one half screen width).
+
+                --exit-follow-on-close
+                  Exit F command on a pipe when writer closes pipe.
+                --file-size
+                  Automatically determine the size of the input file.
+                --follow-name
+                  The F command changes files if the input file is renamed.
+                --header=[_L[,_C[,_N]]]
+                  Use _L lines (starting at line _N) and _C columns as headers.
+                --incsearch
+                  Search file as each pattern character is typed in.
+                --intr=[_C]
+                  Use _C instead of ^X to interrupt a read.
+                --lesskey-context=_t_e_x_t
+                  Use lesskey source file contents.
+                --lesskey-src=_f_i_l_e
+                  Use a lesskey source file.
+                --line-num-width=[_N]
+                  Set the width of the -N line number field to _N characters.
+                --match-shift=[_N]
+                  Show at least _N characters to the left of a search match.
+                --modelines=[_N]
+                  Read _N lines from the input file and look for vim modelines.
+                --mouse
+                  Enable mouse input.
+                --no-keypad
+                  Don't send termcap keypad init/deinit strings.
+                --no-histdups
+                  Remove duplicates from command history.
+                --no-number-headers
+                  Don't give line numbers to header lines.
+                --no-search-header-lines
+                  Searches do not include header lines.
+                --no-search-header-columns
+                  Searches do not include header columns.
+                --no-search-headers
+                  Searches do not include header lines or columns.
+                --no-vbell
+                  Disable the terminal's visual bell.
+                --redraw-on-quit
+                  Redraw final screen when quitting.
+                --rscroll=[_C]
+                  Set the character used to mark truncated lines.
+                --save-marks
+                  Retain marks across invocations of less.
+                --search-options=[EFKNRW-]
+                  Set default options for every search.
+                --show-preproc-errors
+                  Display a message if preprocessor exits with an error status.
+                --proc-backspace
+                  Process backspaces for bold/underline.
+                --PROC-BACKSPACE
+                  Treat backspaces as control characters.
+                --proc-return
+                  Delete carriage returns before newline.
+                --PROC-RETURN
+                  Treat carriage returns as control characters.
+                --proc-tab
+                  Expand tabs to spaces.
+                --PROC-TAB
+                  Treat tabs as control characters.
+                --status-col-width=[_N]
+                  Set the width of the -J status column to _N characters.
+                --status-line
+                  Highlight or color the entire line containing a mark.
+                --use-backslash
+                  Subsequent options use backslash as escape char.
+                --use-color
+                  Enables colored text.
+                --wheel-lines=[_N]
+                  Each click of the mouse wheel moves _N lines.
+                --wordwrap
+                  Wrap lines at spaces.
+
+
+ ---------------------------------------------------------------------------
+
+                          LLIINNEE EEDDIITTIINNGG
+
+        These keys can be used to edit text being entered 
+        on the "command line" at the bottom of the screen.
+
+ RightArrow ..................... ESC-l ... Move cursor right one character.
+ LeftArrow ...................... ESC-h ... Move cursor left one character.
+ ctrl-RightArrow  ESC-RightArrow  ESC-w ... Move cursor right one word.
+ ctrl-LeftArrow   ESC-LeftArrow   ESC-b ... Move cursor left one word.
+ HOME ........................... ESC-0 ... Move cursor to start of line.
+ END ............................ ESC-$ ... Move cursor to end of line.
+ BACKSPACE ................................ Delete char to left of cursor.
+ DELETE ......................... ESC-x ... Delete char under cursor.
+ ctrl-BACKSPACE   ESC-BACKSPACE ........... Delete word to left of cursor.
+ ctrl-DELETE .... ESC-DELETE .... ESC-X ... Delete word under cursor.
+ ctrl-U ......... ESC (MS-DOS only) ....... Delete entire line.
+ UpArrow ........................ ESC-k ... Retrieve previous command line.
+ DownArrow ...................... ESC-j ... Retrieve next command line.
+ TAB ...................................... Complete filename & cycle.
+ SHIFT-TAB ...................... ESC-TAB   Complete filename & reverse cycle.
+ ctrl-L ................................... Complete filename, list all.

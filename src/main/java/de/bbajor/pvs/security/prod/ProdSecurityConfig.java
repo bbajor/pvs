@@ -63,7 +63,9 @@ public class ProdSecurityConfig {
             MfaService mfaService) throws Exception {
         // Configure API endpoints first
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/ai/**").permitAll());
+                .requestMatchers("/api/ai/**").permitAll()
+                .requestMatchers("/api/egk/health").permitAll()
+                .requestMatchers("/api/egk/**").authenticated());
         
         // Add MFA filter before Vaadin security
         MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(userAccountRepository, mfaService);

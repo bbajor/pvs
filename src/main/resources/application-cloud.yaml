@@ -1,0 +1,222 @@
+# Cloud-Deployment Konfiguration für Hetzner Cloud
+# Aktiviert mit: SPRING_PROFILES_ACTIVE=cloud
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        type: none
+  datasource:
+    # Hetzner Managed PostgreSQL oder Container-basierte PostgreSQL
+    # Für Managed PostgreSQL: Verwende die Verbindungs-URL aus Hetzner Console
+    # Format: jdbc:postgresql://<host>:<port>/<database>?sslmode=require
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pvs_prod}
+    username: ${DATABASE_USERNAME:pvs_user}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      # Connection leak detection
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}
+      # SSL für Managed PostgreSQL
+      data-source-properties:
+        ssl: true
+        sslmode: require
+        # Performance tuning
+        prepareThreshold: 0
+        tcpKeepAlive: true
+        socketTimeout: 30
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    fail-on-missing-locations: true
+    repair-on-migrate: false
+
+# Actuator für Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,flyway,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    prometheus:
+      enabled: true
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+    ping:
+      enabled: true
+    # Custom health indicators
+    whisper:
+      enabled: true
+    kbvService:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      environment: ${ENVIRONMENT:cloud}
+      application: pvs
+
+# Logging: JSON-Format für Cloud (keine PII)
+# Konfiguration erfolgt über logback-spring.xml (Cloud-Profile)
+logging:
+  level:
+    root: WARN
+    de.bbajor.pvs: INFO
+    org.flywaydb: WARN
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+
+# Vaadin Production Mode
+vaadin:
+  production-mode: true
+  allow-production-mode-in-dev: false
+
+# SMTP-Konfiguration (aus ENV-Variablen)
+spring:
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+# MFA-Konfiguration
+app:
+  mfa:
+    issuer: ${MFA_ISSUER:PVS}
+  # MFA in Produktion aktivieren (empfohlen für Super-Admins)
+  # MFA kann pro Benutzer aktiviert werden über /mfa-setup
+  security:
+    # Password-Policy
+    password:
+      min-length: ${PASSWORD_MIN_LENGTH:12}
+      require-uppercase: ${PASSWORD_REQUIRE_UPPERCASE:true}
+      require-lowercase: ${PASSWORD_REQUIRE_LOWERCASE:true}
+      require-digit: ${PASSWORD_REQUIRE_DIGIT:true}
+      require-special: ${PASSWORD_REQUIRE_SPECIAL:false}
+
+# eGK: Deaktiviert in Cloud (wird über Agent gehandhabt)
+egk:
+  enabled: false
+  tool-path: ""
+
+# AI/Whisper: Remote-Provider bevorzugt (skaliert besser)
+ai:
+  whisper:
+    local:
+      enabled: ${WHISPER_LOCAL_ENABLED:false}
+      host: ${WHISPER_HOST:localhost}
+      port: ${WHISPER_PORT:9000}
+    remote:
+      enabled: ${WHISPER_REMOTE_ENABLED:true}
+      provider: ${WHISPER_PROVIDER:aleph-alpha}
+      api-url: ${WHISPER_API_URL:https://api.aleph-alpha.com/complete}
+      api-key: ${AI_API_KEY:}
+      monthly-quota: ${WHISPER_MONTHLY_QUOTA:1000}
+  extraction:
+    confidence-threshold: ${AI_CONFIDENCE_THRESHOLD:0.7}
+
+# Server-Konfiguration
+server:
+  port: ${PORT:8080}
+  # Graceful Shutdown für Load Balancer
+  shutdown: graceful
+  # Session-Timeout (für Redis Session Storage)
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:true}
+        http-only: true
+        same-site: lax
+  # Forward headers from reverse proxy
+  forward-headers-strategy: framework
+
+# Resilience4j - Retry & Circuit Breaker
+resilience4j:
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000
+        retryExceptions:
+          - java.net.ConnectException
+          - java.net.http.HttpTimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+    instances:
+      whisper-api:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 2000
+      kbv-api:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 1000
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 100
+        slowCallDurationThreshold: 5s
+    instances:
+      whisper-api:
+        baseConfig: default
+        waitDurationInOpenState: 60s
+      kbv-api:
+        baseConfig: default
+        waitDurationInOpenState: 30s
+
+# Redis Session Storage
+spring:
+  session:
+    store-type: redis
+    redis:
+      namespace: spring:session:pvs
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+
+# Security: HTTPS erzwingen (wird über Load Balancer/Reverse Proxy gehandhabt)
+# Security-Headers werden über Spring Security konfiguriert
+

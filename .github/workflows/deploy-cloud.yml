@@ -1,0 +1,214 @@
+name: Cloud Deployment (Hetzner)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+      skip_tests:
+        description: 'Skip tests (use with caution)'
+        required: false
+        default: false
+        type: boolean
+      skip_security_scan:
+        description: 'Skip security scanning (use with caution)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Run tests
+        if: ${{ !inputs.skip_tests }}
+        run: ./gradlew test --no-daemon
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/pvs
+          tags: |
+            type=raw,value=${{ inputs.environment }}-latest
+            type=raw,value=${{ inputs.environment }}-${{ github.sha }}
+            type=sha,prefix=${{ inputs.environment }}-
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ !inputs.skip_security_scan }}
+    
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build, security-scan]
+    if: always() && (needs.security-scan.result == 'success' || needs.security-scan.result == 'skipped')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Hetzner
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/pvs
+            
+            # Login to GHCR (als Benutzer 'pvs')
+            sudo -u pvs bash <<'EOFHERE'
+            echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+            EOHERE
+            
+            # Alle weiteren Befehle als Benutzer 'pvs'
+            sudo -u pvs bash <<'EOFDEPLOY'
+            set -e
+            cd /opt/pvs
+            
+            # Backup current deployment
+            BACKUP_TAG="${{ inputs.environment }}-backup-$(date +%Y%m%d-%H%M%S)"
+            if podman image exists ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-latest; then
+              podman tag ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-latest \
+                         ghcr.io/${{ github.repository_owner }}/pvs:$BACKUP_TAG || true
+              echo "✅ Backup created: $BACKUP_TAG"
+            fi
+            
+            # Pull new image
+            echo "📥 Pulling new image..."
+            podman pull ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-${{ github.sha }}
+            podman tag ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-${{ github.sha }} \
+                       ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-latest
+            
+            # Deploy using podman-compose
+            if command -v podman-compose &> /dev/null; then
+              COMPOSE_CMD="podman-compose"
+            elif podman compose version &> /dev/null; then
+              COMPOSE_CMD="podman compose"
+            else
+              echo "❌ Error: Neither podman-compose nor podman compose available"
+              exit 1
+            fi
+            
+            echo "🚀 Deploying application..."
+            $COMPOSE_CMD -f podman-compose.production.yml --profile ${{ inputs.environment }} pull
+            $COMPOSE_CMD -f podman-compose.production.yml --profile ${{ inputs.environment }} up -d
+            
+            # Wait for health check
+            echo "⏳ Waiting for application to start..."
+            sleep 60
+            
+            # Health check (Port abhängig von Environment)
+            if [ "${{ inputs.environment }}" = "test" ]; then
+              HEALTH_PORT=8081
+            else
+              HEALTH_PORT=8080
+            fi
+            
+            MAX_RETRIES=10
+            RETRY_COUNT=0
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if curl -f http://localhost:$HEALTH_PORT/actuator/health 2>/dev/null; then
+                echo "✅ Health check passed on port $HEALTH_PORT!"
+                break
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "⏳ Health check failed on port $HEALTH_PORT, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
+                sleep 10
+              fi
+            done
+            
+            if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+              echo "❌ Health check failed after $MAX_RETRIES retries - rolling back..."
+              $COMPOSE_CMD -f podman-compose.production.yml --profile ${{ inputs.environment }} restart
+              exit 1
+            fi
+            
+            # Clean up old images (keep last 5)
+            echo "🧹 Cleaning up old images..."
+            podman image prune -f --filter "until=168h" || true
+            
+            echo "✅ Deployment successful!"
+            echo ""
+            echo "📊 Image: ghcr.io/${{ github.repository_owner }}/pvs:${{ inputs.environment }}-${{ github.sha }}"
+            echo "🏷️  Tag: ${{ inputs.environment }}-latest"
+            
+            # Test-Environment: Hinweis auf SSH-Tunnel
+            if [ "${{ inputs.environment }}" = "test" ]; then
+              echo ""
+              echo "🔗 Test-Instanz ist nur über SSH-Tunnel erreichbar:"
+              echo "   ssh -L 8081:localhost:8081 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}"
+              echo "   Dann: http://localhost:8081"
+            fi
+            EOFDEPLOY
+
+
