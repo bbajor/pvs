@@ -18,6 +18,7 @@ import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.service.InstitutionAccessValidator;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
@@ -321,6 +322,111 @@ public class TaskService {
         
         treatment.setAdditionalInfo(additionalInfo);
         treatmentRepository.save(treatment);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER')")
+    public void updateTreatmentPatientAppeared(Long treatmentId, Boolean patientAppeared) {
+        Objects.requireNonNull(treatmentId);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        treatment.setPatientAppeared(patientAppeared);
+        treatmentRepository.save(treatment);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canBookFollowUpTreatment(Long treatmentId) {
+        Objects.requireNonNull(treatmentId);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Validate institution context
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        // Check if treatment's time slot has an open task
+        if (treatment.getSurgicalCenterTimeSlot() == null) {
+            return false;
+        }
+        
+        Long timeSlotId = treatment.getSurgicalCenterTimeSlot().getId();
+        List<Task> tasks = taskRepository.findAllByInstitutionId(treatmentInstitutionId, 
+                org.springframework.data.domain.Pageable.unpaged())
+                .getContent().stream()
+                .filter(task -> task.getTimeSlot() != null && task.getTimeSlot().getId().equals(timeSlotId))
+                .filter(task -> !task.isCompleted())
+                .toList();
+        
+        if (tasks.isEmpty()) {
+            return false; // Task is completed or doesn't exist
+        }
+        
+        // Check if there's already a follow-up treatment for this treatment
+        TreatmentPlan treatmentPlan = treatment.getTreatmentPlan();
+        if (treatmentPlan == null || treatmentPlan.getId() == null) {
+            return false;
+        }
+        
+        // Check if there's already a follow-up treatment (treatment with same plan and side of eye, 
+        // but with a later date than the current treatment)
+        LocalDate currentTreatmentDate = treatment.getDate();
+        if (currentTreatmentDate == null) {
+            return false;
+        }
+        
+        List<Treatment> futureTreatments = treatmentRepository
+                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlan.getId())
+                .stream()
+                .filter(t -> t.getSideOfEye() == treatment.getSideOfEye())
+                .filter(t -> t.getDate() != null && t.getDate().isAfter(currentTreatmentDate))
+                .toList();
+        
+        return futureTreatments.isEmpty(); // Can book if no future treatment exists
+    }
+
+    @Transactional(readOnly = true)
+    @Nullable
+    public Treatment findExistingFollowUpTreatment(Long treatmentId) {
+        Objects.requireNonNull(treatmentId);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Validate institution context
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        TreatmentPlan treatmentPlan = treatment.getTreatmentPlan();
+        if (treatmentPlan == null || treatmentPlan.getId() == null) {
+            return null;
+        }
+        
+        LocalDate currentTreatmentDate = treatment.getDate();
+        if (currentTreatmentDate == null) {
+            return null;
+        }
+        
+        // Find the earliest future treatment for the same plan and side of eye
+        return treatmentRepository
+                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlan.getId())
+                .stream()
+                .filter(t -> t.getSideOfEye() == treatment.getSideOfEye())
+                .filter(t -> t.getDate() != null && t.getDate().isAfter(currentTreatmentDate))
+                .min((a, b) -> a.getDate().compareTo(b.getDate()))
+                .orElse(null);
     }
 
 }
