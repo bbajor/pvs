@@ -22,8 +22,7 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
         "de.bbajor.pvs.appointment.repository",
         "de.bbajor.pvs.security.domain",
         "de.bbajor.pvs.security.email.repository",
-        "de.bbajor.pvs.ai.repository",
-        "de.bbajor.pvs.analytics.repository"
+        "de.bbajor.pvs.ai.repository"
 })
 @EntityScan(basePackages = {
         "de.bbajor.pvs.patient.model",
