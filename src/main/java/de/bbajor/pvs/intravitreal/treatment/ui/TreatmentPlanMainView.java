@@ -44,6 +44,7 @@ import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
+import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.security.AppRoles;
@@ -55,6 +56,7 @@ import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
 import de.bbajor.pvs.taskmanagement.ui.view.TaskReviewDialog;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
@@ -75,6 +77,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private final TreatmentReportService reportService;
     private final UserAccountRepository userAccountRepository;
     private final Clock clock;
+    private final ApplicationContext applicationContext;
+    private final TreatmentPlanPresenter treatmentPlanPresenter;
 
     // Treatment Plans Tab Components
     private final TextField searchField = new TextField();
@@ -105,7 +109,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             AuthenticationContext authenticationContext,
             TreatmentReportService reportService,
             UserAccountRepository userAccountRepository,
-            Clock clock) {
+            Clock clock,
+            ApplicationContext applicationContext,
+            TreatmentPlanPresenter treatmentPlanPresenter) {
         this.ivomListPresenter = ivomListPresenter;
         this.currentUser = currentUser;
         this.taskService = taskService;
@@ -114,6 +120,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         this.reportService = reportService;
         this.userAccountRepository = userAccountRepository;
         this.clock = clock;
+        this.applicationContext = applicationContext;
+        this.treatmentPlanPresenter = treatmentPlanPresenter;
 
         initializeTreatmentPlansTab();
         initializeTaskReviewTab();
@@ -274,7 +282,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         taskGrid.addItemDoubleClickListener(ev -> {
             Task t = ev.getItem();
             TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
-                    this.authenticationContext, this.reportService, this.userAccountRepository);
+                    this.authenticationContext, this.reportService, this.userAccountRepository,
+                    this.applicationContext, this.treatmentPlanPresenter);
             dialog.open();
         });
 

@@ -38,10 +38,12 @@ import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
+import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
 import jakarta.annotation.security.PermitAll;
+import org.springframework.context.ApplicationContext;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -58,6 +60,8 @@ public class TaskListView extends Main implements BeforeEnterObserver {
         private final AuthenticationContext authenticationContext;
         private final TreatmentReportService reportService;
         private final UserAccountRepository userAccountRepository;
+        private final ApplicationContext applicationContext;
+        private final TreatmentPlanPresenter treatmentPlanPresenter;
         private final Button refreshButton;
         final TextField description;
         final DatePicker dueDate;
@@ -67,12 +71,15 @@ public class TaskListView extends Main implements BeforeEnterObserver {
         private boolean hideCompleted = false;
 
         public TaskListView(TaskService taskService, TreatmentRepository treatmentRepository, AuthenticationContext authenticationContext, 
-                TreatmentReportService reportService, UserAccountRepository userAccountRepository, Clock clock) {
+                TreatmentReportService reportService, UserAccountRepository userAccountRepository, Clock clock,
+                ApplicationContext applicationContext, TreatmentPlanPresenter treatmentPlanPresenter) {
                 this.taskService = taskService;
                 this.treatmentRepository = treatmentRepository;
                 this.authenticationContext = authenticationContext;
                 this.reportService = reportService;
                 this.userAccountRepository = userAccountRepository;
+                this.applicationContext = applicationContext;
+                this.treatmentPlanPresenter = treatmentPlanPresenter;
 
                 description = new TextField();
                 description.setPlaceholder("Was möchten Sie erledigen?");
@@ -111,7 +118,8 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                         // All authenticated users can open the dialog (ADMIN can view and generate reports)
                         // But only MEDICAL_STAFF, OWNER, DOCTOR can start review
                         TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
-                                        this.authenticationContext, this.reportService, this.userAccountRepository);
+                                        this.authenticationContext, this.reportService, this.userAccountRepository,
+                                        this.applicationContext, this.treatmentPlanPresenter);
                         dialog.open();
                 });
 

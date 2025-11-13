@@ -38,6 +38,12 @@ PRs nur gegen dev; Conventional Commits; kleine atomare Edits
 Änderungen an Cursor Rules/Commands: feature/cursor-rules-<yyyy-MM-dd> von origin/dev; PR → dev; kein direkter Commit auf dev/master
 Pflichtchecks: Build, Tests, Lint, SCA/CVE-Scan, Format, OpenAPI/Docs
 Flyway: vorwärts-kompatibel, idempotent; Rollback-Plan dokumentiert
+Dependency Documentation:
+Vor jedem PR gegen dev: THIRD-PARTY-LICENSES.md muss aktuell sein
+Aktualisierung via: ./gradlew generateThirdPartyLicenses cyclonedxBom
+Bei Dependency-Änderungen: THIRD-PARTY-LICENSES.md committen (SBOM wird bei jedem Build neu generiert)
+GitHub Workflow aktualisiert automatisch bei Änderungen an build.gradle/gradle.properties
+SBOM (build/reports/sbom.json) wird bei jedem Build generiert, aber nicht ins Repo committed
 Container/Cloud:
 Slim JRE, non-root, read-only FS; SBOM
 Ingress mit WAF/Rate-Limits; HTTP/2; Compression
