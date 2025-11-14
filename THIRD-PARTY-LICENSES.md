@@ -2,11 +2,7 @@
 
 This document lists all third-party software libraries and their licenses used in this project.
 
-<<<<<<< HEAD
-**Last Updated:** 2025-11-13 15:17:50
-=======
-**Last Updated:** 2025-11-13 10:43:45
->>>>>>> origin/dev
+**Last Updated:** 2025-11-14 08:59:12
 
 ## License Summary
 
@@ -56,9 +52,9 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | com.nimbusds:lang-tag | 1.7 | Apache License 2.0 | ✅ Yes |
 | com.nimbusds:nimbus-jose-jwt | 9.37.4 | Apache License 2.0 | ✅ Yes |
 | com.nimbusds:oauth2-oidc-sdk | 9.43.6 | Apache License 2.0 | ✅ Yes |
-| com.squareup.okhttp3:logging-interceptor | 4.12.0 | Apache License 2.0 | ✅ Yes |
-| com.squareup.okhttp3:okhttp | 4.12.0 | Apache License 2.0 | ✅ Yes |
-| com.squareup.okio:okio-jvm | 3.6.0 | Apache License 2.0 | ✅ Yes |
+| com.squareup.okhttp3:logging-interceptor | 3.12.12 | Apache License 2.0 | ✅ Yes |
+| com.squareup.okhttp3:okhttp | 3.12.12 | Apache License 2.0 | ✅ Yes |
+| com.squareup.okio:okio | 1.15.0 | Apache License 2.0 | ✅ Yes |
 | com.sun.istack:istack-commons-runtime | 4.1.2 | Apache License 2.0 | ✅ Yes |
 | com.vaadin.external.atmosphere:atmosphere-runtime | 3.0.5.slf4jvaadin1 | Apache License 2.0 | ✅ Yes |
 | com.vaadin.external.gwt:gwt-elemental | 2.8.2.vaadin2 | Apache License 2.0 | ✅ Yes |
@@ -157,38 +153,53 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | commons-codec:commons-codec | 1.18.0 | Apache License 2.0 | ✅ Yes |
 | commons-io:commons-io | 2.20.0 | Apache License 2.0 | ✅ Yes |
 | commons-logging:commons-logging | 1.2 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-client | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-client-api | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-httpclient-vertx | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-admissionregistration | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-apiextensions | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-apps | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-autoscaling | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-batch | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-certificates | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-common | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-coordination | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-core | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-discovery | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-events | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-extensions | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-flowcontrol | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-gatewayapi | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-metrics | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-networking | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-node | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-policy | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-rbac | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-resource | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-scheduling | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:kubernetes-model-storageclass | 7.3.1 | Apache License 2.0 | ✅ Yes |
-| io.fabric8:zjsonpatch | 7.3.1 | Apache License 2.0 | ✅ Yes |
+| de.bbajor.pvs:pvs-common | 1.0-SNAPSHOT | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-client | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-client-api | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-httpclient-okhttp | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-admissionregistration | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-apiextensions | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-apps | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-autoscaling | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-batch | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-certificates | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-common | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-coordination | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-core | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-discovery | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-events | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-extensions | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-flowcontrol | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-gatewayapi | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-metrics | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-networking | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-node | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-policy | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-rbac | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-resource | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-scheduling | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:kubernetes-model-storageclass | 6.13.4 | Apache License 2.0 | ✅ Yes |
+| io.fabric8:zjsonpatch | 0.3.0 | Apache License 2.0 | ✅ Yes |
 | io.github.classgraph:classgraph | 4.8.179 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-annotations | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-bulkhead | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-circuitbreaker | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-circularbuffer | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-consumer | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-core | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-framework-common | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-micrometer | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-ratelimiter | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-retry | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-spring-boot3 | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-spring6 | 2.2.0 | Apache License 2.0 | ✅ Yes |
+| io.github.resilience4j:resilience4j-timelimiter | 2.2.0 | Apache License 2.0 | ✅ Yes |
 | io.methvin:directory-watcher | 0.19.0 | Apache License 2.0 | ✅ Yes |
 | io.micrometer:micrometer-commons | 1.15.5 | Apache License 2.0 | ✅ Yes |
 | io.micrometer:micrometer-core | 1.15.5 | Apache License 2.0 | ✅ Yes |
 | io.micrometer:micrometer-jakarta9 | 1.15.5 | Apache License 2.0 | ✅ Yes |
 | io.micrometer:micrometer-observation | 1.15.5 | Apache License 2.0 | ✅ Yes |
+| io.micrometer:micrometer-registry-prometheus | 1.15.5 | Apache License 2.0 | ✅ Yes |
 | io.netty:netty-all | 4.1.128.Final | Apache License 2.0 | ✅ Yes |
 | io.netty:netty-buffer | 4.1.128.Final | Apache License 2.0 | ✅ Yes |
 | io.netty:netty-codec | 4.1.128.Final | Apache License 2.0 | ✅ Yes |
@@ -224,18 +235,21 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | io.netty:netty-transport-rxtx | 4.1.128.Final | Apache License 2.0 | ✅ Yes |
 | io.netty:netty-transport-sctp | 4.1.128.Final | Apache License 2.0 | ✅ Yes |
 | io.netty:netty-transport-udt | 4.1.128.Final | Apache License 2.0 | ✅ Yes |
+| io.projectreactor.addons:reactor-extra | 3.5.4 | Apache License 2.0 | ✅ Yes |
 | io.projectreactor.netty:reactor-netty | 1.2.11 | Apache License 2.0 | ✅ Yes |
 | io.projectreactor.netty:reactor-netty-core | 1.2.11 | Apache License 2.0 | ✅ Yes |
 | io.projectreactor.netty:reactor-netty-http | 1.2.11 | Apache License 2.0 | ✅ Yes |
 | io.projectreactor:reactor-core | 3.7.12 | Apache License 2.0 | ✅ Yes |
+| io.prometheus:prometheus-metrics-config | 1.3.10 | Apache License 2.0 | ✅ Yes |
+| io.prometheus:prometheus-metrics-core | 1.3.10 | Apache License 2.0 | ✅ Yes |
+| io.prometheus:prometheus-metrics-exposition-formats | 1.3.10 | Apache License 2.0 | ✅ Yes |
+| io.prometheus:prometheus-metrics-exposition-textformats | 1.3.10 | Apache License 2.0 | ✅ Yes |
+| io.prometheus:prometheus-metrics-model | 1.3.10 | Apache License 2.0 | ✅ Yes |
+| io.prometheus:prometheus-metrics-tracer-common | 1.3.10 | Apache License 2.0 | ✅ Yes |
 | io.smallrye:jandex | 3.2.0 | Apache License 2.0 | ✅ Yes |
 | io.swagger.core.v3:swagger-annotations-jakarta | 2.2.32 | Apache License 2.0 | ✅ Yes |
 | io.swagger.core.v3:swagger-core-jakarta | 2.2.32 | Apache License 2.0 | ✅ Yes |
 | io.swagger.core.v3:swagger-models-jakarta | 2.2.32 | Apache License 2.0 | ✅ Yes |
-| io.vertx:vertx-auth-common | 4.5.14 | Apache License 2.0 | ✅ Yes |
-| io.vertx:vertx-core | 4.5.14 | Apache License 2.0 | ✅ Yes |
-| io.vertx:vertx-web-client | 4.5.14 | Apache License 2.0 | ✅ Yes |
-| io.vertx:vertx-web-common | 4.5.14 | Apache License 2.0 | ✅ Yes |
 | jakarta.activation:jakarta.activation-api | 2.1.4 | Apache License 2.0 | ✅ Yes |
 | jakarta.annotation:jakarta.annotation-api | 2.1.1 | Apache License 2.0 | ✅ Yes |
 | jakarta.inject:jakarta.inject-api | 2.0.1 | Apache License 2.0 | ✅ Yes |
@@ -246,6 +260,7 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | net.bytebuddy:byte-buddy | 1.17.8 | Apache License 2.0 | ✅ Yes |
 | net.java.dev.jna:jna | 5.15.0 | Apache License 2.0 | ✅ Yes |
 | net.java.dev.jna:jna-platform | 5.15.0 | Apache License 2.0 | ✅ Yes |
+| net.logstash.logback:logstash-logback-encoder | 7.4 | Apache License 2.0 | ✅ Yes |
 | net.minidev:accessors-smart | 2.5.2 | Apache License 2.0 | ✅ Yes |
 | net.minidev:json-smart | 2.5.2 | Apache License 2.0 | ✅ Yes |
 | org.antlr:antlr4-runtime | 4.13.0 | Apache License 2.0 | ✅ Yes |
@@ -290,8 +305,6 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | org.jboss.logging:jboss-logging | 3.6.1.Final | Apache License 2.0 | ✅ Yes |
 | org.jetbrains.kotlin:kotlin-reflect | 1.9.25 | Apache License 2.0 | ✅ Yes |
 | org.jetbrains.kotlin:kotlin-stdlib | 1.9.25 | Apache License 2.0 | ✅ Yes |
-| org.jetbrains.kotlin:kotlin-stdlib-jdk7 | 1.9.25 | Apache License 2.0 | ✅ Yes |
-| org.jetbrains.kotlin:kotlin-stdlib-jdk8 | 1.9.25 | Apache License 2.0 | ✅ Yes |
 | org.jetbrains:annotations | 13.0 | Apache License 2.0 | ✅ Yes |
 | org.jsoup:jsoup | 1.20.1 | Apache License 2.0 | ✅ Yes |
 | org.jspecify:jspecify | 1.0.0 | Apache License 2.0 | ✅ Yes |
@@ -315,7 +328,7 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | org.reflections:reflections | 0.10.2 | Apache License 2.0 | ✅ Yes |
 | org.slf4j:jul-to-slf4j | 2.0.11 | Apache License 2.0 | ✅ Yes |
 | org.slf4j:slf4j-api | 2.0.11 | Apache License 2.0 | ✅ Yes |
-| org.snakeyaml:snakeyaml-engine | 2.9 | Apache License 2.0 | ✅ Yes |
+| org.snakeyaml:snakeyaml-engine | 2.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-actuator | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-actuator-autoconfigure | 3.5.7 | Apache License 2.0 | ✅ Yes |
@@ -330,21 +343,29 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | org.springframework.boot:spring-boot-starter-logging | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-starter-mail | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-starter-oauth2-client | 3.5.7 | Apache License 2.0 | ✅ Yes |
+| org.springframework.boot:spring-boot-starter-reactor-netty | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-starter-security | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-starter-tomcat | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-starter-validation | 3.5.7 | Apache License 2.0 | ✅ Yes |
 | org.springframework.boot:spring-boot-starter-web | 3.5.7 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-commons | 4.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-context | 4.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-kubernetes-commons | 3.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-kubernetes-fabric8-autoconfig | 3.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-kubernetes-fabric8-config | 3.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-starter | 4.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-starter-bootstrap | 4.3.0 | Apache License 2.0 | ✅ Yes |
-| org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config | 3.3.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.boot:spring-boot-starter-webflux | 3.5.7 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-commons | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-context | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-function-adapter-aws | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-function-context | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-function-core | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-function-web | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-gateway-server | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-kubernetes-commons | 3.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-kubernetes-fabric8-autoconfig | 3.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-kubernetes-fabric8-config | 3.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-starter | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-starter-bootstrap | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-starter-gateway | 4.2.0 | Apache License 2.0 | ✅ Yes |
+| org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config | 3.2.0 | Apache License 2.0 | ✅ Yes |
 | org.springframework.data:spring-data-commons | 3.5.5 | Apache License 2.0 | ✅ Yes |
 | org.springframework.data:spring-data-jpa | 3.5.5 | Apache License 2.0 | ✅ Yes |
-| org.springframework.retry:spring-retry | 2.0.12 | Apache License 2.0 | ✅ Yes |
+| org.springframework.retry:spring-retry | 2.0.10 | Apache License 2.0 | ✅ Yes |
 | org.springframework.security:spring-security-config | 6.5.6 | Apache License 2.0 | ✅ Yes |
 | org.springframework.security:spring-security-core | 6.5.6 | Apache License 2.0 | ✅ Yes |
 | org.springframework.security:spring-security-crypto | 6.5.6 | Apache License 2.0 | ✅ Yes |
@@ -361,9 +382,11 @@ All dependencies use permissive open-source licenses that allow commercial use:
 | org.springframework:spring-expression | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-jcl | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-jdbc | 6.2.12 | Apache License 2.0 | ✅ Yes |
+| org.springframework:spring-messaging | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-orm | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-tx | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-web | 6.2.12 | Apache License 2.0 | ✅ Yes |
+| org.springframework:spring-webflux | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-webmvc | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.springframework:spring-websocket | 6.2.12 | Apache License 2.0 | ✅ Yes |
 | org.vaadin.addons.flowingcode:year-month-calendar | 4.5.2 | Apache License 2.0 | ✅ Yes |
@@ -448,14 +471,10 @@ All dependencies have been reviewed and are suitable for commercial use. The lic
 ## Notes
 
 - This file is auto-generated during the build process
-- For the most up-to-date list including transitive dependencies, see `build/sbom.json`
+- For the most up-to-date list including transitive dependencies, see `build/reports/sbom.json`
 - All license texts are available in the respective library JAR files under `META-INF/LICENSE*`
 
 ---
 
 **Generated by:** Gradle dependency report task
-<<<<<<< HEAD
-**Build Date:** 2025-11-13 15:17:50
-=======
-**Build Date:** 2025-11-13 10:43:45
->>>>>>> origin/dev
+**Build Date:** 2025-11-14 08:59:12

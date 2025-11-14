@@ -4,6 +4,9 @@ server:
 logging:
   level:
     "org.atmosphere": warn
+    # Suppress Spring Cloud Function warnings about multiple functional beans
+    # Functions are not exported via HTTP (web.export.enabled=false)
+    org.springframework.cloud.function.context.config.BeanFactoryAwareFunctionRegistry: ERROR
 
 vaadin:
   launch-browser: true
@@ -20,6 +23,13 @@ vaadin:
     package-manager: ${VAADIN_FRONTEND_PACKAGE_MANAGER:npm}
 
 spring:
+  cloud:
+    function:
+      # Disable HTTP export of functions - we use Services, not direct HTTP calls
+      # Functions are deployed separately to OpenFaaS/AWS Lambda when needed
+      web:
+        export:
+          enabled: false
   jpa:
     hibernate:
       ddl-auto: none

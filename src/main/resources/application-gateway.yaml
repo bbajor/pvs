@@ -1,0 +1,19 @@
+# Gateway Profile Configuration
+# Use this profile when Gateway should be active (e.g., after Hilla migration)
+# 
+# NOTE: Gateway requires reactive web application type, which is incompatible
+# with Vaadin Flow (Spring MVC). Use this only when:
+# - UI is migrated to Hilla (React), OR
+# - Gateway runs as separate service
+
+spring:
+  main:
+    web-application-type: reactive
+  
+  cloud:
+    gateway:
+      enabled: true
+
+gateway:
+  enabled: true
+

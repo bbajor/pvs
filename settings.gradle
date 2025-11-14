@@ -1,1 +1,5 @@
 rootProject.name = 'pvs-app'
+
+// Multi-Module Setup für Serverless Microservices
+include 'pvs-common'
+project(':pvs-common').projectDir = file('pvs-common')

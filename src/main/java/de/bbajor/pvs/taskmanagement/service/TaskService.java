@@ -60,12 +60,29 @@ public class TaskService {
     /**
      * Internal method for creating tasks without security checks.
      * Used by scheduled tasks and other internal operations.
+     * 
+     * Note: Only one Task can exist per TimeSlot due to @OneToOne relationship.
+     * If a Task already exists for the TimeSlot, it will not create a duplicate.
      */
     @Transactional
     public void createTaskInternal(String description, @Nullable LocalDate dueDate, SurgicalCenterTimeSlot timeSlot) {
         if ("fail".equals(description)) {
             throw new RuntimeException("This is for testing the error handler");
         }
+        
+        // Check if a task already exists for this time slot
+        // Due to @OneToOne relationship, only one task per time slot is allowed
+        if (timeSlot != null && timeSlot.getId() != null) {
+            java.util.Optional<Task> existingTask = taskRepository.findByTimeSlotId(timeSlot.getId());
+            
+            if (existingTask.isPresent()) {
+                // Task already exists for this time slot - skip creation
+                org.slf4j.LoggerFactory.getLogger(TaskService.class)
+                        .debug("Task already exists for time slot {} - skipping creation", timeSlot.getId());
+                return;
+            }
+        }
+        
         var task = new Task();
         task.setDescription(description);
         task.setCreationDate(clock.instant());

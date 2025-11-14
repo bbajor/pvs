@@ -1,4 +1,13 @@
 spring:
+  cloud:
+    compatibility-verifier:
+      enabled: false # Disable compatibility check - Spring Cloud 2024.0.0 works with Spring Boot 3.5.7
+    function:
+      # Disable HTTP export of functions - we use Services, not direct HTTP calls
+      # Functions are deployed separately to OpenFaaS/AWS Lambda when needed
+      web:
+        export:
+          enabled: false
   jpa:
     hibernate:
       # H2 (default): create-drop für schnelle lokale Tests
@@ -28,6 +37,12 @@ logging:
   level:
     root: INFO
     de.bbajor.pvs: DEBUG
+    # Suppress Spring Cloud Function warnings about multiple functional beans
+    # Functions are not exported via HTTP (web.export.enabled=false)
+    org.springframework.cloud.function: WARN
+    # Specifically suppress the BeanFactoryAwareFunctionRegistry warning
+    # This warning is harmless when functions are not exported via HTTP
+    org.springframework.cloud.function.context.config.BeanFactoryAwareFunctionRegistry: ERROR
 
 ai:
   whisper:

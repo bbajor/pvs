@@ -1,0 +1,32 @@
+# Dockerfile for serverless functions
+# Usage: docker build -f Dockerfile.function -t pvs-<service>:latest --build-arg SERVICE=<service-name> .
+
+FROM eclipse-temurin:21-jre-alpine
+
+ARG SERVICE=patient-service
+
+WORKDIR /app
+
+# Copy the built JAR
+COPY build/libs/pvs-app-*.jar app.jar
+
+# Set Spring Cloud Function definition
+# Format: <service>FunctionName (e.g., createPatient, getInstitution)
+ENV SPRING_CLOUD_FUNCTION_DEFINITION=${SERVICE}
+ENV SPRING_PROFILES_ACTIVE=serverless
+
+# Expose port (OpenFaaS will map this)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run the function
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]
+
+
