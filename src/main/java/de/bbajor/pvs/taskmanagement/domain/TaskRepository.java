@@ -57,6 +57,13 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     List<Task> getTasksWhereExistsNotApprovedTreatment(@Param("institutionId") Long institutionId, 
             @Param("now") LocalDate now);
     
+    /**
+     * Find a task by time slot ID.
+     * Used to check if a task already exists for a time slot before creating a new one.
+     */
+    @Query("SELECT t FROM Task t WHERE t.timeSlot.id = :timeSlotId")
+    java.util.Optional<Task> findByTimeSlotId(@Param("timeSlotId") Long timeSlotId);
+    
     // Legacy methods without institution filter (for backward compatibility)
     // These should not be used in production code
     @Deprecated

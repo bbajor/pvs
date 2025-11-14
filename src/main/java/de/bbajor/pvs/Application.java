@@ -10,7 +10,15 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import com.vaadin.flow.component.page.AppShellConfigurator;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {
+    // Exclude ALL Gateway auto-configurations (incompatible with Vaadin Flow/Spring MVC)
+    // Gateway will be enabled when UI is migrated to Hilla (React) or runs as separate service
+    org.springframework.cloud.gateway.config.GatewayAutoConfiguration.class,
+    org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration.class,
+    org.springframework.cloud.gateway.config.GatewayMetricsAutoConfiguration.class,
+    org.springframework.cloud.gateway.config.GatewayReactiveLoadBalancerClientAutoConfiguration.class,
+    org.springframework.cloud.gateway.config.GatewayNoLoadBalancerClientAutoConfiguration.class
+})
 @EnableJpaRepositories(basePackages = {
         "de.bbajor.pvs.patient.repository",
         "de.bbajor.pvs.medication.repository",

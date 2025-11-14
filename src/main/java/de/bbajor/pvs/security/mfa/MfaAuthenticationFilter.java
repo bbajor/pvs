@@ -136,7 +136,10 @@ public class MfaAuthenticationFilter extends OncePerRequestFilter {
             return requestType == RequestType.HEARTBEAT;
         } catch (IllegalArgumentException e) {
             // Unknown request type - treat as regular request (don't skip)
-            log.debug("Unknown Vaadin request type: {}, treating as regular request", parameterValue);
+            // "uidl" is a valid Vaadin request type (UIDL = User Interface Definition Language)
+            // but may not be in all Vaadin versions' RequestType enum
+            // Log at trace level to reduce noise
+            log.trace("Unknown Vaadin request type: {}, treating as regular request", parameterValue);
             return false;
         }
     }

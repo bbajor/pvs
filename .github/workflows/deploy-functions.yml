@@ -1,0 +1,70 @@
+name: Deploy Serverless Functions
+
+on:
+  push:
+    branches:
+      - cursor/serverless-microservices
+    paths:
+      - 'src/main/java/de/bbajor/pvs/function/**'
+      - 'pvs-common/**'
+      - 'build.gradle'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Build common module
+        run: ./gradlew :pvs-common:build
+      
+      - name: Build function JARs
+        run: ./gradlew build -x test
+        env:
+          SPRING_PROFILES_ACTIVE: serverless
+      
+      - name: Build Docker images for functions
+        run: |
+          # Build images for each service
+          docker build -f Dockerfile.function -t pvs-patient-service:latest --build-arg SERVICE=patient-service .
+          docker build -f Dockerfile.function -t pvs-institution-service:latest --build-arg SERVICE=institution-service .
+          docker build -f Dockerfile.function -t pvs-ai-service:latest --build-arg SERVICE=ai-service .
+          docker build -f Dockerfile.function -t pvs-egk-service:latest --build-arg SERVICE=egk-service .
+      
+      - name: Deploy to OpenFaaS (if configured)
+        if: env.OPENFAAS_GATEWAY_URL != ''
+        run: |
+          # Install OpenFaaS CLI
+          curl -sSL https://cli.openfaas.com | sudo sh
+          
+          # Login to OpenFaaS
+          echo ${{ secrets.OPENFAAS_PASSWORD }} | faas-cli login --username ${{ secrets.OPENFAAS_USERNAME }} --password-stdin --gateway ${{ env.OPENFAAS_GATEWAY_URL }}
+          
+          # Deploy functions
+          faas-cli deploy -f stack.yml --gateway ${{ env.OPENFAAS_GATEWAY_URL }}
+        env:
+          OPENFAAS_GATEWAY_URL: ${{ secrets.OPENFAAS_GATEWAY_URL }}
+      
+      - name: Health check
+        if: env.OPENFAAS_GATEWAY_URL != ''
+        run: |
+          # Wait for functions to be ready
+          sleep 10
+          
+          # Check function health
+          curl -f ${{ env.OPENFAAS_GATEWAY_URL }}/system/functions || exit 1
+
+

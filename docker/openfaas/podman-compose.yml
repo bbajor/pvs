@@ -1,0 +1,90 @@
+version: '3.9'
+
+services:
+  # OpenFaaS Gateway
+  gateway:
+    image: ghcr.io/openfaas/gateway:latest
+    container_name: openfaas-gateway
+    ports:
+      - "8080:8080"
+      - "31112:31112"  # Function invocation port
+    environment:
+      - basic_auth=true
+      - secret_mount_path=/run/secrets
+      - functions_provider_url=http://faas-swarm:8080/
+      - direct_functions=false
+      - read_timeout=300s
+      - write_timeout=300s
+      - upstream_timeout=300s
+      - faas_nats_address=nats
+      - faas_nats_port=4222
+      - faas_prometheus_host=prometheus
+      - faas_prometheus_port=9090
+      - scale_from_zero=true
+    networks:
+      - openfaas
+    depends_on:
+      - nats
+      - prometheus
+    restart: unless-stopped
+
+  # OpenFaaS Queue Worker (NATS)
+  nats:
+    image: nats-streaming:latest
+    container_name: openfaas-nats
+    networks:
+      - openfaas
+    restart: unless-stopped
+
+  # Prometheus für Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: openfaas-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=12h'
+      - '--web.enable-lifecycle'
+    networks:
+      - openfaas
+    restart: unless-stopped
+
+  # OpenFaaS UI
+  ui:
+    image: ghcr.io/openfaas/ui:latest
+    container_name: openfaas-ui
+    ports:
+      - "31113:8080"
+    environment:
+      - gateway_url=http://gateway:8080
+    networks:
+      - openfaas
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+  # OpenFaaS Swarm Provider (für Function Management)
+  faas-swarm:
+    image: ghcr.io/openfaas/faas-swarm:latest
+    container_name: openfaas-swarm
+    networks:
+      - openfaas
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - nats
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+
+networks:
+  openfaas:
+    driver: bridge
+
+
