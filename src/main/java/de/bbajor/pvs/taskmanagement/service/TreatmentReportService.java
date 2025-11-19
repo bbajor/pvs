@@ -228,16 +228,52 @@ public class TreatmentReportService {
             contentStream.setStrokingColor(0, 0, 0);
             yPosition -= 12;
             
-            // Treatments - compact layout
-            PDType1Font patientFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-            contentStream.setFont(normalFont, 9);
+            // Sammelbericht in Tabellenform
+            contentStream.setFont(headerFont, 12);
+            yPosition = addTextLine(contentStream, "Behandlungen", margin, yPosition, lineHeight);
+            yPosition -= 10;
             
-            // Track which treatment plans we've already shown statistics for
-            java.util.Set<Long> shownPlanStats = new java.util.HashSet<>();
+            // Tabellenkopf
+            int tableStartY = yPosition;
+            int colNr = margin;
+            int colName = margin + 30;
+            int colVorname = margin + 100;
+            int colGeburtsdatum = margin + 180;
+            int colVersicherung = margin + 250;
+            int colAuge = margin + 330;
+            int colMedikament = margin + 370;
+            int colStatus = margin + 480;
+            int colBemerkungen = margin + 530;
+            
+            contentStream.setFont(headerFont, 9);
+            contentStream.setNonStrokingColor(0, 0, 0);
+            int headerY = yPosition;
+            addTextLine(contentStream, "Nr.", colNr, headerY, lineHeight);
+            addTextLine(contentStream, "Name", colName, headerY, lineHeight);
+            addTextLine(contentStream, "Vorname", colVorname, headerY, lineHeight);
+            addTextLine(contentStream, "Geburtsdatum", colGeburtsdatum, headerY, lineHeight);
+            addTextLine(contentStream, "Versicherung", colVersicherung, headerY, lineHeight);
+            addTextLine(contentStream, "Auge", colAuge, headerY, lineHeight);
+            addTextLine(contentStream, "Medikament", colMedikament, headerY, lineHeight);
+            addTextLine(contentStream, "Status", colStatus, headerY, lineHeight);
+            addTextLine(contentStream, "Bemerkungen", colBemerkungen, headerY, lineHeight);
+            yPosition = headerY - lineHeight;
+            
+            // Trennlinie unter Tabellenkopf
+            yPosition -= 5;
+            contentStream.setStrokingColor(0, 0, 0);
+            contentStream.setLineWidth(1f);
+            contentStream.moveTo(margin, yPosition);
+            contentStream.lineTo(rightMargin, yPosition);
+            contentStream.stroke();
+            yPosition -= 10;
+            
+            contentStream.setFont(normalFont, 8);
+            int rowNumber = 1;
             
             for (Treatment treatment : treatments) {
                 // Check if we need new page (leave space for confidentiality clause)
-                if (yPosition < 200) {
+                if (yPosition < 150) {
                     contentStream.close();
                     addPageNumber(document, document.getNumberOfPages());
                     
@@ -246,197 +282,97 @@ public class TreatmentReportService {
                     addWatermark(document, page, institution);
                     contentStream = new PDPageContentStream(document, page);
                     yPosition = 780;
-                }
-                
-                // Patient information with full details
-                Patient patient = treatment.getTreatmentPlan() != null ? treatment.getTreatmentPlan().getPatient() : null;
-                if (patient != null) {
-                    // Patient name in bold with high contrast color
-                    String patientName = patient.getLastName() + ", " + patient.getFirstName();
-                    contentStream.setNonStrokingColor(0f/255f, 51f/255f, 153f/255f); // Dark blue, high contrast
-                    yPosition = addBoldTextLine(contentStream, patientName, margin, yPosition, lineHeight, patientFont);
-                    contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
                     
-                    contentStream.setFont(normalFont, 9);
-                    
-                    // Geburtsdatum
-                    if (patient.getBirth() != null) {
-                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
-                        yPosition = addTextLine(contentStream, "Geburtsdatum: " + dateFormatter.format(patient.getBirth()), margin, yPosition, lineHeight);
-                    }
-                    
-                    // Adresse
-                    if (patient.getAddress() != null) {
-                        String address = patient.getAddress().toString();
-                        if (address != null && !address.isBlank()) {
-                            yPosition = addTextLine(contentStream, "Adresse: " + address, margin, yPosition, lineHeight);
-                        }
-                    }
-                    
-                    // Krankenkasse
-                    if (patient.getHealthInsurance() != null) {
-                        String insuranceName = patient.getHealthInsurance().getBillingCarrierName();
-                        if (insuranceName != null && !insuranceName.isBlank()) {
-                            yPosition = addTextLine(contentStream, "Krankenkasse: " + insuranceName, margin, yPosition, lineHeight);
-                        }
-                    }
-                    yPosition -= 5;
-                } else {
-                    // Fallback if patient is null
-                    contentStream.setNonStrokingColor(0f/255f, 51f/255f, 153f/255f);
-                    yPosition = addBoldTextLine(contentStream, "Patient: -", margin, yPosition, lineHeight, patientFont);
-                    contentStream.setNonStrokingColor(0, 0, 0);
-                    contentStream.setFont(normalFont, 9);
-                }
-                
-                // Treatment plan statistics (only once per treatment plan)
-                TreatmentPlan treatmentPlan = treatment.getTreatmentPlan();
-                if (treatmentPlan != null && treatmentPlan.getId() != null && !shownPlanStats.contains(treatmentPlan.getId())) {
-                    shownPlanStats.add(treatmentPlan.getId());
-                    yPosition -= 8;
+                    // Tabellenkopf erneut zeichnen
                     contentStream.setFont(headerFont, 9);
                     contentStream.setNonStrokingColor(0, 0, 0);
-                    yPosition = addTextLine(contentStream, "Behandlungsplan-Statistik", margin, yPosition, lineHeight);
-                    contentStream.setFont(normalFont, 9);
+                    int headerY = yPosition;
+                    addTextLine(contentStream, "Nr.", colNr, headerY, lineHeight);
+                    addTextLine(contentStream, "Name", colName, headerY, lineHeight);
+                    addTextLine(contentStream, "Vorname", colVorname, headerY, lineHeight);
+                    addTextLine(contentStream, "Geburtsdatum", colGeburtsdatum, headerY, lineHeight);
+                    addTextLine(contentStream, "Versicherung", colVersicherung, headerY, lineHeight);
+                    addTextLine(contentStream, "Auge", colAuge, headerY, lineHeight);
+                    addTextLine(contentStream, "Medikament", colMedikament, headerY, lineHeight);
+                    addTextLine(contentStream, "Status", colStatus, headerY, lineHeight);
+                    addTextLine(contentStream, "Bemerkungen", colBemerkungen, headerY, lineHeight);
                     
-                    // Get all treatments for this plan, sorted by date
-                    List<Treatment> allPlanTreatments = treatmentRepository
-                            .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlan.getId());
-                    
-                    // Count treatments per eye
-                    long leftEyeCount = allPlanTreatments.stream()
-                            .filter(t -> t.getSideOfEye() == SideOfEye.LEFT)
-                            .count();
-                    long rightEyeCount = allPlanTreatments.stream()
-                            .filter(t -> t.getSideOfEye() == SideOfEye.RIGHT)
-                            .count();
-                    
-                    yPosition = addTextLine(contentStream, 
-                            "Behandlungen: " + leftEyeCount + "x linkes Auge, " + rightEyeCount + "x rechtes Auge", 
-                            margin + 10, yPosition, lineHeight);
-                    
-                    // Start date of treatment plan
-                    LocalDate planStartDate = treatmentPlan.getCreationDate();
-                    if (planStartDate == null && !allPlanTreatments.isEmpty()) {
-                        // Fallback: use first treatment date
-                        planStartDate = allPlanTreatments.stream()
-                                .filter(t -> t.getDate() != null)
-                                .map(Treatment::getDate)
-                                .min(LocalDate::compareTo)
-                                .orElse(null);
-                    }
-                    if (planStartDate != null) {
-                        String germanStartDate = formatGermanDate(planStartDate);
-                        yPosition = addTextLine(contentStream, 
-                                "Behandlungsplan gestartet: " + germanStartDate, 
-                                margin + 10, yPosition, lineHeight);
-                    }
-                    
-                    // Current treatment date
-                    LocalDate currentTreatmentDate = treatment.getDate();
-                    if (currentTreatmentDate != null) {
-                        // Find previous treatment (before current date)
-                        Treatment previousTreatment = allPlanTreatments.stream()
-                                .filter(t -> t.getDate() != null && t.getDate().isBefore(currentTreatmentDate))
-                                .max((t1, t2) -> t1.getDate().compareTo(t2.getDate()))
-                                .orElse(null);
-                        
-                        if (previousTreatment != null && previousTreatment.getDate() != null) {
-                            long weeksBetween = java.time.temporal.ChronoUnit.WEEKS.between(previousTreatment.getDate(), currentTreatmentDate);
-                            String previousDate = formatGermanDate(previousTreatment.getDate());
-                            yPosition = addTextLine(contentStream, 
-                                    "Letztes Behandlungsintervall: " + weeksBetween + " Wochen (von " + previousDate + " bis " + formatGermanDate(currentTreatmentDate) + ")", 
-                                    margin + 10, yPosition, lineHeight);
-                        } else {
-                            yPosition = addTextLine(contentStream, 
-                                    "Letztes Behandlungsintervall: Erste Behandlung im Behandlungsplan", 
-                                    margin + 10, yPosition, lineHeight);
-                        }
-                        
-                        // Find next treatment (after current date)
-                        Treatment nextTreatment = allPlanTreatments.stream()
-                                .filter(t -> t.getDate() != null && t.getDate().isAfter(currentTreatmentDate))
-                                .min((t1, t2) -> t1.getDate().compareTo(t2.getDate()))
-                                .orElse(null);
-                        
-                        if (nextTreatment != null && nextTreatment.getDate() != null) {
-                            long weeksUntilNext = java.time.temporal.ChronoUnit.WEEKS.between(currentTreatmentDate, nextTreatment.getDate());
-                            String nextDate = formatGermanDate(nextTreatment.getDate());
-                            if (nextTreatment.getDate().isAfter(LocalDate.now())) {
-                                yPosition = addTextLine(contentStream, 
-                                        "Geplantes Behandlungsintervall: " + weeksUntilNext + " Wochen (bis " + nextDate + ")", 
-                                        margin + 10, yPosition, lineHeight);
-                            } else {
-                                yPosition = addTextLine(contentStream, 
-                                        "Nachfolgendes Behandlungsintervall: " + weeksUntilNext + " Wochen (bis " + nextDate + ")", 
-                                        margin + 10, yPosition, lineHeight);
-                            }
-                        }
-                    }
-                    
-                    yPosition -= 5;
+                    yPosition = headerY - lineHeight - 5;
+                    contentStream.setStrokingColor(0, 0, 0);
+                    contentStream.setLineWidth(1f);
+                    contentStream.moveTo(margin, yPosition);
+                    contentStream.lineTo(rightMargin, yPosition);
+                    contentStream.stroke();
+                    yPosition -= 10;
+                    contentStream.setFont(normalFont, 8);
                 }
                 
-                // Compact two-column layout for treatment details
-                int detailLeft = margin + 10;
-                int detailRight = 280;
-                int detailY = yPosition;
+                // Tabellenzeile - alle Spalten in derselben Zeile
+                Patient patient = treatment.getTreatmentPlan() != null ? treatment.getTreatmentPlan().getPatient() : null;
+                int currentRowY = yPosition;
                 
+                // Nr.
+                String nr = String.valueOf(rowNumber++);
+                addTextLine(contentStream, nr, colNr, currentRowY, lineHeight);
+                
+                // Name
+                String name = patient != null && patient.getLastName() != null ? patient.getLastName() : "-";
+                if (name.length() > 15) name = name.substring(0, 12) + "...";
+                addTextLine(contentStream, name, colName, currentRowY, lineHeight);
+                
+                // Vorname
+                String vorname = patient != null && patient.getFirstName() != null ? patient.getFirstName() : "-";
+                if (vorname.length() > 15) vorname = vorname.substring(0, 12) + "...";
+                addTextLine(contentStream, vorname, colVorname, currentRowY, lineHeight);
+                
+                // Geburtsdatum
+                String geburtsdatum = "-";
+                if (patient != null && patient.getBirth() != null) {
+                    DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                    geburtsdatum = dateFormatter.format(patient.getBirth());
+                }
+                addTextLine(contentStream, geburtsdatum, colGeburtsdatum, currentRowY, lineHeight);
+                
+                // Versicherung
+                String versicherung = "-";
+                if (patient != null && patient.getHealthInsurance() != null && 
+                    patient.getHealthInsurance().getBillingCarrierName() != null) {
+                    versicherung = patient.getHealthInsurance().getBillingCarrierName();
+                    if (versicherung.length() > 12) {
+                        versicherung = versicherung.substring(0, 9) + "...";
+                    }
+                }
+                addTextLine(contentStream, versicherung, colVersicherung, currentRowY, lineHeight);
+                
+                // Auge
                 String eye = treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-";
+                addTextLine(contentStream, eye, colAuge, currentRowY, lineHeight);
+                
+                // Medikament
                 String medication = "-";
                 if (treatment.getMedicationFavourite() != null && treatment.getMedicationFavourite().getMedication() != null) {
                     medication = treatment.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
-                }
-                String dosage = treatment.getDosage() != null ? treatment.getDosage() : "-";
-                String frequency = treatment.getFrequency() != null ? treatment.getFrequency() : "-";
-                
-                // Left column
-                yPosition = addTextLine(contentStream, "Auge: " + eye, detailLeft, detailY, lineHeight);
-                yPosition = addTextLine(contentStream, "Medikament: " + medication, detailLeft, yPosition, lineHeight);
-                
-                // Right column
-                detailY = yPosition - (lineHeight * 2);
-                yPosition = addTextLine(contentStream, "Dosierung: " + dosage, detailRight, detailY, lineHeight);
-                yPosition = addTextLine(contentStream, "Frequenz: " + frequency, detailRight, yPosition, lineHeight);
-                
-                // Approval info with high contrast colors (WCAG AA compliant)
-                String status;
-                if (treatment.getApprovalDate() != null) {
-                    if (treatment.getApprovalDateTime() != null) {
-                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-                        status = "Geprüft am: " + dateFormatter.format(treatment.getApprovalDateTime());
-                    } else {
-                        // Fallback: use approvalDate if approvalDateTime is null
-                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
-                        status = "Geprüft am: " + dateFormatter.format(treatment.getApprovalDate());
+                    if (medication.length() > 15) {
+                        medication = medication.substring(0, 12) + "...";
                     }
-                    if (treatment.getApprovedByUserName() != null) {
-                        status += " von " + treatment.getApprovedByUserName();
+                }
+                addTextLine(contentStream, medication, colMedikament, currentRowY, lineHeight);
+                
+                // Status (geprüft oder nicht geprüft)
+                String status = treatment.getApprovalDate() != null ? "Geprüft" : "Nicht geprüft";
+                addTextLine(contentStream, status, colStatus, currentRowY, lineHeight);
+                
+                // Bemerkungen (falls vorhanden)
+                String bemerkungen = "-";
+                if (treatment.getAdditionalInfo() != null && !treatment.getAdditionalInfo().isBlank()) {
+                    bemerkungen = treatment.getAdditionalInfo();
+                    if (bemerkungen.length() > 20) {
+                        bemerkungen = bemerkungen.substring(0, 17) + "...";
                     }
-                    // Dark green for approved status (high contrast, avoids red-green confusion)
-                    contentStream.setNonStrokingColor(0f/255f, 102f/255f, 51f/255f); // Dark green, high contrast
-                } else {
-                    // Dark orange for pending status (high contrast)
-                    status = "Nicht genehmigt - Vorläufiger Bericht";
-                    contentStream.setNonStrokingColor(204f/255f, 85f/255f, 0f/255f); // Dark orange, high contrast
                 }
-                yPosition = Math.max(yPosition, detailY) + lineHeight;
-                yPosition = addTextLine(contentStream, status, detailLeft, yPosition, lineHeight);
-                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                addTextLine(contentStream, bemerkungen, colBemerkungen, currentRowY, lineHeight);
                 
-                // Additional info with high contrast text (no background box)
-                String additionalInfo = treatment.getAdditionalInfo() != null && !treatment.getAdditionalInfo().isBlank() 
-                    ? treatment.getAdditionalInfo() : null;
-                if (additionalInfo != null) {
-                    // Text in bold with high contrast color
-                    contentStream.setFont(headerFont, 9);
-                    contentStream.setNonStrokingColor(0, 0, 0); // Black for maximum contrast
-                    yPosition = addTextLine(contentStream, "Bemerkungen: " + additionalInfo, detailLeft, yPosition, lineHeight);
-                    contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
-                    contentStream.setFont(normalFont, 9);
-                }
-                
-                yPosition -= 10; // Space between patients
+                yPosition = currentRowY - lineHeight - 2; // Space between rows
             }
             
             // Section header with separation line: Prüfung (moved to end, before confidentiality clause)

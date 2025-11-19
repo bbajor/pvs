@@ -193,9 +193,10 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         generateDailyListButton.addClickListener(event -> {
             LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
             LocalDate endOfWeek = monday.plusDays(6);
+            ensureInstitutionContext();
             WeekListConfig config = new WeekListConfig(ivomListPresenter.generateWeekList(monday), monday,
                     endOfWeek);
-            WeekListDialog dailyTreatmentsDialog = new WeekListDialog(config);
+            WeekListDialog dailyTreatmentsDialog = new WeekListDialog(config, applicationContext);
             dailyTreatmentsDialog.open();
         });
         generateDailyListButton.setIcon(VaadinIcon.FILE_TEXT.create());

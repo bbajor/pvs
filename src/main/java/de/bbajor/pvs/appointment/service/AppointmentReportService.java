@@ -83,7 +83,7 @@ public class AppointmentReportService {
             PDType1Font normalFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
             
             // Titel
-            String titleText = "Geplante Termine";
+            String titleText = "Terminübersicht";
             contentStream.setNonStrokingColor(33f/255f, 150f/255f, 243f/255f); // Primary blue
             contentStream.setFont(titleFont, 18);
             contentStream.beginText();
@@ -92,6 +92,38 @@ public class AppointmentReportService {
             contentStream.endText();
             contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
             yPosition -= 30;
+            
+            // Praxis-Daten
+            if (location != null) {
+                contentStream.setFont(headerFont, 12);
+                yPosition = addTextLine(contentStream, "Praxis", margin, yPosition, lineHeight);
+                contentStream.setFont(normalFont, 10);
+                
+                if (location.getLocationName() != null && !location.getLocationName().isBlank()) {
+                    yPosition = addTextLine(contentStream, location.getLocationName(), margin + 10, yPosition, lineHeight);
+                }
+                String fullAddress = location.getFullAddress();
+                if (fullAddress != null && !fullAddress.isBlank()) {
+                    yPosition = addTextLine(contentStream, fullAddress, margin + 10, yPosition, lineHeight);
+                }
+                if (location.getPhone() != null && !location.getPhone().isBlank()) {
+                    yPosition = addTextLine(contentStream, "Tel: " + location.getPhone(), margin + 10, yPosition, lineHeight);
+                }
+                if (location.getEmail() != null && !location.getEmail().isBlank()) {
+                    yPosition = addTextLine(contentStream, "E-Mail: " + location.getEmail(), margin + 10, yPosition, lineHeight);
+                }
+                
+                yPosition -= 10;
+                
+                // Trennlinie
+                contentStream.setStrokingColor(200f/255f, 200f/255f, 200f/255f);
+                contentStream.setLineWidth(1.5f);
+                contentStream.moveTo(margin, yPosition);
+                contentStream.lineTo(rightMargin, yPosition);
+                contentStream.stroke();
+                contentStream.setStrokingColor(0, 0, 0);
+                yPosition -= 20;
+            }
             
             // Patient-Informationen
             contentStream.setFont(headerFont, 12);
@@ -127,7 +159,19 @@ public class AppointmentReportService {
                 contentStream.setFont(normalFont, 10);
                 yPosition = addTextLine(contentStream, "Keine geplanten Termine", margin, yPosition, lineHeight);
             } else {
-                for (Appointment appointment : appointments) {
+                // Trenne nächsten Termin vom Rest
+                Appointment nextAppointment = appointments.stream()
+                    .filter(apt -> apt.getStartTime().isAfter(LocalDateTime.now()))
+                    .min((a1, a2) -> a1.getStartTime().compareTo(a2.getStartTime()))
+                    .orElse(null);
+                
+                List<Appointment> otherAppointments = appointments.stream()
+                    .filter(apt -> !apt.equals(nextAppointment))
+                    .sorted((a1, a2) -> a1.getStartTime().compareTo(a2.getStartTime()))
+                    .collect(Collectors.toList());
+                
+                // Zeige zuerst alle anderen Termine
+                for (Appointment appointment : otherAppointments) {
                     // Prüfe ob neue Seite benötigt wird
                     if (yPosition < 150) {
                         contentStream.close();
@@ -156,13 +200,7 @@ public class AppointmentReportService {
                     contentStream.setNonStrokingColor(0, 0, 0);
                     contentStream.setFont(normalFont, 10);
                     
-                    // Grund des Termins
-                    if (appointment.getReason() != null && !appointment.getReason().isBlank()) {
-                        yPosition = addTextLine(contentStream, "Grund: " + appointment.getReason(), 
-                                               margin + 10, yPosition, lineHeight);
-                    }
-                    
-                    // Adresse (vom Scheduler/Location)
+                    // Ort
                     if (appointment.getScheduler() != null && 
                         appointment.getScheduler().getLocation() != null) {
                         Location appointmentLocation = appointment.getScheduler().getLocation();
@@ -171,19 +209,23 @@ public class AppointmentReportService {
                             yPosition = addTextLine(contentStream, "Ort: " + locationName, 
                                                    margin + 10, yPosition, lineHeight);
                         }
-                        String fullAddress = appointmentLocation.getFullAddress();
-                        if (fullAddress != null && !fullAddress.isBlank()) {
-                            yPosition = addTextLine(contentStream, fullAddress, 
-                                                   margin + 20, yPosition, lineHeight);
-                        }
-                        if (appointmentLocation.getPhone() != null && 
-                            !appointmentLocation.getPhone().isBlank()) {
-                            yPosition = addTextLine(contentStream, "Tel: " + appointmentLocation.getPhone(), 
-                                                   margin + 20, yPosition, lineHeight);
-                        }
                     }
                     
-                    // Auge (falls mit Treatment verknüpft)
+                    // Arzt (aus Treatment.treatingDoctors)
+                    String doctorNames = "";
+                    if (appointment.getTreatment() != null && 
+                        appointment.getTreatment().getTreatingDoctors() != null &&
+                        !appointment.getTreatment().getTreatingDoctors().isEmpty()) {
+                        doctorNames = appointment.getTreatment().getTreatingDoctors().stream()
+                            .map(doctor -> doctor.getFullName() != null ? doctor.getFullName() : doctor.getUsername())
+                            .collect(Collectors.joining(", "));
+                    }
+                    if (!doctorNames.isBlank()) {
+                        yPosition = addTextLine(contentStream, "Arzt: " + doctorNames, 
+                                               margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Auge (aus Treatment)
                     if (appointment.getTreatment() != null && 
                         appointment.getTreatment().getSideOfEye() != null) {
                         String eye = appointment.getTreatment().getSideOfEye().toString();
@@ -191,26 +233,27 @@ public class AppointmentReportService {
                                                margin + 10, yPosition, lineHeight);
                     }
                     
-                    // Bemerkungen
+                    // Medikament (aus Treatment)
+                    if (appointment.getTreatment() != null && 
+                        appointment.getTreatment().getMedicationFavourite() != null &&
+                        appointment.getTreatment().getMedicationFavourite().getMedication() != null) {
+                        String medication = appointment.getTreatment().getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+                        yPosition = addTextLine(contentStream, "Medikament: " + medication, 
+                                               margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Bemerkungen (aus Appointment.notes oder Treatment.additionalInfo)
+                    String remarks = "";
                     if (appointment.getNotes() != null && !appointment.getNotes().isBlank()) {
-                        yPosition = addTextLine(contentStream, "Bemerkungen: " + appointment.getNotes(), 
-                                               margin + 10, yPosition, lineHeight);
+                        remarks = appointment.getNotes();
+                    } else if (appointment.getTreatment() != null && 
+                               appointment.getTreatment().getAdditionalInfo() != null &&
+                               !appointment.getTreatment().getAdditionalInfo().isBlank()) {
+                        remarks = appointment.getTreatment().getAdditionalInfo();
                     }
-                    
-                    // Zusätzliche Informationen
-                    if (appointment.getAdditionalInfo() != null && 
-                        !appointment.getAdditionalInfo().isBlank()) {
-                        yPosition = addTextLine(contentStream, "Weitere Details: " + appointment.getAdditionalInfo(), 
+                    if (!remarks.isBlank()) {
+                        yPosition = addTextLine(contentStream, "Bemerkungen: " + remarks, 
                                                margin + 10, yPosition, lineHeight);
-                    }
-                    
-                    // Status
-                    if (appointment.getStatus() != null && 
-                        appointment.getStatus() != AppointmentStatus.SCHEDULED) {
-                        contentStream.setNonStrokingColor(128f/255f, 128f/255f, 128f/255f); // Gray
-                        yPosition = addTextLine(contentStream, "Status: " + appointment.getStatus().toString(), 
-                                               margin + 10, yPosition, lineHeight);
-                        contentStream.setNonStrokingColor(0, 0, 0);
                     }
                     
                     yPosition -= 10;
@@ -223,6 +266,125 @@ public class AppointmentReportService {
                     contentStream.stroke();
                     contentStream.setStrokingColor(0, 0, 0);
                     yPosition -= 15;
+                }
+                
+                // Nächster Termin am Ende separiert und optisch hervorgehoben
+                if (nextAppointment != null) {
+                    // Prüfe ob neue Seite benötigt wird
+                    if (yPosition < 250) {
+                        contentStream.close();
+                        addPageNumber(document, document.getNumberOfPages());
+                        
+                        page = new PDPage(PDRectangle.A4);
+                        document.addPage(page);
+                        addWatermark(document, page, institution);
+                        contentStream = new PDPageContentStream(document, page);
+                        yPosition = 780;
+                    }
+                    
+                    yPosition -= 20;
+                    
+                    // Trennlinie vor nächstem Termin (dicker)
+                    contentStream.setStrokingColor(100f/255f, 100f/255f, 100f/255f);
+                    contentStream.setLineWidth(2f);
+                    contentStream.moveTo(margin, yPosition);
+                    contentStream.lineTo(rightMargin, yPosition);
+                    contentStream.stroke();
+                    contentStream.setStrokingColor(0, 0, 0);
+                    yPosition -= 20;
+                    
+                    // Überschrift "Nächster Termin" (hervorgehoben)
+                    contentStream.setNonStrokingColor(33f/255f, 150f/255f, 243f/255f); // Primary blue
+                    contentStream.setFont(headerFont, 14);
+                    yPosition = addTextLine(contentStream, "Nächster Termin", margin, yPosition, lineHeight + 4);
+                    contentStream.setNonStrokingColor(0, 0, 0);
+                    yPosition -= 10;
+                    
+                    // Termin-Datum und Uhrzeit (hervorgehoben)
+                    LocalDateTime startTime = nextAppointment.getStartTime();
+                    LocalDateTime endTime = nextAppointment.getEndTime();
+                    
+                    String dateTimeStr = dateFormatter.format(startTime) + " um " + 
+                                        timeFormatter.format(startTime) + " Uhr";
+                    if (endTime != null && !endTime.equals(startTime)) {
+                        dateTimeStr += " - " + timeFormatter.format(endTime) + " Uhr";
+                    }
+                    
+                    contentStream.setNonStrokingColor(33f/255f, 150f/255f, 243f/255f); // Primary blue
+                    contentStream.setFont(headerFont, 12);
+                    yPosition = addTextLine(contentStream, dateTimeStr, margin, yPosition, lineHeight + 2);
+                    contentStream.setNonStrokingColor(0, 0, 0);
+                    contentStream.setFont(normalFont, 10);
+                    
+                    // Ort
+                    if (nextAppointment.getScheduler() != null && 
+                        nextAppointment.getScheduler().getLocation() != null) {
+                        Location appointmentLocation = nextAppointment.getScheduler().getLocation();
+                        String locationName = appointmentLocation.getLocationName();
+                        if (locationName != null && !locationName.isBlank()) {
+                            yPosition = addTextLine(contentStream, "Ort: " + locationName, 
+                                                   margin + 10, yPosition, lineHeight);
+                        }
+                    }
+                    
+                    // Arzt (aus Treatment.treatingDoctors)
+                    String doctorNames = "";
+                    if (nextAppointment.getTreatment() != null && 
+                        nextAppointment.getTreatment().getTreatingDoctors() != null &&
+                        !nextAppointment.getTreatment().getTreatingDoctors().isEmpty()) {
+                        doctorNames = nextAppointment.getTreatment().getTreatingDoctors().stream()
+                            .map(doctor -> doctor.getFullName() != null ? doctor.getFullName() : doctor.getUsername())
+                            .collect(Collectors.joining(", "));
+                    }
+                    if (!doctorNames.isBlank()) {
+                        yPosition = addTextLine(contentStream, "Arzt: " + doctorNames, 
+                                               margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Auge (aus Treatment)
+                    if (nextAppointment.getTreatment() != null && 
+                        nextAppointment.getTreatment().getSideOfEye() != null) {
+                        String eye = nextAppointment.getTreatment().getSideOfEye().toString();
+                        yPosition = addTextLine(contentStream, "Auge: " + eye, 
+                                               margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Medikament (aus Treatment)
+                    if (nextAppointment.getTreatment() != null && 
+                        nextAppointment.getTreatment().getMedicationFavourite() != null &&
+                        nextAppointment.getTreatment().getMedicationFavourite().getMedication() != null) {
+                        String medication = nextAppointment.getTreatment().getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+                        yPosition = addTextLine(contentStream, "Medikament: " + medication, 
+                                               margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Bemerkungen (aus Appointment.notes oder Treatment.additionalInfo)
+                    String remarks = "";
+                    if (nextAppointment.getNotes() != null && !nextAppointment.getNotes().isBlank()) {
+                        remarks = nextAppointment.getNotes();
+                    } else if (nextAppointment.getTreatment() != null && 
+                               nextAppointment.getTreatment().getAdditionalInfo() != null &&
+                               !nextAppointment.getTreatment().getAdditionalInfo().isBlank()) {
+                        remarks = nextAppointment.getTreatment().getAdditionalInfo();
+                    }
+                    if (!remarks.isBlank()) {
+                        yPosition = addTextLine(contentStream, "Bemerkungen: " + remarks, 
+                                               margin + 10, yPosition, lineHeight);
+                    }
+                    
+                    // Zusätzliche Details zur Behandlung (falls vorhanden)
+                    if (nextAppointment.getTreatment() != null) {
+                        if (nextAppointment.getTreatment().getDosage() != null && !nextAppointment.getTreatment().getDosage().isBlank()) {
+                            yPosition = addTextLine(contentStream, "Dosierung: " + nextAppointment.getTreatment().getDosage(), 
+                                                   margin + 10, yPosition, lineHeight);
+                        }
+                        if (nextAppointment.getTreatment().getFrequency() != null && !nextAppointment.getTreatment().getFrequency().isBlank()) {
+                            yPosition = addTextLine(contentStream, "Frequenz: " + nextAppointment.getTreatment().getFrequency(), 
+                                                   margin + 10, yPosition, lineHeight);
+                        }
+                    }
+                    
+                    yPosition -= 10;
                 }
             }
             

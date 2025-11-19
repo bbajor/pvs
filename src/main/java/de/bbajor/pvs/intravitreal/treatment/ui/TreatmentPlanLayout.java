@@ -39,14 +39,21 @@ import de.bbajor.pvs.base.ui.component.TimelineView;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.patient.model.Patient;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 public class TreatmentPlanLayout extends VerticalLayout {
 
@@ -165,7 +172,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         buttonLayout.setWidthFull();
         buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.END);
         
-        Button exportButton = new Button("Termine ausdrucken", new Icon(VaadinIcon.PRINT));
+        Button exportButton = new Button("Terminübersicht drucken", new Icon(VaadinIcon.PRINT));
         exportButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         exportButton.addClickListener(e -> generateAppointmentReport());
         buttonLayout.add(exportButton);
@@ -204,24 +211,59 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
         
         try {
+            ensureInstitutionContext();
             AppointmentReportService reportService = context.getBean(AppointmentReportService.class);
             Patient patient = current.getPatient();
             byte[] pdfBytes = reportService.generatePatientAppointmentReport(patient);
             
             // Erstelle Download-Link
             String patientName = patient.getLastName() + "_" + patient.getFirstName();
-            String filename = "Geplante_Termine_" + patientName + "_" + 
+            String filename = "Terminuebersicht_" + patientName + "_" + 
                 java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
             
             downloadPdf(pdfBytes, filename);
             
-            Notification.show("Termin-Ausdruck wird heruntergeladen", 3000, 
+            Notification.show("Terminübersicht wird heruntergeladen", 3000, 
                     Notification.Position.BOTTOM_CENTER);
         } catch (Exception e) {
             Notification notification = Notification.show(
                     "Fehler beim Generieren des Termin-Ausdrucks: " + e.getMessage(), 5000, 
                     Notification.Position.MIDDLE);
             notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+     * so the context might not be set.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            try {
+                String username = adapter.getUsername();
+                UserAccountRepository userAccountRepository = context.getBean(UserAccountRepository.class);
+                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (userAccount != null && userAccount.getInstitution() != null) {
+                    Long institutionId = userAccount.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                }
+            } catch (Exception e) {
+                // Log but don't fail - will be caught by service layer
+            }
         }
     }
     
