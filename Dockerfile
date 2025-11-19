@@ -1,6 +1,14 @@
 # Multi-stage build for optimized production image
 FROM gradle:8.10-jdk21 AS build
 
+# Install Node.js and npm for Vaadin frontend build
+# Use NodeSource repository for latest LTS version
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest && \
+    node --version && \
+    npm --version
+
 WORKDIR /app
 
 # Copy dependency files first for better caching
@@ -16,18 +24,22 @@ COPY src/ src/
 # Use npm explicitly to avoid extra pnpm/bootstrap downloads inside container
 # classes task (includes compileJava + processResources) must run before vaadinBuildFrontend
 # to ensure all compiled classes and dependencies are available for annotation scanning
-RUN gradle clean classes --no-daemon --build-cache --parallel && \
+RUN echo "🔨 Building classes..." && \
+    gradle clean classes --no-daemon --build-cache --parallel && \
+    echo "✅ Classes built successfully" && \
+    echo "🔨 Building Vaadin frontend..." && \
     gradle vaadinBuildFrontend --no-daemon \
       -Pvaadin.productionMode \
       -Pvaadin.frontend.packageManager=npm \
       -Pvaadin.frontend.forceInstall=true \
-      --build-cache || \
-    (gradle clean classes --no-daemon --build-cache && \
+      --build-cache --stacktrace || \
+    (echo "⚠️ First attempt failed, retrying without parallel..." && \
+     gradle clean classes --no-daemon --build-cache && \
      gradle vaadinBuildFrontend --no-daemon \
        -Pvaadin.productionMode \
        -Pvaadin.frontend.packageManager=npm \
        -Pvaadin.frontend.forceInstall=true \
-       --build-cache)
+       --build-cache --stacktrace)
 
 # Build the application (Tests bereits im Workflow ausgeführt)
 # Nutze --build-cache und --parallel für schnellere Builds

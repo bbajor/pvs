@@ -137,6 +137,31 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     }
 
     private SideNavItem createSideNavItem(MenuEntry menuEntry) {
+        // Spezialbehandlung für Analytics: Untermenü erstellen
+        if ("analytics".equals(menuEntry.path())) {
+            SideNavItem analyticsItem = new SideNavItem(menuEntry.title(), menuEntry.path(), 
+                    menuEntry.icon() != null ? new Icon(menuEntry.icon()) : null);
+            
+            // Untermenü-Items hinzufügen
+            analyticsItem.addItem(new SideNavItem("Übersicht", "analytics", 
+                    new Icon("vaadin:chart")));
+            analyticsItem.addItem(new SideNavItem("Behandlungen pro Monat/Jahr", 
+                    "analytics/treatments-over-time", new Icon("vaadin:line-chart")));
+            analyticsItem.addItem(new SideNavItem("Behandlungen je Zeitslot", 
+                    "analytics/treatments-by-timeslot", new Icon("vaadin:clock")));
+            analyticsItem.addItem(new SideNavItem("Patienten nach Altersklassen", 
+                    "analytics/patients-by-age", new Icon("vaadin:users")));
+            analyticsItem.addItem(new SideNavItem("Patienten Kasse/Privat", 
+                    "analytics/patients-by-insurance-type", new Icon("vaadin:credit-card")));
+            analyticsItem.addItem(new SideNavItem("Patienten nach Krankenversicherung", 
+                    "analytics/patients-by-insurance-provider", new Icon("vaadin:building")));
+            analyticsItem.addItem(new SideNavItem("Behandlungen je Medikament", 
+                    "analytics/treatments-by-medication", new Icon("vaadin:pill")));
+            
+            return analyticsItem;
+        }
+        
+        // Standard-Item erstellen
         if (menuEntry.icon() != null) {
             return new SideNavItem(menuEntry.title(), menuEntry.path(), new Icon(menuEntry.icon()));
         } else {

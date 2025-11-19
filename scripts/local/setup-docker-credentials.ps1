@@ -1,6 +1,10 @@
 # Setup-Script für Docker Credentials (GitHub Container Registry)
 # Führt durch das Setup von GitHub Personal Access Token
 
+# UTF-8 Encoding für korrekte Umlaut-Darstellung
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Docker Credentials Setup für ghcr.io" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan

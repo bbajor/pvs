@@ -286,7 +286,7 @@ public class TreatmentReportService {
                     // Tabellenkopf erneut zeichnen
                     contentStream.setFont(headerFont, 9);
                     contentStream.setNonStrokingColor(0, 0, 0);
-                    int headerY = yPosition;
+                    headerY = yPosition;
                     addTextLine(contentStream, "Nr.", colNr, headerY, lineHeight);
                     addTextLine(contentStream, "Name", colName, headerY, lineHeight);
                     addTextLine(contentStream, "Vorname", colVorname, headerY, lineHeight);

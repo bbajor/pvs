@@ -54,3 +54,8 @@ src/main/java/**/ui/**: @RolesAllowed, Binder-Validatoren, Lazy Grid, keine gro�
 src/main/java/**/(service|domain)/**: Resilience4j an Service-Rändern; transaktionsarm; Domain-getriebene Tests
 src/main/java/**/api/**: /v1, Fehler-Schema, kein PII; Rate Limiting wo nötig
 src/main/resources/db/migration/**: idempotent, Indizes benannt, keine Destructive Changes ohne Guard
+Shell Scripts (PowerShell/Bash):
+All shell scripts (.ps1, .sh, .bash) MUST be in English only
+No German text, no emojis/icons, no special Unicode characters
+Use ASCII characters only for maximum compatibility
+Comments, error messages, user prompts, and output must be in English
