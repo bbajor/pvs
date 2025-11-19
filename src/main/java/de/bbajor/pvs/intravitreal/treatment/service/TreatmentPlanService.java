@@ -187,29 +187,12 @@ public class TreatmentPlanService {
         LocalDate monday = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate endOfWeek = monday.plusDays(6);
 
-        // Get all treatments in date range
-        List<Treatment> allTreatments = treatmentRepository
-                .findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(monday, endOfWeek);
+        // Get treatments in date range filtered by institution directly in query
+        // This is more efficient than loading all and filtering in memory
+        List<Treatment> treatments = treatmentRepository
+                .findTreatmentsByDateRangeAndInstitution(monday, endOfWeek, institutionId);
 
-        // Filter by institution - only treatments from treatment plans that belong to current institution
-        return allTreatments.stream()
-                .filter(treatment -> {
-                    if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getPatient() == null) {
-                        return false;
-                    }
-
-                    Patient patient = treatment.getTreatmentPlan().getPatient();
-
-                    // Check if patient belongs to current institution
-                    // Filter by location.institution (new model)
-                    if (patient.getLocation() != null && patient.getLocation().getInstitution() != null) {
-                        return patient.getLocation().getInstitution().getId().equals(institutionId);
-                    }
-
-                    // Patient has no location - exclude
-                    return false;
-                })
-                .toList();
+        return treatments;
     }
 
     /**

@@ -282,7 +282,8 @@ public class SurgicalCenterService {
             throw new IllegalStateException("Surgical center does not belong to current institution");
         }
         
-        return timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(surgicalCenterId);
+        // Filter treatments by institution when counting patients
+        return timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(surgicalCenterId, institutionId);
     }
 
     public List<SurgicalCenterTimeSlot> getNewTimeSlotsContainingNotApprovedTreatments(List<Long> timeSlotIds) {

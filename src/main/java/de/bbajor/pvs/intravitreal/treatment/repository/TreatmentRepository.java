@@ -31,12 +31,31 @@ public interface TreatmentRepository
                         left join fetch t.medicationFavourite mf
                         left join fetch mf.medication
                         inner join fetch t.treatmentPlan tp
+                        inner join fetch tp.patient p
+                        left join fetch p.location loc
                         where ts.date between :startDate and :endDate
                         and t.treatmentPlan is not null
                         order by ts.date asc
                         """)
         List<Treatment> findTreatmentsByDateRangeWithSurgicalCenterAndTreatmentPlan(LocalDate startDate,
                         LocalDate endDate);
+        
+        @Query("""
+                        select distinct t from Treatment t
+                        left join fetch t.surgicalCenterTimeSlot ts
+                        left join fetch ts.surgicalCenter sc
+                        left join fetch t.medicationFavourite mf
+                        left join fetch mf.medication
+                        inner join fetch t.treatmentPlan tp
+                        inner join fetch tp.patient p
+                        left join fetch p.location loc
+                        where ts.date between :startDate and :endDate
+                        and t.treatmentPlan is not null
+                        and loc.institution.id = :institutionId
+                        order by ts.date asc
+                        """)
+        List<Treatment> findTreatmentsByDateRangeAndInstitution(LocalDate startDate, LocalDate endDate,
+                        Long institutionId);
 
         @Query("""
                         select distinct t from Treatment t

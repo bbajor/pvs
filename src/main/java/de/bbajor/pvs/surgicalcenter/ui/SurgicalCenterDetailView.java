@@ -13,6 +13,8 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
+import org.springframework.context.ApplicationContext;
+
 import de.bbajor.pvs.base.ui.view.MainLayout;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
@@ -34,12 +36,15 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
     @Value("${domain.bundesland}")
     private String bundesland;
     private final SurgicalCenterListPresenter surgicalCenterListPresenter;
-    private final SurgicalCenterLayout surgicalCenterLayout = new SurgicalCenterLayout();
+    private final ApplicationContext applicationContext;
+    private final SurgicalCenterLayout surgicalCenterLayout;
 
     public SurgicalCenterDetailView(SurgicalCenterListPresenter surgicalCenterListPresenter,
-            InstitutionRepository institutionRepository) {
+            InstitutionRepository institutionRepository, ApplicationContext applicationContext) {
         this.surgicalCenterListPresenter = surgicalCenterListPresenter;
         this.institutionRepository = institutionRepository;
+        this.applicationContext = applicationContext;
+        this.surgicalCenterLayout = new SurgicalCenterLayout(applicationContext);
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();

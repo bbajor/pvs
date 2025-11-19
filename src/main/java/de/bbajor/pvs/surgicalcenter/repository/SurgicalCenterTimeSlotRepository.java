@@ -63,12 +63,16 @@ public interface SurgicalCenterTimeSlotRepository
                                         )
                                         from SurgicalCenterTimeSlot ts
                                         left join Treatment t on t.surgicalCenterTimeSlot = ts
+                                        left join t.treatmentPlan tp
+                                        left join tp.patient p
+                                        left join p.location loc
                                         where ts.surgicalCenter.id = :id
+                                        and (t.id is null or loc.institution.id = :institutionId)
                                         group by ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
                                                  ts.surgicalCenter, ts.isAvailable, ts.isApproved
                                         order by ts.date asc, ts.startTime asc
                         """)
-        List<SurgicalCenterTimeSlot> findBySurgicalCenterIdWithTreatmentCount(Integer id);
+        List<SurgicalCenterTimeSlot> findBySurgicalCenterIdWithTreatmentCount(@Param("id") Integer id, @Param("institutionId") Long institutionId);
 
         @Query("""
                         SELECT ts FROM SurgicalCenterTimeSlot ts

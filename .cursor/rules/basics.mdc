@@ -20,6 +20,10 @@ DTO ≠ Entity; MapStruct; Bean Validation end-to-end
 JPA: Pagination Pflicht, N+1 vermeiden (EntityGraph/fetch join), Indizes bewusst
 Fehler: globale Handler (@ControllerAdvice); keine Interna/Stacktraces an Clients
 Vaadin: dünne Views, Logik in Services; Binder-Validierung; Grid lazy; Push sparsam; kleine Sessions
+InstitutionContext: IMMER prüfen vor Service-Aufrufen in Dialogen/Button-Handlern (ensureInstitutionContext() aufrufen)
+  - Button-Clicks triggern kein BeforeEnterEvent, daher fehlt der Context oft
+  - Pattern: ensureInstitutionContext() vor jedem Service-Aufruf in Event-Handlern
+  - Siehe bestehende Implementierungen in TreatmentPlanMainView, TaskReviewDialog, etc.
 API/Hilla: Versionierung /v1; stabile Schemas; konsistente Fehler-Responses
 Resilience/Performance:
 Timeouts, Retries (Exponential Backoff + Jitter), Circuit Breaker, Bulkhead, Idempotenz

@@ -191,13 +191,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
 
         generateDailyListButton.addClickListener(event -> {
-            LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            LocalDate endOfWeek = monday.plusDays(6);
             ensureInstitutionContext();
-            WeekListConfig config = new WeekListConfig(ivomListPresenter.generateWeekList(monday), monday,
-                    endOfWeek);
-            WeekListDialog dailyTreatmentsDialog = new WeekListDialog(config, applicationContext);
-            dailyTreatmentsDialog.open();
+            openWeekListDialog();
         });
         generateDailyListButton.setIcon(VaadinIcon.FILE_TEXT.create());
         generateDailyListButton
@@ -510,5 +505,18 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     @Override
     public void onTreatmentPlanChanged() {
         refresh("");
+    }
+    
+    /**
+     * Öffnet den Dialog für die Wochenliste mit der aktuellen Woche
+     */
+    private void openWeekListDialog() {
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContext();
+        LocalDate monday = LocalDate.now(clock).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate endOfWeek = monday.plusDays(6);
+        WeekListConfig config = new WeekListConfig(ivomListPresenter.generateWeekList(monday), monday, endOfWeek);
+        WeekListDialog weekListDialog = new WeekListDialog(config, applicationContext, ivomListPresenter);
+        weekListDialog.open();
     }
 }

@@ -202,9 +202,9 @@ public class TestDataInitializer {
                 testInstitutions.institution2, savedMedications);
         List<Diagnosis> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
 
-        // Erstelle 5 Patienten für Institution 2 (jeweils auf einem der beiden Standorte)
+        // Erstelle 50 Patienten für Institution 2 (jeweils auf einem der beiden Standorte)
         List<Patient> savedPatients = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 50; i++) {
             Location patientLocation = (i % 2 == 0) ? testInstitutions.institution2Location1 : testInstitutions.institution2Location2;
             List<Patient> patients = createRealisticPatients(1, testInstitutions.institution2, patientLocation);
             savedPatients.addAll(patientService.saveAll(patients));
@@ -722,10 +722,10 @@ public class TestDataInitializer {
 
     /**
      * Erstellt Behandlungspläne mit zugehörigen Behandlungen für alle Patienten.
-     * Jeder Patient erhält:
-     * - Mindestens 5 Termine in der Vergangenheit
-     * - Maximal 1 Termin in der Zukunft
-     * - Mix aus approved und unapproved Behandlungen
+     * - Mindestens 4 Wochen zwischen Behandlungen
+     * - Mehrere Patienten pro Zeitslot
+     * - 20 Patienten in einem zukünftigen Zeitslot
+     * - 30 Patienten in einem vergangenen Zeitslot
      */
     private void createTreatmentPlansWithTreatments(List<Patient> patients,
             List<MedicationFavourite> favourites,
@@ -734,48 +734,122 @@ public class TestDataInitializer {
         Random random = new Random();
         LocalDate now = LocalDate.now();
 
-        // Generiere für jeden Patienten einen Behandlungsplan
-        for (Patient patientFromList : patients) {
-            // Wichtig: Hole den Patienten direkt aus der Datenbank, um sicherzustellen,
-            // dass es sich um eine persistierte Entität handelt und nicht um ein
-            // transientes Objekt
+        if (favourites.isEmpty()) {
+            log.warn("Keine Medikamentenfavoriten verfügbar, überspringe Erstellung von Behandlungen");
+            return;
+        }
 
-            // Stelle sicher, dass der Patient eine ID hat (also gespeichert ist)
+        // Wähle ein OP-Zentrum für alle Patienten
+        SurgicalCenter center = surgicalCenters.get(random.nextInt(surgicalCenters.size()));
+        
+        // Lade alle Zeitslots des Zentrums neu, um sicherzustellen, dass sie aktuell sind
+        SurgicalCenter reloadedCenter = surgicalCenterService.findByIdWithDetails(center.getId());
+        List<SurgicalCenterTimeSlot> allSlots = reloadedCenter.getAvailableTimeSlots();
+
+        // Finde einen vergangenen Zeitslot für 30 Patienten (z.B. vor 2 Wochen)
+        LocalDate tempPastSlotDate = now.minusWeeks(2).with(TemporalAdjusters.previousOrSame(DayOfWeek.WEDNESDAY));
+        final LocalDate pastSlotDate = tempPastSlotDate.isAfter(now) ? tempPastSlotDate.minusWeeks(1) : tempPastSlotDate;
+        SurgicalCenterTimeSlot pastSlot = allSlots.stream()
+                .filter(slot -> slot.getDate().equals(pastSlotDate))
+                .findFirst()
+                .orElse(null);
+        
+        if (pastSlot == null) {
+            // Erstelle einen vergangenen Zeitslot falls nicht vorhanden
+            pastSlot = new SurgicalCenterTimeSlot()
+                    .setDate(pastSlotDate)
+                    .setStartTime(LocalTime.of(7, 0))
+                    .setEndTime(LocalTime.of(15, 0))
+                    .setSurgicalCenter(reloadedCenter)
+                    .setDescription("Vergangener Zeitslot für Testdaten")
+                    .setAvailable(false)
+                    .setApproved(true);
+            reloadedCenter = surgicalCenterService.saveTimeSlotsAndSurgicalCenter(List.of(pastSlot), reloadedCenter);
+            pastSlot = reloadedCenter.getAvailableTimeSlots().stream()
+                    .filter(slot -> slot.getDate().equals(pastSlotDate))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        // Finde einen zukünftigen Zeitslot für 20 Patienten (z.B. in 2 Wochen)
+        LocalDate futureSlotDate = now.plusWeeks(2).with(TemporalAdjusters.nextOrSame(DayOfWeek.WEDNESDAY));
+        SurgicalCenterTimeSlot futureSlot = allSlots.stream()
+                .filter(slot -> slot.getDate().equals(futureSlotDate))
+                .filter(SurgicalCenterTimeSlot::isAvailable)
+                .findFirst()
+                .orElse(null);
+        
+        if (futureSlot == null) {
+            // Erstelle einen zukünftigen Zeitslot falls nicht vorhanden
+            futureSlot = new SurgicalCenterTimeSlot()
+                    .setDate(futureSlotDate)
+                    .setStartTime(LocalTime.of(7, 0))
+                    .setEndTime(LocalTime.of(15, 0))
+                    .setSurgicalCenter(reloadedCenter)
+                    .setDescription("Zukünftiger Zeitslot für Testdaten")
+                    .setAvailable(true)
+                    .setApproved(true);
+            reloadedCenter = surgicalCenterService.saveTimeSlotsAndSurgicalCenter(List.of(futureSlot), reloadedCenter);
+            futureSlot = reloadedCenter.getAvailableTimeSlots().stream()
+                    .filter(slot -> slot.getDate().equals(futureSlotDate))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        // Sammle verfügbare vergangene Slots (mindestens 4 Wochen auseinander)
+        final LocalDate finalPastSlotDate = pastSlotDate;
+        List<SurgicalCenterTimeSlot> availablePastSlots = allSlots.stream()
+                .filter(slot -> slot.getDate().isBefore(now) && slot.getDate().isBefore(finalPastSlotDate))
+                .sorted((a, b) -> b.getDate().compareTo(a.getDate())) // Neueste zuerst
+                .collect(Collectors.toList());
+
+        // Verteile Patienten auf Zeitslots
+        int patientIndex = 0;
+        
+        // 30 Patienten für vergangenen Zeitslot (bereits behandelt)
+        for (int i = 0; i < 30 && patientIndex < patients.size(); i++) {
+            Patient patientFromList = patients.get(patientIndex++);
+            createTreatmentPlanForPatient(patientFromList, pastSlot, favourites, diagnoses, random, true, true);
+        }
+
+        // 20 Patienten für zukünftigen Zeitslot
+        for (int i = 0; i < 20 && patientIndex < patients.size(); i++) {
+            Patient patientFromList = patients.get(patientIndex++);
+            createTreatmentPlanForPatient(patientFromList, futureSlot, favourites, diagnoses, random, false, false);
+        }
+
+        // Restliche Patienten: Behandlungsreihenfolge mit mindestens 4 Wochen Abstand
+        for (; patientIndex < patients.size(); patientIndex++) {
+            Patient patientFromList = patients.get(patientIndex);
+            
+            // Reload patient from database
             if (patientFromList.getId() == null) {
                 log.warn("Patient has no ID, skipping treatment plan");
-                continue; // Überspringe diesen Patienten
+                continue;
             }
             
-            // Reload patient from database to ensure Location and Institution are loaded
             Patient patient = patientService.findEntityById(patientFromList.getId());
             if (patient == null) {
                 log.warn("Patient {} not found in database, skipping treatment plan", patientFromList.getId());
                 continue;
             }
 
-            // Erstelle einen individualisierten Behandlungsplan
-            // Plan wurde vor mindestens 6 Monaten erstellt (für Vergangenheitstermine)
+            // Erstelle Behandlungsplan
             TreatmentPlan plan = new TreatmentPlan();
-            plan.setCreationDate(now.minusMonths(6 + random.nextInt(6))); // 6-12 Monate in der Vergangenheit
-
-            // Wähle eine passende Diagnose
+            plan.setCreationDate(now.minusMonths(6 + random.nextInt(6)));
             Diagnosis diagnosis = diagnoses.get(random.nextInt(diagnoses.size()));
             plan.setDiagnosis(diagnosis);
-
-            // Personalisiere den Behandlungsplan
             plan.setDescription("Behandlungsplan für " + diagnosis.getName() + " - "
                     + patient.getFirstName() + " " + patient.getLastName());
             plan.setPatient(patient);
             
-            // CRITICAL: Set institution from patient.location.institution for data isolation
             if (patient.getLocation() != null && patient.getLocation().getInstitution() != null) {
                 plan.setInstitution(patient.getLocation().getInstitution());
             } else {
                 log.warn("Patient {} has no location with institution, skipping treatment plan", patient.getId());
-                continue; // Überspringe diesen Plan
+                continue;
             }
 
-            // Füge individuelle Informationen hinzu
             String[] additionalInfos = {
                 "Regelmäßige Kontrolle erforderlich",
                 "Patient benötigt besondere Nachsorge",
@@ -787,61 +861,65 @@ public class TestDataInitializer {
             };
             plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
 
-            // Speichere den Behandlungsplan
             TreatmentPlan savedPlan;
             try {
                 savedPlan = treatmentPlanService.saveTreatmentPlanInternal(plan);
             } catch (Exception e) {
                 log.error("Fehler beim Speichern des Behandlungsplans: {}", e.getMessage(), e);
-                continue; // Überspringe diesen Plan bei einem Fehler
-            }
-
-            // Wähle ein OP-Zentrum für diesen Patienten
-            SurgicalCenter center = surgicalCenters.get(random.nextInt(surgicalCenters.size()));
-
-            // Wähle ein bevorzugtes Medikament und eine Seite
-            if (favourites.isEmpty()) {
-                log.warn("Keine Medikamentenfavoriten verfügbar, überspringe Erstellung von Behandlungen");
                 continue;
             }
+
             MedicationFavourite preferredMedication = favourites.get(random.nextInt(favourites.size()));
             SideOfEye preferredSideOfEye = EYE_SIDES[random.nextInt(EYE_SIDES.length)];
 
+            // Erstelle Behandlungen mit mindestens 4 Wochen Abstand
+            LocalDate lastTreatmentDate = plan.getCreationDate();
             List<Treatment> treatments = new ArrayList<>();
-            LocalDate planCreationDate = plan.getCreationDate();
+            
+            // Finde passende Slots mit mindestens 4 Wochen Abstand
+            // Verwende eine Kopie für die Lambda-Ausdrücke
+            LocalDate currentLastDate = lastTreatmentDate;
+            List<SurgicalCenterTimeSlot> suitablePastSlots = new ArrayList<>();
+            
+            for (SurgicalCenterTimeSlot slot : availablePastSlots) {
+                if (slot.getDate().isAfter(plan.getCreationDate()) 
+                        && slot.getDate().isBefore(now)
+                        && slot.getDate().isAfter(currentLastDate.plusWeeks(4))) {
+                    suitablePastSlots.add(slot);
+                    currentLastDate = slot.getDate();
+                    if (suitablePastSlots.size() >= 5) { // Maximal 5 Behandlungen in der Vergangenheit
+                        break;
+                    }
+                }
+            }
+            
+            // Sortiere nach Datum
+            suitablePastSlots.sort((a, b) -> a.getDate().compareTo(b.getDate()));
 
-            // Sammle alle verfügbaren Slots aus der Vergangenheit (mindestens 5)
-            List<SurgicalCenterTimeSlot> pastSlots = center.getAvailableTimeSlots().stream()
-                    .filter(slot -> slot.getDate().isBefore(now) && slot.getDate().isAfter(planCreationDate))
-                    .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
-                    .collect(Collectors.toList());
-
-            // Sammle verfügbare Slots aus der Zukunft (maximal 1)
-            List<SurgicalCenterTimeSlot> futureSlots = center.getAvailableTimeSlots().stream()
-                    .filter(slot -> slot.getDate().isAfter(now) || slot.getDate().isEqual(now))
-                    .filter(SurgicalCenterTimeSlot::isAvailable)
-                    .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
-                    .limit(1)
-                    .collect(Collectors.toList());
-
-            // Erstelle mindestens 5 Behandlungen in der Vergangenheit
-            int pastTreatmentCount = Math.max(5, Math.min(8, pastSlots.size())); // 5-8 Behandlungen in der Vergangenheit
-            for (int i = 0; i < pastTreatmentCount && i < pastSlots.size(); i++) {
-                SurgicalCenterTimeSlot slot = pastSlots.get(i);
+            for (SurgicalCenterTimeSlot slot : suitablePastSlots) {
                 Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, favourites, random, true);
                 treatments.add(treatment);
-                slot.setAvailable(false); // Slot ist belegt
+                lastTreatmentDate = slot.getDate();
             }
 
-            // Erstelle maximal 1 Behandlung in der Zukunft
-            if (!futureSlots.isEmpty() && random.nextDouble() < 0.7) { // 70% Wahrscheinlichkeit für Zukunftstermin
-                SurgicalCenterTimeSlot slot = futureSlots.get(0);
-                Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, favourites, random, false);
-                treatments.add(treatment);
-                slot.setAvailable(false); // Slot ist belegt
+            // Optional: Nächstmöglicher Termin (Ausnahme für nicht erschienene Patienten)
+            if (random.nextDouble() < 0.2) { // 20% Wahrscheinlichkeit
+                final LocalDate finalLastTreatmentDate = lastTreatmentDate;
+                List<SurgicalCenterTimeSlot> nextSlots = allSlots.stream()
+                        .filter(slot -> slot.getDate().isAfter(now) || slot.getDate().isEqual(now))
+                        .filter(SurgicalCenterTimeSlot::isAvailable)
+                        .filter(slot -> slot.getDate().isAfter(finalLastTreatmentDate.plusWeeks(4)))
+                        .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
+                        .limit(1)
+                        .collect(Collectors.toList());
+                
+                if (!nextSlots.isEmpty()) {
+                    SurgicalCenterTimeSlot nextSlot = nextSlots.get(0);
+                    Treatment treatment = createTreatment(savedPlan, nextSlot, preferredMedication, preferredSideOfEye, favourites, random, false);
+                    treatments.add(treatment);
+                }
             }
 
-            // Speichere die Behandlungen
             if (!treatments.isEmpty()) {
                 try {
                     treatmentPlanService.saveNewTreatmentsForExistingPlanInternal(treatments, savedPlan.getId());
@@ -849,6 +927,75 @@ public class TestDataInitializer {
                     log.error("Fehler beim Speichern der Behandlungen: {}", e.getMessage(), e);
                 }
             }
+        }
+    }
+
+    /**
+     * Erstellt einen Behandlungsplan für einen Patienten mit einem spezifischen Zeitslot
+     */
+    private void createTreatmentPlanForPatient(Patient patientFromList, SurgicalCenterTimeSlot slot,
+            List<MedicationFavourite> favourites, List<Diagnosis> diagnoses, Random random,
+            boolean isPast, boolean isApproved) {
+        
+        if (patientFromList.getId() == null) {
+            log.warn("Patient has no ID, skipping treatment plan");
+            return;
+        }
+        
+        Patient patient = patientService.findEntityById(patientFromList.getId());
+        if (patient == null) {
+            log.warn("Patient {} not found in database, skipping treatment plan", patientFromList.getId());
+            return;
+        }
+
+        TreatmentPlan plan = new TreatmentPlan();
+        plan.setCreationDate(slot.getDate().minusMonths(6 + random.nextInt(6)));
+        Diagnosis diagnosis = diagnoses.get(random.nextInt(diagnoses.size()));
+        plan.setDiagnosis(diagnosis);
+        plan.setDescription("Behandlungsplan für " + diagnosis.getName() + " - "
+                + patient.getFirstName() + " " + patient.getLastName());
+        plan.setPatient(patient);
+        
+        if (patient.getLocation() != null && patient.getLocation().getInstitution() != null) {
+            plan.setInstitution(patient.getLocation().getInstitution());
+        } else {
+            log.warn("Patient {} has no location with institution, skipping treatment plan", patient.getId());
+            return;
+        }
+
+        String[] additionalInfos = {
+            "Regelmäßige Kontrolle erforderlich",
+            "Patient benötigt besondere Nachsorge",
+            "Lokale Anästhesie vor Injektion empfohlen",
+            "Patient ist an Glaukom vorerkrankt",
+            "Diabetes mellitus Typ II",
+            "Erhöhtes Risiko für Endophthalmitis",
+            "Besonders vorsichtige Injektion aufgrund enger Kammerwinkelverhältnisse"
+        };
+        plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
+
+        TreatmentPlan savedPlan;
+        try {
+            savedPlan = treatmentPlanService.saveTreatmentPlanInternal(plan);
+        } catch (Exception e) {
+            log.error("Fehler beim Speichern des Behandlungsplans: {}", e.getMessage(), e);
+            return;
+        }
+
+        MedicationFavourite preferredMedication = favourites.get(random.nextInt(favourites.size()));
+        SideOfEye preferredSideOfEye = EYE_SIDES[random.nextInt(EYE_SIDES.length)];
+
+        Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, favourites, random, isPast);
+        
+        // Für vergangene Behandlungen: Setze ApprovalDate wenn isApproved
+        if (isPast && isApproved) {
+            treatment.setApprovalDate(slot.getDate().minusDays(random.nextInt(5) + 1));
+        }
+
+        try {
+            treatmentPlanService.saveNewTreatmentsForExistingPlanInternal(List.of(treatment), savedPlan.getId());
+        } catch (Exception e) {
+            log.error("Fehler beim Speichern der Behandlungen: {}", e.getMessage(), e);
         }
     }
 
