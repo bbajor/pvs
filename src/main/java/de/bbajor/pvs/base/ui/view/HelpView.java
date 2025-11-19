@@ -8,6 +8,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Section;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -239,6 +240,15 @@ public class HelpView extends Main {
         intro.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
         section.add(intro);
 
+        // Berechtigungsmatrix
+        H3 matrixHeader = new H3("Berechtigungsmatrix");
+        matrixHeader.addClassNames(LumoUtility.Margin.Top.NONE, LumoUtility.Margin.Bottom.MEDIUM);
+        section.add(matrixHeader);
+
+        Div matrixContainer = createPermissionMatrix();
+        matrixContainer.addClassNames(LumoUtility.Margin.Bottom.LARGE);
+        section.add(matrixContainer);
+
         // Verfügbare Rollen
         VerticalLayout rolesLayout = new VerticalLayout();
         rolesLayout.setSpacing(true);
@@ -347,6 +357,133 @@ public class HelpView extends Main {
         card.add(descParagraph);
 
         return card;
+    }
+
+    /**
+     * Erstellt eine Berechtigungsmatrix als Div-basierte Tabelle mit CSS Grid.
+     * Zeigt für jeden Bereich an, welche Rollen welche Rechte haben.
+     */
+    private Div createPermissionMatrix() {
+        Div container = new Div();
+        container.addClassNames(LumoUtility.Overflow.AUTO, LumoUtility.Margin.Bottom.MEDIUM);
+        container.getStyle().set("max-width", "100%");
+
+        // Matrix-Daten: Bereich -> Rollen mit Rechten
+        // Format: "✓" = Vollzugriff, "L" = Lesezugriff, "-" = Kein Zugriff
+        String[][] matrixData = {
+            // Bereich, OWNER, ADMIN, DOCTOR, TECH_USER, MEDICAL_STAFF, USER
+            {"Zu überprüfende Behandlungen", "✓", "✓", "✓", "-", "-", "-"},
+            {"IVOM-Planer (Lesen)", "✓", "✓", "✓", "✓", "✓", "✓"},
+            {"IVOM-Planer (Schreiben)", "✓", "✓", "✓", "✓", "-", "-"},
+            {"Medikamentendatenbank", "✓", "✓", "-", "✓", "-", "-"},
+            {"Operationszentren", "✓", "✓", "-", "✓", "-", "-"},
+            {"Eigene Praxisdaten", "✓", "✓", "✓", "✓", "-", "-"},
+            {"Benutzerverwaltung", "✓", "✓", "-", "✓", "-", "-"}
+        };
+
+        String[] roleNames = {"Bereich", "Eigentümer", "Admin", "Arzt", "Techn. User", "Med. Personal", "Benutzer"};
+
+        // CSS Grid Container
+        Div gridContainer = new Div();
+        gridContainer.getStyle().set("display", "grid");
+        gridContainer.getStyle().set("grid-template-columns", "200px repeat(6, 1fr)");
+        gridContainer.addClassNames(LumoUtility.Border.ALL, LumoUtility.BorderRadius.MEDIUM);
+        gridContainer.getStyle().set("border-collapse", "collapse");
+
+        // Header-Zeile
+        for (int col = 0; col < roleNames.length; col++) {
+            Div headerCell = new Div();
+            headerCell.addClassNames(LumoUtility.Padding.MEDIUM, LumoUtility.FontWeight.SEMIBOLD);
+            if (col == 0) {
+                headerCell.addClassNames(LumoUtility.Background.CONTRAST_10);
+            } else {
+                headerCell.addClassNames(LumoUtility.Background.CONTRAST_10);
+                headerCell.getStyle().set("text-align", "center");
+            }
+            headerCell.getStyle().set("border-right", "1px solid var(--lumo-contrast-20pct)");
+            if (col == roleNames.length - 1) {
+                headerCell.getStyle().remove("border-right");
+            }
+            headerCell.setText(roleNames[col]);
+            gridContainer.add(headerCell);
+        }
+
+        // Daten-Zeilen
+        for (int rowIdx = 0; rowIdx < matrixData.length; rowIdx++) {
+            // Bereich-Spalte
+            Div areaCell = new Div();
+            areaCell.addClassNames(LumoUtility.Padding.MEDIUM, LumoUtility.FontWeight.SEMIBOLD);
+            if (rowIdx % 2 == 0) {
+                areaCell.addClassNames(LumoUtility.Background.BASE);
+            } else {
+                areaCell.addClassNames(LumoUtility.Background.CONTRAST_5);
+            }
+            areaCell.getStyle().set("border-right", "1px solid var(--lumo-contrast-20pct)");
+            areaCell.setText(matrixData[rowIdx][0]);
+            gridContainer.add(areaCell);
+
+            // Rollen-Spalten
+            for (int colIdx = 1; colIdx < matrixData[rowIdx].length; colIdx++) {
+                Div cell = new Div();
+                cell.addClassNames(LumoUtility.Padding.MEDIUM);
+                cell.getStyle().set("text-align", "center");
+                if (rowIdx % 2 == 0) {
+                    cell.addClassNames(LumoUtility.Background.BASE);
+                } else {
+                    cell.addClassNames(LumoUtility.Background.CONTRAST_5);
+                }
+                if (colIdx < matrixData[rowIdx].length - 1) {
+                    cell.getStyle().set("border-right", "1px solid var(--lumo-contrast-20pct)");
+                }
+
+                String permission = matrixData[rowIdx][colIdx];
+                Span permissionSpan = new Span();
+                
+                if ("✓".equals(permission)) {
+                    permissionSpan.addClassNames(LumoUtility.TextColor.SUCCESS, LumoUtility.FontWeight.BOLD);
+                    permissionSpan.setText("✓");
+                } else if ("L".equals(permission)) {
+                    permissionSpan.addClassNames(LumoUtility.TextColor.PRIMARY, LumoUtility.FontWeight.SEMIBOLD);
+                    permissionSpan.setText("L");
+                } else {
+                    permissionSpan.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    permissionSpan.setText("—");
+                }
+                
+                cell.add(permissionSpan);
+                gridContainer.add(cell);
+            }
+        }
+
+        container.add(gridContainer);
+
+        // Legende
+        Div legend = new Div();
+        legend.addClassNames(LumoUtility.Margin.Top.MEDIUM, LumoUtility.Padding.SMALL, 
+                LumoUtility.Background.CONTRAST_5, LumoUtility.BorderRadius.SMALL);
+        
+        Paragraph legendText = new Paragraph();
+        legendText.addClassNames(LumoUtility.Margin.NONE, LumoUtility.FontSize.SMALL);
+        legendText.add(new Span("Legende: "));
+        
+        Span fullAccess = new Span("✓ = Vollzugriff");
+        fullAccess.addClassNames(LumoUtility.TextColor.SUCCESS, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Right.MEDIUM);
+        legendText.add(fullAccess);
+        
+        Span readAccess = new Span("L = Lesezugriff");
+        readAccess.addClassNames(LumoUtility.TextColor.PRIMARY, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Right.MEDIUM);
+        legendText.add(readAccess);
+        
+        Span noAccess = new Span("— = Kein Zugriff");
+        noAccess.addClassNames(LumoUtility.TextColor.SECONDARY);
+        legendText.add(noAccess);
+        
+        legend.add(legendText);
+        container.add(legend);
+
+        return container;
     }
 }
 
