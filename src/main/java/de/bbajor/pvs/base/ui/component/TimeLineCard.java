@@ -36,10 +36,20 @@ public class TimeLineCard extends Card {
         if (!config.isFirst()) {
             if (config.getTreatmentDate().isBefore(now)) {
                 addClassName("past");
+                // Abgelaufene Termine ausgrauen
+                getStyle().set("opacity", "0.6");
+                getStyle().set("filter", "grayscale(30%)");
             } else if (config.getTreatmentDate().isAfter(now)) {
                 addClassName("future");
+                // Noch nicht wahrgenommene Termine optisch hervorheben (passende Farbe)
+                getStyle().set("background-color", "var(--lumo-primary-color-10pct)");
+                getStyle().set("border", "2px solid var(--lumo-primary-color)");
+                getStyle().set("box-shadow", "0 2px 8px rgba(0, 0, 0, 0.1)");
             } else {
                 addClassName("current");
+                // Heutige Termine ebenfalls hervorheben
+                getStyle().set("background-color", "var(--lumo-primary-color-10pct)");
+                getStyle().set("border", "2px solid var(--lumo-primary-color)");
             }
             SurgicalCenterTimeSlot timeSlot = config.getTreatment().getSurgicalCenterTimeSlot();
             LocalDate treatmentDate = timeSlot.getDate();

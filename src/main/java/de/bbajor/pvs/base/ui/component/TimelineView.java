@@ -148,7 +148,22 @@ public class TimelineView extends VerticalLayout {
             }
         }
         
+        LocalDate now = LocalDate.now();
+        boolean pastFutureDividerAdded = false;
+        
         for (TimeLineCardConfig current : itemsToRender) {
+            // Prüfe ob wir zwischen vergangenen und zukünftigen Terminen sind
+            boolean prevIsPast = prev != null && prev.getTreatmentDate() != null && prev.getTreatmentDate().isBefore(now);
+            boolean currentIsFuture = current.getTreatmentDate() != null && current.getTreatmentDate().isAfter(now);
+            boolean currentIsToday = current.getTreatmentDate() != null && current.getTreatmentDate().isEqual(now);
+            
+            // Füge vertikale Trennlinie zwischen vergangenen und zukünftigen Terminen hinzu
+            if (prevIsPast && currentIsFuture && !pastFutureDividerAdded) {
+                Div divider = createPastFutureDivider(prev, current);
+                timelineLayout.add(divider);
+                pastFutureDividerAdded = true;
+            }
+            
             // Fügt die Verbindungslinie zwischen den Karten hinzu
             if (prev != null) {
                 timelineLayout.add(createLineBetween(prev, current));
@@ -159,6 +174,13 @@ public class TimelineView extends VerticalLayout {
             TimeLineCard card = createCard(current, isLastTreatment);
             timelineLayout.add(card);
             configToComponentMap.put(current, card);
+            
+            // Wenn die aktuelle Card heute ist, soll die Trennlinie von der Card verdeckt sein
+            // (durch z-index oder Positionierung)
+            if (currentIsToday && pastFutureDividerAdded) {
+                card.getStyle().set("position", "relative");
+                card.getStyle().set("z-index", "10");
+            }
 
             prev = current;
         }
@@ -245,6 +267,33 @@ public class TimelineView extends VerticalLayout {
         }
 
         return lineWithLabel;
+    }
+    
+    /**
+     * Erstellt eine vertikale Trennlinie zwischen vergangenen und zukünftigen Terminen.
+     * Diese Linie wird von Cards verdeckt, wenn der aktuelle Tag mit der Card zusammenfällt.
+     */
+    private Div createPastFutureDivider(TimeLineCardConfig prev, TimeLineCardConfig current) {
+        Div divider = new Div();
+        divider.addClassName("past-future-divider");
+        
+        if (orientation == Orientation.HORIZONTAL) {
+            divider.setWidth("3px");
+            divider.setHeight("100%");
+            divider.getStyle().set("background-color", "var(--lumo-error-color)");
+            divider.getStyle().set("position", "relative");
+            divider.getStyle().set("z-index", "5");
+            divider.getStyle().set("margin", "0 10px");
+        } else {
+            divider.setWidth("100%");
+            divider.setHeight("3px");
+            divider.getStyle().set("background-color", "var(--lumo-error-color)");
+            divider.getStyle().set("position", "relative");
+            divider.getStyle().set("z-index", "5");
+            divider.getStyle().set("margin", "10px 0");
+        }
+        
+        return divider;
     }
 
     private TimeLineCard createCard(TimeLineCardConfig config, boolean isLastTreatment) {
