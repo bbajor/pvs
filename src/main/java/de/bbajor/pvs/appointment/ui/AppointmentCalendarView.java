@@ -14,6 +14,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Main;
@@ -36,7 +37,6 @@ import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.AppointmentService;
 import de.bbajor.pvs.appointment.service.GlobalAppointmentService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.patient.service.PatientService;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -94,8 +94,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             LumoUtility.BoxSizing.BORDER, 
             LumoUtility.Display.FLEX, 
             LumoUtility.FlexDirection.COLUMN,
-            LumoUtility.Padding.MEDIUM, 
-            LumoUtility.Gap.SMALL
+            "view-content", 
+            LumoUtility.Gap.MEDIUM
         );
         setSizeFull();
 
@@ -144,10 +144,20 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             schedulerSwitcher.setCurrentScheduler(currentScheduler);
         }
 
-        add(new ViewToolbar(
-            "Terminkalender", 
-            ViewToolbar.group(newAppointmentButton, globalNextSlotButton)
-        ));
+        // Überschrift
+        H1 title = new H1("Terminkalender");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
+
+        // Button-Layout
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setSpacing(true);
+        buttonLayout.setWidthFull();
+        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
+        buttonLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        buttonLayout.add(newAppointmentButton, globalNextSlotButton);
+        add(buttonLayout);
 
         add(schedulerSwitcher);
         add(createViewModeTabs());

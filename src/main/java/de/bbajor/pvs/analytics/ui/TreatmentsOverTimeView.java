@@ -2,6 +2,7 @@ package de.bbajor.pvs.analytics.ui;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -18,7 +19,6 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Width;
 import de.bbajor.pvs.analytics.dto.TimeSeriesData;
 import de.bbajor.pvs.analytics.dto.TreatmentStatistics;
 import de.bbajor.pvs.analytics.service.AnalyticsService;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
@@ -40,8 +40,13 @@ public class TreatmentsOverTimeView extends BaseAnalyticsView implements BeforeE
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        addClassName(Padding.MEDIUM);
-        add(new ViewToolbar("Behandlungen pro Monat/Jahr"));
+        addClassNames(Padding.MEDIUM, "view-content");
+        
+        // Überschrift
+        H1 title = new H1("Behandlungen pro Monat/Jahr");
+        title.addClassNames(Margin.Bottom.LARGE);
+        add(title);
+        
         add(createContent());
     }
 

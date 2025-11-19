@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
@@ -235,6 +236,9 @@ public class TreatmentPlanService {
      */
     @Transactional
     public TreatmentPlan saveTreatmentPlanInternal(TreatmentPlan update) throws NoSuchElementException {
+        // Ensure InstitutionContext is set before accessing patient data
+        ensureInstitutionContextForTreatmentPlan(update);
+        
         // 1. save treatmentplan without treatments
         TreatmentPlan current;
         if (update.getId() != null) {
@@ -399,8 +403,43 @@ public class TreatmentPlanService {
         auditLogRepository.save(log);
     }
 
+    /**
+     * Ensures InstitutionContext is set before accessing patient data.
+     * Tries to get institution from TreatmentPlan if available.
+     * Note: Does not access patient data to avoid circular dependency.
+     */
+    private void ensureInstitutionContextForTreatmentPlan(TreatmentPlan treatmentPlan) {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        // Try to get institution from TreatmentPlan
+        if (treatmentPlan != null) {
+            // First try from existing TreatmentPlan's institution
+            if (treatmentPlan.getInstitution() != null && treatmentPlan.getInstitution().getId() != null) {
+                InstitutionContext.setInstitutionId(treatmentPlan.getInstitution().getId());
+                return;
+            }
+            
+            // If TreatmentPlan has an ID, load it to get the institution
+            // This doesn't require InstitutionContext as it's a direct repository call
+            if (treatmentPlan.getId() != null) {
+                Optional<TreatmentPlan> existingPlan = treatmentPlanRepository.findById(treatmentPlan.getId());
+                if (existingPlan.isPresent() && existingPlan.get().getInstitution() != null 
+                    && existingPlan.get().getInstitution().getId() != null) {
+                    InstitutionContext.setInstitutionId(existingPlan.get().getInstitution().getId());
+                    return;
+                }
+            }
+        }
+        
+        // If we still don't have a context, it will be set later when patient is loaded
+        // and the error will be thrown with a clear message
+    }
+
     public List<MedicationFavourite> getFavouriteMedications() {
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+        Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
             return List.of();
         }

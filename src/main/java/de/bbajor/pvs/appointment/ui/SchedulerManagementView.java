@@ -4,10 +4,12 @@ import java.util.List;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
@@ -20,7 +22,6 @@ import de.bbajor.pvs.appointment.model.OfficeHours;
 import de.bbajor.pvs.appointment.model.SchedulerAssignment;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import jakarta.annotation.security.RolesAllowed;
@@ -61,8 +62,8 @@ public class SchedulerManagementView extends Main {
             LumoUtility.BoxSizing.BORDER, 
             LumoUtility.Display.FLEX, 
             LumoUtility.FlexDirection.COLUMN,
-            LumoUtility.Padding.MEDIUM, 
-            LumoUtility.Gap.SMALL
+            "view-content", 
+            LumoUtility.Gap.MEDIUM
         );
         setSizeFull();
 
@@ -70,11 +71,24 @@ public class SchedulerManagementView extends Main {
     }
 
     private void initializeView() {
+        // Überschrift
+        H1 title = new H1("Terminplaner-Verwaltung");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
+
+        // Button-Layout
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setSpacing(true);
+        buttonLayout.setWidthFull();
+        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
+        buttonLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        
         Button newSchedulerButton = new Button("Neuer Terminplaner", event -> openSchedulerDialog());
         newSchedulerButton.setIcon(VaadinIcon.PLUS.create());
         newSchedulerButton.getElement().setAttribute("theme", "primary");
-
-        add(new ViewToolbar("Terminplaner-Verwaltung", ViewToolbar.group(newSchedulerButton)));
+        buttonLayout.add(newSchedulerButton);
+        add(buttonLayout);
 
         Tabs tabs = createTabs();
         add(tabs);

@@ -1,6 +1,7 @@
 package de.bbajor.pvs.analytics.ui;
 
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
@@ -22,7 +23,6 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Margin;
 import com.vaadin.flow.theme.lumo.LumoUtility.Padding;
 import com.vaadin.flow.theme.lumo.LumoUtility.Width;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
@@ -41,8 +41,13 @@ public class AnalyticsOverviewView extends Main implements BeforeEnterObserver {
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        addClassName(Padding.MEDIUM);
-        add(new ViewToolbar("Auswertungen"));
+        addClassNames(Padding.MEDIUM, "view-content");
+        
+        // Überschrift
+        H1 title = new H1("Auswertungen");
+        title.addClassNames(Margin.Bottom.LARGE);
+        add(title);
+        
         add(createContent());
     }
 

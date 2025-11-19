@@ -4,6 +4,7 @@ import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.accordion.AccordionPanel;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
@@ -14,7 +15,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import de.bbajor.pvs.ophthalmology.presenter.OphthalmologyAppointmentPresenter;
 import de.bbajor.pvs.patient.model.Patient;
 import jakarta.annotation.security.PermitAll;
@@ -35,11 +36,26 @@ public class OphthalmologyAppointmentView extends Main {
 
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                "view-content", LumoUtility.Gap.MEDIUM);
 
+        // Überschrift
+        H1 title = new H1("Augenheilkunde – Patiententermine");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
+
+        // Patient-Auswahl
+        HorizontalLayout patientLayout = new HorizontalLayout();
+        patientLayout.setSpacing(true);
+        patientLayout.setWidthFull();
+        patientLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
+        patientLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        
         patientSelect.setItems(presenter.getPatients());
         patientSelect.setItemLabelGenerator(p -> p.getLastName() + ", " + p.getFirstName());
-        add(new ViewToolbar("Augenheilkunde – Patiententermine", ViewToolbar.group(patientSelect)));
+        patientLayout.add(patientSelect);
+        patientLayout.setFlexGrow(1, patientSelect);
+        add(patientLayout);
 
         tabSheet.setSizeFull();
 

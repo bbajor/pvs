@@ -2,6 +2,7 @@ package de.bbajor.pvs.base.ui.view;
 
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Main;
@@ -16,7 +17,6 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.Authentication;
@@ -31,9 +31,13 @@ public class HelpView extends Main {
     public HelpView() {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
-                LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.MEDIUM);
+                LumoUtility.FlexDirection.COLUMN, "view-content", LumoUtility.Gap.MEDIUM);
 
-        add(new ViewToolbar("Hilfe & Dokumentation"));
+        // Überschrift
+        H1 title = new H1("Hilfe & Dokumentation");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
 
         VerticalLayout content = new VerticalLayout();
         content.setSpacing(true);
@@ -177,7 +181,7 @@ public class HelpView extends Main {
         Div card = new Div();
         card.addClassNames(LumoUtility.Border.ALL, LumoUtility.BorderRadius.MEDIUM, LumoUtility.Padding.MEDIUM,
                 LumoUtility.Background.BASE, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Gap.SMALL);
+                LumoUtility.Gap.SMALL, LumoUtility.Margin.Bottom.MEDIUM);
         card.getStyle().set("min-width", "250px").set("flex", "1 1 250px")
                 .set("cursor", "pointer").set("transition", "all 0.2s");
 

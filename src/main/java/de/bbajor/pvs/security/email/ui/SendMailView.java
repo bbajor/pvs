@@ -3,6 +3,7 @@ package de.bbajor.pvs.security.email.ui;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
@@ -13,7 +14,6 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.email.service.EncryptedEmailService;
 import de.bbajor.pvs.security.email.service.SmtpConfigService;
@@ -45,10 +45,17 @@ public class SendMailView extends VerticalLayout {
         setSpacing(true);
         setPadding(true);
         setSizeFull();
+        addClassName("view-content");
 
-        add(new ViewToolbar("E-Mail senden"));
+        // Überschrift
+        H1 title = new H1("E-Mail senden");
+        title.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontSize.XLARGE, 
+                com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD, 
+                com.vaadin.flow.theme.lumo.LumoUtility.Margin.Bottom.LARGE);
+        add(title);
 
-        H3 title = new H3("Verschlüsselte E-Mail senden");
+        H3 subtitle = new H3("Verschlüsselte E-Mail senden");
+        subtitle.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.Margin.Bottom.MEDIUM);
         statusParagraph = new Paragraph();
         statusParagraph.getStyle().set("color", "var(--lumo-secondary-text-color)");
 
@@ -91,7 +98,7 @@ public class SendMailView extends VerticalLayout {
         formLayout.add(bodyArea, 2);
         formLayout.add(pgpPublicKeyArea, 2);
 
-        add(title, statusParagraph, formLayout, sendButton);
+        add(subtitle, statusParagraph, formLayout, sendButton);
 
         // Check SMTP configuration status
         updateStatus();

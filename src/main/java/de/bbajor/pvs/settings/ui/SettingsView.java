@@ -1,5 +1,6 @@
 package de.bbajor.pvs.settings.ui;
 
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
@@ -9,7 +10,6 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
 import de.bbajor.pvs.settings.ui.tabs.InsuranceSettingsTab;
@@ -48,9 +48,13 @@ public class SettingsView extends Main {
             MfaSettingsTab mfaSettingsTab) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
-                LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                LumoUtility.FlexDirection.COLUMN, "view-content", LumoUtility.Gap.MEDIUM);
 
-        add(new ViewToolbar("Einstellungen"));
+        // Überschrift
+        H1 title = new H1("Einstellungen");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
 
         Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
         tabs.setWidthFull();

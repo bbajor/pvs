@@ -17,6 +17,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.notification.Notification;
@@ -30,7 +31,8 @@ import com.vaadin.flow.spring.security.AuthenticationContext;
 
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
@@ -155,10 +157,37 @@ public class TaskListView extends Main implements BeforeEnterObserver {
 
                 setSizeFull();
                 addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                                "view-content", LumoUtility.Gap.MEDIUM);
 
-                Component controls = ViewToolbar.group(description, dueDate, filterText, toggleCompleted, refreshButton);
-                add(new ViewToolbar("Aufgabenliste", controls));
+                // Überschrift
+                H1 title = new H1("Aufgabenliste");
+                title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                        LumoUtility.Margin.Bottom.LARGE);
+                add(title);
+
+                // Controls-Layout
+                VerticalLayout controlsLayout = new VerticalLayout();
+                controlsLayout.setSpacing(true);
+                controlsLayout.setPadding(false);
+                controlsLayout.setMargin(false);
+                controlsLayout.setWidthFull();
+                controlsLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+                
+                HorizontalLayout firstRow = new HorizontalLayout();
+                firstRow.setSpacing(true);
+                firstRow.setWidthFull();
+                firstRow.add(description, dueDate);
+                firstRow.setFlexGrow(1, description);
+                
+                HorizontalLayout secondRow = new HorizontalLayout();
+                secondRow.setSpacing(true);
+                secondRow.setWidthFull();
+                secondRow.add(filterText, toggleCompleted, refreshButton);
+                secondRow.setFlexGrow(1, filterText);
+                
+                controlsLayout.add(firstRow, secondRow);
+                add(controlsLayout);
+                
                 add(taskGrid);
                 refreshGrid();
         }

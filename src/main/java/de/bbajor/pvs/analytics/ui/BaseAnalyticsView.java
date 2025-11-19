@@ -10,7 +10,6 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Margin;
 import com.vaadin.flow.theme.lumo.LumoUtility.Padding;
 
 import de.bbajor.pvs.analytics.dto.TimeSeriesData;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import elemental.json.Json;
 import elemental.json.JsonArray;
 import elemental.json.JsonObject;

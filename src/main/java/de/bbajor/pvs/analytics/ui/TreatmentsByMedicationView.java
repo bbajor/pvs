@@ -2,6 +2,7 @@ package de.bbajor.pvs.analytics.ui;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -17,7 +18,6 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Width;
 
 import de.bbajor.pvs.analytics.dto.MedicationStatistics;
 import de.bbajor.pvs.analytics.service.AnalyticsService;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
@@ -37,8 +37,13 @@ public class TreatmentsByMedicationView extends BaseAnalyticsView implements Bef
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        addClassName(Padding.MEDIUM);
-        add(new ViewToolbar("Behandlungen je Medikament"));
+        addClassNames(Padding.MEDIUM, "view-content");
+        
+        // Überschrift
+        H1 title = new H1("Behandlungen je Medikament");
+        title.addClassNames(Margin.Bottom.LARGE);
+        add(title);
+        
         add(createContent());
     }
 

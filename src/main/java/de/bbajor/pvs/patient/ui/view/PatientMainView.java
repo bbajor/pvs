@@ -9,10 +9,12 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.grid.dataview.GridListDataView;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.textfield.TextFieldVariant;
@@ -29,7 +31,6 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.patient.model.Patient;
@@ -61,15 +62,29 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         this.userAccountRepository = userAccountRepository;
         
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                "view-content", LumoUtility.Gap.MEDIUM);
         setSizeFull();
 
+        // Überschrift
+        H1 title = new H1("Übersicht Patienten");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
+
+        // Button-Layout
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setSpacing(true);
+        buttonLayout.setWidthFull();
+        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
+        buttonLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        
         Button newPatientButton = new Button("Patienten anlegen", event -> openPatientDialog(new Patient()));
         newPatientButton.setIcon(VaadinIcon.PLUS.create());
         newPatientButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         newPatientButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
-
-        add(new ViewToolbar("Übersicht Patienten", ViewToolbar.group(newPatientButton)));
+        buttonLayout.add(newPatientButton);
+        
+        add(buttonLayout);
         configureGrid();
     }
 

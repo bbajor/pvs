@@ -177,7 +177,7 @@ vaadin-tab[selected] {
    View-Layouts
    ============================================ */
 
-/* Haupt-Container für Views */
+/* Haupt-Container für Views - zentrale Padding-Einstellung */
 main,
 [role="main"] {
     padding: var(--lumo-space-l, 1.5rem) !important;
@@ -185,15 +185,92 @@ main,
     min-height: 100vh !important;
 }
 
-/* View Content Spacing */
+/* Zentrale View-Content-Klasse für konsistente Margins */
+.view-content,
+vaadin-vertical-layout.view-content {
+    padding: var(--lumo-space-l, 1.5rem) !important;
+}
+
+/* View Content Spacing - automatische Margins für alle direkten Kinder */
+.view-content > *,
 main > *,
-[role="main"] > * {
+[role="main"] > *,
+vaadin-vertical-layout.view-content > * {
     margin-bottom: var(--lumo-space-m, 1rem) !important;
 }
 
+.view-content > *:last-child,
 main > *:last-child,
-[role="main"] > *:last-child {
+[role="main"] > *:last-child,
+vaadin-vertical-layout.view-content > *:last-child {
     margin-bottom: 0 !important;
+}
+
+/* Grids in Views - automatische Margins oben und unten */
+.view-content vaadin-grid,
+main vaadin-grid,
+[role="main"] vaadin-grid,
+vaadin-vertical-layout.view-content vaadin-grid {
+    margin-top: var(--lumo-space-m, 1rem) !important;
+    margin-bottom: var(--lumo-space-m, 1rem) !important;
+}
+
+/* Buttons in HorizontalLayouts - automatische Margins rechts */
+.view-content vaadin-horizontal-layout vaadin-button,
+main vaadin-horizontal-layout vaadin-button,
+[role="main"] vaadin-horizontal-layout vaadin-button {
+    margin-right: var(--lumo-space-xs, 0.5rem) !important;
+}
+
+.view-content vaadin-horizontal-layout vaadin-button:last-child,
+main vaadin-horizontal-layout vaadin-button:last-child,
+[role="main"] vaadin-horizontal-layout vaadin-button:last-child {
+    margin-right: 0 !important;
+}
+
+/* Textfelder und Form-Felder in Layouts - automatische Margins */
+.view-content vaadin-text-field,
+.view-content vaadin-text-area,
+.view-content vaadin-combo-box,
+.view-content vaadin-date-picker,
+.view-content vaadin-select,
+main vaadin-text-field,
+main vaadin-text-area,
+main vaadin-combo-box,
+main vaadin-date-picker,
+main vaadin-select {
+    margin-bottom: var(--lumo-space-s, 0.75rem) !important;
+}
+
+/* HorizontalLayout und VerticalLayout in Views - automatische Margins */
+.view-content vaadin-horizontal-layout,
+.view-content vaadin-vertical-layout,
+main vaadin-horizontal-layout,
+main vaadin-vertical-layout {
+    margin-bottom: var(--lumo-space-m, 1rem) !important;
+}
+
+/* Überschriften in Views - automatische Margins */
+.view-content h1,
+.view-content h2,
+.view-content h3,
+.view-content h4,
+main h1,
+main h2,
+main h3,
+main h4,
+vaadin-vertical-layout.view-content h1,
+vaadin-vertical-layout.view-content h2,
+vaadin-vertical-layout.view-content h3,
+vaadin-vertical-layout.view-content h4 {
+    margin-top: 0 !important;
+    margin-bottom: var(--lumo-space-l, 1.5rem) !important;
+}
+
+/* Divs und Sections in Views - automatische Margins */
+.view-content div:not([class*="layout"]):not([class*="card"]),
+main div:not([class*="layout"]):not([class*="card"]) {
+    margin-bottom: var(--lumo-space-s, 0.75rem) !important;
 }
 
 /* ViewToolbar Styling - Business-App Style */

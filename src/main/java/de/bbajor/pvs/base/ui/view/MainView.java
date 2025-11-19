@@ -1,6 +1,5 @@
 package de.bbajor.pvs.base.ui.view;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.domain.UserAccount;
@@ -9,6 +8,7 @@ import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.icon.Icon;
@@ -44,8 +44,13 @@ public final class MainView extends Main implements BeforeEnterObserver {
         this.userAccountRepository = userAccountRepository;
         this.httpSession = httpSession;
         
-        addClassName(Padding.MEDIUM);
-        add(new ViewToolbar("Dashboard"));
+        addClassNames(Padding.MEDIUM, "view-content");
+        
+        // Überschrift
+        H1 title = new H1("Dashboard");
+        title.addClassNames(FontSize.XLARGE, FontWeight.SEMIBOLD, Margin.Bottom.LARGE);
+        add(title);
+        
         add(createDashboardContent());
     }
 
@@ -54,7 +59,7 @@ public final class MainView extends Main implements BeforeEnterObserver {
         content.addClassNames(Display.FLEX, FlexDirection.COLUMN, Gap.MEDIUM);
         
         var title = new H2("Verfügbare Bereiche");
-        title.addClassNames(FontSize.XLARGE, FontWeight.SEMIBOLD, Margin.NONE);
+        title.addClassNames(FontSize.XLARGE, FontWeight.SEMIBOLD, Margin.Bottom.MEDIUM);
         content.add(title);
         
         var cardsContainer = createMenuCards();

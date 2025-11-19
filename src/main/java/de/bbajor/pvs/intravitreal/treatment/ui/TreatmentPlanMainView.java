@@ -18,6 +18,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -38,7 +39,6 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
@@ -150,7 +150,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                "view-content", LumoUtility.Gap.SMALL);
     }
 
     private void initializeTreatmentPlansTab() {
@@ -323,13 +323,20 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         taskSearchLayout.add(taskFilterText);
         taskSearchLayout.setFlexGrow(1, taskFilterText);
         
+        // Überschrift
+        H1 taskTitle = new H1("Behandlungsprüfung");
+        taskTitle.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        taskReviewContent.add(taskTitle);
+        
         VerticalLayout taskToolbarContent = new VerticalLayout();
         taskToolbarContent.setSpacing(true);
         taskToolbarContent.setPadding(false);
+        taskToolbarContent.setMargin(false);
+        taskToolbarContent.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
         taskToolbarContent.add(taskButtonLayout, taskSearchLayout);
+        taskReviewContent.add(taskToolbarContent);
         
-        taskReviewContent.add(new ViewToolbar("Behandlungsprüfung",
-                taskToolbarContent));
         taskReviewContent.add(taskGrid);
         taskReviewContent.setSizeFull();
         taskReviewContent.setPadding(false);

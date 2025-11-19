@@ -6,6 +6,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -20,7 +21,6 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
@@ -81,17 +81,26 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         searchLayout.add(searchField, searchButton);
         searchLayout.setFlexGrow(1, searchField);
         
+        // Überschrift
+        H1 title = new H1("Operative Einrichtungen");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
+
+        // Toolbar-Content direkt hinzufügen
         VerticalLayout toolbarContent = new VerticalLayout();
         toolbarContent.setSpacing(true);
         toolbarContent.setPadding(false);
+        toolbarContent.setMargin(false);
+        toolbarContent.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
         toolbarContent.add(buttonLayout, searchLayout);
+        add(toolbarContent);
 
-        add(new ViewToolbar("Operative Einrichtungen", toolbarContent));
         add(grid);
 
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                "view-content", LumoUtility.Gap.MEDIUM);
     }
 
     @Override

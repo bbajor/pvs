@@ -1,6 +1,7 @@
 package de.bbajor.pvs.base.ui.view.help;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Main;
@@ -11,7 +12,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import jakarta.annotation.security.PermitAll;
 
 @PermitAll
@@ -20,16 +21,27 @@ public abstract class HelpSubPageView extends Main {
     protected HelpSubPageView(String title, String route) {
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX,
-                LumoUtility.FlexDirection.COLUMN, LumoUtility.Padding.MEDIUM, LumoUtility.Gap.MEDIUM);
+                LumoUtility.FlexDirection.COLUMN, "view-content", LumoUtility.Gap.MEDIUM);
+
+        // Überschrift
+        H1 titleElement = new H1(title);
+        titleElement.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(titleElement);
 
         // Zurück-Button
+        HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setSpacing(true);
+        buttonLayout.setWidthFull();
+        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
+        buttonLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        
         Button backButton = new Button("Zurück zur Übersicht", VaadinIcon.ARROW_LEFT.create());
         backButton.addClickListener(e -> {
             com.vaadin.flow.component.UI.getCurrent().navigate("help");
         });
-        backButton.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
-
-        add(new ViewToolbar(title, backButton));
+        buttonLayout.add(backButton);
+        add(buttonLayout);
 
         VerticalLayout content = new VerticalLayout();
         content.setSpacing(true);

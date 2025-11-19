@@ -18,6 +18,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -41,7 +42,6 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.bbajor.pvs.base.ui.component.ViewToolbar;
 import de.bbajor.pvs.medication.controller.MedicationViewPresenter;
 import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.model.MedicationFavourite;
@@ -182,7 +182,14 @@ public class MedicationView extends Main {
             return filterField.getValue() != null ? drug.isContainsSearchTerm(filterField.getValue().toLowerCase())
                     : true;
         }));
-        add(new ViewToolbar("Medikamentenkatalog"));
+        
+        // Überschrift
+        H1 title = new H1("Medikamentenkatalog");
+        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
+                LumoUtility.Margin.Bottom.LARGE);
+        add(title);
+        
+        infoBox.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
         add(infoBox);
         if (isTechUser() || isSuperAdmin()) {
             add(initUpload());
@@ -215,7 +222,7 @@ public class MedicationView extends Main {
 
         setSizeFull();
         addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                LumoUtility.Padding.MEDIUM, LumoUtility.Gap.SMALL);
+                "view-content", LumoUtility.Gap.MEDIUM);
     }
 
     private Upload initUpload() {

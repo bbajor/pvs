@@ -978,6 +978,9 @@ public class NextTreatmentBookingDialog extends Dialog {
      */
     private void performSaveTreatment() {
         try {
+            // InstitutionContext setzen, bevor gespeichert wird
+            ensureInstitutionContext();
+            
             Treatment newTreatment = new Treatment();
             newTreatment.setTreatmentPlan(treatmentPlan);
             newTreatment.setSideOfEye(sideOfEyeComboBox.getValue());
