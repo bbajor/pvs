@@ -8,12 +8,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
@@ -116,6 +119,16 @@ public class TreatmentPlanService {
         // In production, this should throw an exception or require explicit institution context
         return List.of(); // TODO: throw exception or require explicit institution context
     }
+    
+    public org.springframework.data.domain.Slice<TreatmentPlan> findAll(org.springframework.data.domain.Pageable pageable) {
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            // Return only treatment plans for current institution with paging
+            return treatmentPlanRepository.findAllByInstitutionId(institutionId, pageable);
+        }
+        // Fallback: If no institution context, return empty slice
+        return org.springframework.data.domain.Page.empty(pageable);
+    }
 
     @Transactional
     private Collection<TreatmentPlan> findByPatient(Integer patientId) {
@@ -169,6 +182,23 @@ public class TreatmentPlanService {
         }
         
         return results;
+    }
+    
+    public org.springframework.data.domain.Slice<TreatmentPlan> findTreatmentPlans(String filter, org.springframework.data.domain.Pageable pageable) {
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+
+        if (institutionId == null) {
+            // No institution context - return empty slice
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+
+        if (filter == null || filter.trim().isEmpty()) {
+            return findAll(pageable);
+        }
+
+        // For paging, use repository search method directly
+        // Note: Birth year filtering is not supported with paging for simplicity
+        return treatmentPlanRepository.searchInInstitution(institutionId, filter.trim(), pageable);
     }
 
     /**
@@ -246,18 +276,8 @@ public class TreatmentPlanService {
             current = treatmentPlanRepository.findById(update.getId())
                     .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found: " + update.getId()));
 
-            // Clear existing treatments from the plan to avoid orphans
-            // First, detach existing treatments from the plan
-            if (current.getTreatments() != null) {
-                List<Treatment> existingTreatments = new ArrayList<>(current.getTreatments());
-                for (Treatment existingTreatment : existingTreatments) {
-                    // Don't remove from database yet, just detach from the plan
-                    existingTreatment.setTreatmentPlan(null);
-                }
-                current.getTreatments().clear();
-                // Explicitly save to ensure the detachment is persisted
-                treatmentRepository.saveAll(existingTreatments);
-            }
+            // WICHTIG: Existierende Treatments NICHT trennen, da sie bereits in der DB sind
+            // (z.B. über NextTreatmentBookingDialog gebucht). Sie bleiben erhalten.
         } else {
             current = new TreatmentPlan();
         }
@@ -301,15 +321,36 @@ public class TreatmentPlanService {
             throw new IllegalArgumentException("Patient information is required");
         }
 
+        // Store institution before mapper call (mapper might overwrite it)
+        Institution institutionToPreserve = current.getInstitution();
+
         // Update the treatment plan from the DTO
         treatmentPlanMapper.updateTreatmentPlan(update, current);
+
+        // Restore institution after mapper call (mapper might have set it to null)
+        if (institutionToPreserve != null) {
+            current.setInstitution(institutionToPreserve);
+        }
 
         // Save the treatment plan first
         TreatmentPlan saved = treatmentPlanRepository.save(current);
 
-        // 2. Create and save new treatments linked to the treatment plan
+        // 2. Lade alle existierenden Treatments für diesen Plan (inkl. der, die bereits in der DB sind)
+        List<Treatment> existingTreatments = treatmentRepository.findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(saved.getId());
+        Set<Long> existingTreatmentIds = existingTreatments.stream()
+                .map(Treatment::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // 3. Erstelle und speichere nur neue Treatments aus update.getTreatments()
+        // (die noch nicht in der DB existieren)
         List<Treatment> treatmentEntityList = new ArrayList<>();
         for (Treatment treatment : update.getTreatments()) {
+            // Überspringe Treatments, die bereits in der DB existieren (haben eine ID)
+            if (treatment.getId() != null && existingTreatmentIds.contains(treatment.getId())) {
+                continue;
+            }
+            
             Treatment treatmentToSave = new Treatment();
             treatmentMapper.updateTreatmentEntity(treatment, treatmentToSave);
             SurgicalCenterTimeSlot surgicalCenterTimeSlot = surgicalCenterTimeSlotRepository
@@ -325,8 +366,10 @@ public class TreatmentPlanService {
             treatmentEntityList.add(treatmentToSave);
         }
 
-        // Save all new treatments
-        treatmentRepository.saveAll(treatmentEntityList);
+        // Save all new treatments (nur die, die noch nicht existieren)
+        if (!treatmentEntityList.isEmpty()) {
+            treatmentRepository.saveAll(treatmentEntityList);
+        }
 
         // Refresh the treatment plan to get the updated state with treatments
         TreatmentPlan savedTreatmentPlanDto = findByIdWithDetails(saved.getId());
@@ -391,7 +434,15 @@ public class TreatmentPlanService {
     public void deleteTreatment(Long treatmentId) {
         Treatment existing = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
-        treatmentRepository.delete(existing);
+        
+        // Validierung: Nur löschen, wenn Termin heute oder in der Zukunft liegt
+        LocalDate treatmentDate = existing.getDate();
+        LocalDate today = LocalDate.now();
+        if (treatmentDate != null && treatmentDate.isBefore(today)) {
+            throw new IllegalArgumentException("Behandlung kann nicht gelöscht werden: Termin liegt in der Vergangenheit");
+        }
+        
+        // Audit-Log VOR dem Löschen erstellen und speichern
         TreatmentAuditLog log = new TreatmentAuditLog();
         log.setTreatment(existing);
         log.setActionType(TreatmentAuditLog.ActionType.DELETE);
@@ -401,6 +452,51 @@ public class TreatmentPlanService {
             log.setActorUserName(actor.getPreferredUsername());
         });
         auditLogRepository.save(log);
+        
+        // Jetzt erst das Treatment löschen
+        treatmentRepository.delete(existing);
+    }
+    
+    /**
+     * Finish a treatment plan by setting the finishedDate.
+     * A treatment plan can only be finished if no future treatment appointments are scheduled.
+     * <p>
+     * Data isolation: Ensures the treatment plan belongs to the current institution.
+     * </p>
+     */
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
+    public void finishTreatmentPlan(Long treatmentPlanId) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            throw new IllegalStateException("Cannot finish treatment plan without institution context");
+        }
+        
+        TreatmentPlan treatmentPlan = treatmentPlanRepository
+                .findTreatmentPlanByIdAndInstitutionWithPatientDiagnosis(treatmentPlanId, institutionId)
+                .orElseThrow(() -> new NoSuchElementException(
+                        "TreatmentPlan not found or does not belong to current institution: " + treatmentPlanId));
+        
+        // Prüfe, ob bereits abgeschlossen
+        if (treatmentPlan.getFinishedDate() != null) {
+            throw new IllegalStateException("Treatment plan is already finished");
+        }
+        
+        // Prüfe, ob noch zukünftige Termine anstehen
+        List<Treatment> treatments = treatmentRepository
+                .findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(treatmentPlanId);
+        LocalDate today = LocalDate.now();
+        boolean hasFutureTreatments = treatments.stream()
+                .anyMatch(t -> t.getDate() != null && t.getDate().isAfter(today));
+        
+        if (hasFutureTreatments) {
+            throw new IllegalStateException(
+                    "Treatment plan cannot be finished: There are still future treatment appointments scheduled");
+        }
+        
+        // Setze finishedDate
+        treatmentPlan.setFinishedDate(today);
+        treatmentPlanRepository.save(treatmentPlan);
     }
 
     /**

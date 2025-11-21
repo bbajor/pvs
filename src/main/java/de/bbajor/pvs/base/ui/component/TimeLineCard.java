@@ -83,7 +83,13 @@ public class TimeLineCard extends Card {
                 if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                     add(new Paragraph(additionalInfo));
                 }
-                if (timeSlot.getDate().isAfter(LocalDate.now()) && !config.isApproved() && onDelete != null) {
+                // Löschen erlauben, wenn Termin heute oder in der Zukunft liegt und nicht genehmigt
+                LocalDate today = LocalDate.now();
+                boolean canDelete = treatmentDate != null && 
+                    !treatmentDate.isBefore(today) && 
+                    !config.isApproved() && 
+                    onDelete != null;
+                if (canDelete) {
                     Button delete = new Button("löschen", e -> onDelete.accept(config));
                     delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
                     add(delete);
@@ -113,21 +119,7 @@ public class TimeLineCard extends Card {
                 add(new Paragraph(additionalInfo));
             }
             
-            // Button "Nächsten Termin buchen" auf Startkachel, wenn keine Behandlungen vorhanden
-            if (onBookNextTreatment != null && (config.getTreatmentCount() == null || config.getTreatmentCount() == 0)) {
-                Button bookButton = new Button("Nächsten Termin buchen", e -> onBookNextTreatment.run());
-                bookButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-                add(bookButton);
-            }
-            
             addClassName("start");
-        }
-        
-        // Button "Nächsten Termin buchen" auf letzter Behandlung
-        if (!config.isFirst() && isLastTreatment && onBookNextTreatment != null) {
-            Button bookButton = new Button("Nächsten Termin buchen", e -> onBookNextTreatment.run());
-            bookButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-            add(bookButton);
         }
         // Styling (optional)
         getStyle().set("border", "1px solid #ddd");

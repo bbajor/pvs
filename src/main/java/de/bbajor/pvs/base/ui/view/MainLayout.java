@@ -9,6 +9,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.avatar.Avatar;
 import com.vaadin.flow.component.avatar.AvatarVariant;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -21,6 +22,7 @@ import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Layout;
+import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.menu.MenuConfiguration;
 import com.vaadin.flow.server.menu.MenuEntry;
 import com.vaadin.flow.spring.security.AuthenticationContext;
@@ -73,20 +75,46 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     }
 
     private Div createHeader() {
-        // TODO Replace with real application logo and name
-        var appLogo = VaadinIcon.CALENDAR.create();
+        // Icon für Ophthalmoplan
+        var appLogo = VaadinIcon.EYE.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
         // Mindestabstand zum Rand - Business-App Style
         appLogo.getStyle()
                 .set("margin-left", "var(--lumo-space-s, 0.75rem)")
                 .set("min-width", "var(--lumo-icon-size-l, 1.5rem)")
-                .set("flex-shrink", "0");
+                .set("flex-shrink", "0")
+                .set("display", "flex")
+                .set("align-items", "center");
 
+        // App-Name als klickbarer Link
         var appName = new Span("Ophthalmoplan");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
+        appName.getStyle()
+                .set("margin-left", "var(--lumo-space-s, 0.75rem)")
+                .set("cursor", "pointer")
+                .set("user-select", "none")
+                .set("display", "flex")
+                .set("align-items", "center");
+        
+        // RouterLink für Navigation zum Dashboard (ohne sichtbaren Text)
+        RouterLink dashboardLink = new RouterLink("", DashboardRedirectView.class);
+        dashboardLink.add(appLogo, appName);
+        dashboardLink.addClassNames(Display.FLEX, Gap.MEDIUM, AlignItems.CENTER);
+        dashboardLink.getStyle()
+                .set("text-decoration", "none")
+                .set("color", "inherit")
+                .set("transition", "opacity 0.2s");
+        
+        // Hover-Effekt
+        dashboardLink.getElement().addEventListener("mouseenter", e -> {
+            dashboardLink.getStyle().set("opacity", "0.8");
+        });
+        dashboardLink.getElement().addEventListener("mouseleave", e -> {
+            dashboardLink.getStyle().set("opacity", "1");
+        });
 
-        var header = new Div(appLogo, appName);
-        header.addClassNames(Display.FLEX, Padding.MEDIUM, Gap.MEDIUM, AlignItems.CENTER);
+        var header = new Div(dashboardLink);
+        header.addClassNames(Display.FLEX, Padding.MEDIUM, AlignItems.CENTER);
         header.getStyle()
                 .set("min-height", "var(--lumo-size-xl, 3rem)")
                 .set("border-bottom", "1px solid var(--lumo-contrast-20pct)");

@@ -19,6 +19,8 @@ public interface TreatmentRepository
                         left join fetch mf.medication
                         left join fetch t.surgicalCenterTimeSlot ts
                         left join fetch ts.surgicalCenter sc
+                        left join fetch t.treatingDoctors td
+                        left join fetch td.institution
                         where tp.id = :id
                         order by ts.date asc
                         """)
@@ -32,7 +34,11 @@ public interface TreatmentRepository
                         left join fetch mf.medication
                         inner join fetch t.treatmentPlan tp
                         inner join fetch tp.patient p
+                        left join fetch p.healthInsurance hi
+                        left join fetch hi.institution hiInst
                         left join fetch p.location loc
+                        left join fetch t.treatingDoctors td
+                        left join fetch td.institution
                         where ts.date between :startDate and :endDate
                         and t.treatmentPlan is not null
                         order by ts.date asc
@@ -48,7 +54,11 @@ public interface TreatmentRepository
                         left join fetch mf.medication
                         inner join fetch t.treatmentPlan tp
                         inner join fetch tp.patient p
+                        left join fetch p.healthInsurance hi
+                        left join fetch hi.institution hiInst
                         left join fetch p.location loc
+                        left join fetch t.treatingDoctors td
+                        left join fetch td.institution
                         where ts.date between :startDate and :endDate
                         and t.treatmentPlan is not null
                         and loc.institution.id = :institutionId
@@ -64,6 +74,10 @@ public interface TreatmentRepository
                         left join fetch t.surgicalCenterTimeSlot ts
                         left join fetch ts.surgicalCenter sc
                         left join fetch t.treatmentPlan tp
+                        left join fetch tp.patient p
+                        left join fetch p.healthInsurance hi
+                        left join fetch t.treatingDoctors td
+                        left join fetch td.institution
                         where ts.id = :timeSlotId
                         order by ts.date asc
                         """)

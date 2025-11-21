@@ -9,6 +9,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
+import de.bbajor.pvs.institution.ui.tabs.FeatureFlagsTab;
 import de.bbajor.pvs.institution.ui.tabs.InstitutionManagementTab;
 import de.bbajor.pvs.institution.ui.tabs.MailSettingsTab;
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
@@ -32,6 +33,7 @@ import jakarta.annotation.security.RolesAllowed;
 public class SuperAdminSettingsView extends Main {
 
     private final Tab institutionTab = new Tab("Institutionen & Administratoren");
+    private final Tab featureFlagsTab = new Tab("Feature-Flags");
     private final Tab mailTab = new Tab("Mail-Server");
     private final Tab mfaTab = new Tab("Multi-Faktor-Authentifizierung");
     private final Tab recoveryEmailTab = new Tab("Recovery-E-Mail & PGP");
@@ -41,6 +43,7 @@ public class SuperAdminSettingsView extends Main {
 
     public SuperAdminSettingsView(
             InstitutionManagementTab institutionManagementTab,
+            FeatureFlagsTab featureFlagsTabComponent,
             MailSettingsTab mailSettingsTab,
             MfaSettingsTab mfaSettingsTab,
             RecoveryEmailTab recoveryEmailTabComponent,
@@ -55,13 +58,15 @@ public class SuperAdminSettingsView extends Main {
                 LumoUtility.Margin.Bottom.LARGE);
         add(title);
 
-        Tabs tabs = new Tabs(institutionTab, mailTab, mfaTab, recoveryEmailTab, whisperTab);
+        Tabs tabs = new Tabs(institutionTab, featureFlagsTab, mailTab, mfaTab, recoveryEmailTab, whisperTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
             if (selected == institutionTab) {
                 content.add(institutionManagementTab);
+            } else if (selected == featureFlagsTab) {
+                content.add(featureFlagsTabComponent);
             } else if (selected == mailTab) {
                 content.add(mailSettingsTab);
             } else if (selected == mfaTab) {

@@ -79,6 +79,7 @@ public interface SurgicalCenterTimeSlotRepository
                         LEFT JOIN FETCH ts.surgicalCenter sc
                         WHERE ts.id NOT IN :timeSlotIds
                         AND sc.institution.id = :institutionId
+                        AND ts.date <= :today
                         AND EXISTS (
                             SELECT t FROM Treatment t
                             WHERE t.surgicalCenterTimeSlot = ts
@@ -87,19 +88,23 @@ public interface SurgicalCenterTimeSlotRepository
                 """)
         List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(
                 @Param("institutionId") Long institutionId,
+                @Param("today") LocalDate today,
                 List<Long> timeSlotIds);
 
         @Query("""
                         SELECT ts FROM SurgicalCenterTimeSlot ts
                         LEFT JOIN FETCH ts.surgicalCenter sc
                         WHERE sc.institution.id = :institutionId
+                        AND ts.date <= :today
                         AND EXISTS (
                             SELECT t FROM Treatment t
                             WHERE t.surgicalCenterTimeSlot = ts
                             AND t.approvalDate is NULL
                         )
                 """)
-        List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatments(@Param("institutionId") Long institutionId);
+        List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatments(
+                @Param("institutionId") Long institutionId,
+                @Param("today") LocalDate today);
 
         boolean existsBySurgicalCenterAndDateAndStartTimeAndEndTime(
                 SurgicalCenter surgicalCenter,

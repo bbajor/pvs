@@ -21,6 +21,8 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -65,7 +67,7 @@ public class WeekListDialog extends Dialog {
         
         setHeight("1200px");
         setWidth("1400px");
-        setHeaderTitle("Wochenliste");
+        // Kein Header-Titel mehr, da wir eine Section mit Überschrift verwenden
 
         grid.setSizeFull();
         grid.setSelectionMode(SelectionMode.NONE);
@@ -160,13 +162,14 @@ public class WeekListDialog extends Dialog {
         
         grid.setItems(summaries);
         
-        // Wochenauswahl-Controls im Header
-        createWeekNavigationControls();
-        
         VerticalLayout content = new VerticalLayout();
         content.setSizeFull();
         content.setPadding(false);
-        content.setSpacing(false);
+        content.setSpacing(true);
+        
+        // Section mit Überschrift "Wochenliste" und Navigation
+        Div weekSection = createWeekNavigationSection();
+        content.add(weekSection);
         content.add(grid);
         add(content);
         
@@ -187,12 +190,36 @@ public class WeekListDialog extends Dialog {
         getFooter().add(closeButton);
     }
     
-    private void createWeekNavigationControls() {
+    private Div createWeekNavigationSection() {
+        // Section mit Überschrift "Wochenliste"
+        Div section = new Div();
+        section.addClassName("dialog-section");
+        section.setWidthFull();
+        section.getStyle()
+            .set("background-color", "var(--lumo-contrast-5pct)")
+            .set("border", "1px solid var(--lumo-contrast-20pct)")
+            .set("border-radius", "var(--lumo-border-radius-m)")
+            .set("padding", "var(--lumo-space-m)")
+            .set("box-sizing", "border-box")
+            .set("margin-bottom", "var(--lumo-space-m)");
+        
+        // Überschrift "Wochenliste"
+        H4 sectionTitle = new H4("Wochenliste");
+        sectionTitle.getStyle()
+            .set("margin-top", "0")
+            .set("margin-bottom", "var(--lumo-space-s)")
+            .set("color", "var(--lumo-primary-text-color)")
+            .set("font-size", "var(--lumo-font-size-m)")
+            .set("font-weight", "600");
+        section.add(sectionTitle);
+        
+        // Navigation-Controls linksbündig
         HorizontalLayout weekNavigation = new HorizontalLayout();
         weekNavigation.setWidthFull();
         weekNavigation.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
         weekNavigation.setSpacing(true);
-        weekNavigation.setPadding(true);
+        weekNavigation.setPadding(false);
+        weekNavigation.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
         
         // Pfeil nach links (vorherige Woche)
         Button prevWeekButton = new Button(new Icon(VaadinIcon.ARROW_LEFT));
@@ -215,6 +242,23 @@ public class WeekListDialog extends Dialog {
         datePicker.setValue(currentWeekStart);
         datePicker.setWidth("200px");
         datePicker.setHelperText("Wählen Sie ein Datum aus der gewünschten Woche");
+        
+        // Montag als ersten Tag der Woche setzen
+        com.vaadin.flow.component.datepicker.DatePicker.DatePickerI18n i18n = 
+            new com.vaadin.flow.component.datepicker.DatePicker.DatePickerI18n();
+        i18n.setFirstDayOfWeek(1); // 1 = Montag, 0 = Sonntag
+        i18n.setMonthNames(java.util.Arrays.asList(
+            "Januar", "Februar", "März", "April", "Mai", "Juni",
+            "Juli", "August", "September", "Oktober", "November", "Dezember"
+        ));
+        i18n.setWeekdays(java.util.Arrays.asList(
+            "So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"
+        ));
+        i18n.setWeekdaysShort(java.util.Arrays.asList(
+            "So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"
+        ));
+        datePicker.setI18n(i18n);
+        
         datePicker.addValueChangeListener(e -> {
             if (e.getValue() != null) {
                 LocalDate selectedDate = e.getValue();
@@ -225,11 +269,11 @@ public class WeekListDialog extends Dialog {
             }
         });
         
+        // Alle Controls linksbündig hinzufügen (kein FlexGrow auf weekLabel)
         weekNavigation.add(prevWeekButton, weekLabel, nextWeekButton, datePicker);
-        weekNavigation.setFlexGrow(1.0, weekLabel);
-        weekNavigation.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
         
-        getHeader().add(weekNavigation);
+        section.add(weekNavigation);
+        return section;
     }
     
     private void updateWeekLabel() {

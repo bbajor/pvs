@@ -90,14 +90,17 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         this.globalAppointmentService = globalAppointmentService;
         this.currentDate = LocalDate.now();
 
+        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
+        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
+        getStyle().set("box-sizing", "border-box");
+        getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
+        setSizeFull();
         addClassNames(
-            LumoUtility.BoxSizing.BORDER, 
             LumoUtility.Display.FLEX, 
             LumoUtility.FlexDirection.COLUMN,
             "view-content", 
             LumoUtility.Gap.MEDIUM
         );
-        setSizeFull();
 
         // Initialize with first scheduler if available
         List<AppointmentScheduler> schedulers = schedulerService.findAll();
@@ -148,6 +151,7 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         H1 title = new H1("Terminkalender");
         title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
                 LumoUtility.Margin.Bottom.LARGE);
+        title.getStyle().set("flex-shrink", "0");
         add(title);
 
         // Button-Layout
@@ -156,17 +160,31 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         buttonLayout.setWidthFull();
         buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
         buttonLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        buttonLayout.getStyle().set("flex-shrink", "0");
         buttonLayout.add(newAppointmentButton, globalNextSlotButton);
         add(buttonLayout);
 
+        Component schedulerSwitcherComponent = schedulerSwitcher;
+        if (schedulerSwitcherComponent != null) {
+            schedulerSwitcherComponent.getStyle().set("flex-shrink", "0");
+        }
         add(schedulerSwitcher);
-        add(createViewModeTabs());
+        
+        Component viewModeTabs = createViewModeTabs();
+        viewModeTabs.getStyle().set("flex-shrink", "0");
+        add(viewModeTabs);
         
         dateNavigation = createDateNavigation();
+        if (dateNavigation != null) {
+            dateNavigation.getStyle().set("flex-shrink", "0");
+        }
         add(dateNavigation);
 
         calendarContainer = new Div();
         calendarContainer.setSizeFull();
+        calendarContainer.getStyle().set("flex-grow", "1");
+        calendarContainer.getStyle().set("min-height", "0");
+        calendarContainer.getStyle().set("overflow", "auto");
         add(calendarContainer);
 
         refreshCalendar();

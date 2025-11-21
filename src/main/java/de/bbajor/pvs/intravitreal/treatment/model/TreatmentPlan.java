@@ -36,6 +36,14 @@ public class TreatmentPlan extends BasicEntity<Long> {
     private String description;
     
     /**
+     * Date when the treatment plan was finished/completed.
+     * A treatment plan is considered finished when no more treatment appointments are scheduled
+     * or the last treatment appointment has been completed.
+     * If null, the treatment plan is still active.
+     */
+    private LocalDate finishedDate;
+    
+    /**
      * The institution this treatment plan belongs to.
      * Data isolation: All filtering is done via institution.
      * This is set automatically from patient.location.institution or patient.practice.tenant.
@@ -63,6 +71,17 @@ public class TreatmentPlan extends BasicEntity<Long> {
     }
 
     public String getHealthInsurance() {
+        if (patient == null) {
+            return null;
+        }
+        // Prüfe, ob Patient eine private Versicherung hat
+        if (Boolean.TRUE.equals(patient.getIsPrivateInsurance())) {
+            return "Privat";
+        }
+        // Prüfe, ob healthInsurance null ist
+        if (patient.getHealthInsurance() == null) {
+            return "-";
+        }
         return patient.getHealthInsurance().getBillingCarrierName();
     }
 

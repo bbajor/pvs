@@ -34,8 +34,11 @@ public class OphthalmologyAppointmentView extends Main {
     public OphthalmologyAppointmentView(OphthalmologyAppointmentPresenter presenter) {
         this.presenter = presenter;
 
+        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
+        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
+        getStyle().set("box-sizing", "border-box");
         setSizeFull();
-        addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
+        addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                 "view-content", LumoUtility.Gap.MEDIUM);
 
         // Überschrift

@@ -143,4 +143,13 @@ public class TreatmentPlanPresenter {
     public Collection<MedicationFavourite> getFavouriteMedications() {
         return treatmentPlanService.getFavouriteMedications();
     }
+    
+    /**
+     * Finish a treatment plan by setting the finishedDate.
+     * A treatment plan can only be finished if no future treatment appointments are scheduled.
+     */
+    @Transactional
+    public void finishTreatmentPlan(Long treatmentPlanId) {
+        treatmentPlanService.finishTreatmentPlan(treatmentPlanId);
+    }
 }

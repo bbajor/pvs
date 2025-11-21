@@ -1,6 +1,7 @@
 package de.bbajor.pvs.analytics.ui;
 
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Main;
@@ -18,6 +19,8 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Border;
 import com.vaadin.flow.theme.lumo.LumoUtility.BorderRadius;
 import com.vaadin.flow.theme.lumo.LumoUtility.Display;
 import com.vaadin.flow.theme.lumo.LumoUtility.FlexDirection;
+import com.vaadin.flow.theme.lumo.LumoUtility.FontSize;
+import com.vaadin.flow.theme.lumo.LumoUtility.FontWeight;
 import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
 import com.vaadin.flow.theme.lumo.LumoUtility.Margin;
 import com.vaadin.flow.theme.lumo.LumoUtility.Padding;
@@ -41,130 +44,147 @@ public class AnalyticsOverviewView extends Main implements BeforeEnterObserver {
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        addClassNames(Padding.MEDIUM, "view-content");
+        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
+        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
+        getStyle().set("box-sizing", "border-box");
+        setSizeFull();
+        addClassNames("view-content", Display.FLEX, FlexDirection.COLUMN);
         
         // Überschrift
         H1 title = new H1("Auswertungen");
-        title.addClassNames(Margin.Bottom.LARGE);
+        title.addClassNames(FontSize.XLARGE, FontWeight.SEMIBOLD, Margin.Bottom.LARGE);
         add(title);
         
         add(createContent());
     }
 
-    private VerticalLayout createContent() {
-        VerticalLayout content = new VerticalLayout();
+    private Div createContent() {
+        Div content = new Div();
         content.setWidthFull();
-        content.addClassNames(Gap.LARGE, Width.FULL);
-
-        H2 title = new H2("Verfügbare Auswertungen");
-        title.addClassNames(Margin.NONE, Margin.Bottom.MEDIUM);
-        content.add(title);
-
-        VerticalLayout linksContainer = new VerticalLayout();
-        linksContainer.addClassNames(Gap.MEDIUM, Width.FULL);
-        linksContainer.setSpacing(true);
-        linksContainer.setPadding(false);
+        content.getStyle().set("display", "grid");
+        content.getStyle().set("grid-template-columns", "repeat(auto-fit, minmax(300px, 1fr))");
+        content.getStyle().set("gap", "var(--lumo-space-l, 1.5rem)");
+        content.getStyle().set("margin-bottom", "0");
+        content.addClassNames(Width.FULL);
 
         // Link 1: Behandlungen pro Monat/Jahr
-        linksContainer.add(createLinkCard(
+        content.add(createLinkCard(
             "Patientenbehandlungen",
             "Behandlungen pro Monat/Jahr",
             "analytics/treatments-over-time",
-            VaadinIcon.LINE_CHART
+            VaadinIcon.LINE_CHART,
+            "var(--lumo-primary-color)"
         ));
 
         // Link 2: Behandlungen je Zeitslot
-        linksContainer.add(createLinkCard(
+        content.add(createLinkCard(
             "Behandlungen je Zeitslot",
             "Behandlungen nach Zeitslot",
             "analytics/treatments-by-timeslot",
-            VaadinIcon.CLOCK
+            VaadinIcon.CLOCK,
+            "var(--lumo-primary-color-50pct)"
         ));
 
         // Link 3: Patienten nach Altersklassen
-        linksContainer.add(createLinkCard(
+        content.add(createLinkCard(
             "Patienten nach Altersklassen",
             "Verteilung der Patienten nach Altersgruppen",
             "analytics/patients-by-age",
-            VaadinIcon.USERS
+            VaadinIcon.USERS,
+            "var(--lumo-primary-color)"
         ));
 
         // Link 4: Patienten Kasse/Privat
-        linksContainer.add(createLinkCard(
+        content.add(createLinkCard(
             "Patienten Kasse/Privat",
             "Verteilung nach Versicherungsart",
             "analytics/patients-by-insurance-type",
-            VaadinIcon.CREDIT_CARD
+            VaadinIcon.CREDIT_CARD,
+            "var(--lumo-primary-color-50pct)"
         ));
 
         // Link 5: Patienten nach Krankenversicherung
-        linksContainer.add(createLinkCard(
+        content.add(createLinkCard(
             "Patienten nach Krankenversicherung",
             "Verteilung nach Versicherungsanbieter",
             "analytics/patients-by-insurance-provider",
-            VaadinIcon.BUILDING
+            VaadinIcon.BUILDING,
+            "var(--lumo-primary-color)"
         ));
 
         // Link 6: Behandlungen je Medikament
-        linksContainer.add(createLinkCard(
+        content.add(createLinkCard(
             "Behandlungen je Medikament",
             "Behandlungen nach Medikament",
             "analytics/treatments-by-medication",
-            VaadinIcon.PILL
+            VaadinIcon.PILL,
+            "var(--lumo-primary-color-50pct)"
         ));
 
-        content.add(linksContainer);
         return content;
     }
 
-    private VerticalLayout createLinkCard(String title, String description, String route, VaadinIcon icon) {
-        VerticalLayout card = new VerticalLayout();
+    private Div createLinkCard(String title, String description, String route, VaadinIcon icon, String iconColor) {
+        Div card = new Div();
         card.addClassNames(
-            Padding.LARGE,
             Border.ALL,
             BorderRadius.MEDIUM,
-            "shadow-s",
-            Width.FULL,
             Display.FLEX,
-            FlexDirection.COLUMN,
-            Gap.SMALL
+            FlexDirection.COLUMN
         );
-        card.setSpacing(false);
-        card.setPadding(true);
-        card.getStyle().set("cursor", "pointer");
-        card.getStyle().set("transition", "box-shadow 0.2s");
+        card.getStyle()
+            .set("cursor", "pointer")
+            .set("transition", "all 0.2s ease")
+            .set("background", "var(--lumo-base-color)")
+            .set("box-shadow", "0 2px 4px rgba(0, 0, 0, 0.08)")
+            .set("min-height", "160px")
+            .set("padding", "var(--lumo-space-l, 1.5rem)");
 
         // Hover-Effekt
         card.addClickListener(e -> {
             getUI().ifPresent(ui -> ui.navigate(route));
         });
         card.getElement().addEventListener("mouseenter", e -> {
-            card.getStyle().set("box-shadow", "var(--lumo-box-shadow-m)");
+            card.getStyle()
+                .set("box-shadow", "0 8px 16px rgba(0, 0, 0, 0.12)")
+                .set("transform", "translateY(-2px)")
+                .set("border-color", "var(--lumo-primary-color-50pct)");
         });
         card.getElement().addEventListener("mouseleave", e -> {
-            card.getStyle().set("box-shadow", "var(--lumo-box-shadow-s)");
+            card.getStyle()
+                .set("box-shadow", "0 2px 4px rgba(0, 0, 0, 0.08)")
+                .set("transform", "translateY(0)")
+                .set("border-color", "var(--lumo-contrast-20pct)");
         });
 
-        // Icon und Titel
-        VerticalLayout header = new VerticalLayout();
-        header.setSpacing(false);
-        header.setPadding(false);
-        header.addClassNames(Display.FLEX, FlexDirection.ROW, Gap.MEDIUM, AlignItems.CENTER);
-
+        // Icon Container mit Abstand
+        Div iconContainer = new Div();
+        iconContainer.addClassNames(Display.FLEX, AlignItems.CENTER);
+        iconContainer.getStyle()
+            .set("margin-bottom", "var(--lumo-space-s, 0.75rem)");
+        
         Icon cardIcon = icon.create();
-        cardIcon.addClassNames(Margin.NONE);
-        header.add(cardIcon);
+        cardIcon.setSize("32px");
+        cardIcon.setColor(iconColor);
+        iconContainer.add(cardIcon);
+        card.add(iconContainer);
 
+        // Titel mit Abstand
         H2 cardTitle = new H2(title);
         cardTitle.addClassNames(Margin.NONE);
-        header.add(cardTitle);
+        cardTitle.getStyle()
+            .set("margin-bottom", "var(--lumo-space-s, 0.75rem)")
+            .set("font-size", "var(--lumo-font-size-l)")
+            .set("font-weight", "600");
+        card.add(cardTitle);
 
-        card.add(header);
-
-        // Beschreibung
+        // Beschreibung mit Abstand
         Span descriptionSpan = new Span(description);
-        descriptionSpan.addClassNames(Margin.NONE, Margin.Top.SMALL);
-        descriptionSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        descriptionSpan.addClassNames(Margin.NONE);
+        descriptionSpan.getStyle()
+            .set("color", "var(--lumo-secondary-text-color)")
+            .set("font-size", "var(--lumo-font-size-s)")
+            .set("line-height", "1.5");
         card.add(descriptionSpan);
 
         return card;

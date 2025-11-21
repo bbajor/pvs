@@ -24,6 +24,7 @@ import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.ai.ui.EntityVerificationDialog;
 import de.bbajor.pvs.ai.ui.VoiceInputDialog;
+import de.bbajor.pvs.institution.service.FeatureFlagService;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.model.PatientHistory;
 import de.bbajor.pvs.patient.model.PatientRecord;
@@ -39,17 +40,20 @@ public class PatientDialog extends Dialog {
     private final ExtractionClient extractionClient;
     private final VoiceTranscriptionService transcriptionService;
     private final de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository;
+    private final FeatureFlagService featureFlagService;
 
     public PatientDialog(PatientPresenter presenter, Patient patient) {
-        this(presenter, patient, null, null, null);
+        this(presenter, patient, null, null, null, null);
     }
 
     public PatientDialog(PatientPresenter presenter, Patient patient, ExtractionClient extractionClient, 
-            VoiceTranscriptionService transcriptionService, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository) {
+            VoiceTranscriptionService transcriptionService, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository,
+            FeatureFlagService featureFlagService) {
         this.extractionClient = extractionClient;
         this.transcriptionService = transcriptionService;
         this.presenter = presenter;
         this.userAccountRepository = userAccountRepository;
+        this.featureFlagService = featureFlagService;
         if (patient == null) {
             patient = new Patient();
         }
@@ -64,18 +68,25 @@ public class PatientDialog extends Dialog {
         form = new PatientForm(presenter.getHealthInsurances(), patient, 
                 presenter.getLocations(), e -> valueChanged(e), presenter.getHealthInsuranceService());
 
-        var readBtn = new Button("Aus Gesundheitskarte einlesen", event -> {
-            try {
-                form.setValue(presenter.readDataFromEgk());
-            } catch (Exception e) {
-                Notification.show("Einlesen der Karte nicht erfolgreich: " + e.getMessage());
-            }
-        });
-        readBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        // Buttons nur anzeigen, wenn Features aktiviert sind
+        Button readBtn = null;
+        if (featureFlagService != null && featureFlagService.isFeatureEnabled("EGK_READER")) {
+            readBtn = new Button("Aus Gesundheitskarte einlesen", event -> {
+                try {
+                    form.setValue(presenter.readDataFromEgk());
+                } catch (Exception e) {
+                    Notification.show("Einlesen der Karte nicht erfolgreich: " + e.getMessage());
+                }
+            });
+            readBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        }
         
-        var voiceInputBtn = new Button("Spracheingabe", event -> openVoiceInputDialog());
-        voiceInputBtn.setIcon(VaadinIcon.VOLUME_UP.create());
-        voiceInputBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        Button voiceInputBtn = null;
+        if (featureFlagService != null && featureFlagService.isFeatureEnabled("VOICE_INPUT")) {
+            voiceInputBtn = new Button("Spracheingabe", event -> openVoiceInputDialog());
+            voiceInputBtn.setIcon(VaadinIcon.VOLUME_UP.create());
+            voiceInputBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        }
         
         var saveLbl = patient == null || patient.getId() == null ? "Erstellen"
                 : "Aktualisieren";
@@ -129,7 +140,16 @@ public class PatientDialog extends Dialog {
         
         content.add(stammdatenContent);
         add(tabs, content);
-        getFooter().add(cancelBtn, readBtn, voiceInputBtn, saveButton);
+        
+        // Footer-Buttons: nur die hinzufügen, die existieren (Features aktiviert)
+        getFooter().add(cancelBtn);
+        if (readBtn != null) {
+            getFooter().add(readBtn);
+        }
+        if (voiceInputBtn != null) {
+            getFooter().add(voiceInputBtn);
+        }
+        getFooter().add(saveButton);
     }
 
     /**

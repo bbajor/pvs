@@ -105,11 +105,26 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                                 if (task.isCompleted()) {
                                         s.getStyle().set("opacity", "0.6");
                                 }
+                                s.getStyle().set("white-space", "normal");
+                                s.getStyle().set("word-wrap", "break-word");
                                 return s;
-                        })).setHeader("Beschreibung");
-                taskGrid.addColumn(task -> Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie"))
-                                .setHeader("Fälligkeitsdatum");
-                taskGrid.addColumn(task -> dateTimeFormatter.format(task.getCreationDate())).setHeader("Erstellt am");
+                        })).setHeader("Beschreibung").setResizable(true);
+                taskGrid.addColumn(new ComponentRenderer<>(task -> {
+                                String dueDate = Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie");
+                                Span span = new Span(dueDate);
+                                span.getStyle().set("white-space", "normal");
+                                span.getStyle().set("word-wrap", "break-word");
+                                return span;
+                        })).setHeader("Fälligkeitsdatum").setResizable(true);
+                taskGrid.addColumn(new ComponentRenderer<>(task -> {
+                                Span span = new Span(dateTimeFormatter.format(task.getCreationDate()));
+                                span.getStyle().set("white-space", "normal");
+                                span.getStyle().set("word-wrap", "break-word");
+                                return span;
+                        })).setHeader("Erstellt am").setResizable(true);
+                
+                // Zeilenumbruch in Zellen aktivieren
+                taskGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
                 taskGrid.setPartNameGenerator(task -> task.isCompleted() ? "row-completed" : "");
                 taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
                 taskGrid.setSizeFull();
@@ -155,14 +170,19 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                         refreshGrid();
                 });
 
+                // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
+                getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
+                getStyle().set("box-sizing", "border-box");
+                getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
                 setSizeFull();
-                addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
+                addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
                                 "view-content", LumoUtility.Gap.MEDIUM);
 
-                // Überschrift
+                // Überschrift - fixiert oben
                 H1 title = new H1("Aufgabenliste");
                 title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
                         LumoUtility.Margin.Bottom.LARGE);
+                title.getStyle().set("flex-shrink", "0");
                 add(title);
 
                 // Controls-Layout
@@ -172,6 +192,7 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                 controlsLayout.setMargin(false);
                 controlsLayout.setWidthFull();
                 controlsLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+                controlsLayout.getStyle().set("flex-shrink", "0");
                 
                 HorizontalLayout firstRow = new HorizontalLayout();
                 firstRow.setSpacing(true);
@@ -188,6 +209,9 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                 controlsLayout.add(firstRow, secondRow);
                 add(controlsLayout);
                 
+                // Grid - nimmt restlichen Platz ein und scrollt
+                taskGrid.getStyle().set("flex-grow", "1");
+                taskGrid.getStyle().set("min-height", "0");
                 add(taskGrid);
                 refreshGrid();
         }

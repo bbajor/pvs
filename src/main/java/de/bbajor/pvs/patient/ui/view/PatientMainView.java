@@ -1,41 +1,42 @@
 package de.bbajor.pvs.patient.ui.view;
 
 import java.time.format.DateTimeFormatter;
-import java.util.function.Consumer;
 
-import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.grid.HeaderRow;
-import com.vaadin.flow.component.grid.dataview.GridListDataView;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Main;
-import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.textfield.TextFieldVariant;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.theme.lumo.LumoUtility;
+import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.router.QueryParameters;
 
 import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.service.FeatureFlagService;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientListPresenter;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
@@ -50,42 +51,96 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
     private final VoiceTranscriptionService transcriptionService;
     private final ExtractionOrchestrator extractionOrchestrator;
     private final de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository;
+    private final FeatureFlagService featureFlagService;
+    private final TreatmentPlanRepository treatmentPlanRepository;
     private Grid<Patient> patientGrid;
+    
+    // Cache für TreatmentPlans pro Patient (wird beim Query gefüllt, um N+1 zu vermeiden)
+    private java.util.Map<Integer, de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan> treatmentPlanCache = 
+            new java.util.HashMap<>();
 
     private final DateTimeFormatter germanFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
 
     public PatientMainView(PatientListPresenter patientListPresenter, VoiceTranscriptionService transcriptionService, 
-            ExtractionOrchestrator extractionOrchestrator, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository) {
+            ExtractionOrchestrator extractionOrchestrator, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository,
+            FeatureFlagService featureFlagService, TreatmentPlanRepository treatmentPlanRepository) {
         this.patientListPresenter = patientListPresenter;
         this.transcriptionService = transcriptionService;
         this.extractionOrchestrator = extractionOrchestrator;
         this.userAccountRepository = userAccountRepository;
+        this.featureFlagService = featureFlagService;
+        this.treatmentPlanRepository = treatmentPlanRepository;
         
-        addClassNames(LumoUtility.BoxSizing.BORDER, LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content", LumoUtility.Gap.MEDIUM);
+        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
+        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
+        getStyle().set("box-sizing", "border-box");
+        getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
         setSizeFull();
+        addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
+                "view-content", LumoUtility.Gap.MEDIUM);
 
-        // Überschrift
+        // Überschrift - fixiert oben
         H1 title = new H1("Übersicht Patienten");
         title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
                 LumoUtility.Margin.Bottom.LARGE);
+        title.getStyle().set("flex-shrink", "0");
         add(title);
 
-        // Button-Layout
-        HorizontalLayout buttonLayout = new HorizontalLayout();
-        buttonLayout.setSpacing(true);
-        buttonLayout.setWidthFull();
-        buttonLayout.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START);
-        buttonLayout.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+        // Section für Buttons und Suche
+        Div toolbarSection = createToolbarSection();
+        toolbarSection.getStyle().set("flex-shrink", "0");
+        add(toolbarSection);
+        
+        // Grid - nimmt restlichen Platz ein und scrollt
+        configureGrid();
+        patientGrid.getStyle().set("flex-grow", "1");
+        patientGrid.getStyle().set("min-height", "0");
+        add(patientGrid);
+    }
+
+    private Div createToolbarSection() {
+        Div section = new Div();
+        section.addClassName("dialog-section");
+        section.setWidthFull();
+        section.getStyle()
+            .set("background-color", "var(--lumo-contrast-5pct)")
+            .set("border", "1px solid var(--lumo-contrast-20pct)")
+            .set("border-radius", "var(--lumo-border-radius-m)")
+            .set("padding", "var(--lumo-space-m)")
+            .set("box-sizing", "border-box")
+            .set("margin-bottom", "var(--lumo-space-m)");
+        
+        H4 sectionTitle = new H4("Aktionen");
+        sectionTitle.getStyle()
+            .set("margin-top", "0")
+            .set("margin-bottom", "var(--lumo-space-s)")
+            .set("color", "var(--lumo-primary-text-color)")
+            .set("font-size", "var(--lumo-font-size-m)")
+            .set("font-weight", "600");
+        section.add(sectionTitle);
+        
+        HorizontalLayout toolbarLayout = new HorizontalLayout();
+        toolbarLayout.setSpacing(true);
+        toolbarLayout.setWidthFull();
+        toolbarLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
         
         Button newPatientButton = new Button("Patienten anlegen", event -> openPatientDialog(new Patient()));
         newPatientButton.setIcon(VaadinIcon.PLUS.create());
         newPatientButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         newPatientButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
-        buttonLayout.add(newPatientButton);
         
-        add(buttonLayout);
-        configureGrid();
+        TextField searchField = new TextField();
+        searchField.setPlaceholder("Suche nach Name, Geburtsdatum oder Krankenkasse...");
+        searchField.setWidthFull();
+        searchField.setClearButtonVisible(true);
+        searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
+        searchField.addValueChangeListener(e -> refreshGrid(e.getValue()));
+        
+        toolbarLayout.add(newPatientButton, searchField);
+        toolbarLayout.setFlexGrow(1, searchField);
+        
+        section.add(toolbarLayout);
+        return section;
     }
 
     private void configureGrid() {
@@ -95,20 +150,34 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         patientGrid = new Grid<>(Patient.class, false);
         patientGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         
+        // Nr. Spalte als erste Spalte
+        java.util.concurrent.atomic.AtomicInteger rowCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+        patientGrid.addColumn(new ComponentRenderer<>(patient -> {
+            // Zeilennummer pro Seite (startet bei 1 auf jeder Seite)
+            int rowNumber = rowCounter.incrementAndGet();
+            Span span = new Span(String.valueOf(rowNumber));
+            span.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            return span;
+        })).setHeader("Nr.").setResizable(false).setAutoWidth(true).setFlexGrow(0);
+        
         Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(
                 new ComponentRenderer<>(patient -> {
                     String lastName = patient.getLastName() != null ? patient.getLastName() : "-";
                     Span span = new Span(lastName);
                     span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+                    span.getStyle().set("white-space", "normal");
+                    span.getStyle().set("word-wrap", "break-word");
                     return span;
-                })).setHeader("Nachname").setAutoWidth(true);
+                })).setHeader("Nachname").setResizable(true).setAutoWidth(true);
         
         Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(
                 new ComponentRenderer<>(patient -> {
                     String firstName = patient.getFirstName() != null ? patient.getFirstName() : "-";
                     Span span = new Span(firstName);
+                    span.getStyle().set("white-space", "normal");
+                    span.getStyle().set("word-wrap", "break-word");
                     return span;
-                })).setHeader("Vorname").setAutoWidth(true);
+                })).setHeader("Vorname").setResizable(true).setAutoWidth(true);
         
         Grid.Column<Patient> birthColumn = patientGrid.addColumn(
                 new ComponentRenderer<>(patient -> {
@@ -116,8 +185,10 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
                             ? germanFormatter.format(patient.getBirth()) : "-";
                     Span span = new Span(birth);
                     span.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    span.getStyle().set("white-space", "normal");
+                    span.getStyle().set("word-wrap", "break-word");
                     return span;
-                })).setHeader("Geburtsdatum").setAutoWidth(true);
+                })).setHeader("Geburtsdatum").setResizable(true).setAutoWidth(true);
         
         Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(
                 new ComponentRenderer<>(patient -> {
@@ -125,22 +196,111 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
                             ? patient.getHealthInsurance().toString() : "-";
                     Span span = new Span(insurance);
                     span.addClassNames(LumoUtility.TextColor.SECONDARY);
+                    span.getStyle().set("white-space", "normal");
+                    span.getStyle().set("word-wrap", "break-word");
                     return span;
-                })).setHeader("Krankenkasse").setAutoWidth(true);
+                })).setHeader("Krankenkasse").setResizable(true).setAutoWidth(true);
+        
+        // Spalte für Behandlungsplan-Status
+        Grid.Column<Patient> treatmentPlanColumn = patientGrid.addColumn(
+                new ComponentRenderer<>(patient -> {
+                    if (patient.getId() == null) {
+                        return new Span();
+                    }
+                    
+                    // Verwende Cache statt einzelne Query (vermeidet N+1 Problem)
+                    de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan activePlan = 
+                            treatmentPlanCache.get(patient.getId());
+                    boolean hasActivePlan = activePlan != null;
+                    
+                    Button statusButton = new Button();
+                    statusButton.setWidthFull();
+                    if (hasActivePlan) {
+                        // Behandlungsplan vorhanden - Button klickbar, führt zur Detailansicht
+                        statusButton.setText("Behandlungsplan öffnen");
+                        statusButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+                        statusButton.setEnabled(true);
+                        statusButton.addClickListener(e -> {
+                            // Navigiere zur Detailansicht des Behandlungsplans
+                            UI.getCurrent().navigate("ivom/" + activePlan.getId());
+                        });
+                    } else {
+                        // Kein Behandlungsplan - Button zum Erstellen
+                        statusButton.setText("Behandlungsplan erstellen");
+                        statusButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+                        statusButton.getStyle().set("background-color", "#ffeb3b");
+                        statusButton.getStyle().set("color", "#000000");
+                        statusButton.setEnabled(true);
+                        statusButton.addClickListener(e -> {
+                            // Gleiche Logik wie im IVOM-Planer: Erstelle TreatmentPlan mit id=-1L
+                            TreatmentPlan newTreatmentPlan = new TreatmentPlan();
+                            newTreatmentPlan.setId(-1L);
+                            // Navigiere zu ivom/-1 mit patientId als Query-Parameter
+                            QueryParameters queryParams = QueryParameters.simple(
+                                    java.util.Map.of("patientId", String.valueOf(patient.getId()))
+                            );
+                            UI.getCurrent().navigate("ivom/-1", queryParams);
+                        });
+                    }
+                    return statusButton;
+                })).setHeader("Behandlungsplan").setResizable(false).setAutoWidth(false).setFlexGrow(0).setWidth("200px");
 
-        GridListDataView<Patient> dataView = patientGrid.setItems(patientListPresenter.findAll());
-        PatientFilter patientFilter = new PatientFilter(dataView);
-        patientGrid.getHeaderRows().clear();
-        HeaderRow headerRow = patientGrid.appendHeaderRow();
+        // Paging aktivieren mit max 17 Einträgen pro Seite
+        ensureInstitutionContext();
+        patientGrid.setPageSize(17);
+        patientGrid.setItems(query -> {
+            // Counter beim Start jeder Query zurücksetzen
+            rowCounter.set(0);
+            ensureInstitutionContext();
+            Long institutionId = InstitutionContext.getInstitutionId();
+            if (institutionId == null) {
+                return java.util.stream.Stream.empty();
+            }
+            String searchTerm = getSearchTerm();
+            // Begrenze die Query auf max 17 Einträge
+            int limit = Math.min(query.getLimit(), 17);
+            com.vaadin.flow.data.provider.Query<Patient, ?> pageQuery = new com.vaadin.flow.data.provider.Query<>(
+                    query.getOffset(), 
+                    limit,
+                    query.getSortOrders(),
+                    query.getInMemorySorting(),
+                    null
+            );
+            
+            java.util.stream.Stream<Patient> patientStream;
+            if (searchTerm == null || searchTerm.isEmpty()) {
+                patientStream = patientListPresenter.findAll(toSpringPageRequest(pageQuery)).stream();
+            } else {
+                patientStream = patientListPresenter.findAllBy(searchTerm, toSpringPageRequest(pageQuery)).stream();
+            }
+            
+            // Lade TreatmentPlans für alle Patienten auf dieser Seite in einem Batch (vermeidet N+1)
+            java.util.List<Patient> patients = patientStream.collect(java.util.stream.Collectors.toList());
+            if (!patients.isEmpty()) {
+                java.util.List<Integer> patientIds = patients.stream()
+                        .map(Patient::getId)
+                        .filter(java.util.Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toList());
+                
+                if (!patientIds.isEmpty()) {
+                    java.util.List<de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan> activePlans = 
+                            treatmentPlanRepository.findActiveTreatmentPlansByPatients(institutionId, patientIds);
+                    
+                    // Cache füllen: Pro Patient nur den neuesten aktiven Plan (ORDER BY creationDate DESC)
+                    treatmentPlanCache.clear();
+                    for (de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan plan : activePlans) {
+                        Integer patientId = plan.getPatient().getId();
+                        // Nur den ersten (neuesten) Plan pro Patient speichern
+                        treatmentPlanCache.putIfAbsent(patientId, plan);
+                    }
+                }
+            }
+            
+            return patients.stream();
+        });
 
-        headerRow.getCell(lastNameColumn).setComponent(
-                createFilterHeader("Nachname", patientFilter::setLastName));
-        headerRow.getCell(firstNameColumn).setComponent(
-                createFilterHeader("Vorname", patientFilter::setFirstName));
-        headerRow.getCell(birthColumn).setComponent(
-                createFilterHeader("Geburtstag", patientFilter::setBirth));
-        headerRow.getCell(insuranceColumn).setComponent(
-                createFilterHeader("Versicherung", patientFilter::setInsuranceId));
+        // Zeilenumbruch in Zellen aktivieren
+        patientGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
 
         patientGrid.setSizeFull();
         patientGrid.asSingleSelect().addValueChangeListener(event -> {
@@ -149,8 +309,17 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
                 openPatientDialog(patientDto);
             }
         });
-
-        add(patientGrid);
+    }
+    
+    private String searchTerm = "";
+    
+    private String getSearchTerm() {
+        return searchTerm;
+    }
+    
+    private void refreshGrid(String searchString) {
+        this.searchTerm = searchString != null ? searchString : "";
+        patientGrid.getDataProvider().refreshAll();
     }
 
     @Override
@@ -172,7 +341,7 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         ensureInstitutionContext();
         
         PatientDialog dialog = new PatientDialog(patientListPresenter.getDialogPresenter(), dto, 
-                new ExtractionClient(extractionOrchestrator), transcriptionService, userAccountRepository);
+                new ExtractionClient(extractionOrchestrator), transcriptionService, userAccountRepository, featureFlagService);
         dialog.addChangeListener(this);
         dialog.open();
     }
@@ -210,76 +379,6 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
 
     @Override
     public void onPatientChanged(Patient patientDto) {
-        configureGrid();
-    }
-
-    private static Component createFilterHeader(String labelText,
-            Consumer<String> filterChangeConsumer) {
-        NativeLabel label = new NativeLabel(labelText);
-        label.getStyle().set("padding-top", "var(--lumo-space-m)")
-                .set("font-size", "var(--lumo-font-size-xs)");
-        TextField textField = new TextField();
-        textField.setValueChangeMode(ValueChangeMode.EAGER);
-        textField.setClearButtonVisible(true);
-        textField.addThemeVariants(TextFieldVariant.LUMO_SMALL);
-        textField.setWidthFull();
-        textField.getStyle().set("max-width", "100%");
-        textField.addValueChangeListener(
-                e -> filterChangeConsumer.accept(e.getValue()));
-        VerticalLayout layout = new VerticalLayout(label, textField);
-        layout.getThemeList().clear();
-        layout.getThemeList().add("spacing-xs");
-
-        return layout;
-    }
-
-    private static class PatientFilter {
-        private final GridListDataView<Patient> dataView;
-
-        private String lastName;
-        private String firstName;
-        private String birth;
-        private String insuranceId;
-
-        public PatientFilter(GridListDataView<Patient> dataView) {
-            this.dataView = dataView;
-            this.dataView.addFilter(this::test);
-        }
-
-        public void setLastName(String lastName) {
-            this.lastName = lastName;
-            this.dataView.refreshAll();
-        }
-
-        public void setFirstName(String firstName) {
-            this.firstName = firstName;
-            this.dataView.refreshAll();
-        }
-
-        public void setBirth(String birth) {
-            this.birth = birth;
-            this.dataView.refreshAll();
-        }
-
-        public void setInsuranceId(String insuranceId) {
-            this.insuranceId = insuranceId;
-            this.dataView.refreshAll();
-        }
-
-        public boolean test(Patient patient) {
-            boolean matchesFirstName = matches(patient.getFirstName(), firstName);
-            boolean matchesLastName = matches(patient.getLastName(), lastName);
-            boolean matchesBirth = matches(patient != null && patient.getBirth() != null
-                    ? DateAndTimeUtils.getGermanDateTimeFormatter().format(patient.getBirth())
-                    : "", birth);
-            boolean matchesInsurance = matches(
-                    patient.getHealthInsurance() != null ? patient.getHealthInsurance().toString() : "", insuranceId);
-            return matchesFirstName && matchesLastName && matchesBirth && matchesInsurance;
-        }
-
-        private boolean matches(String value, String searchTerm) {
-            return searchTerm == null || searchTerm.isEmpty()
-                    || value.toLowerCase().contains(searchTerm.toLowerCase());
-        }
+        patientGrid.getDataProvider().refreshAll();
     }
 }

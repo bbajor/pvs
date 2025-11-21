@@ -69,6 +69,8 @@ public interface TreatmentPlanRepository
                 SELECT DISTINCT tp FROM TreatmentPlan tp
                 LEFT JOIN FETCH tp.patient p
                 LEFT JOIN FETCH p.address a
+                LEFT JOIN FETCH p.healthInsurance hi
+                LEFT JOIN FETCH hi.institution hiInst
                 LEFT JOIN FETCH tp.diagnosis d
                 LEFT JOIN FETCH p.location loc
                 LEFT JOIN FETCH loc.institution inst
@@ -161,4 +163,46 @@ AND loc IS NOT NULL AND inst.id = :institutionId
         List<TreatmentPlan> searchInInstitution(
                 @Param("institutionId") Long institutionId,
                 @Param("searchTerm") String searchTerm);
+        
+        @Query("SELECT tp FROM TreatmentPlan tp WHERE " +
+               "tp.patient.location IS NOT NULL AND tp.patient.location.institution.id = :institutionId " +
+               "AND (LOWER(tp.patient.firstName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+               "OR LOWER(tp.patient.lastName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+               "OR (tp.patient.healthInsurance IS NOT NULL AND " +
+               "    (LOWER(tp.patient.healthInsurance.billingCarrierName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+               "     OR LOWER(tp.patient.healthInsurance.costCarrierName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))) " +
+               "OR (tp.diagnosis IS NOT NULL AND LOWER(tp.diagnosis.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
+               "OR (tp.additionalInformation IS NOT NULL AND LOWER(tp.additionalInformation) LIKE LOWER(CONCAT('%', :searchTerm, '%'))))")
+        Slice<TreatmentPlan> searchInInstitution(
+                @Param("institutionId") Long institutionId,
+                @Param("searchTerm") String searchTerm,
+                Pageable pageable);
+        
+        /**
+         * Find active treatment plan for a patient within institution.
+         * A treatment plan is considered active if finishedDate is null.
+         * <p>
+         * Data isolation: All filtering is done via institution.
+         * TreatmentPlan → Patient → Location → Institution (primary path).
+         * </p>
+         */
+        @Query("SELECT tp FROM TreatmentPlan tp WHERE " +
+               "tp.patient.location IS NOT NULL AND tp.patient.location.institution.id = :institutionId " +
+               "AND tp.patient.id = :patientId " +
+               "AND tp.finishedDate IS NULL " +
+               "ORDER BY tp.creationDate DESC")
+        List<TreatmentPlan> findActiveTreatmentPlansByPatient(
+                @Param("institutionId") Long institutionId,
+                @Param("patientId") Integer patientId);
+
+        /**
+         * Find all active treatment plans for multiple patients in one query (batch query to avoid N+1 problem).
+         */
+        @Query("SELECT tp FROM TreatmentPlan tp WHERE " +
+               "tp.patient.location IS NOT NULL AND tp.patient.location.institution.id = :institutionId " +
+               "AND tp.patient.id IN :patientIds AND tp.finishedDate IS NULL " +
+               "ORDER BY tp.patient.id ASC, tp.creationDate DESC")
+        List<TreatmentPlan> findActiveTreatmentPlansByPatients(
+                @Param("institutionId") Long institutionId,
+                @Param("patientIds") java.util.List<Integer> patientIds);
 }
