@@ -2,6 +2,7 @@ package de.bbajor.pvs.institution.service;
 
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.institution.service.FeatureFlagService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
@@ -25,6 +27,9 @@ class InstitutionServiceTest {
 
     @Mock
     private InstitutionRepository institutionRepository;
+
+    @Mock
+    private FeatureFlagService featureFlagService;
 
     @InjectMocks
     private InstitutionService institutionService;
@@ -109,6 +114,7 @@ class InstitutionServiceTest {
             inst.setId(1L);
             return inst;
         });
+        doNothing().when(featureFlagService).initializeDefaultFeatures(anyLong());
 
         // When
         Institution result = institutionService.createInstitution("New Praxis");
@@ -121,6 +127,7 @@ class InstitutionServiceTest {
         assertNotNull(result.getDatabaseName());
         assertNotNull(result.getContainerName());
         verify(institutionRepository).save(any(Institution.class));
+        verify(featureFlagService).initializeDefaultFeatures(1L);
     }
 
     @Test
