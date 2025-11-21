@@ -77,7 +77,9 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
         setSizeFull();
         addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content", LumoUtility.Gap.MEDIUM);
+                "view-content");
+        // Gap reduziert, damit Grid mehr Platz hat
+        getStyle().set("gap", "var(--lumo-space-m, 1rem)");
 
         // Überschrift - fixiert oben
         H1 title = new H1("Übersicht Patienten");
@@ -94,7 +96,10 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         // Grid - nimmt restlichen Platz ein und scrollt
         configureGrid();
         patientGrid.getStyle().set("flex-grow", "1");
+        patientGrid.getStyle().set("flex-shrink", "1");
+        patientGrid.getStyle().set("flex-basis", "0");
         patientGrid.getStyle().set("min-height", "0");
+        patientGrid.getStyle().set("overflow", "auto");
         add(patientGrid);
     }
 
@@ -302,7 +307,8 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         // Zeilenumbruch in Zellen aktivieren
         patientGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
 
-        patientGrid.setSizeFull();
+        // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
+        patientGrid.setWidthFull();
         patientGrid.asSingleSelect().addValueChangeListener(event -> {
             Patient patientDto = event.getValue();
             if (patientDto != null) {

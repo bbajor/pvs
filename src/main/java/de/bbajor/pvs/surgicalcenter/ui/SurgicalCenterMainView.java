@@ -78,7 +78,9 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
         setSizeFull();
         addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content", LumoUtility.Gap.MEDIUM);
+                "view-content");
+        // Gap reduziert, damit Grid mehr Platz hat
+        getStyle().set("gap", "var(--lumo-space-m, 1rem)");
 
         // Überschrift - fixiert oben
         H1 title = new H1("Operative Einrichtungen");
@@ -95,7 +97,10 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         // Grid - nimmt restlichen Platz ein und scrollt
         configureGrid();
         grid.getStyle().set("flex-grow", "1");
+        grid.getStyle().set("flex-shrink", "1");
+        grid.getStyle().set("flex-basis", "0");
         grid.getStyle().set("min-height", "0");
+        grid.getStyle().set("overflow", "auto");
         add(grid);
     }
 
@@ -260,7 +265,8 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         // Zeilenumbruch in Zellen aktivieren
         grid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
         
-        grid.setSizeFull();
+        // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
+        grid.setWidthFull();
         grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
 
         grid.asSingleSelect().addValueChangeListener(event -> {
