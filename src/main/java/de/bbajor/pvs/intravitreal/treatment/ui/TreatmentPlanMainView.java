@@ -176,7 +176,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
         setSizeFull();
         addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content", LumoUtility.Gap.MEDIUM);
+                "view-content");
+        // Gap reduziert, damit Grid mehr Platz hat
+        getStyle().set("gap", "var(--lumo-space-m, 1rem)");
     }
 
     private void initializeTreatmentPlansTab() {
@@ -237,6 +239,15 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             refresh("");
         });
 
+        // Container als Flexbox konfigurieren - WICHTIG: VOR add() aufrufen
+        treatmentPlansContent.setSizeFull();
+        treatmentPlansContent.setPadding(false);
+        treatmentPlansContent.setSpacing(false); // Spacing reduziert, damit Grid mehr Platz hat
+        treatmentPlansContent.getStyle().set("display", "flex");
+        treatmentPlansContent.getStyle().set("flex-direction", "column");
+        treatmentPlansContent.getStyle().set("min-height", "0");
+        treatmentPlansContent.getStyle().set("gap", "var(--lumo-space-s, 0.75rem)");
+        
         // Section für Buttons und Suche
         Div toolbarSection = createToolbarSection();
         toolbarSection.getStyle().set("flex-shrink", "0");
@@ -244,11 +255,11 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         
         // Grid - nimmt restlichen Platz ein und scrollt
         ivomPlanGrid.getStyle().set("flex-grow", "1");
+        ivomPlanGrid.getStyle().set("flex-shrink", "1");
+        ivomPlanGrid.getStyle().set("flex-basis", "0");
         ivomPlanGrid.getStyle().set("min-height", "0");
+        ivomPlanGrid.getStyle().set("overflow", "auto");
         treatmentPlansContent.add(ivomPlanGrid);
-        treatmentPlansContent.setSizeFull();
-        treatmentPlansContent.setPadding(false);
-        treatmentPlansContent.setSpacing(true);
 
         configureGrid();
         configureSearch();
@@ -304,9 +315,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         
         taskGrid.setPartNameGenerator(task -> task.isCompleted() ? "row-completed" : "");
         taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
-        taskGrid.setSizeFull();
+        // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
+        taskGrid.setWidthFull();
         taskGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
-        taskGrid.getStyle().set("min-height", "10em");
         taskGrid.addItemDoubleClickListener(ev -> {
             Task t = ev.getItem();
             TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
@@ -342,6 +353,15 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             refreshTaskGrid();
         });
 
+        // Container als Flexbox konfigurieren - WICHTIG: VOR add() aufrufen
+        taskReviewContent.setSizeFull();
+        taskReviewContent.setPadding(false);
+        taskReviewContent.setSpacing(false); // Spacing reduziert, damit Grid mehr Platz hat
+        taskReviewContent.getStyle().set("display", "flex");
+        taskReviewContent.getStyle().set("flex-direction", "column");
+        taskReviewContent.getStyle().set("min-height", "0");
+        taskReviewContent.getStyle().set("gap", "var(--lumo-space-s, 0.75rem)");
+        
         // Section für Buttons und Suche (ohne Überschrift "Behandlungsprüfung")
         Div taskToolbarSection = createTaskToolbarSection();
         taskToolbarSection.getStyle().set("flex-shrink", "0");
@@ -349,11 +369,11 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         
         // Grid - nimmt restlichen Platz ein und scrollt
         taskGrid.getStyle().set("flex-grow", "1");
+        taskGrid.getStyle().set("flex-shrink", "1");
+        taskGrid.getStyle().set("flex-basis", "0");
         taskGrid.getStyle().set("min-height", "0");
+        taskGrid.getStyle().set("overflow", "auto");
         taskReviewContent.add(taskGrid);
-        taskReviewContent.setSizeFull();
-        taskReviewContent.setPadding(false);
-        taskReviewContent.setSpacing(false);
 
         refreshTaskGrid();
     }
@@ -639,7 +659,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             "document.head.appendChild(style);"
         );
         
-        ivomPlanGrid.setSizeFull();
+        // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
+        ivomPlanGrid.setWidthFull();
         ivomPlanGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {
             TreatmentPlan ivomDto = event.getValue();
