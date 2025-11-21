@@ -15,6 +15,7 @@ import java.util.UUID;
 public class InstitutionService {
 
     private final InstitutionRepository institutionRepository;
+    private final FeatureFlagService featureFlagService;
 
     /**
      * Find a institution by its code.
@@ -58,7 +59,12 @@ public class InstitutionService {
                 .setDatabaseName("pvs_inst_" + normalizedCode)
                 .setContainerName("postgres-inst-" + normalizedCode);
         
-        return institutionRepository.save(institution);
+        Institution saved = institutionRepository.save(institution);
+        
+        // Initialisiere Standard-Feature-Flags (alle deaktiviert)
+        featureFlagService.initializeDefaultFeatures(saved.getId());
+        
+        return saved;
     }
 
     /**

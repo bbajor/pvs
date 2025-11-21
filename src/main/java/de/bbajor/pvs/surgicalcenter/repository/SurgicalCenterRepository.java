@@ -32,4 +32,14 @@ public interface SurgicalCenterRepository
      */
     @Query("SELECT sc FROM SurgicalCenter sc WHERE sc.institution.id = :institutionId")
     List<SurgicalCenter> findByInstitutionId(@Param("institutionId") Long institutionId);
+    
+    /**
+     * Find all surgical centers for an institution with paging.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * SurgicalCenter → Institution (primary path).
+     * </p>
+     */
+    @Query("SELECT sc FROM SurgicalCenter sc WHERE sc.institution.id = :institutionId")
+    Slice<SurgicalCenter> findByInstitutionId(@Param("institutionId") Long institutionId, Pageable pageable);
 }

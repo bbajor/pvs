@@ -19,6 +19,8 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
@@ -45,6 +47,7 @@ public class TimelineView extends VerticalLayout {
     private LocalDate startOfTreatmentPlan = LocalDate.now();
     private final ApplicationContext context;
     private Runnable onBookNextTreatmentCallback;
+    private Runnable onTreatmentDeletedCallback; // Callback nach dem Löschen eines Treatments
 
     public TimelineView(ApplicationContext context) {
         addClassName("timeline-view");
@@ -112,6 +115,10 @@ public class TimelineView extends VerticalLayout {
 
     public void setOnBookNextTreatmentCallback(Runnable callback) {
         this.onBookNextTreatmentCallback = callback;
+    }
+    
+    public void setOnTreatmentDeletedCallback(Runnable callback) {
+        this.onTreatmentDeletedCallback = callback;
     }
 
 
@@ -303,12 +310,30 @@ public class TimelineView extends VerticalLayout {
             try {
                 if (t.getTreatment() != null && t.getTreatment().getId() != null) {
                     context.getBean(TreatmentPlanService.class).deleteTreatment(t.getTreatment().getId());
+                    // Nach erfolgreichem Löschen: Callback aufrufen, um Daten neu zu laden
+                    if (onTreatmentDeletedCallback != null) {
+                        onTreatmentDeletedCallback.run();
+                    }
                 }
+            } catch (IllegalArgumentException ex) {
+                // Validierungsfehler (z.B. Termin in Vergangenheit) - zeige Fehlermeldung
+                LOG.warning("Fehler beim Löschen des Treatments: " + ex.getMessage());
+                Notification notification = Notification.show(
+                    ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             } catch (Exception ex) {
-                // ignore to keep UI responsive; server will enforce permissions
+                // Andere Fehler - zeige generische Fehlermeldung
+                LOG.warning("Fehler beim Löschen des Treatments: " + ex.getMessage());
+                Notification notification = Notification.show(
+                    "Fehler beim Löschen der Behandlung. Bitte versuchen Sie es erneut oder kontaktieren Sie den Administrator.",
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
-            itemList.remove(t);
-            refresh();
         },
                 t2 -> {
                     // Hier können Sie die Logik für den Klick-Handler hinzufügen

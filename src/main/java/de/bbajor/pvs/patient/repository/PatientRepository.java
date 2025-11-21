@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 public interface PatientRepository extends InstitutionAwareRepository<Patient, Integer>, JpaSpecificationExecutor<Patient> {
 
@@ -51,10 +53,14 @@ public interface PatientRepository extends InstitutionAwareRepository<Patient, I
      * Patient → Location → Institution (primary path).
      * </p>
      */
-    @Query("SELECT p FROM Patient p WHERE " +
-           "p.location IS NOT NULL AND p.location.institution.id = :institutionId " +
-           "AND (LOWER(p.firstName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
-           "OR LOWER(p.lastName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    @Query("""
+            SELECT DISTINCT p FROM Patient p
+            LEFT JOIN FETCH p.healthInsurance hi
+            LEFT JOIN FETCH hi.institution hiInst
+            WHERE p.location IS NOT NULL AND p.location.institution.id = :institutionId
+            AND (LOWER(p.firstName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+            OR LOWER(p.lastName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+            """)
     List<Patient> searchByNameInInstitution(
             @Param("institutionId") Long institutionId,
             @Param("searchTerm") String searchTerm);
@@ -67,9 +73,50 @@ public interface PatientRepository extends InstitutionAwareRepository<Patient, I
      * </p>
      */
     @Override
-    @Query("SELECT p FROM Patient p WHERE " +
-           "p.location IS NOT NULL AND p.location.institution.id = :institutionId")
+    @Query("""
+            SELECT DISTINCT p FROM Patient p
+            LEFT JOIN FETCH p.healthInsurance hi
+            LEFT JOIN FETCH hi.institution hiInst
+            WHERE p.location IS NOT NULL AND p.location.institution.id = :institutionId
+            """)
     List<Patient> findByInstitutionId(@Param("institutionId") Long institutionId);
+    
+    /**
+     * Find all patients for an institution with paging, sorted by last name.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Query("""
+            SELECT DISTINCT p FROM Patient p
+            LEFT JOIN FETCH p.healthInsurance hi
+            LEFT JOIN FETCH hi.institution hiInst
+            WHERE p.location IS NOT NULL AND p.location.institution.id = :institutionId
+            ORDER BY p.lastName ASC, p.firstName ASC
+            """)
+    Slice<Patient> findByInstitutionId(@Param("institutionId") Long institutionId, Pageable pageable);
+    
+    /**
+     * Search patients by name within institution with paging, sorted by last name.
+     * <p>
+     * Data isolation: All filtering is done via institution.
+     * Patient → Location → Institution (primary path).
+     * </p>
+     */
+    @Query("""
+            SELECT DISTINCT p FROM Patient p
+            LEFT JOIN FETCH p.healthInsurance hi
+            LEFT JOIN FETCH hi.institution hiInst
+            WHERE p.location IS NOT NULL AND p.location.institution.id = :institutionId
+            AND (LOWER(p.firstName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+            OR LOWER(p.lastName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+            ORDER BY p.lastName ASC, p.firstName ASC
+            """)
+    Slice<Patient> searchByNameInInstitution(
+            @Param("institutionId") Long institutionId,
+            @Param("searchTerm") String searchTerm,
+            Pageable pageable);
     
     /**
      * Find patient by ID and institution (institution-safe access).
@@ -79,8 +126,15 @@ public interface PatientRepository extends InstitutionAwareRepository<Patient, I
      * </p>
      */
     @Override
-    @Query("SELECT p FROM Patient p WHERE p.id = :id AND " +
-           "p.location IS NOT NULL AND p.location.institution.id = :institutionId")
+    @Query("""
+            SELECT DISTINCT p FROM Patient p
+            LEFT JOIN FETCH p.healthInsurance hi
+            LEFT JOIN FETCH hi.institution hiInst
+            LEFT JOIN FETCH p.location loc
+            LEFT JOIN FETCH loc.institution inst
+            WHERE p.id = :id 
+            AND loc IS NOT NULL AND inst.id = :institutionId
+            """)
     Optional<Patient> findByIdAndInstitutionId(@Param("id") Integer id, @Param("institutionId") Long institutionId);
     
     /**

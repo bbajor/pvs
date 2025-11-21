@@ -42,6 +42,16 @@ vaadin-grid {
 vaadin-grid::part(cell) {
     padding: var(--lumo-space-m, 1rem) var(--lumo-space-s, 0.75rem) !important;
     border-bottom: 1px solid var(--lumo-contrast-10pct) !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+/* Cell-Content Wrapping aktivieren */
+vaadin-grid::part(cell-content) {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
 }
 
 vaadin-grid::part(cell):last-child {
@@ -178,17 +188,30 @@ vaadin-tab[selected] {
    ============================================ */
 
 /* Haupt-Container für Views - zentrale Padding-Einstellung */
-main,
-[role="main"] {
+/* WICHTIG: Padding wird auf AppLayout-Content gesetzt (siehe vaadin-app-layout::part(content)) */
+/* main-Elemente mit view-content-Klasse bekommen KEIN eigenes Padding, da sie den Content-Bereich füllen */
+main.view-content,
+[role="main"].view-content {
+    /* Padding entfernt - wird jetzt auf vaadin-app-layout::part(content) gesetzt */
+    background: var(--lumo-base-color) !important;
+    box-sizing: border-box !important;
+}
+
+/* main-Elemente OHNE view-content-Klasse bekommen Padding (für Views ohne AppLayout) */
+main:not(.view-content),
+[role="main"]:not(.view-content) {
     padding: var(--lumo-space-l, 1.5rem) !important;
     background: var(--lumo-base-color) !important;
     min-height: 100vh !important;
+    box-sizing: border-box !important;
 }
 
 /* Zentrale View-Content-Klasse für konsistente Margins */
+/* WICHTIG: Padding wird auf AppLayout-Content gesetzt, nicht auf view-content */
 .view-content,
 vaadin-vertical-layout.view-content {
-    padding: var(--lumo-space-l, 1.5rem) !important;
+    /* Padding entfernt - wird jetzt auf vaadin-app-layout::part(content) gesetzt */
+    box-sizing: border-box !important;
 }
 
 /* View Content Spacing - automatische Margins für alle direkten Kinder */
@@ -211,6 +234,13 @@ vaadin-vertical-layout.view-content > *:last-child {
 main vaadin-grid,
 [role="main"] vaadin-grid,
 vaadin-vertical-layout.view-content vaadin-grid {
+    margin-top: var(--lumo-space-m, 1rem) !important;
+    margin-bottom: var(--lumo-space-m, 1rem) !important;
+}
+
+/* Grids im Behandlungsverlauf - automatische Margins */
+.dialog-section vaadin-grid,
+[class*="section"] vaadin-grid {
     margin-top: var(--lumo-space-m, 1rem) !important;
     margin-bottom: var(--lumo-space-m, 1rem) !important;
 }
@@ -323,14 +353,14 @@ section h4,
    Icon-Container
    ============================================ */
 
-/* Icon-Container mit Hintergrund */
+/* Icon-Container mit Hintergrund - nur beim Hover */
 .icon-container,
 [class*="icon-container"] {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     border-radius: var(--lumo-border-radius-m, 0.5rem) !important;
-    background: var(--lumo-primary-color-10pct) !important;
+    background: transparent !important; /* Kein Hintergrund standardmäßig */
     transition: all 0.3s ease !important;
 }
 
@@ -354,6 +384,12 @@ vaadin-notification-card {
 /* ============================================
    App-Layout
    ============================================ */
+
+/* AppLayout Content-Bereich - Padding für Abstand zum Menü */
+vaadin-app-layout::part(content) {
+    padding: var(--lumo-space-l, 1.5rem) !important;
+    box-sizing: border-box !important;
+}
 
 /* Drawer mit modernem Styling */
 vaadin-app-layout::part(drawer) {
@@ -416,4 +452,11 @@ vaadin-app-layout::part(navbar) [class*="icon"] {
 .hover-lift:hover {
     transform: translateY(-4px) scale(1.02) !important;
 }
+
+/* ============================================
+   Help View - Responsive Grid Layout
+   ============================================ */
+
+/* Help Cards Container - Responsives Grid mit automatischem Layout */
+/* Grid-Layout wird direkt im Java-Code gesetzt (wie in AnalyticsOverviewView) */
 

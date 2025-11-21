@@ -12,8 +12,6 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
@@ -44,40 +42,25 @@ public final class MainView extends Main implements BeforeEnterObserver {
         this.userAccountRepository = userAccountRepository;
         this.httpSession = httpSession;
         
-        addClassNames(Padding.MEDIUM, "view-content");
+        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
+        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
+        getStyle().set("box-sizing", "border-box");
+        setSizeFull();
+        addClassNames("view-content", Display.FLEX, FlexDirection.COLUMN);
         
-        // Überschrift
-        H1 title = new H1("Dashboard");
-        title.addClassNames(FontSize.XLARGE, FontWeight.SEMIBOLD, Margin.Bottom.LARGE);
-        add(title);
-        
-        add(createDashboardContent());
+        // Keine Überschriften - nur Kacheln
+        add(createMenuCards());
     }
 
-    private Div createDashboardContent() {
-        var content = new Div();
-        content.addClassNames(Display.FLEX, FlexDirection.COLUMN, Gap.MEDIUM);
-        
-        var title = new H2("Verfügbare Bereiche");
-        title.addClassNames(FontSize.XLARGE, FontWeight.SEMIBOLD, Margin.Bottom.MEDIUM);
-        content.add(title);
-        
-        var cardsContainer = createMenuCards();
-        content.add(cardsContainer);
-        
-        return content;
-    }
-
-    private FlexLayout createMenuCards() {
-        var container = new FlexLayout();
-        container.addClassNames(
-            Display.FLEX, 
-            FlexWrap.WRAP, 
-            Gap.LARGE,
-            Width.FULL
-        );
-        container.setFlexDirection(FlexLayout.FlexDirection.ROW);
-        container.setAlignItems(FlexComponent.Alignment.STRETCH);
+    private Div createMenuCards() {
+        var container = new Div();
+        container.setWidthFull();
+        container.getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(auto-fit, minmax(300px, 1fr))")
+            .set("gap", "var(--lumo-space-l, 1.5rem)")
+            .set("margin-bottom", "0");
+        container.addClassNames(Width.FULL);
         
         // Check if user is SUPER_ADMIN
         boolean isSuperAdmin = isCurrentUserSuperAdmin();
@@ -114,13 +97,10 @@ public final class MainView extends Main implements BeforeEnterObserver {
             "dashboard-menu-card"
         );
         
-        // Vaadin Business App ähnliches Styling mit DIN A4 Formatverhältnis
-        // DIN A4: 210mm x 297mm = Verhältnis ~1:1.414 (0.707:1)
+        // Größe wie im Analytics-Modul (min-height: 160px statt aspect-ratio)
         card.getStyle()
-            .set("min-width", "280px")
-            .set("width", "280px")
-            .set("aspect-ratio", "1 / 1.414") // DIN A4 Format
-            .set("padding", "var(--lumo-space-xl)")
+            .set("min-height", "160px")
+            .set("padding", "var(--lumo-space-l, 1.5rem)")
             .set("border-radius", "var(--lumo-border-radius-l)")
             .set("border", "1px solid var(--lumo-contrast-20pct)")
             .set("background", "var(--lumo-base-color)")
@@ -136,7 +116,7 @@ public final class MainView extends Main implements BeforeEnterObserver {
         
         card.addClickListener(e -> UI.getCurrent().navigate(path));
         
-        // Icon Container mit mehr Raum - nutzt CSS-Klasse aus business-app.css
+        // Icon Container mit mehr Raum - OHNE Standard-Hintergrund (nur beim Hover)
         Div iconContainer = null;
         if (iconName != null && !iconName.isEmpty()) {
             iconContainer = new Div();
@@ -144,7 +124,13 @@ public final class MainView extends Main implements BeforeEnterObserver {
             iconContainer.getStyle()
                 .set("width", "80px")
                 .set("height", "80px")
-                .set("margin-bottom", "var(--lumo-space-l)");
+                .set("margin-bottom", "var(--lumo-space-l)")
+                .set("background", "transparent") // Kein Hintergrund standardmäßig
+                .set("display", "flex")
+                .set("justify-content", "center")
+                .set("align-items", "center")
+                .set("margin-left", "auto")
+                .set("margin-right", "auto");
             
             var icon = new Icon(iconName);
             icon.setSize("48px");
@@ -183,7 +169,7 @@ public final class MainView extends Main implements BeforeEnterObserver {
                 .set("border-color", "var(--lumo-contrast-20pct)");
             if (finalIconContainer != null) {
                 finalIconContainer.getStyle()
-                    .set("background", "var(--lumo-primary-color-10pct)")
+                    .set("background", "transparent") // Zurück zu transparent, nicht blau
                     .set("transform", "scale(1)");
             }
         });

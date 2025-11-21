@@ -52,6 +52,22 @@ public class PatientService {
         // Return empty list to enforce data isolation
         return List.of();
     }
+    
+    public org.springframework.data.domain.Slice<Patient> findPatients(String filter, org.springframework.data.domain.Pageable pageable) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        
+        if (institutionId == null) {
+            // No institution context - return empty slice
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        
+        if (StringUtils.isEmpty(filter)) {
+            return getAll(pageable);
+        }
+
+        // Institution-aware search using institution-specific query with paging
+        return patientRepository.searchByNameInInstitution(institutionId, filter, pageable);
+    }
 
     public Patient save(Patient patient) {
         if (patient == null) {
@@ -170,6 +186,17 @@ public class PatientService {
         // No institution context - SUPER_ADMIN should not see patient data
         // Return empty list to enforce data isolation
         return List.of();
+    }
+    
+    public org.springframework.data.domain.Slice<Patient> getAll(org.springframework.data.domain.Pageable pageable) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            // Use institution-aware findAll method with paging
+            return patientRepository.findByInstitutionId(institutionId, pageable);
+        }
+        
+        // No institution context - return empty slice
+        return org.springframework.data.domain.Page.empty(pageable);
     }
 
     public Patient findEntityById(Integer id) {

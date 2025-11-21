@@ -44,6 +44,17 @@ public class SurgicalCenterService {
         // No institution context - return empty list to enforce data isolation
         return List.of();
     }
+    
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Slice<SurgicalCenter> findAll(org.springframework.data.domain.Pageable pageable) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            // Return only surgical centers for current institution with paging
+            return surgicalCenterRepository.findByInstitutionId(institutionId, pageable);
+        }
+        // No institution context - return empty slice
+        return org.springframework.data.domain.Page.empty(pageable);
+    }
 
     @Transactional(readOnly = true)
     public SurgicalCenter findByIdWithDetails(Integer id) {
@@ -293,12 +304,15 @@ public class SurgicalCenterService {
             return List.of();
         }
         
+        // Nur vergangene Zeitslots (bis heute) mit ungeprüften Treatments
+        LocalDate today = LocalDate.now();
+        
         // Get all time slots with not approved treatments for this institution
-        // The query already filters by institution
+        // The query already filters by institution and date <= today
         if (timeSlotIds == null || timeSlotIds.isEmpty()) {
-            return timeSlotRepository.findAllContainingNotApprovedTreatments(institutionId);
+            return timeSlotRepository.findAllContainingNotApprovedTreatments(institutionId, today);
         } else {
-            return timeSlotRepository.findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(institutionId, timeSlotIds);
+            return timeSlotRepository.findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(institutionId, today, timeSlotIds);
         }
     }
 
