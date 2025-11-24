@@ -10,11 +10,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.context.ApplicationContext;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -26,6 +28,9 @@ import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.base.util.SideOfEye;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.intravitreal.treatment.ui.TreatmentDetailDialog;
 
@@ -48,6 +53,13 @@ public class TimelineView extends VerticalLayout {
     private final ApplicationContext context;
     private Runnable onBookNextTreatmentCallback;
     private Runnable onTreatmentDeletedCallback; // Callback nach dem Löschen eines Treatments
+    private QuickBookingHandler quickBookingHandler;
+    private SideOfEye sideOfEye;
+    private boolean quickBookingEnabled = true;
+
+    private static final int DEFAULT_INTERVAL_WEEKS = 4;
+    private static final int MIN_INTERVAL_WEEKS = 1;
+    private static final int MAX_INTERVAL_WEEKS = 16;
 
     public TimelineView(ApplicationContext context) {
         addClassName("timeline-view");
@@ -121,6 +133,20 @@ public class TimelineView extends VerticalLayout {
         this.onTreatmentDeletedCallback = callback;
     }
 
+    public void setQuickBookingHandler(QuickBookingHandler handler) {
+        this.quickBookingHandler = handler;
+        refresh();
+    }
+
+    public void setSideOfEye(SideOfEye sideOfEye) {
+        this.sideOfEye = sideOfEye;
+    }
+
+    public void setQuickBookingEnabled(boolean quickBookingEnabled) {
+        this.quickBookingEnabled = quickBookingEnabled;
+        refresh();
+    }
+
 
     /**
      * NEU: Zentrale Methode, die die Timeline basierend auf den aktuellen Daten und
@@ -191,6 +217,8 @@ public class TimelineView extends VerticalLayout {
 
             prev = current;
         }
+
+        maybeAddQuickBookingCard(itemsToRender);
 
         // Markiere die nächste Behandlung und scrolle dorthin
         updateNextTreatmentStatus();
@@ -347,6 +375,169 @@ public class TimelineView extends VerticalLayout {
                 onBookNextTreatmentCallback,
                 isLastTreatment);
         return card;
+    }
+
+    private void maybeAddQuickBookingCard(List<TimeLineCardConfig> itemsToRender) {
+        if (!quickBookingEnabled || quickBookingHandler == null || sideOfEye == null) {
+            return;
+        }
+
+        List<Treatment> treatments = itemsToRender.stream()
+                .filter(item -> !item.isFirst())
+                .map(TimeLineCardConfig::getTreatment)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Div quickBookingCard = createQuickBookingCard(treatments);
+        timelineLayout.add(quickBookingCard);
+    }
+
+    private Div createQuickBookingCard(List<Treatment> treatments) {
+        Div card = new Div();
+        card.addClassName("timeline-quick-booking-card");
+
+        Span title = new Span("Folgetermin buchen");
+        title.addClassName("quick-booking-title");
+        card.add(title);
+
+        if (treatments.isEmpty()) {
+            Span info = new Span("Noch keine Behandlung vorhanden – bitte zuerst einen Termin über \"Termine buchen\" planen.");
+            info.addClassName("quick-booking-info");
+            card.add(info);
+            return card;
+        }
+
+        Treatment lastTreatment = treatments.get(treatments.size() - 1);
+        card.add(createLastTreatmentInfo(lastTreatment));
+
+        if (treatments.size() < 2) {
+            card.add(buildIntervalSelectionLayout());
+        } else {
+            card.add(buildQuickBookingButtons(treatments));
+        }
+
+        return card;
+    }
+
+    private Div createLastTreatmentInfo(Treatment lastTreatment) {
+        Div infoWrapper = new Div();
+        infoWrapper.addClassName("quick-booking-info-wrapper");
+
+        LocalDate lastDate = lastTreatment.getDate();
+        String formattedDate = lastDate != null
+                ? DateAndTimeUtils.getGermanDateTimeFormatter().format(lastDate)
+                : "kein Datum";
+        Span dateInfo = new Span("Letzte Behandlung: " + formattedDate);
+        dateInfo.addClassName("quick-booking-info");
+        infoWrapper.add(dateInfo);
+
+        if (lastTreatment.getSurgicalCenterTimeSlot() != null
+                && lastTreatment.getSurgicalCenterTimeSlot().getSurgicalCenter() != null
+                && lastTreatment.getSurgicalCenterTimeSlot().getSurgicalCenter().getName() != null) {
+            String centerName = lastTreatment.getSurgicalCenterTimeSlot().getSurgicalCenter().getName();
+            if (!centerName.isBlank()) {
+                Span locationInfo = new Span("Ort: " + centerName);
+                locationInfo.addClassName("quick-booking-info");
+                infoWrapper.add(locationInfo);
+            }
+        }
+
+        return infoWrapper;
+    }
+
+    private Div buildQuickBookingButtons(List<Treatment> treatments) {
+        Div buttonContainer = new Div();
+        buttonContainer.addClassName("quick-booking-button-group");
+
+        int previousIntervalWeeks = calculatePreviousIntervalWeeks(treatments);
+        int shorterInterval = clampInterval(previousIntervalWeeks - 1);
+        int longerInterval = clampInterval(previousIntervalWeeks + 1);
+
+        buttonContainer.add(createActionButton("Intervall verkürzen", shorterInterval,
+                QuickBookingAction.SHORTER_INTERVAL));
+        buttonContainer.add(createActionButton("Gleiches Intervall", previousIntervalWeeks,
+                QuickBookingAction.SAME_INTERVAL));
+        buttonContainer.add(createActionButton("Intervall verlängern", longerInterval,
+                QuickBookingAction.LONGER_INTERVAL));
+        buttonContainer.add(createActionButton("Nächstmöglicher Termin", null,
+                QuickBookingAction.NEXT_AVAILABLE));
+
+        return buttonContainer;
+    }
+
+    private Div buildIntervalSelectionLayout() {
+        Div layout = new Div();
+        layout.addClassName("quick-booking-interval-selection");
+
+        Span subtitle = new Span("Intervall auswählen (1-16 Wochen)");
+        subtitle.addClassName("quick-booking-info");
+        layout.add(subtitle);
+
+        ComboBox<Integer> intervalComboBox = new ComboBox<>();
+        intervalComboBox.setWidthFull();
+        intervalComboBox.setPlaceholder("Intervall wählen");
+        intervalComboBox.setItems(IntStream.rangeClosed(MIN_INTERVAL_WEEKS, MAX_INTERVAL_WEEKS)
+                .boxed()
+                .collect(Collectors.toList()));
+        intervalComboBox.setItemLabelGenerator(this::formatWeeks);
+        intervalComboBox.addValueChangeListener(event -> {
+            if (!event.isFromClient() || event.getValue() == null) {
+                return;
+            }
+            triggerQuickBooking(QuickBookingAction.CUSTOM_INTERVAL, event.getValue());
+            intervalComboBox.clear();
+        });
+        layout.add(intervalComboBox);
+
+        Span hint = new Span("Hinweis: Die Auswahl bucht sofort einen Termin.");
+        hint.addClassName("quick-booking-hint");
+        layout.add(hint);
+
+        return layout;
+    }
+
+    private Button createActionButton(String label, Integer intervalWeeks, QuickBookingAction action) {
+        String buttonText = intervalWeeks != null ? label + " (" + formatWeeks(intervalWeeks) + ")" : label;
+        Button button = new Button(buttonText);
+        button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        button.addClassName("quick-booking-button");
+        button.setWidthFull();
+        button.addClickListener(event -> triggerQuickBooking(action, intervalWeeks));
+        return button;
+    }
+
+    private void triggerQuickBooking(QuickBookingAction action, Integer intervalWeeks) {
+        if (quickBookingHandler == null || sideOfEye == null) {
+            return;
+        }
+        Integer normalizedInterval = intervalWeeks != null ? clampInterval(intervalWeeks) : null;
+        quickBookingHandler.handleQuickBooking(new QuickBookingRequest(action, sideOfEye, normalizedInterval));
+    }
+
+    private int calculatePreviousIntervalWeeks(List<Treatment> treatments) {
+        if (treatments.size() < 2) {
+            return DEFAULT_INTERVAL_WEEKS;
+        }
+        Treatment previous = treatments.get(treatments.size() - 2);
+        Treatment last = treatments.get(treatments.size() - 1);
+        LocalDate previousDate = previous.getDate();
+        LocalDate lastDate = last.getDate();
+        if (previousDate == null || lastDate == null) {
+            return DEFAULT_INTERVAL_WEEKS;
+        }
+        long weeks = ChronoUnit.WEEKS.between(previousDate, lastDate);
+        if (weeks <= 0) {
+            weeks = DEFAULT_INTERVAL_WEEKS;
+        }
+        return clampInterval((int) weeks);
+    }
+
+    private String formatWeeks(int weeks) {
+        return weeks + (weeks == 1 ? " Woche" : " Wochen");
+    }
+
+    private int clampInterval(int interval) {
+        return Math.max(MIN_INTERVAL_WEEKS, Math.min(MAX_INTERVAL_WEEKS, interval));
     }
 
     /**
@@ -552,5 +743,21 @@ public class TimelineView extends VerticalLayout {
                 "const c=this.shadowRoot && this.shadowRoot.querySelector('[part=\\\"content\\\"]') || this; c.scrollBy({ top: $0, behavior: 'smooth' })",
                 delta);
         }
+    }
+
+    public enum QuickBookingAction {
+        SHORTER_INTERVAL,
+        SAME_INTERVAL,
+        LONGER_INTERVAL,
+        NEXT_AVAILABLE,
+        CUSTOM_INTERVAL
+    }
+
+    @FunctionalInterface
+    public interface QuickBookingHandler {
+        void handleQuickBooking(QuickBookingRequest request);
+    }
+
+    public record QuickBookingRequest(QuickBookingAction action, SideOfEye sideOfEye, Integer intervalWeeks) {
     }
 }

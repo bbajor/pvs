@@ -182,3 +182,51 @@ vaadin-scroller.timeline-scroller::part(content)::-webkit-scrollbar-track {
   color: var(--lumo-error-color) !important;
   opacity: 0.7 !important;
 }
+
+.timeline-quick-booking-card {
+  min-width: 240px;
+  padding: 1rem;
+  border-radius: var(--lumo-border-radius-l);
+  border: 1px dashed var(--lumo-primary-color-50pct);
+  background-color: var(--lumo-base-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.quick-booking-title {
+  font-weight: 600;
+  color: var(--lumo-primary-text-color);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.quick-booking-info,
+.quick-booking-hint {
+  font-size: var(--lumo-font-size-s);
+  color: var(--lumo-secondary-text-color);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.quick-booking-hint {
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.quick-booking-button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.quick-booking-button {
+  justify-content: space-between;
+}
+
+.quick-booking-interval-selection {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

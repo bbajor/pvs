@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -15,6 +16,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.server.StreamRegistration;
 import com.vaadin.flow.server.StreamResource;
@@ -98,6 +100,9 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private VerticalLayout timelineContainer;
     private VerticalLayout gridContainer;
     private boolean showPastTreatments = true;
+    private static final int MIN_INTERVAL_WEEKS = 1;
+    private static final int DEFAULT_INTERVAL_WEEKS = 4;
+    private static final int MAX_INTERVAL_WEEKS = 16;
 
     public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan,
             ApplicationContext context) {
@@ -109,7 +114,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
         // overflow entfernt - erlaube Scrollen wenn nötig
         
         timeLineViewLeftEye = new TimelineView(context);
+        timeLineViewLeftEye.setSideOfEye(SideOfEye.LEFT);
+        timeLineViewLeftEye.setQuickBookingHandler(this::handleQuickBooking);
         timeLineViewRightEye = new TimelineView(context);
+        timeLineViewRightEye.setSideOfEye(SideOfEye.RIGHT);
+        timeLineViewRightEye.setQuickBookingHandler(this::handleQuickBooking);
 
         patientSelectComboBox.setItems(presenter.getPatients());
         patientSelectComboBox.addValueChangeListener(event -> {
@@ -1368,11 +1377,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 .setMostCommonInterval(mostCommonInterval);
         rightEyeTreatments.add(0, firstCard);
         
-        // Callback für Button setzen
-        timeLineViewRightEye.setOnBookNextTreatmentCallback(() -> {
-            openNextTreatmentBookingDialog(SideOfEye.RIGHT);
-        });
-        
         // Callback nach dem Löschen: Timeline neu laden
         timeLineViewRightEye.setOnTreatmentDeletedCallback(() -> {
             if (current != null && current.getId() != null) {
@@ -1532,11 +1536,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 .setTreatmentCount(treatmentCount)
                 .setMostCommonInterval(mostCommonInterval);
         leftEyeTreatments.add(0, firstCard);
-        
-        // Callback für Button setzen
-        timeLineViewLeftEye.setOnBookNextTreatmentCallback(() -> {
-            openNextTreatmentBookingDialog(SideOfEye.LEFT);
-        });
         
         // Callback nach dem Löschen: Timeline neu laden
         timeLineViewLeftEye.setOnTreatmentDeletedCallback(() -> {
@@ -1758,6 +1757,250 @@ public class TreatmentPlanLayout extends VerticalLayout {
                     });
                 });
         dialog.open();
+    }
+
+    private void handleQuickBooking(TimelineView.QuickBookingRequest request) {
+        if (request == null) {
+            return;
+        }
+        if (current == null || current.getId() == null) {
+            Notification notification = Notification.show(
+                    "Bitte speichern Sie den Behandlungsplan, bevor Sie Folgetermine buchen.",
+                    4000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        ensureInstitutionContext();
+        try {
+            executeQuickBooking(request);
+            String eyeLabel = request.sideOfEye() == SideOfEye.LEFT ? "linkes Auge" : "rechtes Auge";
+            Notification success = Notification.show(
+                    "Folgetermin für das " + eyeLabel + " wurde gebucht.",
+                    3000,
+                    Notification.Position.BOTTOM_END);
+            success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            if (current.getId() != null) {
+                setLeftEyeTreatmentHistory(current.getId());
+                setRightEyeTreatmentHistory(current.getId());
+            }
+            updateAppointmentBookingSection();
+            if (gridContainer != null && gridContainer.isVisible()) {
+                refreshGrids();
+            }
+            if (binderChangeListener != null) {
+                binderChangeListener.run();
+            }
+        } catch (IllegalStateException ex) {
+            Notification notification = Notification.show(
+                    ex.getMessage(),
+                    4000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } catch (Exception ex) {
+            Notification notification = Notification.show(
+                    "Folgetermin konnte nicht gebucht werden: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private void executeQuickBooking(TimelineView.QuickBookingRequest request) {
+        if (request.sideOfEye() == null) {
+            throw new IllegalStateException("Kein Auge für die Schnellbuchung ausgewählt.");
+        }
+
+        List<Treatment> treatments = presenter.getTreatmentDtos(request.sideOfEye(), current.getId());
+        if (treatments.isEmpty()) {
+            throw new IllegalStateException("Für die Schnellbuchung wird mindestens eine bestehende Behandlung benötigt.");
+        }
+
+        treatments.sort(this::compareTreatmentsByDate);
+        Treatment lastTreatment = treatments.get(treatments.size() - 1);
+        Treatment previousTreatment = treatments.size() > 1 ? treatments.get(treatments.size() - 2) : null;
+
+        int previousIntervalWeeks = calculatePreviousIntervalWeeks(previousTreatment, lastTreatment);
+        int targetIntervalWeeks = determineTargetIntervalWeeks(request, previousIntervalWeeks);
+
+        SurgicalCenterTimeSlot selectedSlot = findQuickBookingSlot(lastTreatment, previousIntervalWeeks, request, targetIntervalWeeks);
+        if (selectedSlot == null) {
+            throw new IllegalStateException("Kein verfügbarer Termin gefunden.");
+        }
+        Treatment newTreatment = cloneTreatmentForQuickBooking(lastTreatment, selectedSlot, request.sideOfEye());
+
+        presenter.save(current.getId(), List.of(newTreatment));
+    }
+
+    private int compareTreatmentsByDate(Treatment a, Treatment b) {
+        LocalDate dateA = a != null ? a.getDate() : null;
+        LocalDate dateB = b != null ? b.getDate() : null;
+        if (dateA == null && dateB == null) {
+            return 0;
+        }
+        if (dateA == null) {
+            return 1;
+        }
+        if (dateB == null) {
+            return -1;
+        }
+        return dateA.compareTo(dateB);
+    }
+
+    private int calculatePreviousIntervalWeeks(Treatment previous, Treatment last) {
+        if (previous == null || previous.getDate() == null || last == null || last.getDate() == null) {
+            return DEFAULT_INTERVAL_WEEKS;
+        }
+        long weeks = java.time.temporal.ChronoUnit.WEEKS.between(previous.getDate(), last.getDate());
+        if (weeks <= 0) {
+            weeks = DEFAULT_INTERVAL_WEEKS;
+        }
+        return clampInterval((int) weeks);
+    }
+
+    private int determineTargetIntervalWeeks(TimelineView.QuickBookingRequest request, int previousIntervalWeeks) {
+        return switch (request.action()) {
+            case SHORTER_INTERVAL -> clampInterval(previousIntervalWeeks - 1);
+            case SAME_INTERVAL -> clampInterval(previousIntervalWeeks);
+            case LONGER_INTERVAL -> clampInterval(previousIntervalWeeks + 1);
+            case CUSTOM_INTERVAL -> clampInterval(
+                    request.intervalWeeks() != null ? request.intervalWeeks() : previousIntervalWeeks);
+            case NEXT_AVAILABLE -> clampInterval(previousIntervalWeeks);
+        };
+    }
+
+    private int clampInterval(int interval) {
+        return Math.max(MIN_INTERVAL_WEEKS, Math.min(MAX_INTERVAL_WEEKS, interval));
+    }
+
+    private SurgicalCenterTimeSlot findQuickBookingSlot(Treatment lastTreatment,
+            int previousIntervalWeeks,
+            TimelineView.QuickBookingRequest request,
+            int targetIntervalWeeks) {
+        if (lastTreatment.getSurgicalCenterTimeSlot() == null
+                || lastTreatment.getSurgicalCenterTimeSlot().getSurgicalCenter() == null
+                || lastTreatment.getSurgicalCenterTimeSlot().getSurgicalCenter().getId() == null) {
+            throw new IllegalStateException("Die letzte Behandlung enthält keinen gültigen Behandlungsort.");
+        }
+
+        LocalDate lastDate = lastTreatment.getDate();
+        LocalDate earliestSearchDate = LocalDate.now();
+        if (lastDate != null && lastDate.plusDays(1).isAfter(earliestSearchDate)) {
+            earliestSearchDate = lastDate.plusDays(1);
+        }
+
+        SurgicalCenter surgicalCenter = lastTreatment.getSurgicalCenterTimeSlot().getSurgicalCenter();
+        Collection<SurgicalCenterTimeSlot> slotCollection = presenter.getAllTimeSlotsFilteredBy(
+                earliestSearchDate,
+                TimePeriod.ONE_YEAR,
+                TimeSlotRepetition.WEEKLY,
+                surgicalCenter.getId());
+
+        List<SurgicalCenterTimeSlot> slots = slotCollection.stream()
+                .filter(slot -> slot.getDate() != null)
+                .sorted(this::compareTimeSlots)
+                .collect(java.util.stream.Collectors.toList());
+
+        if (slots.isEmpty()) {
+            throw new IllegalStateException("Keine freien Termine im ausgewählten Behandlungsort gefunden.");
+        }
+
+        return switch (request.action()) {
+            case NEXT_AVAILABLE -> slots.get(0);
+            case SHORTER_INTERVAL -> selectSlotWithPreference(slots, lastDate, targetIntervalWeeks, previousIntervalWeeks, true);
+            case LONGER_INTERVAL -> selectSlotWithPreference(slots, lastDate, targetIntervalWeeks, previousIntervalWeeks, false);
+            case SAME_INTERVAL, CUSTOM_INTERVAL -> selectClosestSlot(slots, lastDate, targetIntervalWeeks);
+        };
+    }
+
+    private int compareTimeSlots(SurgicalCenterTimeSlot a, SurgicalCenterTimeSlot b) {
+        LocalDate dateA = a.getDate();
+        LocalDate dateB = b.getDate();
+        if (dateA == null && dateB == null) {
+            return 0;
+        }
+        if (dateA == null) {
+            return 1;
+        }
+        if (dateB == null) {
+            return -1;
+        }
+        int dateCompare = dateA.compareTo(dateB);
+        if (dateCompare != 0) {
+            return dateCompare;
+        }
+        if (a.getStartTime() != null && b.getStartTime() != null) {
+            return a.getStartTime().compareTo(b.getStartTime());
+        }
+        if (a.getStartTime() == null && b.getStartTime() != null) {
+            return 1;
+        }
+        if (a.getStartTime() != null) {
+            return -1;
+        }
+        return 0;
+    }
+
+    private SurgicalCenterTimeSlot selectSlotWithPreference(List<SurgicalCenterTimeSlot> slots,
+            LocalDate lastDate,
+            int targetIntervalWeeks,
+            int previousIntervalWeeks,
+            boolean preferShorter) {
+        if (lastDate == null) {
+            return slots.get(0);
+        }
+        long previousDays = (long) previousIntervalWeeks * 7;
+        List<SurgicalCenterTimeSlot> filtered = slots.stream()
+                .filter(slot -> !slot.getDate().isBefore(lastDate.plusDays(1)))
+                .filter(slot -> {
+                    long deltaDays = java.time.temporal.ChronoUnit.DAYS.between(lastDate, slot.getDate());
+                    return preferShorter ? deltaDays < previousDays : deltaDays > previousDays;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+        if (filtered.isEmpty()) {
+            return selectClosestSlot(slots, lastDate, targetIntervalWeeks);
+        }
+        return selectClosestSlot(filtered, lastDate, targetIntervalWeeks);
+    }
+
+    private SurgicalCenterTimeSlot selectClosestSlot(List<SurgicalCenterTimeSlot> slots,
+            LocalDate lastDate,
+            int targetIntervalWeeks) {
+        if (slots.isEmpty()) {
+            return null;
+        }
+        if (lastDate == null) {
+            return slots.get(0);
+        }
+        long targetDays = (long) targetIntervalWeeks * 7;
+        return slots.stream()
+                .filter(slot -> !slot.getDate().isBefore(lastDate.plusDays(1)))
+                .min(Comparator.<SurgicalCenterTimeSlot>comparingLong(slot -> Math.abs(
+                                java.time.temporal.ChronoUnit.DAYS.between(lastDate, slot.getDate()) - targetDays))
+                        .thenComparing(SurgicalCenterTimeSlot::getDate)
+                        .thenComparing(slot -> slot.getStartTime()))
+                .orElse(slots.get(0));
+    }
+
+    private Treatment cloneTreatmentForQuickBooking(Treatment source,
+            SurgicalCenterTimeSlot selectedSlot,
+            SideOfEye sideOfEye) {
+        if (selectedSlot == null) {
+            throw new IllegalStateException("Kein verfügbarer Termin gefunden.");
+        }
+        Treatment newTreatment = new Treatment();
+        newTreatment.setTreatmentPlan(current);
+        newTreatment.setSideOfEye(sideOfEye);
+        newTreatment.setSurgicalCenterTimeSlot(selectedSlot);
+        newTreatment.setMedicationFavourite(source.getMedicationFavourite());
+        newTreatment.setFrequency(source.getFrequency());
+        newTreatment.setDosage(source.getDosage());
+        newTreatment.setAdditionalInfo(source.getAdditionalInfo());
+        if (source.getTreatingDoctors() != null && !source.getTreatingDoctors().isEmpty()) {
+            newTreatment.setTreatingDoctors(new java.util.HashSet<>(source.getTreatingDoctors()));
+        }
+        return newTreatment;
     }
     
     /**
