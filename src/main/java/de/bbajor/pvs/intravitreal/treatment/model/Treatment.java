@@ -14,6 +14,8 @@ import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -61,8 +63,17 @@ public class Treatment extends BasicEntity<Long> {
      * Indicates whether the patient appeared for this treatment appointment.
      * If false, this treatment should not be counted in "actual treatments" statistics.
      * Used to distinguish between planned and actual treatments.
+     * @deprecated Use treatmentStatus instead. Kept for backward compatibility.
      */
+    @Deprecated
     private Boolean patientAppeared;
+    
+    /**
+     * Status der Behandlung nach der Überprüfung.
+     * Definiert verschiedene Zustände, die nach einer Behandlung auftreten können.
+     */
+    @Enumerated(EnumType.STRING)
+    private TreatmentStatus treatmentStatus;
 
     /**
      * Treating doctors assigned to this treatment.

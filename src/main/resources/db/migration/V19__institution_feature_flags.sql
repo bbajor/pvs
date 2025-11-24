@@ -19,3 +19,5 @@ CREATE INDEX idx_institution_feature_institution ON institution_feature(institut
 CREATE INDEX idx_institution_feature_key ON institution_feature(feature_key);
 CREATE INDEX idx_institution_feature_enabled ON institution_feature(enabled);
 
+
+

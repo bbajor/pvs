@@ -324,7 +324,7 @@ public class TaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     public void updateTreatmentAdditionalInfo(Long treatmentId, String additionalInfo) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
@@ -342,7 +342,7 @@ public class TaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public void updateTreatmentPatientAppeared(Long treatmentId, Boolean patientAppeared) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
@@ -356,6 +356,41 @@ public class TaskService {
         institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
         
         treatment.setPatientAppeared(patientAppeared);
+        // Update treatmentStatus for backward compatibility
+        if (patientAppeared != null) {
+            if (patientAppeared) {
+                if (treatment.getTreatmentStatus() == null) {
+                    treatment.setTreatmentStatus(de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL);
+                }
+            } else {
+                if (treatment.getTreatmentStatus() == null) {
+                    treatment.setTreatmentStatus(de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_NO_SHOW);
+                }
+            }
+        }
+        treatmentRepository.save(treatment);
+    }
+    
+    @Transactional
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
+    public void updateTreatmentStatus(Long treatmentId, de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus treatmentStatus) {
+        Objects.requireNonNull(treatmentId);
+        Objects.requireNonNull(treatmentStatus);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        treatment.setTreatmentStatus(treatmentStatus);
+        // Update patientAppeared for backward compatibility
+        treatment.setPatientAppeared(treatmentStatus == de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL
+                || treatmentStatus == de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_NEEDS_RETREATMENT
+                || treatmentStatus == de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_NO_TREATMENT);
         treatmentRepository.save(treatment);
     }
 

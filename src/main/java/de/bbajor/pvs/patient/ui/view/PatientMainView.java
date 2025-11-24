@@ -71,21 +71,8 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         this.featureFlagService = featureFlagService;
         this.treatmentPlanRepository = treatmentPlanRepository;
         
-        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
-        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
-        getStyle().set("box-sizing", "border-box");
-        getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
-        setSizeFull();
-        addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content");
-        // Gap reduziert, damit Grid mehr Platz hat
-        getStyle().set("gap", "var(--lumo-space-m, 1rem)");
-
-        // Überschrift - fixiert oben
+        // Überschrift
         H1 title = new H1("Übersicht Patienten");
-        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
-                LumoUtility.Margin.Bottom.LARGE);
-        title.getStyle().set("flex-shrink", "0");
         add(title);
 
         // Section für Buttons und Suche
@@ -95,12 +82,10 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         
         // Grid - nimmt restlichen Platz ein und scrollt
         configureGrid();
-        patientGrid.getStyle().set("flex-grow", "1");
-        patientGrid.getStyle().set("flex-shrink", "1");
-        patientGrid.getStyle().set("flex-basis", "0");
-        patientGrid.getStyle().set("min-height", "0");
-        patientGrid.getStyle().set("overflow", "auto");
+        patientGrid.setSizeFull();
         add(patientGrid);
+
+        setSizeFull();
     }
 
     private Div createToolbarSection() {

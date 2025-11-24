@@ -191,7 +191,6 @@ public class LocationManagementTab extends VerticalLayout {
         });
 
         grid.setSizeFull();
-        grid.setHeightFull();
 
         setSizeFull();
         add(title, formLayout, grid);

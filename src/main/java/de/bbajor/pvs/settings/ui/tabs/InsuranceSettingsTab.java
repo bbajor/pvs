@@ -106,7 +106,6 @@ public class InsuranceSettingsTab extends VerticalLayout {
         })).setHeader("Versicherungsart").setAutoWidth(true);
         
         insuranceGrid.setSizeFull();
-        insuranceGrid.setHeightFull();
         insuranceGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         
         insuranceGrid.asSingleSelect().addValueChangeListener(event -> {

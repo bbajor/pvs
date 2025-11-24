@@ -45,24 +45,43 @@ public class HelpView extends Main {
         title.getStyle().set("flex-shrink", "0");
         add(title);
 
-        VerticalLayout content = new VerticalLayout();
-        content.setSpacing(true);
-        content.setWidthFull();
-        content.setMaxWidth("1400px");
-        content.addClassNames(LumoUtility.Margin.Horizontal.AUTO);
-        content.getStyle().set("flex-grow", "1");
-        content.getStyle().set("min-height", "0");
-        content.getStyle().set("overflow", "auto");
+        // Container für feste Inhalte (Willkommen + Funktionsübersicht-Header)
+        VerticalLayout fixedContent = new VerticalLayout();
+        fixedContent.setSpacing(true);
+        fixedContent.setPadding(false);
+        fixedContent.setWidthFull();
+        fixedContent.setMaxWidth("1400px");
+        fixedContent.addClassNames(LumoUtility.Margin.Horizontal.AUTO);
+        fixedContent.getStyle().set("flex-shrink", "0");
 
         // Willkommensbereich
         Section welcomeSection = createWelcomeSection();
-        content.add(welcomeSection);
+        fixedContent.add(welcomeSection);
 
-        // Funktionsübersicht - rollenbasiert (inkl. Rollen-/Rechtesystem)
-        Section functionsSection = createFunctionsSection();
-        content.add(functionsSection);
+        // Funktionsübersicht-Header (ohne Kacheln)
+        H2 functionsHeader = new H2("Funktionsübersicht");
+        functionsHeader.addClassNames(LumoUtility.Margin.Top.NONE, LumoUtility.Margin.Bottom.MEDIUM);
+        fixedContent.add(functionsHeader);
 
-        add(content);
+        add(fixedContent);
+
+        // Scrollbarer Container nur für die Kacheln
+        Div scrollableContainer = new Div();
+        scrollableContainer.setWidthFull();
+        scrollableContainer.setMaxWidth("1400px");
+        scrollableContainer.addClassNames(LumoUtility.Margin.Horizontal.AUTO);
+        scrollableContainer.getStyle()
+            .set("flex-grow", "1")
+            .set("flex-shrink", "1")
+            .set("min-height", "0")
+            .set("overflow-y", "auto")
+            .set("overflow-x", "hidden");
+
+        // Kacheln-Container
+        Div cardsContainer = createCardsContainer();
+        scrollableContainer.add(cardsContainer);
+
+        add(scrollableContainer);
     }
     
     /**
@@ -108,6 +127,7 @@ public class HelpView extends Main {
     private Section createWelcomeSection() {
         Section section = new Section();
         section.addClassNames(LumoUtility.Margin.Bottom.LARGE);
+        section.getStyle().set("flex-shrink", "0"); // Section soll nicht schrumpfen
 
         H2 welcomeHeader = new H2("Willkommen im PVS-Hilfezentrum");
         welcomeHeader.addClassNames(LumoUtility.Margin.Top.NONE, LumoUtility.Margin.Bottom.MEDIUM);
@@ -122,15 +142,7 @@ public class HelpView extends Main {
         return section;
     }
 
-    private Section createFunctionsSection() {
-        Section section = new Section();
-        section.addClassNames(LumoUtility.Margin.Bottom.LARGE);
-        section.setWidthFull();
-
-        H2 functionsHeader = new H2("Funktionsübersicht");
-        functionsHeader.addClassNames(LumoUtility.Margin.Top.NONE, LumoUtility.Margin.Bottom.MEDIUM);
-        section.add(functionsHeader);
-
+    private Div createCardsContainer() {
         // Responsives Grid-Layout für Karten - wie in AnalyticsOverviewView
         Div cardsContainer = new Div();
         cardsContainer.setWidthFull();
@@ -138,7 +150,7 @@ public class HelpView extends Main {
             .set("display", "grid")
             .set("grid-template-columns", "repeat(auto-fit, minmax(300px, 1fr))")
             .set("gap", "var(--lumo-space-l, 1.5rem)")
-            .set("margin-bottom", "0");
+            .set("margin-bottom", "var(--lumo-space-l, 1.5rem)");
         cardsContainer.addClassNames(LumoUtility.Width.FULL);
 
         // Nur anzeigen, wenn Benutzer Zugriff hat
@@ -180,9 +192,7 @@ public class HelpView extends Main {
                 "Übersicht über das rollenbasierte Berechtigungssystem, verfügbare Rollen und Berechtigungen nach Bereich",
                 VaadinIcon.USER_STAR, "help/roles", "var(--lumo-primary-color)"));
 
-        section.add(cardsContainer);
-
-        return section;
+        return cardsContainer;
     }
 
     private Div createFunctionCard(String title, String description, VaadinIcon icon, String route, String color) {

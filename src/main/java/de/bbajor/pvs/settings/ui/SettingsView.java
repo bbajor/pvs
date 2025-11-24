@@ -8,7 +8,6 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
@@ -46,24 +45,12 @@ public class SettingsView extends Main {
             MedicationSettingsTab medicationSettingsTab,
             InsuranceSettingsTab insuranceSettingsTab,
             MfaSettingsTab mfaSettingsTab) {
-        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
-        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
-        getStyle().set("box-sizing", "border-box");
-        getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
-        setSizeFull();
-        addClassNames(LumoUtility.Display.FLEX,
-                LumoUtility.FlexDirection.COLUMN, "view-content", LumoUtility.Gap.MEDIUM);
-
         // Überschrift
         H1 title = new H1("Einstellungen");
-        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
-                LumoUtility.Margin.Bottom.LARGE);
-        title.getStyle().set("flex-shrink", "0");
         add(title);
 
         Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
         tabs.setWidthFull();
-        tabs.getStyle().set("flex-shrink", "0");
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
@@ -87,18 +74,15 @@ public class SettingsView extends Main {
             }
         });
 
-        content.setSpacing(false);
-        content.setPadding(false);
         content.setSizeFull();
-        content.getStyle().set("flex-grow", "1");
-        content.getStyle().set("min-height", "0");
-        content.getStyle().set("overflow", "auto");
 
         add(tabs, content);
 
         // Show first tab by default
         tabs.setSelectedTab(generalTab);
         content.add(institutionGeneralTab);
+
+        setSizeFull();
     }
 
 }

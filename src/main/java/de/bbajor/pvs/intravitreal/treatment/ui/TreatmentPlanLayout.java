@@ -786,10 +786,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
         
         // Button "Terminserie buchen" - öffnet Dialog mit Terminplanung
+        // ENTWICKLUNGSFEATURE: Per Default versteckt
         Button planSeriesButton = new Button("Terminserie buchen", VaadinIcon.CALENDAR_CLOCK.create());
         planSeriesButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         planSeriesButton.setWidthFull();
         planSeriesButton.addClickListener(e -> openAppointmentPlanningDialog());
+        planSeriesButton.setVisible(false); // Entwicklungsfeature - per Default versteckt
         buttonLayout.add(planSeriesButton);
         
         // Button "Terminübersicht drucken" hinzufügen
@@ -1738,19 +1740,22 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
         NextTreatmentBookingDialog dialog = new NextTreatmentBookingDialog(
                 current, sideOfEye, context, presenter, treatment -> {
-                    // Nach erfolgreicher Buchung: Timeline aktualisieren
-                    setLeftEyeTreatmentHistory(current.getId());
-                    setRightEyeTreatmentHistory(current.getId());
-                    // Aktualisiere Section "Termine buchen"
-                    updateAppointmentBookingSection();
-                    // Aktualisiere Grids falls Grid-Ansicht aktiv
-                    if (gridContainer != null && gridContainer.isVisible()) {
-                        refreshGrids();
-                    }
-                    // Benachrichtige Binder-Change-Listener, damit Speichern-Button enabled wird
-                    if (binderChangeListener != null) {
-                        binderChangeListener.run();
-                    }
+                    // UI-Updates müssen im UI-Thread passieren
+                    com.vaadin.flow.component.UI.getCurrent().access(() -> {
+                        // Nach erfolgreicher Buchung: Timeline aktualisieren
+                        setLeftEyeTreatmentHistory(current.getId());
+                        setRightEyeTreatmentHistory(current.getId());
+                        // Aktualisiere Section "Termine buchen"
+                        updateAppointmentBookingSection();
+                        // Aktualisiere Grids falls Grid-Ansicht aktiv
+                        if (gridContainer != null && gridContainer.isVisible()) {
+                            refreshGrids();
+                        }
+                        // Benachrichtige Binder-Change-Listener, damit Speichern-Button enabled wird
+                        if (binderChangeListener != null) {
+                            binderChangeListener.run();
+                        }
+                    });
                 });
         dialog.open();
     }

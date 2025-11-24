@@ -35,7 +35,34 @@ vaadin-grid {
     border: 1px solid var(--lumo-contrast-20pct) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
     background: var(--lumo-base-color) !important;
-    overflow: hidden !important;
+}
+
+/* Grid-Höhen-Korrektur: Flexbox-basierte Höhenberechnung */
+/* WICHTIG: Grids sollten setWidthFull() verwenden, nicht setSizeFull() */
+/* Die Höhe wird über flex-grow: 1, flex-basis: 0, min-height: 0 gesteuert */
+vaadin-grid[style*="flex-grow"] {
+    /* Höhe wird über Flexbox berechnet, nicht manuell gesetzt */
+    overflow: auto !important;
+}
+
+/* Grid-Body: Padding am unteren Rand für sichtbare Border und letzten Eintrag */
+vaadin-grid::part(body) {
+    padding-bottom: 8px !important;
+}
+
+/* Grid-Scroller: Sicherstellen, dass der letzte Eintrag sichtbar ist */
+vaadin-grid::part(scroller) {
+    padding-bottom: 8px !important;
+}
+
+/* Grid-Table: Sicherstellen, dass der letzte Eintrag vollständig sichtbar ist */
+vaadin-grid::part(table) {
+    margin-bottom: 4px !important;
+}
+
+/* Grid-Rows: Letzte Zeile soll Border haben */
+vaadin-grid::part(row):last-child::part(cell) {
+    border-bottom: 1px solid var(--lumo-contrast-10pct) !important;
 }
 
 /* Grid-Zellen mit besserem Padding - Business-App Style */
@@ -54,8 +81,9 @@ vaadin-grid::part(cell-content) {
     overflow-wrap: break-word !important;
 }
 
-vaadin-grid::part(cell):last-child {
-    border-bottom: none !important;
+/* Letzte Zelle in einer Zeile: Border bleibt erhalten */
+vaadin-grid::part(row):last-child::part(cell) {
+    border-bottom: 1px solid var(--lumo-contrast-10pct) !important;
 }
 
 /* Grid-Header mit modernem Styling - Business-App Style */

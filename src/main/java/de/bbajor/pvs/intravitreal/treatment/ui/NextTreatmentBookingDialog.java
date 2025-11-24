@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationContext;
 
 import com.vaadin.flow.component.button.Button;
@@ -31,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import de.bbajor.pvs.base.ui.component.WeekNavigationSection;
 import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
@@ -47,6 +50,8 @@ import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 
 public class NextTreatmentBookingDialog extends Dialog {
 
+    private static final Logger LOG = LogManager.getLogger(NextTreatmentBookingDialog.class);
+
     private final TreatmentPlan treatmentPlan;
     private final SideOfEye sideOfEye;
     private final ApplicationContext context;
@@ -55,6 +60,8 @@ public class NextTreatmentBookingDialog extends Dialog {
 
     private RadioButtonGroup<String> intervalTypeGroup;
     private ComboBox<Integer> weeksComboBox;
+    private boolean initialIntervalMode = false; // false = nächstmöglich, true = in Wochen
+    private Integer initialWeeks = 4;
     private ComboBox<SideOfEye> sideOfEyeComboBox;
     private ComboBox<UserAccount> doctorComboBox;
     private ComboBox<MedicationFavourite> medicationComboBox;
@@ -74,6 +81,7 @@ public class NextTreatmentBookingDialog extends Dialog {
     // Schritt 3: Wochensicht
     private LocalDate currentWeekStart;
     private Div weekCalendarContainer;
+    private WeekNavigationSection weekNavigationSection;
 
     public NextTreatmentBookingDialog(TreatmentPlan treatmentPlan, SideOfEye sideOfEye,
             ApplicationContext context, TreatmentPlanPresenter presenter,
@@ -83,6 +91,9 @@ public class NextTreatmentBookingDialog extends Dialog {
         this.context = context;
         this.presenter = presenter;
         this.onTreatmentCreated = onTreatmentCreated;
+
+        // InstitutionContext sofort setzen, damit alle Service-Aufrufe funktionieren
+        ensureInstitutionContext();
 
         setHeaderTitle("Nächsten Termin buchen");
         setWidth("1400px");
@@ -234,6 +245,12 @@ public class NextTreatmentBookingDialog extends Dialog {
             }
             // Lade Termine für Schritt 3
             loadTimeSlotsForWeekView();
+            // Springe zur richtigen Woche basierend auf Terminfindungsregeln
+            if (weekNavigationSection != null) {
+                LocalDate targetWeek = calculateTargetWeekStart();
+                weekNavigationSection.setWeekStart(targetWeek);
+                currentWeekStart = targetWeek;
+            }
             showStep(3);
         }
     }
@@ -270,6 +287,10 @@ public class NextTreatmentBookingDialog extends Dialog {
             showError("Bitte wählen Sie einen Behandlungsort aus.");
             return false;
         }
+        if ("in Wochen".equals(intervalTypeGroup.getValue()) && weeksComboBox.getValue() == null) {
+            showError("Bitte wählen Sie die Anzahl der Wochen aus.");
+            return false;
+        }
         return true;
     }
     
@@ -294,6 +315,8 @@ public class NextTreatmentBookingDialog extends Dialog {
         sideOfEyeComboBox.setRequiredIndicatorVisible(true);
         treatmentLayout.add(sideOfEyeComboBox, 2);
 
+        // InstitutionContext muss gesetzt sein, bevor Ärzte geladen werden
+        ensureInstitutionContext();
         UserAccountService userAccountService = context.getBean(UserAccountService.class);
         doctorComboBox = new ComboBox<>("Behandelnder Arzt");
         doctorComboBox.setItems(userAccountService.findUsersByRole(AppRoles.DOCTOR));
@@ -304,7 +327,6 @@ public class NextTreatmentBookingDialog extends Dialog {
         treatmentLayout.add(doctorComboBox, 2);
 
         medicationComboBox = new ComboBox<>("Medikament");
-        ensureInstitutionContext();
         List<MedicationFavourite> medicationFavourites;
         if (treatmentPlan != null && treatmentPlan.getInstitution() != null && treatmentPlan.getInstitution().getId() != null) {
             medicationFavourites = presenter.getDrugsForInstitution(treatmentPlan.getInstitution().getId());
@@ -342,6 +364,9 @@ public class NextTreatmentBookingDialog extends Dialog {
      * Schritt 2: Terminfindungsregeln (ohne Kalender).
      */
     private VerticalLayout createStep2AppointmentRules() {
+        // InstitutionContext muss gesetzt sein, bevor SurgicalCenters geladen werden
+        ensureInstitutionContext();
+        
         VerticalLayout content = new VerticalLayout();
         content.setSizeFull();
         content.setPadding(true);
@@ -360,15 +385,16 @@ public class NextTreatmentBookingDialog extends Dialog {
         intervalTypeGroup = new RadioButtonGroup<>();
         intervalTypeGroup.setLabel("Intervall");
         List<String> intervalOptions = new ArrayList<>();
+        intervalOptions.add("nächstmöglich");
         intervalOptions.add("in Wochen");
         
-        boolean showNextPossible = hasMissedTreatment();
-        if (showNextPossible) {
-            intervalOptions.add(0, "nächstmöglich");
-        }
-        
         intervalTypeGroup.setItems(intervalOptions);
-        intervalTypeGroup.setValue(intervalOptions.get(0));
+        // Setze initialen Wert basierend auf initialIntervalMode
+        if (initialIntervalMode) {
+            intervalTypeGroup.setValue(intervalOptions.get(1)); // "in Wochen"
+        } else {
+            intervalTypeGroup.setValue(intervalOptions.get(0)); // "nächstmöglich"
+        }
         intervalTypeGroup.addValueChangeListener(e -> updateIntervalFields());
         intervalLayout.add(intervalTypeGroup, 2);
 
@@ -378,25 +404,34 @@ public class NextTreatmentBookingDialog extends Dialog {
             weeks.add(i);
         }
         weeksComboBox.setItems(weeks);
-        weeksComboBox.setValue(4);
+        weeksComboBox.setValue(initialWeeks != null ? initialWeeks : 4);
         weeksComboBox.setItemLabelGenerator(w -> w + " Wochen");
-        weeksComboBox.setVisible(!"nächstmöglich".equals(intervalOptions.get(0)));
+        weeksComboBox.setVisible(initialIntervalMode); // Sichtbar wenn initialIntervalMode true ist
         intervalLayout.add(weeksComboBox, 2);
         rulesContent.add(intervalLayout);
         
         surgicalCenterComboBox = new ComboBox<>("Behandlungsort");
+        // InstitutionContext muss gesetzt sein, bevor SurgicalCenters geladen werden
         ensureInstitutionContext();
+        List<SurgicalCenter> surgicalCenters;
         if (treatmentPlan != null && treatmentPlan.getInstitution() != null && treatmentPlan.getInstitution().getId() != null) {
-            surgicalCenterComboBox.setItems(presenter.getSurgicalCentersForInstitution(treatmentPlan.getInstitution().getId()));
+            surgicalCenters = presenter.getSurgicalCentersForInstitution(treatmentPlan.getInstitution().getId());
         } else {
-            surgicalCenterComboBox.setItems(presenter.getSurgicalCenters());
+            surgicalCenters = presenter.getSurgicalCenters();
         }
+        surgicalCenterComboBox.setItems(surgicalCenters);
         surgicalCenterComboBox.setItemLabelGenerator(SurgicalCenter::getName);
         surgicalCenterComboBox.setClearButtonVisible(true);
         surgicalCenterComboBox.setPlaceholder("Behandlungsort auswählen");
         surgicalCenterComboBox.setRequired(true);
         surgicalCenterComboBox.setRequiredIndicatorVisible(true);
         surgicalCenterComboBox.setWidthFull();
+        
+        // Vorauswahl wenn nur ein Behandlungsort vorhanden
+        if (surgicalCenters.size() == 1) {
+            surgicalCenterComboBox.setValue(surgicalCenters.get(0));
+        }
+        
         rulesContent.add(surgicalCenterComboBox);
         
         rulesSection.add(rulesContent);
@@ -415,9 +450,15 @@ public class NextTreatmentBookingDialog extends Dialog {
         content.setPadding(true);
         content.setSpacing(true);
         
-        // Woche-Navigation
-        HorizontalLayout weekNavigation = createWeekNavigation();
-        content.add(weekNavigation);
+        // Bestimme Startwoche basierend auf Terminfindungsregeln
+        LocalDate targetWeekStart = calculateTargetWeekStart();
+        
+        // Woche-Navigation in Section
+        weekNavigationSection = new WeekNavigationSection("Wochenliste", targetWeekStart, weekStart -> {
+            currentWeekStart = weekStart;
+            refreshWeekCalendar();
+        });
+        content.add(weekNavigationSection);
         
         // Kalender-Container
         weekCalendarContainer = new Div();
@@ -427,74 +468,58 @@ public class NextTreatmentBookingDialog extends Dialog {
         content.expand(weekCalendarContainer);
         
         // Initialisiere Woche
-        currentWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
+        currentWeekStart = targetWeekStart;
+        weekNavigationSection.setWeekStart(targetWeekStart);
         refreshWeekCalendar();
         
         return content;
     }
     
     /**
-     * Erstellt die Woche-Navigation.
+     * Berechnet die Zielwoche basierend auf den Terminfindungsregeln.
      */
-    private HorizontalLayout createWeekNavigation() {
-        HorizontalLayout navigation = new HorizontalLayout();
-        navigation.setWidthFull();
-        navigation.setJustifyContentMode(HorizontalLayout.JustifyContentMode.CENTER);
-        navigation.setAlignItems(HorizontalLayout.Alignment.CENTER);
-        navigation.setSpacing(true);
+    private LocalDate calculateTargetWeekStart() {
+        if (availableTimeSlots.isEmpty()) {
+            return LocalDate.now().with(DayOfWeek.MONDAY);
+        }
         
-        Button previousWeek = new Button(VaadinIcon.ANGLE_LEFT.create(), e -> {
-            LocalDate newWeek = currentWeekStart.minusWeeks(1);
-            if (newWeek.isBefore(LocalDate.now().with(DayOfWeek.MONDAY))) {
-                showError("Ein Sprung in die Vergangenheit ist nicht möglich.");
-                return;
+        if ("nächstmöglich".equals(intervalTypeGroup.getValue())) {
+            // Springe zur Woche mit dem ersten verfügbaren Termin
+            LocalDate firstSlotDate = availableTimeSlots.stream()
+                .map(SurgicalCenterTimeSlot::getDate)
+                .min(LocalDate::compareTo)
+                .orElse(LocalDate.now());
+            return firstSlotDate.with(DayOfWeek.MONDAY);
+        } else if ("in Wochen".equals(intervalTypeGroup.getValue()) && weeksComboBox.getValue() != null) {
+            // Springe zur Woche basierend auf Wochenauswahl
+            LocalDate targetDate = LocalDate.now().plusWeeks(weeksComboBox.getValue());
+            // Finde den nächsten verfügbaren Termin in dieser Woche oder danach
+            LocalDate weekStart = targetDate.with(DayOfWeek.MONDAY);
+            LocalDate weekEnd = weekStart.plusDays(6);
+            
+            // Prüfe ob es Termine in dieser Woche gibt
+            boolean hasSlotsInWeek = availableTimeSlots.stream()
+                .anyMatch(slot -> {
+                    LocalDate slotDate = slot.getDate();
+                    return slotDate != null && !slotDate.isBefore(weekStart) && !slotDate.isAfter(weekEnd);
+                });
+            
+            if (hasSlotsInWeek) {
+                return weekStart;
+            } else {
+                // Finde die nächste Woche mit Terminen
+                LocalDate nextSlotDate = availableTimeSlots.stream()
+                    .map(SurgicalCenterTimeSlot::getDate)
+                    .filter(date -> date.isAfter(weekEnd) || date.isEqual(weekStart))
+                    .min(LocalDate::compareTo)
+                    .orElse(weekStart);
+                return nextSlotDate.with(DayOfWeek.MONDAY);
             }
-            currentWeekStart = newWeek;
-            refreshWeekCalendar();
-        });
-        previousWeek.setTooltipText("Vorherige Woche");
+        }
         
-        Button thisWeek = new Button("Diese Woche", e -> {
-            currentWeekStart = LocalDate.now().with(DayOfWeek.MONDAY);
-            refreshWeekCalendar();
-        });
-        
-        Button nextWeek = new Button(VaadinIcon.ANGLE_RIGHT.create(), e -> {
-            LocalDate newWeek = currentWeekStart.plusWeeks(1);
-            if (!hasMoreTimeSlots(newWeek)) {
-                showError("Keine weiteren Termine in der operativen Einrichtung eingeplant. Wenn Sie weitere Termine benötigen, dann planen Sie diese bitte über das Menü \"Operationszentren\" ein.");
-                return;
-            }
-            currentWeekStart = newWeek;
-            refreshWeekCalendar();
-        });
-        nextWeek.setTooltipText("Nächste Woche");
-        
-        DatePicker weekPicker = new DatePicker("Woche auswählen");
-        weekPicker.setValue(currentWeekStart);
-        weekPicker.addValueChangeListener(event -> {
-            if (event.getValue() != null) {
-                LocalDate selectedDate = event.getValue();
-                LocalDate weekStart = selectedDate.with(DayOfWeek.MONDAY);
-                if (weekStart.isBefore(LocalDate.now().with(DayOfWeek.MONDAY))) {
-                    showError("Ein Sprung in die Vergangenheit ist nicht möglich.");
-                    weekPicker.setValue(currentWeekStart);
-                    return;
-                }
-                if (!hasMoreTimeSlots(weekStart)) {
-                    showError("Keine weiteren Termine in der operativen Einrichtung eingeplant. Wenn Sie weitere Termine benötigen, dann planen Sie diese bitte über das Menü \"Operationszentren\" ein.");
-                    weekPicker.setValue(currentWeekStart);
-                    return;
-                }
-                currentWeekStart = weekStart;
-                refreshWeekCalendar();
-            }
-        });
-        
-        navigation.add(previousWeek, thisWeek, nextWeek, weekPicker);
-        
-        return navigation;
+        return LocalDate.now().with(DayOfWeek.MONDAY);
     }
+    
     
     /**
      * Prüft, ob es weitere TimeSlots nach der angegebenen Woche gibt.
@@ -516,6 +541,10 @@ public class NextTreatmentBookingDialog extends Dialog {
      * Lädt die TimeSlots für die Wochensicht.
      */
     private void loadTimeSlotsForWeekView() {
+        // InstitutionContext MUSS vor jedem Service-Aufruf gesetzt sein
+        // (Vaadin-Button-Clicks laufen in anderen Threads, daher geht ThreadLocal verloren)
+        ensureInstitutionContext();
+        
         if (surgicalCenterComboBox.getValue() == null) {
             availableTimeSlots = new ArrayList<>();
             return;
@@ -531,32 +560,31 @@ public class NextTreatmentBookingDialog extends Dialog {
         TimeSlotRepetition repetition = TimeSlotRepetition.EVERY_FOUR_WEEKS;
         
         Integer centerId = surgicalCenterComboBox.getValue().getId();
-        ensureInstitutionContext();
         
         var availableSlots = presenter.getAllTimeSlotsFilteredBy(
                 startDate, period, repetition, centerId);
         
-        availableTimeSlots = new ArrayList<>(availableSlots);
-        
-        // Für "nächstmöglich": Sortiere nach Datum und begrenze auf 20 Termine
-        if (!"in Wochen".equals(intervalTypeGroup.getValue())) {
+        // Für "nächstmöglich": Sortiere nach Datum und nimm alle verfügbaren Termine
+        if ("nächstmöglich".equals(intervalTypeGroup.getValue())) {
             availableTimeSlots = availableSlots.stream()
                     .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
-                    .limit(20)
-                    .toList();
-        } else {
+                    .collect(java.util.stream.Collectors.toList());
+        } else if ("in Wochen".equals(intervalTypeGroup.getValue())) {
             // Für "in Wochen": Filtere nach Wochen-Toleranz
             if (weeksComboBox.getValue() != null) {
                 int weeks = weeksComboBox.getValue();
-                List<SurgicalCenterTimeSlot> filteredSlots = new ArrayList<>();
-                for (SurgicalCenterTimeSlot slot : availableSlots) {
-                    long weeksBetween = java.time.temporal.ChronoUnit.WEEKS.between(LocalDate.now(), slot.getDate());
-                    if (Math.abs(weeksBetween - weeks) <= 1) {
-                        filteredSlots.add(slot);
-                    }
-                }
-                availableTimeSlots = filteredSlots;
+                availableTimeSlots = availableSlots.stream()
+                    .filter(slot -> {
+                        long weeksBetween = java.time.temporal.ChronoUnit.WEEKS.between(LocalDate.now(), slot.getDate());
+                        return Math.abs(weeksBetween - weeks) <= 1;
+                    })
+                    .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
+                    .collect(java.util.stream.Collectors.toList());
+            } else {
+                availableTimeSlots = new ArrayList<>();
             }
+        } else {
+            availableTimeSlots = new ArrayList<>(availableSlots);
         }
     }
     
@@ -849,6 +877,10 @@ public class NextTreatmentBookingDialog extends Dialog {
     private void updateIntervalFields() {
         boolean isWeeks = "in Wochen".equals(intervalTypeGroup.getValue());
         weeksComboBox.setVisible(isWeeks);
+        weeksComboBox.setRequired(isWeeks);
+        if (isWeeks && weeksComboBox.getValue() == null) {
+            weeksComboBox.setValue(4); // Standardwert wenn sichtbar
+        }
     }
 
     private boolean hasMissedTreatment() {
@@ -872,6 +904,8 @@ public class NextTreatmentBookingDialog extends Dialog {
     /**
      * Stellt sicher, dass der InstitutionContext gesetzt ist.
      * Verwendet die Institution aus dem TreatmentPlan, falls der Context nicht gesetzt ist.
+     * WICHTIG: Muss vor jedem Service-Aufruf aufgerufen werden, da Vaadin-Button-Clicks
+     * in anderen Threads laufen und der ThreadLocal-Context verloren geht.
      */
     private void ensureInstitutionContext() {
         if (InstitutionContext.hasInstitution()) {
@@ -881,9 +915,39 @@ public class NextTreatmentBookingDialog extends Dialog {
         // Versuche, Context aus TreatmentPlan zu setzen
         if (treatmentPlan != null && treatmentPlan.getInstitution() != null && treatmentPlan.getInstitution().getId() != null) {
             InstitutionContext.setInstitutionId(treatmentPlan.getInstitution().getId());
-            System.out.println("InstitutionContext gesetzt aus TreatmentPlan: " + treatmentPlan.getInstitution().getId());
+            LOG.debug("InstitutionContext gesetzt aus TreatmentPlan: {}", treatmentPlan.getInstitution().getId());
         } else {
-            System.out.println("WARNUNG: InstitutionContext konnte nicht gesetzt werden - TreatmentPlan hat keine Institution!");
+            // Fallback: Versuche aus Authentication zu setzen (wie in anderen Dialogen)
+            org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication instanceof de.bbajor.pvs.institution.security.InstitutionAuthenticationToken institutionAuth) {
+                if (institutionAuth.getInstitutionId() != null) {
+                    InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                    LOG.debug("InstitutionContext gesetzt aus InstitutionAuthenticationToken: {}", institutionAuth.getInstitutionId());
+                }
+            } else if (authentication != null && authentication.getPrincipal() instanceof de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter adapter) {
+                // Authentication wurde aus Session deserialisiert
+                try {
+                    String username = adapter.getUsername();
+                    de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository = 
+                        context.getBean(de.bbajor.pvs.security.domain.UserAccountRepository.class);
+                    de.bbajor.pvs.security.domain.UserAccount userAccount = 
+                        userAccountRepository.findByUsername(username).orElse(null);
+                    
+                    if (userAccount != null && userAccount.getInstitution() != null) {
+                        Long institutionId = userAccount.getInstitution().getId();
+                        InstitutionContext.setInstitutionId(institutionId);
+                        LOG.debug("InstitutionContext wiederhergestellt aus UserAccount.institution: {}", institutionId);
+                    } else {
+                        LOG.warn("UserAccount hat keine Institution - InstitutionContext konnte nicht gesetzt werden");
+                    }
+                } catch (Exception e) {
+                    LOG.warn("Fehler beim Wiederherstellen des InstitutionContext aus UserAccount: {}", e.getMessage());
+                }
+            } else {
+                LOG.warn("InstitutionContext konnte nicht gesetzt werden - TreatmentPlan hat keine Institution und keine gültige Authentication gefunden!");
+            }
         }
     }
     
@@ -978,8 +1042,38 @@ public class NextTreatmentBookingDialog extends Dialog {
      */
     private void performSaveTreatment() {
         try {
-            // InstitutionContext setzen, bevor gespeichert wird
+            // InstitutionContext MUSS vor jedem Service-Aufruf gesetzt sein
+            // (Vaadin-Button-Clicks laufen in anderen Threads, daher geht ThreadLocal verloren)
             ensureInstitutionContext();
+            
+            if (!InstitutionContext.hasInstitution()) {
+                showError("Fehler: InstitutionContext konnte nicht gesetzt werden. Bitte versuchen Sie es erneut.");
+                LOG.error("InstitutionContext konnte nicht gesetzt werden beim Speichern der Behandlung");
+                return;
+            }
+            
+            // Validierung
+            if (selectedTimeSlot == null || selectedTimeSlot.getId() == null) {
+                showError("Fehler: Kein gültiger Termin ausgewählt.");
+                LOG.error("selectedTimeSlot ist null oder hat keine ID");
+                return;
+            }
+            
+            if (treatmentPlan == null || treatmentPlan.getId() == null) {
+                showError("Fehler: Kein gültiger Behandlungsplan vorhanden.");
+                LOG.error("treatmentPlan ist null oder hat keine ID");
+                return;
+            }
+            
+            if (medicationComboBox.getValue() == null || medicationComboBox.getValue().getId() == null) {
+                showError("Fehler: Kein gültiges Medikament ausgewählt.");
+                LOG.error("medicationComboBox.getValue() ist null oder hat keine ID");
+                return;
+            }
+            
+            LOG.debug("Speichere Behandlung: TreatmentPlanId={}, TimeSlotId={}, MedicationId={}, SideOfEye={}", 
+                treatmentPlan.getId(), selectedTimeSlot.getId(), 
+                medicationComboBox.getValue().getId(), sideOfEyeComboBox.getValue());
             
             Treatment newTreatment = new Treatment();
             newTreatment.setTreatmentPlan(treatmentPlan);
@@ -999,14 +1093,25 @@ public class NextTreatmentBookingDialog extends Dialog {
 
             // Behandlung speichern
             List<Treatment> treatmentsToSave = List.of(newTreatment);
-            presenter.save(treatmentPlan.getId(), treatmentsToSave);
+            TreatmentPlan savedPlan = presenter.save(treatmentPlan.getId(), treatmentsToSave);
+            
+            LOG.debug("Behandlung erfolgreich gespeichert. TreatmentPlanId={}", savedPlan.getId());
 
             showSuccess("Termin erfolgreich gebucht.");
             if (onTreatmentCreated != null) {
-                onTreatmentCreated.accept(newTreatment);
+                // Hole das gespeicherte Treatment aus dem zurückgegebenen Plan
+                Treatment savedTreatment = savedPlan.getTreatments().stream()
+                    .filter(t -> t.getSurgicalCenterTimeSlot() != null 
+                        && t.getSurgicalCenterTimeSlot().getId() != null
+                        && t.getSurgicalCenterTimeSlot().getId().equals(selectedTimeSlot.getId())
+                        && t.getSideOfEye() == sideOfEyeComboBox.getValue())
+                    .findFirst()
+                    .orElse(newTreatment);
+                onTreatmentCreated.accept(savedTreatment);
             }
             close();
         } catch (Exception e) {
+            LOG.error("Fehler beim Buchen des Termins", e);
             showError("Fehler beim Buchen des Termins: " + e.getMessage());
         }
     }
@@ -1019,6 +1124,22 @@ public class NextTreatmentBookingDialog extends Dialog {
     private void showSuccess(String message) {
         Notification notification = Notification.show(message, 3000, Notification.Position.BOTTOM_END);
         notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+    
+    /**
+     * Setzt den initialen Intervall-Modus.
+     * @param useInterval true = "in Wochen", false = "nächstmöglich"
+     */
+    public void setInitialIntervalMode(boolean useInterval) {
+        this.initialIntervalMode = useInterval;
+    }
+    
+    /**
+     * Setzt die initiale Anzahl der Wochen.
+     * @param weeks Anzahl der Wochen (1-16)
+     */
+    public void setInitialWeeks(int weeks) {
+        this.initialWeeks = Math.max(1, Math.min(weeks, 16));
     }
 }
 

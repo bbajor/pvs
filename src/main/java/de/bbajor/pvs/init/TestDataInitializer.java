@@ -803,13 +803,49 @@ public class TestDataInitializer {
                 .sorted((a, b) -> b.getDate().compareTo(a.getDate())) // Neueste zuerst
                 .collect(Collectors.toList());
 
+        // Erstelle einen zusätzlichen Zeitslot in der nahen Vergangenheit für unapproved Treatments
+        // (z.B. vor 1 Woche - für Behandlungsprüfungen)
+        LocalDate tempRecentPastSlotDate = now.minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.WEDNESDAY));
+        if (tempRecentPastSlotDate.isAfter(now) || tempRecentPastSlotDate.isEqual(now)) {
+            tempRecentPastSlotDate = tempRecentPastSlotDate.minusWeeks(1);
+        }
+        final LocalDate recentPastSlotDate = tempRecentPastSlotDate;
+        
+        SurgicalCenterTimeSlot recentPastSlot = allSlots.stream()
+                .filter(slot -> slot.getDate().equals(recentPastSlotDate))
+                .findFirst()
+                .orElse(null);
+        
+        if (recentPastSlot == null) {
+            // Erstelle einen vergangenen Zeitslot in der nahen Vergangenheit für unapproved Treatments
+            recentPastSlot = new SurgicalCenterTimeSlot()
+                    .setDate(recentPastSlotDate)
+                    .setStartTime(LocalTime.of(8, 0))
+                    .setEndTime(LocalTime.of(12, 0))
+                    .setSurgicalCenter(reloadedCenter)
+                    .setDescription("Zeitslot für offene Behandlungsprüfungen")
+                    .setAvailable(false)
+                    .setApproved(true);
+            reloadedCenter = surgicalCenterService.saveTimeSlotsAndSurgicalCenter(List.of(recentPastSlot), reloadedCenter);
+            recentPastSlot = reloadedCenter.getAvailableTimeSlots().stream()
+                    .filter(slot -> slot.getDate().equals(recentPastSlotDate))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
         // Verteile Patienten auf Zeitslots
         int patientIndex = 0;
         
-        // 30 Patienten für vergangenen Zeitslot (bereits behandelt)
+        // 30 Patienten für vergangenen Zeitslot (bereits behandelt und approved)
         for (int i = 0; i < 30 && patientIndex < patients.size(); i++) {
             Patient patientFromList = patients.get(patientIndex++);
             createTreatmentPlanForPatient(patientFromList, pastSlot, favourites, diagnoses, random, true, true);
+        }
+
+        // 8 Patienten für recentPastSlot (in naher Vergangenheit, aber noch nicht approved - für Behandlungsprüfungen)
+        for (int i = 0; i < 8 && patientIndex < patients.size(); i++) {
+            Patient patientFromList = patients.get(patientIndex++);
+            createTreatmentPlanForPatient(patientFromList, recentPastSlot, favourites, diagnoses, random, true, false);
         }
 
         // 20 Patienten für zukünftigen Zeitslot
@@ -987,9 +1023,14 @@ public class TestDataInitializer {
 
         Treatment treatment = createTreatment(savedPlan, slot, preferredMedication, preferredSideOfEye, favourites, random, isPast);
         
-        // Für vergangene Behandlungen: Setze ApprovalDate wenn isApproved
+        // Für vergangene Behandlungen: Setze ApprovalDate und ApprovalDateTime wenn isApproved
         if (isPast && isApproved) {
-            treatment.setApprovalDate(slot.getDate().minusDays(random.nextInt(5) + 1));
+            LocalDate approvalDate = slot.getDate().minusDays(random.nextInt(5) + 1);
+            treatment.setApprovalDate(approvalDate);
+            // Setze auch approvalDateTime für vollständige Testdaten
+            treatment.setApprovalDateTime(approvalDate.atTime(LocalTime.of(8 + random.nextInt(8), random.nextInt(60))));
+            treatment.setApprovedByUserId("test-user");
+            treatment.setApprovedByUserName("Test User");
         }
 
         try {
@@ -1038,8 +1079,13 @@ public class TestDataInitializer {
         // Für Vergangenheitstermine: 70% approved, 30% unapproved (für TaskView)
         if (isPast) {
             if (random.nextDouble() < 0.7) {
-                // Approved: ApprovalDate setzen
-                treatment.setApprovalDate(slot.getDate().minusDays(random.nextInt(10) + 1));
+                // Approved: ApprovalDate und ApprovalDateTime setzen
+                LocalDate approvalDate = slot.getDate().minusDays(random.nextInt(10) + 1);
+                treatment.setApprovalDate(approvalDate);
+                // Setze auch approvalDateTime für vollständige Testdaten
+                treatment.setApprovalDateTime(approvalDate.atTime(LocalTime.of(8 + random.nextInt(8), random.nextInt(60))));
+                treatment.setApprovedByUserId("test-user");
+                treatment.setApprovedByUserName("Test User");
             }
             // Unapproved: ApprovalDate bleibt null
         } else {
