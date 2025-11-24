@@ -43,3 +43,5 @@ public interface InstitutionFeatureRepository extends JpaRepository<InstitutionF
     List<InstitutionFeature> findEnabledFeaturesByInstitutionId(@Param("institutionId") Long institutionId);
 }
 
+
+

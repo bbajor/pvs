@@ -19,9 +19,12 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.textfield.TextArea;
+import java.time.LocalDate;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -33,6 +36,7 @@ import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.ui.NextTreatmentBookingDialog;
 import de.bbajor.pvs.base.util.SideOfEye;
@@ -181,6 +185,9 @@ public class TaskReviewDialog extends Dialog {
             return;
         }
         
+        // Ensure InstitutionContext is set before accessing treatment data
+        ensureInstitutionContext();
+        
         currentTreatmentIndex = index;
         Treatment treatment = treatments.get(currentTreatmentIndex);
         
@@ -217,7 +224,13 @@ public class TaskReviewDialog extends Dialog {
         if (treatment.getApprovalDate() != null) {
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
                     .ofPattern("dd.MM.yyyy HH:mm");
-            approvalStatus = "Status: Geprüft am " + formatter.format(treatment.getApprovalDateTime());
+            if (treatment.getApprovalDateTime() != null) {
+                approvalStatus = "Status: Geprüft am " + formatter.format(treatment.getApprovalDateTime());
+            } else {
+                // Fallback: Verwende approvalDate wenn approvalDateTime nicht gesetzt ist
+                approvalStatus = "Status: Geprüft am " + treatment.getApprovalDate().format(
+                        java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+            }
             if (treatment.getApprovedByUserName() != null) {
                 approvalStatus += " von " + treatment.getApprovedByUserName();
             }
@@ -232,28 +245,65 @@ public class TaskReviewDialog extends Dialog {
         
         detailLayout.add(infoLayout);
         
-        // Patient appeared checkbox
-        Checkbox patientAppearedCheckbox = new Checkbox("Patient ist zum Termin erschienen");
-        patientAppearedCheckbox.setValue(treatment.getPatientAppeared() != null ? treatment.getPatientAppeared() : true);
-        patientAppearedCheckbox.addValueChangeListener(e -> {
-            try {
-                taskService.updateTreatmentPatientAppeared(treatment.getId(), e.getValue());
-                treatment.setPatientAppeared(e.getValue());
-                Notification.show("Status aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
-            } catch (Exception ex) {
-                log.error("Fehler beim Aktualisieren des Patient-Erschienen-Status", ex);
-                Notification errorNotification = new Notification(
-                    "Fehler beim Aktualisieren: " + ex.getMessage(),
-                    5000,
-                    Notification.Position.MIDDLE
-                );
-                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                errorNotification.open();
-                // Reset checkbox to previous value
-                patientAppearedCheckbox.setValue(!e.getValue());
+        // Treatment Status Combobox mit Ampel
+        HorizontalLayout statusLayout = new HorizontalLayout();
+        statusLayout.setWidthFull();
+        statusLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+        statusLayout.setSpacing(true);
+        
+        ComboBox<TreatmentStatus> statusComboBox = new ComboBox<>("Behandlungsstatus");
+        statusComboBox.setWidthFull();
+        
+        // Sortiere Status-Optionen alphanumerisch nach shortLabel
+        List<TreatmentStatus> statusOptions = java.util.Arrays.stream(TreatmentStatus.values())
+                .sorted(java.util.Comparator.comparing(TreatmentStatus::getShortLabel))
+                .collect(java.util.stream.Collectors.toList());
+        statusComboBox.setItems(statusOptions);
+        statusComboBox.setItemLabelGenerator(TreatmentStatus::getShortLabel);
+        
+        // Setze initialen Wert
+        final TreatmentStatus currentStatus = treatment.getTreatmentStatus() != null 
+            ? treatment.getTreatmentStatus() 
+            : TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL;
+        statusComboBox.setValue(currentStatus);
+        
+        // Info-Icon mit Tooltip für ausführliche Beschreibung
+        Icon infoIcon = VaadinIcon.INFO_CIRCLE.create();
+        infoIcon.setSize("16px");
+        infoIcon.getStyle().set("cursor", "help");
+        infoIcon.setTooltipText(currentStatus.getFullDescription());
+        
+        // Ampel-Darstellung
+        Div trafficLight = createTrafficLight(currentStatus);
+        
+        statusComboBox.addValueChangeListener(e -> {
+            TreatmentStatus newStatus = e.getValue();
+            if (newStatus != null) {
+                try {
+                    taskService.updateTreatmentStatus(treatment.getId(), newStatus);
+                    treatment.setTreatmentStatus(newStatus);
+                    infoIcon.setTooltipText(newStatus.getFullDescription());
+                    trafficLight.removeAll();
+                    trafficLight.add(createTrafficLightIcon(newStatus));
+                    Notification.show("Status aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
+                } catch (Exception ex) {
+                    log.error("Fehler beim Aktualisieren des Treatment-Status", ex);
+                    Notification errorNotification = new Notification(
+                        "Fehler beim Aktualisieren: " + ex.getMessage(),
+                        5000,
+                        Notification.Position.MIDDLE
+                    );
+                    errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    errorNotification.open();
+                    // Reset combobox to previous value
+                    statusComboBox.setValue(currentStatus);
+                }
             }
         });
-        detailLayout.add(patientAppearedCheckbox);
+        
+        statusLayout.add(statusComboBox, trafficLight, infoIcon);
+        statusLayout.setFlexGrow(1, statusComboBox);
+        detailLayout.add(statusLayout);
         
         // Additional info input
         TextArea additionalInfoField = new TextArea("Zusätzliche Informationen");
@@ -475,32 +525,42 @@ public class TaskReviewDialog extends Dialog {
                 return;
             }
             
-            // Open NextTreatmentBookingDialog
-            NextTreatmentBookingDialog bookingDialog = new NextTreatmentBookingDialog(
-                treatmentPlan,
-                sideOfEye,
-                applicationContext,
-                treatmentPlanPresenter,
-                newTreatment -> {
-                    // Callback after successful booking
+            // Bestimme die Buchungslogik basierend auf dem Treatment-Status
+            TreatmentStatus treatmentStatus = treatment.getTreatmentStatus();
+            if (treatmentStatus == null) {
+                treatmentStatus = TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL;
+            }
+            
+            boolean useNormalInterval = treatmentStatus.shouldUseNormalInterval();
+            
+            // Open NextTreatmentBookingDialog mit Status-Information
+            NextTreatmentBookingDialog dialog = new NextTreatmentBookingDialog(
+                treatmentPlan, sideOfEye, applicationContext, treatmentPlanPresenter, 
+                createdTreatment -> {
                     treatmentsWithFollowUpBooking.add(treatment.getId());
-                    Notification successNotification = new Notification(
-                        "Folgetermin erfolgreich gebucht",
-                        3000,
-                        Notification.Position.BOTTOM_CENTER
-                    );
-                    successNotification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    successNotification.open();
-                    
-                    // Reload treatments to get the new follow-up treatment
-                    reloadTreatments();
-                    
-                    // Refresh the current view to show the green icon
+                    Notification.show("Folgetermin erfolgreich gebucht", 3000, Notification.Position.BOTTOM_CENTER);
+                    // Refresh current view
                     showTreatmentDetail(index);
                 }
             );
             
-            bookingDialog.open();
+            // Setze die Buchungslogik basierend auf dem Status
+            if (useNormalInterval) {
+                // Grün: Intervall vorauswählen (z.B. 4 Wochen)
+                dialog.setInitialIntervalMode(true);
+                // Berechne das Intervall basierend auf dem letzten Treatment
+                int weeksSinceLastTreatment = calculateWeeksSinceLastTreatment(treatment);
+                if (weeksSinceLastTreatment > 0) {
+                    dialog.setInitialWeeks(weeksSinceLastTreatment);
+                } else {
+                    dialog.setInitialWeeks(4); // Standard: 4 Wochen
+                }
+            } else {
+                // Gelb/Rot: Nächstmöglicher Termin
+                dialog.setInitialIntervalMode(false);
+            }
+            
+            dialog.open();
             
         } catch (Exception ex) {
             log.error("Fehler beim Öffnen des Folgetermin-Buchungsdialogs", ex);
@@ -574,6 +634,80 @@ public class TaskReviewDialog extends Dialog {
         }
     }
 
+    /**
+     * Erstellt eine Ampel-Darstellung für den Treatment-Status.
+     */
+    private Div createTrafficLight(TreatmentStatus status) {
+        Div trafficLight = new Div();
+        trafficLight.getStyle()
+            .set("width", "24px")
+            .set("height", "24px")
+            .set("border-radius", "50%")
+            .set("flex-shrink", "0");
+        
+        trafficLight.add(createTrafficLightIcon(status));
+        return trafficLight;
+    }
+    
+    /**
+     * Erstellt das Icon für die Ampel-Darstellung.
+     */
+    private Icon createTrafficLightIcon(TreatmentStatus status) {
+        Icon icon = VaadinIcon.CIRCLE.create();
+        icon.setSize("24px");
+        
+        TreatmentStatus.StatusColor color = status.getColor();
+        switch (color) {
+            case GREEN:
+                icon.setColor("var(--lumo-success-color)");
+                break;
+            case YELLOW:
+                icon.setColor("var(--lumo-warning-color)");
+                break;
+            case RED:
+                icon.setColor("var(--lumo-error-color)");
+                break;
+        }
+        
+        return icon;
+    }
+    
+    
+    /**
+     * Berechnet die Wochen seit dem letzten Treatment für das gleiche Auge.
+     */
+    private int calculateWeeksSinceLastTreatment(Treatment currentTreatment) {
+        if (currentTreatment == null || currentTreatment.getTreatmentPlan() == null) {
+            return 4; // Standard: 4 Wochen
+        }
+        
+        try {
+            ensureInstitutionContext();
+            List<Treatment> allTreatments = treatmentRepository.findTreatmentsByPlanIdWithTreatmentPlanAndTimeSlotOrderByDateDesc(
+                currentTreatment.getTreatmentPlan().getId()
+            );
+            
+            SideOfEye sideOfEye = currentTreatment.getSideOfEye();
+            LocalDate currentDate = currentTreatment.getDate();
+            
+            // Finde das letzte Treatment für das gleiche Auge vor dem aktuellen
+            Treatment lastTreatment = allTreatments.stream()
+                .filter(t -> t.getSideOfEye() == sideOfEye)
+                .filter(t -> t.getDate() != null && t.getDate().isBefore(currentDate))
+                .max(java.util.Comparator.comparing(Treatment::getDate))
+                .orElse(null);
+            
+            if (lastTreatment != null && lastTreatment.getDate() != null) {
+                long weeks = java.time.temporal.ChronoUnit.WEEKS.between(lastTreatment.getDate(), currentDate);
+                return (int) Math.max(1, Math.min(weeks, 16)); // Zwischen 1 und 16 Wochen
+            }
+        } catch (Exception ex) {
+            log.warn("Fehler beim Berechnen der Wochen seit dem letzten Treatment", ex);
+        }
+        
+        return 4; // Standard: 4 Wochen
+    }
+    
     private void generatePatientReport(Treatment treatment) {
         try {
             ensureInstitutionContext();

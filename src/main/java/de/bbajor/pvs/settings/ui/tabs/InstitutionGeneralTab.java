@@ -47,6 +47,7 @@ public class InstitutionGeneralTab extends VerticalLayout {
 
     @PostConstruct
     private void init() {
+        setSizeFull();
         setSpacing(true);
         setPadding(true);
 

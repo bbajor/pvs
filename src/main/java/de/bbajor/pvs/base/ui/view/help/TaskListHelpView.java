@@ -47,7 +47,9 @@ public class TaskListHelpView extends HelpSubPageView {
         }));
 
         section.add(createInfoCard("Berechtigungen",
-                "Nur Benutzer mit den Rollen ADMIN, DOCTOR oder OWNER können die Aufgabenliste einsehen und Behandlungen genehmigen."));
+                "Nur Benutzer mit den Rollen ADMIN, DOCTOR oder OWNER können die Aufgabenliste einsehen. "
+                + "ADMIN und DOCTOR können zusätzliche Informationen zu Behandlungen speichern. "
+                + "Behandlungen genehmigen können nur DOCTOR, MEDICAL_STAFF und OWNER."));
 
         section.add(createInfoCard("Automatische Generierung",
                 "Das System generiert automatisch Aufgaben für zurückliegende Behandlungen, die noch nicht überprüft wurden. "

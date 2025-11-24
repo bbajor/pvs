@@ -84,12 +84,11 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
     // Treatment Plans Tab Components
     private final TextField searchField = new TextField();
-    private final Button createButton = new Button(VaadinIcon.PLUS.create());
-    private final Button generateDailyListButton = new Button("Wochenliste anzeigen");
+    private final Button createButton = new Button();
+    private final Button generateDailyListButton = new Button();
     private final Grid<TreatmentPlan> ivomPlanGrid = new Grid<>(TreatmentPlan.class, false);
     private final VerticalLayout treatmentPlansContent = new VerticalLayout();
-    private final com.vaadin.flow.component.radiobutton.RadioButtonGroup<String> showFinishedToggle = 
-            new com.vaadin.flow.component.radiobutton.RadioButtonGroup<>();
+    private final Button toggleFinishedButton = new Button();
     private volatile boolean showFinished = true;
 
     // Task Review Tab Components
@@ -100,10 +99,10 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private boolean hideCompleted = false;
     private final VerticalLayout taskReviewContent = new VerticalLayout();
 
-        // Tab Components
-        private final Tab treatmentPlansTab = new Tab("Behandlungspläne");
-        private final Tab taskReviewTab = new Tab("Behandlungsprüfung");
-        private final Tabs tabs = new Tabs(treatmentPlansTab, taskReviewTab);
+    // Tab Components
+    private final Tab treatmentPlansTab = new Tab("Behandlungspläne");
+    private final Tab taskReviewTab = new Tab("Behandlungsprüfung");
+    private final Tabs tabs = new Tabs(treatmentPlansTab, taskReviewTab);
     private final VerticalLayout tabContent = new VerticalLayout();
 
     public TreatmentPlanMainView(
@@ -133,12 +132,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         initializeTreatmentPlansTab();
         initializeTaskReviewTab();
 
-        // Tab-Styling: größer und fett
-        tabs.getStyle().set("--vaadin-tab-font-size", "var(--lumo-font-size-xl)");
-        tabs.getStyle().set("--vaadin-tab-font-weight", "600");
-        
         tabs.setWidthFull();
-        tabs.getStyle().set("flex-shrink", "0");
         tabs.addSelectedChangeListener(event -> {
             tabContent.removeAll();
             Tab selected = event.getSelectedTab();
@@ -150,18 +144,10 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         });
 
         tabContent.setSizeFull();
-        tabContent.setPadding(false);
-        tabContent.setSpacing(false);
-        tabContent.getStyle().set("flex-grow", "1");
-        tabContent.getStyle().set("min-height", "0");
-        tabContent.getStyle().set("overflow", "hidden");
 
         // Überschrift - fixiert oben
         H1 title = new H1("IVOM-Planer");
-        title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.FontWeight.SEMIBOLD, 
-                LumoUtility.Margin.Bottom.LARGE);
-        title.getStyle().set("flex-shrink", "0");
-        
+
         add(title);
         add(tabs);
         add(tabContent);
@@ -170,19 +156,11 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         tabs.setSelectedTab(treatmentPlansTab);
         tabContent.add(treatmentPlansContent);
 
-        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
-        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
-        getStyle().set("box-sizing", "border-box");
-        getStyle().set("overflow", "hidden"); // Verhindert Scrolling auf Main-Ebene
         setSizeFull();
-        addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content");
-        // Gap reduziert, damit Grid mehr Platz hat
-        getStyle().set("gap", "var(--lumo-space-m, 1rem)");
     }
 
     private void initializeTreatmentPlansTab() {
-        createButton.setText("Behandlungsplan anlegen");
+        createButton.setText("Erstellen");
         createButton.addClickListener(event -> {
             Optional<TreatmentPlan> ivom = ivomPlanGrid.getSelectionModel().getFirstSelectedItem();
             if (ivom.isPresent()) {
@@ -193,8 +171,6 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 navigateToDetailView(newTreatmentPlan);
             }
         });
-        createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
         
         // Button nur für berechtigte Rollen aktivieren
         boolean canBook = currentUser.getPrincipal()
@@ -202,9 +178,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                     return principal.getAuthorities().stream()
                             .anyMatch(auth -> {
                                 String authority = auth.getAuthority();
-                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
-                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
-                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
+                                return authority.equals("ROLE_" + AppRoles.ADMIN)
+                                        || authority.equals("ROLE_" + AppRoles.DOCTOR)
+                                        || authority.equals("ROLE_" + AppRoles.TECH_USER);
                             });
                 })
                 .orElse(false);
@@ -218,47 +194,35 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         searchField.setClearButtonVisible(true);
         searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
 
+        generateDailyListButton.setText("Wochenliste");
         generateDailyListButton.addClickListener(event -> {
             ensureInstitutionContext();
             openWeekListDialog();
         });
-        generateDailyListButton.setIcon(VaadinIcon.FILE_TEXT.create());
         generateDailyListButton
-                .setTooltipText("Erzeugt eine Tagesliste für die tagesaktuellen OP-Slots. " +
-                        "Dabei werden die zu behandelnden Patienten, sowie die jeweiligen " +
-                        "Einrichtungen aufgelistet, an denen die Behandlung stattfindet.");
+                .setTooltipText("Erzeugt eine Tagesliste für die tagesaktuellen OP-Slots. "
+                        + "Dabei werden die zu behandelnden Patienten, sowie die jeweiligen "
+                        + "Einrichtungen aufgelistet, an denen die Behandlung stattfindet.");
         generateDailyListButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         generateDailyListButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
-        
-        // Toggle für abgeschlossene Pläne
-        showFinishedToggle.setLabel("Abgeschlossene");
-        showFinishedToggle.setItems("Einblenden", "Ausblenden");
-        showFinishedToggle.setValue("Einblenden");
-        showFinishedToggle.addValueChangeListener(e -> {
-            showFinished = "Einblenden".equals(e.getValue());
+
+        // Button für abgeschlossene Pläne ein-/ausblenden
+        updateToggleFinishedButton();
+        toggleFinishedButton.addClickListener(e -> {
+            showFinished = !showFinished;
+            updateToggleFinishedButton();
             refresh("");
         });
 
         // Container als Flexbox konfigurieren - WICHTIG: VOR add() aufrufen
         treatmentPlansContent.setSizeFull();
-        treatmentPlansContent.setPadding(false);
-        treatmentPlansContent.setSpacing(false); // Spacing reduziert, damit Grid mehr Platz hat
-        treatmentPlansContent.getStyle().set("display", "flex");
-        treatmentPlansContent.getStyle().set("flex-direction", "column");
-        treatmentPlansContent.getStyle().set("min-height", "0");
-        treatmentPlansContent.getStyle().set("gap", "var(--lumo-space-s, 0.75rem)");
-        
-        // Section für Buttons und Suche
+
         Div toolbarSection = createToolbarSection();
         toolbarSection.getStyle().set("flex-shrink", "0");
         treatmentPlansContent.add(toolbarSection);
-        
-        // Grid - nimmt restlichen Platz ein und scrollt
-        ivomPlanGrid.getStyle().set("flex-grow", "1");
-        ivomPlanGrid.getStyle().set("flex-shrink", "1");
-        ivomPlanGrid.getStyle().set("flex-basis", "0");
-        ivomPlanGrid.getStyle().set("min-height", "0");
-        ivomPlanGrid.getStyle().set("overflow", "auto");
+
+        ivomPlanGrid.setSizeFull();
+        // Höhe wird über Flexbox gesteuert, nicht über setHeightFull()
         treatmentPlansContent.add(ivomPlanGrid);
 
         configureGrid();
@@ -288,7 +252,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             s.getStyle().set("word-wrap", "break-word");
             return s;
         })).setHeader("Beschreibung").setResizable(true).setAutoWidth(true);
-        
+
         taskGrid.addColumn(new ComponentRenderer<>(task -> {
             String dueDate = Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie");
             Span dateSpan = new Span(dueDate);
@@ -301,7 +265,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             dateSpan.getStyle().set("word-wrap", "break-word");
             return dateSpan;
         })).setHeader("Fälligkeitsdatum").setResizable(true).setAutoWidth(true);
-        
+
         taskGrid.addColumn(new ComponentRenderer<>(task -> {
             Span dateSpan = new Span(dateTimeFormatter.format(task.getCreationDate()));
             dateSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
@@ -309,10 +273,10 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             dateSpan.getStyle().set("word-wrap", "break-word");
             return dateSpan;
         })).setHeader("Erstellt am").setResizable(true).setAutoWidth(true);
-        
+
         // Zeilenumbruch in Zellen aktivieren
         taskGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
-        
+
         taskGrid.setPartNameGenerator(task -> task.isCompleted() ? "row-completed" : "");
         taskGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
         // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
@@ -361,12 +325,12 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         taskReviewContent.getStyle().set("flex-direction", "column");
         taskReviewContent.getStyle().set("min-height", "0");
         taskReviewContent.getStyle().set("gap", "var(--lumo-space-s, 0.75rem)");
-        
+
         // Section für Buttons und Suche (ohne Überschrift "Behandlungsprüfung")
         Div taskToolbarSection = createTaskToolbarSection();
         taskToolbarSection.getStyle().set("flex-shrink", "0");
         taskReviewContent.add(taskToolbarSection);
-        
+
         // Grid - nimmt restlichen Platz ein und scrollt
         taskGrid.getStyle().set("flex-grow", "1");
         taskGrid.getStyle().set("flex-shrink", "1");
@@ -385,7 +349,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + AppRoles.SUPER_ADMIN));
         boolean hasInstitutionContext = InstitutionContext.hasInstitution();
-        
+
         if (isSuperAdmin && !hasInstitutionContext) {
             // Redirect SUPER_ADMIN to institution management
             event.forwardTo("admin/institutions");
@@ -393,18 +357,18 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     }
 
     /**
-     * Ensures InstitutionContext is set before service calls.
-     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
-     * so the context might not be set.
+     * Ensures InstitutionContext is set before service calls. This is necessary
+     * because Vaadin button clicks don't trigger BeforeEnterEvent, so the
+     * context might not be set.
      */
     private void ensureInstitutionContext() {
         // Only set if not already set
         if (InstitutionContext.hasInstitution()) {
             return;
         }
-        
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
+
         if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
             if (institutionAuth.getInstitutionId() != null) {
                 InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
@@ -416,7 +380,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             try {
                 String username = adapter.getUsername();
                 UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
-                
+
                 if (userAccount != null && userAccount.getInstitution() != null) {
                     Long institutionId = userAccount.getInstitution().getId();
                     InstitutionContext.setInstitutionId(institutionId);
@@ -432,18 +396,18 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private void refreshTaskGrid() {
         // Ensure InstitutionContext is set before service call
         ensureInstitutionContext();
-        
+
         taskGrid.setItems(query -> {
             // Ensure context is set again for each query (in case it was cleared)
             ensureInstitutionContext();
-            
+
             Boolean completedFilter = hideCompleted ? Boolean.FALSE : null;
             List<Task> tasks = taskService.listByCompleted(completedFilter, toSpringPageRequest(query));
-            
+
             // Debug logging and user notification for missing institution context
             Long institutionId = InstitutionContext.getInstitutionId();
             if (institutionId == null) {
-                log.warn("No institution context set - cannot load tasks for user: {}", 
+                log.warn("No institution context set - cannot load tasks for user: {}",
                         authenticationContext.getPrincipalName().orElse("unknown"));
                 // Show notification to user (only once, not on every query)
                 if (query.getPage() == 0 && query.getPageSize() > 0) {
@@ -456,7 +420,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             } else {
                 log.debug("Loading tasks for institution ID: {}, found {} tasks", institutionId, tasks.size());
             }
-            
+
             return tasks.stream();
         });
     }
@@ -477,66 +441,74 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         section.addClassName("dialog-section");
         section.setWidthFull();
         section.getStyle()
-            .set("background-color", "var(--lumo-contrast-5pct)")
-            .set("border", "1px solid var(--lumo-contrast-20pct)")
-            .set("border-radius", "var(--lumo-border-radius-m)")
-            .set("padding", "var(--lumo-space-m)")
-            .set("box-sizing", "border-box")
-            .set("margin-bottom", "var(--lumo-space-m)");
-        
-        H4 sectionTitle = new H4("Aktionen");
-        sectionTitle.getStyle()
-            .set("margin-top", "0")
-            .set("margin-bottom", "var(--lumo-space-s)")
-            .set("color", "var(--lumo-primary-text-color)")
-            .set("font-size", "var(--lumo-font-size-m)")
-            .set("font-weight", "600");
-        section.add(sectionTitle);
-        
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border", "1px solid var(--lumo-contrast-20pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("padding", "var(--lumo-space-m)")
+                .set("box-sizing", "border-box")
+                .set("margin-bottom", "var(--lumo-space-m)");
+
         HorizontalLayout toolbarLayout = new HorizontalLayout();
         toolbarLayout.setSpacing(true);
         toolbarLayout.setWidthFull();
         toolbarLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
-        
+
         toolbarLayout.add(createButton, generateDailyListButton);
-        toolbarLayout.add(showFinishedToggle);
+        toolbarLayout.add(toggleFinishedButton);
         toolbarLayout.add(searchField);
         toolbarLayout.setFlexGrow(1, searchField);
-        
+
         section.add(toolbarLayout);
         return section;
     }
-    
+
+    /**
+     * Aktualisiert den Text und den Enabled-Status des Toggle-Buttons für
+     * abgeschlossene Pläne.
+     */
+    private void updateToggleFinishedButton() {
+        if (showFinished) {
+            toggleFinishedButton.setText("Abgeschlossene ausblenden");
+        } else {
+            toggleFinishedButton.setText("Abgeschlossene einblenden");
+        }
+
+        // Button disabled wenn kein Behandlungsplan angezeigt wird
+        // Prüfe Item-Count über DataProvider
+        int itemCount = ivomPlanGrid.getDataProvider().size(new com.vaadin.flow.data.provider.Query<>());
+        toggleFinishedButton.setEnabled(itemCount > 0);
+    }
+
     private Div createTaskToolbarSection() {
         Div section = new Div();
         section.addClassName("dialog-section");
         section.setWidthFull();
         section.getStyle()
-            .set("background-color", "var(--lumo-contrast-5pct)")
-            .set("border", "1px solid var(--lumo-contrast-20pct)")
-            .set("border-radius", "var(--lumo-border-radius-m)")
-            .set("padding", "var(--lumo-space-m)")
-            .set("box-sizing", "border-box")
-            .set("margin-bottom", "var(--lumo-space-m)");
-        
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border", "1px solid var(--lumo-contrast-20pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("padding", "var(--lumo-space-m)")
+                .set("box-sizing", "border-box")
+                .set("margin-bottom", "var(--lumo-space-m)");
+
         H4 sectionTitle = new H4("Aktionen");
         sectionTitle.getStyle()
-            .set("margin-top", "0")
-            .set("margin-bottom", "var(--lumo-space-s)")
-            .set("color", "var(--lumo-primary-text-color)")
-            .set("font-size", "var(--lumo-font-size-m)")
-            .set("font-weight", "600");
+                .set("margin-top", "0")
+                .set("margin-bottom", "var(--lumo-space-s)")
+                .set("color", "var(--lumo-primary-text-color)")
+                .set("font-size", "var(--lumo-font-size-m)")
+                .set("font-weight", "600");
         section.add(sectionTitle);
-        
+
         HorizontalLayout toolbarLayout = new HorizontalLayout();
         toolbarLayout.setSpacing(true);
         toolbarLayout.setWidthFull();
         toolbarLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
-        
+
         toolbarLayout.add(taskRefreshButton, taskToggleCompleted);
         toolbarLayout.add(taskFilterText);
         toolbarLayout.setFlexGrow(1, taskFilterText);
-        
+
         section.add(toolbarLayout);
         return section;
     }
@@ -551,7 +523,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             span.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
             return span;
         })).setHeader("Nr.").setResizable(false).setAutoWidth(true).setFlexGrow(0);
-        
+
         // Verbesserte Grid-Spalten mit ComponentRenderer für bessere Darstellung
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             Span name = new Span(plan.getLastName() != null ? plan.getLastName() : "");
@@ -560,14 +532,14 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             name.getStyle().set("word-wrap", "break-word");
             return name;
         })).setHeader("Nachname").setResizable(true).setAutoWidth(true);
-        
+
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             Span name = new Span(plan.getFirstName() != null ? plan.getFirstName() : "");
             name.getStyle().set("white-space", "normal");
             name.getStyle().set("word-wrap", "break-word");
             return name;
         })).setHeader("Vorname").setResizable(true).setAutoWidth(true);
-        
+
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             if (plan.getBirth() != null) {
                 Span date = new Span(DateAndTimeUtils.getGermanDateTimeFormatter().format(plan.getBirth()));
@@ -577,7 +549,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             }
             return new Span("-");
         })).setHeader("Geburtsdatum").setResizable(true).setAutoWidth(true);
-        
+
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             String insurance = plan.getHealthInsurance() != null ? plan.getHealthInsurance() : "-";
             Span insuranceSpan = new Span(insurance);
@@ -586,7 +558,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             insuranceSpan.getStyle().set("word-wrap", "break-word");
             return insuranceSpan;
         })).setHeader("Krankenkasse").setResizable(true).setAutoWidth(true);
-        
+
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             String diagnosis = plan.getDiagnosis() != null ? plan.getDiagnosis().getName() : "-";
             Span diagnosisSpan = new Span(diagnosis);
@@ -594,7 +566,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             diagnosisSpan.getStyle().set("word-wrap", "break-word");
             return diagnosisSpan;
         })).setHeader("Grund der Behandlung").setResizable(true).setAutoWidth(true);
-        
+
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             String info = plan.getAdditionalInformation();
             if (info != null && !info.trim().isEmpty()) {
@@ -606,7 +578,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             }
             return new Span("-");
         })).setHeader("Zusätzliche Informationen").setResizable(true).setAutoWidth(true);
-        
+
         // Status-Spalte als letzte Spalte für Patienten mit zukünftigen Behandlungsterminen
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             if (plan.getPatient() != null) {
@@ -617,16 +589,16 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                     if (hasFutureAppointment) {
                         Span statusSpan = new Span();
                         statusSpan.addClassNames(LumoUtility.Display.FLEX, LumoUtility.AlignItems.CENTER, LumoUtility.Gap.SMALL);
-                        
+
                         // Icon für zukünftigen Termin
                         com.vaadin.flow.component.icon.Icon icon = VaadinIcon.CALENDAR_CLOCK.create();
                         icon.setColor("var(--lumo-success-color)");
                         icon.getStyle().set("width", "var(--lumo-icon-size-m)");
                         icon.getStyle().set("height", "var(--lumo-icon-size-m)");
-                        
+
                         Span text = new Span("Termin");
                         text.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.TextColor.SUCCESS);
-                        
+
                         statusSpan.add(icon, text);
                         return statusSpan;
                     }
@@ -637,10 +609,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             }
             return new Span();
         })).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
-        
-        // Cell-Wrapping aktivieren
-        ivomPlanGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
-        
+
         // Graue Hinterlegung für abgeschlossene Pläne
         ivomPlanGrid.setPartNameGenerator(plan -> {
             if (plan.getFinishedDate() != null) {
@@ -648,27 +617,27 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             }
             return "";
         });
-        
+
         // CSS für graue Hinterlegung
         ivomPlanGrid.getElement().executeJs(
-            "const style = document.createElement('style');" +
-            "style.textContent = '" +
-            "vaadin-grid::part(row)::part(finished) { background-color: #e0e0e0 !important; } " +
-            "vaadin-grid::part(cell)::part(finished) { background-color: #e0e0e0 !important; }" +
-            "';" +
-            "document.head.appendChild(style);"
+                "const style = document.createElement('style');"
+                + "style.textContent = '"
+                + "vaadin-grid::part(row)::part(finished) { background-color: #e0e0e0 !important; } "
+                + "vaadin-grid::part(cell)::part(finished) { background-color: #e0e0e0 !important; }"
+                + "';"
+                + "document.head.appendChild(style);"
         );
         
-        // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
-        ivomPlanGrid.setWidthFull();
+        
         ivomPlanGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        ivomPlanGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
         ivomPlanGrid.asSingleSelect().addValueChangeListener(event -> {
             TreatmentPlan ivomDto = event.getValue();
             if (ivomDto != null) {
                 navigateToDetailView(ivomDto);
             }
         });
-        
+
         // Paging aktivieren
         ivomPlanGrid.setPageSize(20);
         ivomPlanGrid.setItems(query -> {
@@ -680,35 +649,35 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 return java.util.stream.Stream.empty();
             }
             String searchTerm = searchField.getValue();
-            
+
             // Konvertiere zu Spring PageRequest
             org.springframework.data.domain.Pageable pageable = toSpringPageRequest(query);
-            
+
             // Wenn keine Sortierung in der Query ist, füge Standard-Sortierung nach patient.lastName und patient.firstName hinzu
             if (query.getSortOrders().isEmpty()) {
                 org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by(
-                    org.springframework.data.domain.Sort.Order.asc("patient.lastName"),
-                    org.springframework.data.domain.Sort.Order.asc("patient.firstName")
+                        org.springframework.data.domain.Sort.Order.asc("patient.lastName"),
+                        org.springframework.data.domain.Sort.Order.asc("patient.firstName")
                 );
                 pageable = org.springframework.data.domain.PageRequest.of(
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    sort
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        sort
                 );
             }
-            
+
             java.util.stream.Stream<TreatmentPlan> stream;
             if (searchTerm == null || searchTerm.isEmpty()) {
                 stream = ivomListPresenter.findAll(pageable).getContent().stream();
             } else {
                 stream = ivomListPresenter.findAllBy(searchTerm, pageable).getContent().stream();
             }
-            
+
             // Filtere abgeschlossene Pläne, falls ausgeschaltet
             if (!showFinished) {
                 stream = stream.filter(plan -> plan.getFinishedDate() == null);
             }
-            
+
             return stream;
         });
     }
@@ -723,16 +692,19 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     public void refresh(String searchString) {
         // Ensure InstitutionContext is set before service call
         ensureInstitutionContext();
-        
+
         // Verwende refreshAll() statt setItems(), um Paging zu erhalten
         ivomPlanGrid.getDataProvider().refreshAll();
+
+        // Aktualisiere Toggle-Button Status nach Refresh
+        updateToggleFinishedButton();
     }
 
     @Override
     public void onTreatmentPlanChanged() {
         refresh("");
     }
-    
+
     /**
      * Öffnet den Dialog für die Wochenliste mit der aktuellen Woche
      */
