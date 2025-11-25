@@ -28,19 +28,19 @@ public class TaskListHelpView extends HelpSubPageView {
         section.addClassNames(LumoUtility.Margin.Bottom.LARGE);
 
         section.add(createInfoCard("Übersicht",
-                "Die Aufgabenliste zeigt alle zurückliegenden Behandlungen, die noch überprüft werden müssen. "
-                + "Hier können Sie Behandlungen genehmigen, ablehnen oder weitere Informationen hinzufügen."));
+                "Die Aufgabenliste zeigt alle zurückliegenden Behandlungen, die noch dokumentiert werden müssen. "
+                + "Hier können Sie Behandlungen dokumentieren oder weitere Informationen hinzufügen."));
 
         section.add(createInfoCard("Funktionen",
-                "• Übersicht über zu überprüfende Behandlungen\n"
-                + "• Behandlungen genehmigen oder ablehnen\n"
+                "• Übersicht über zu dokumentierende Behandlungen\n"
+                + "• Behandlungen dokumentieren\n"
                 + "• Tägliche Aufgaben automatisch generieren\n"
                 + "• Filterung nach Status und Beschreibung\n"
                 + "• Behandlungsergebnisse dokumentieren"));
 
         section.add(createFeatureList("Hauptfunktionen", new String[] {
                 "Aufgabenliste aktualisieren: Klicken Sie auf 'Aktualisieren', um neue Aufgaben für zurückliegende Behandlungen zu generieren.",
-                "Aufgabe bearbeiten: Doppelklicken Sie auf eine Aufgabe, um Details anzuzeigen und die Behandlung zu überprüfen.",
+                "Aufgabe bearbeiten: Doppelklicken Sie auf eine Aufgabe, um Details anzuzeigen und die Behandlung zu dokumentieren.",
                 "Filter anwenden: Verwenden Sie das Filterfeld, um nach bestimmten Beschreibungen zu suchen.",
                 "Abgeschlossene Aufgaben: Verwenden Sie den Toggle-Button, um abgeschlossene Aufgaben ein- oder auszublenden.",
                 "Fälligkeitsdatum: Jede Aufgabe kann ein Fälligkeitsdatum haben, um Prioritäten zu setzen."
@@ -52,7 +52,7 @@ public class TaskListHelpView extends HelpSubPageView {
                 + "Behandlungen genehmigen können nur DOCTOR, MEDICAL_STAFF und OWNER."));
 
         section.add(createInfoCard("Automatische Generierung",
-                "Das System generiert automatisch Aufgaben für zurückliegende Behandlungen, die noch nicht überprüft wurden. "
+                "Das System generiert automatisch Aufgaben für zurückliegende Behandlungen, die noch nicht dokumentiert wurden. "
                 + "Dies erfolgt täglich und kann auch manuell über den 'Aktualisieren'-Button ausgelöst werden."));
 
         section.add(createInfoCard("Tipps",

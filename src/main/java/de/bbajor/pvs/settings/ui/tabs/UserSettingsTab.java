@@ -2,23 +2,15 @@ package de.bbajor.pvs.settings.ui.tabs;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.select.Select;
-import com.vaadin.flow.component.textfield.EmailField;
-import com.vaadin.flow.component.textfield.PasswordField;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
@@ -55,19 +47,9 @@ public class UserSettingsTab extends VerticalLayout {
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
 
-    private TextField usernameField;
-    private TextField fullNameField;
-    private EmailField emailField;
-    private PasswordField passwordField;
-    private Select<String> roleSelect;
-    private ComboBox<Location> locationComboBox;
-    private Checkbox enabledCheckbox;
-    private Button saveButton;
-    private Button cancelButton;
-    private Button deleteButton;
     private Grid<UserAccount> userGrid;
+    private Button createButton;
     
-    private UserAccount selectedUser;
     private List<UserAccount> allUsers;
 
     @PostConstruct
@@ -91,260 +73,161 @@ public class UserSettingsTab extends VerticalLayout {
 
         H3 title = new H3("Benutzerverwaltung");
 
+        // Button section above grid
+        createButton = new Button("Erstellen", e -> openUserDialog(null));
+        createButton.setIcon(VaadinIcon.PLUS.create());
+        createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout buttonSection = new HorizontalLayout(createButton);
+        buttonSection.setSpacing(true);
+        buttonSection.setPadding(true);
+
         // Initialize grid
         userGrid = new Grid<>(UserAccount.class, false);
         userGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         
+        // Combined renderer for username, name, email
         userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            VerticalLayout layout = new VerticalLayout();
+            layout.setSpacing(false);
+            layout.setPadding(false);
+            
+            // Username
             String username = ua.getUsername() != null ? ua.getUsername() : "-";
-            Span span = new Span(username);
-            span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
-            return span;
-        })).setHeader("Benutzername").setAutoWidth(true);
-        
-        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            Span usernameSpan = new Span(username);
+            usernameSpan.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            layout.add(usernameSpan);
+            
+            // Name
             String name = ua.getFullName() != null ? ua.getFullName() : "-";
-            Span span = new Span(name);
-            return span;
-        })).setHeader("Name").setAutoWidth(true);
-        
-        userGrid.addColumn(new ComponentRenderer<>(ua -> {
+            Span nameSpan = new Span(name);
+            nameSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            layout.add(nameSpan);
+            
+            // Email
             String email = ua.getEmail() != null ? ua.getEmail() : "-";
-            Span span = new Span(email);
-            span.addClassNames(LumoUtility.TextColor.SECONDARY);
-            return span;
-        })).setHeader("E-Mail").setAutoWidth(true);
+            Span emailSpan = new Span(email);
+            emailSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            layout.add(emailSpan);
+            
+            return layout;
+        })).setHeader("Benutzer").setSortable(true).setAutoWidth(true);
         
+        // Role renderer with readable names
         userGrid.addColumn(new ComponentRenderer<>(ua -> {
-            String roles = ua.getRoles() != null ? String.join(", ", ua.getRoles()) : "-";
-            Span span = new Span(roles);
+            if (ua.getRoles() == null || ua.getRoles().isEmpty()) {
+                return new Span("-");
+            }
+            String role = ua.getRoles().iterator().next(); // Only one role per user
+            String roleLabel = translateRole(role);
+            Span span = new Span(roleLabel);
             return span;
         })).setHeader("Rolle").setAutoWidth(true);
         
+        // Location renderer
         userGrid.addColumn(new ComponentRenderer<>(ua -> {
-            String location = ua.getPreferredLocation() != null ? ua.getPreferredLocation().getLocationName() : "-";
-            Span span = new Span(location);
-            span.addClassNames(LumoUtility.TextColor.SECONDARY);
-            return span;
+            if (ua.getPreferredLocation() == null) {
+                return new Span("-");
+            }
+            Location loc = ua.getPreferredLocation();
+            VerticalLayout layout = new VerticalLayout();
+            layout.setSpacing(false);
+            layout.setPadding(false);
+            
+            String name = loc.getLocationName() != null ? loc.getLocationName() : "-";
+            Span nameSpan = new Span(name);
+            nameSpan.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            layout.add(nameSpan);
+            
+            String address = loc.getFullAddress() != null ? loc.getFullAddress() : "";
+            if (!address.isEmpty()) {
+                Span addressSpan = new Span(address);
+                addressSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+                layout.add(addressSpan);
+            }
+            
+            return layout;
         })).setHeader("Standort").setAutoWidth(true);
         
-        userGrid.addColumn(new ComponentRenderer<>(ua -> {
-            String status = ua.isEnabled() ? "Ja" : "Nein";
-            Span span = new Span(status);
-            if (ua.isEnabled()) {
-                span.addClassNames(LumoUtility.TextColor.SUCCESS);
-            } else {
-                span.addClassNames(LumoUtility.TextColor.ERROR);
-            }
-            return span;
-        })).setHeader("Aktiv").setAutoWidth(true);
+        // Actions column with Edit and Deactivate/Activate buttons
+        userGrid.addComponentColumn(ua -> {
+            HorizontalLayout buttonLayout = new HorizontalLayout();
+            buttonLayout.setSpacing(true);
+            
+            Button editButton = new Button("Bearbeiten", e -> openUserDialog(ua));
+            editButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            
+            Button toggleButton = new Button(
+                ua.isEnabled() ? "Deaktivieren" : "Aktivieren",
+                e -> toggleUserStatus(ua)
+            );
+            toggleButton.addThemeVariants(
+                ua.isEnabled() ? ButtonVariant.LUMO_ERROR : ButtonVariant.LUMO_SUCCESS,
+                ButtonVariant.LUMO_SMALL
+            );
+            
+            buttonLayout.add(editButton, toggleButton);
+            return buttonLayout;
+        }).setHeader("Aktionen").setAutoWidth(true);
         
         userGrid.setSizeFull();
-        
-        userGrid.asSingleSelect().addValueChangeListener(e -> {
-            if (e.getValue() != null) {
-                editUser(e.getValue());
-            } else {
-                clearForm();
-            }
-        });
 
-        // Initialize fields
-        usernameField = new TextField("Benutzername");
-        usernameField.setRequired(true);
-        usernameField.setWidthFull();
-
-        fullNameField = new TextField("Vollständiger Name");
-        fullNameField.setWidthFull();
-
-        emailField = new EmailField("E-Mail");
-        emailField.setWidthFull();
-
-        passwordField = new PasswordField("Passwort");
-        passwordField.setWidthFull();
-
-        roleSelect = new Select<>();
-        roleSelect.setLabel("Rolle");
-        roleSelect.setItems(AppRoles.ADMIN, AppRoles.OWNER, AppRoles.DOCTOR, AppRoles.MEDICAL_STAFF, 
-                AppRoles.TECH_USER, AppRoles.USER);
-        roleSelect.setEmptySelectionAllowed(false);
-        roleSelect.setWidthFull();
-
-        locationComboBox = new ComboBox<>("Standort (optional)");
-        locationComboBox.setItems(locationService.getAllLocations(true)); // Only active locations
-        locationComboBox.setRenderer(new TextRenderer<>(Location::getLocationName));
-        locationComboBox.setItemLabelGenerator(loc -> loc.getLocationName() != null ? loc.getLocationName() : "");
-        locationComboBox.setClearButtonVisible(true);
-        locationComboBox.setWidthFull();
-
-        enabledCheckbox = new Checkbox("Aktiv");
-        enabledCheckbox.setValue(true);
-
-        saveButton = new Button("Speichern", e -> saveUser());
-        saveButton.setIcon(VaadinIcon.CHECK.create());
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        saveButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
-
-        cancelButton = new Button("Abbrechen", e -> clearForm());
-        cancelButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
-        
-        deleteButton = new Button("Löschen", e -> deleteUser());
-        deleteButton.setIcon(VaadinIcon.TRASH.create());
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        deleteButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
-
-        FormLayout formLayout = new FormLayout();
-        formLayout.add(usernameField, fullNameField, emailField, passwordField, 
-                roleSelect, locationComboBox, enabledCheckbox);
-        formLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2)
-        );
-
-        HorizontalLayout buttonLayout = new HorizontalLayout(saveButton, cancelButton, deleteButton);
-        buttonLayout.setSpacing(true);
-        
-        VerticalLayout formContainer = new VerticalLayout(formLayout, buttonLayout);
-        formContainer.setWidth("400px");
-        formContainer.setPadding(true);
-        
-        HorizontalLayout splitLayout = new HorizontalLayout(userGrid, formContainer);
-        splitLayout.setSizeFull();
-        splitLayout.setFlexGrow(1, userGrid);
-        splitLayout.setFlexGrow(0, formContainer);
-        
-        add(title, splitLayout);
-        expand(splitLayout);
+        setSizeFull();
+        setPadding(false);
+        setSpacing(false);
+        add(title, buttonSection, userGrid);
+        expand(userGrid);
         
         refreshUsers();
     }
 
-    private void saveUser() {
-        // Ensure InstitutionContext is set before saving
-        ensureInstitutionContext();
-        
-        String username = usernameField.getValue();
-        String role = roleSelect.getValue();
-        
-        if (username == null || username.trim().isEmpty() || role == null) {
-            Notification.show("Bitte geben Sie Benutzername und Rolle ein", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    private void openUserDialog(UserAccount userAccount) {
+        UserDialog dialog = new UserDialog(
+            userAccountRepository,
+            locationService,
+            institutionRepository,
+            userAccount
+        );
+        dialog.setOnSaveCallback(this::refreshUsers);
+        dialog.open();
+    }
+
+    private void toggleUserStatus(UserAccount userAccount) {
+        if (userAccount == null || userAccount.getId() == null) {
             return;
         }
-
+        
         try {
-            UserAccount userAccount = selectedUser != null && selectedUser.getId() != null
-                    ? selectedUser
-                    : userAccountRepository.findByUsername(username).orElseGet(UserAccount::new);
-            
-            // Check if user belongs to current institution
-            Long institutionId = InstitutionContext.getInstitutionId();
-            if (userAccount.getInstitution() != null && 
-                !userAccount.getInstitution().getId().equals(institutionId)) {
-                Notification.show("Benutzer gehört zu einer anderen Institution", 5000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
-            }
-            
-            userAccount.setUsername(username);
-            userAccount.setFullName(fullNameField.getValue());
-            userAccount.setEmail(emailField.getValue());
-            userAccount.getRoles().clear();
-            userAccount.getRoles().add(role);
-            userAccount.setEnabled(enabledCheckbox.getValue());
-            
-            // Set institution if not set
-            if (userAccount.getInstitution() == null && institutionId != null) {
-                institutionRepository.findById(institutionId)
-                        .ifPresent(userAccount::setInstitution);
-            }
-            
-            // Set preferred location
-            Location selectedLocation = locationComboBox.getValue();
-            userAccount.setPreferredLocation(selectedLocation);
-            
-            // Set userId if not set
-            if (userAccount.getUserId() == null || userAccount.getUserId().isEmpty()) {
-                userAccount.setUserId(UUID.randomUUID().toString());
-            }
-            
-            // Update password only if provided
-            String password = passwordField.getValue();
-            if (password != null && !password.isEmpty()) {
-                userAccount.setPasswordHash("{noop}" + password);
-            } else if (userAccount.getPasswordHash() == null || userAccount.getPasswordHash().isEmpty()) {
-                // Set default password if none exists
-                userAccount.setPasswordHash("{noop}123");
-            }
-            
+            userAccount.setEnabled(!userAccount.isEnabled());
             userAccountRepository.save(userAccount);
             refreshUsers();
-            clearForm();
             
-            Notification.show("Benutzer wurde erfolgreich gespeichert!", 3000, Notification.Position.MIDDLE)
+            String message = userAccount.isEnabled() ? "Benutzer wurde aktiviert" : "Benutzer wurde deaktiviert";
+            Notification.show(message, 3000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
-            log.error("Error saving user: {}", e.getMessage(), e);
-            Notification.show("Fehler beim Speichern: " + e.getMessage(),
+            log.error("Error toggling user status: {}", e.getMessage(), e);
+            Notification.show("Fehler beim Ändern des Status: " + e.getMessage(),
                     5000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
-    private void clearForm() {
-        selectedUser = null;
-        usernameField.clear();
-        fullNameField.clear();
-        emailField.clear();
-        passwordField.clear();
-        roleSelect.clear();
-        locationComboBox.clear();
-        enabledCheckbox.setValue(true);
-    }
-
-    private void editUser(UserAccount userAccount) {
-        selectedUser = userAccount;
-        usernameField.setValue(userAccount.getUsername() != null ? userAccount.getUsername() : "");
-        fullNameField.setValue(userAccount.getFullName() != null ? userAccount.getFullName() : "");
-        emailField.setValue(userAccount.getEmail() != null ? userAccount.getEmail() : "");
-        passwordField.clear();
-        if (!userAccount.getRoles().isEmpty()) {
-            roleSelect.setValue(userAccount.getRoles().iterator().next());
-        }
-        
-        locationComboBox.setValue(userAccount.getPreferredLocation());
-        enabledCheckbox.setValue(userAccount.isEnabled());
-    }
-
-    private void deleteUser() {
-        if (selectedUser == null || selectedUser.getId() == null) {
-            Notification.show("Bitte wählen Sie einen Benutzer zum Löschen aus", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-        
-        try {
-            // Deactivate instead of delete (soft delete)
-            selectedUser.setEnabled(false);
-            userAccountRepository.save(selectedUser);
-            refreshUsers();
-            clearForm();
-            Notification.show("Benutzer wurde deaktiviert", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        } catch (Exception e) {
-            log.error("Error deleting user: {}", e.getMessage(), e);
-            Notification.show("Fehler beim Löschen: " + e.getMessage(),
-                    5000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
+    private String translateRole(String role) {
+        return switch (role) {
+            case AppRoles.ADMIN -> "Administrator";
+            case AppRoles.OWNER -> "Praxisinhaber";
+            case AppRoles.DOCTOR -> "Arzt";
+            case AppRoles.MEDICAL_STAFF -> "Medizinisches Personal (MFA)";
+            case AppRoles.TECH_USER -> "Technischer Benutzer";
+            case AppRoles.USER -> "Benutzer";
+            default -> role;
+        };
     }
 
     private void refreshUsers() {
         // Ensure InstitutionContext is set before loading users
         ensureInstitutionContext();
-        
-        // Refresh location list in case locations were added/removed
-        locationComboBox.setItems(locationService.getAllLocations(true));
         
         // Load users for current institution with preferredLocation eagerly fetched
         // This prevents LazyInitializationException when Grid renders the location column

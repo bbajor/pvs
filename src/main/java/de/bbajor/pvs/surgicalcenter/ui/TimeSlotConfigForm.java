@@ -49,6 +49,7 @@ public class TimeSlotConfigForm extends HorizontalLayout {
     private final VirtualList<TimeSlotConfig> timeSlotsToCreateVirtualList = new VirtualList<>();
     private final List<TimeSlotConfig> timeSlotsToCreateList = new ArrayList<>();
     private final Binder<TimeSlotConfig> binder = new Binder<>();
+    private Runnable onSlotAddedCallback;
 
     public TimeSlotConfigForm() {
         setSizeFull();
@@ -71,9 +72,26 @@ public class TimeSlotConfigForm extends HorizontalLayout {
         });
 
         FormLayout filterLayout = new FormLayout();
+        filterLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("900px", 3),
+                new FormLayout.ResponsiveStep("1200px", 4)
+        );
         filterLayout.add(periodStartPicker, dayOfWeekComboBox, timeSlotStartPicker, timeSlotEndPicker,
                 singleAppointmentCheckBox, timePeriodComboBox, timeSlotRepetitionComboBox,
                 addTimeSlotSeriesButton);
+        
+        // Spaltenbreiten: "Wie oft?" und Button nur 1 Spalte
+        filterLayout.setColspan(periodStartPicker, 1);
+        filterLayout.setColspan(dayOfWeekComboBox, 1);
+        filterLayout.setColspan(timeSlotStartPicker, 1);
+        filterLayout.setColspan(timeSlotEndPicker, 1);
+        filterLayout.setColspan(singleAppointmentCheckBox, 1);
+        filterLayout.setColspan(timePeriodComboBox, 1);
+        filterLayout.setColspan(timeSlotRepetitionComboBox, 1); // Nur 1 Spalte
+        filterLayout.setColspan(addTimeSlotSeriesButton, 1); // Nur 1 Spalte
+        
         add(filterLayout);
 
         binder.forField(timePeriodComboBox).asRequired((timePeriod, t) -> {
@@ -122,9 +140,7 @@ public class TimeSlotConfigForm extends HorizontalLayout {
         binder.forField(singleAppointmentCheckBox).bind(TimeSlotConfig::isSingleAppointment,
                 TimeSlotConfig::setSingleAppointment);
 
-        timeSlotsToCreateVirtualList.setHeight("400px");
-        timeSlotsToCreateVirtualList.setMinWidth("300px");
-
+        // VirtualList wird nicht mehr in der UI angezeigt
         timeSlotsToCreateVirtualList.setItems(timeSlotsToCreateList);
         timeSlotsToCreateVirtualList
                 .setRenderer(new ComponentRenderer<>(config -> new TimeSlotConfigCard(config, deleteEvent -> {
@@ -154,12 +170,17 @@ public class TimeSlotConfigForm extends HorizontalLayout {
                     timeSlotsToCreateList.add(config);
                 }
                 timeSlotsToCreateVirtualList.setItems(timeSlotsToCreateList);
+                
+                // Rufe Callback auf, wenn vorhanden
+                if (onSlotAddedCallback != null) {
+                    onSlotAddedCallback.run();
+                }
             } else {
                 Notification.show("Einer oder mehrere Eingaben für die OP-Slots sind ungültig." +
                         "Bitte überprüfen Sie die Angaben und versuchen es erneut.");
             }
         });
-        add(timeSlotsToCreateVirtualList);
+        // VirtualList wird nicht mehr zur UI hinzugefügt
     }
 
     private void enableRelevantComponents(boolean isSingleAppointment) {
@@ -188,6 +209,13 @@ public class TimeSlotConfigForm extends HorizontalLayout {
             binder.setBean(new TimeSlotConfig().setBundesland(State.byString(bundesland)));
         }
         return binder.getBean();
+    }
+    
+    /**
+     * Setzt einen Callback, der aufgerufen wird, wenn ein Slot hinzugefügt wird.
+     */
+    public void setOnSlotAddedCallback(Runnable callback) {
+        this.onSlotAddedCallback = callback;
     }
 
 }

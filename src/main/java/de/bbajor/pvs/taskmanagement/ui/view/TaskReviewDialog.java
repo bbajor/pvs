@@ -70,6 +70,9 @@ public class TaskReviewDialog extends Dialog {
     
     // Track which treatments have follow-up bookings for visual feedback
     private java.util.Set<Long> treatmentsWithFollowUpBooking = new java.util.HashSet<>();
+    
+    // Track selected treatments for bulk approval
+    private java.util.Set<Long> selectedTreatmentsForApproval = new java.util.HashSet<>();
 
     public TaskReviewDialog(Task task, TreatmentRepository treatmentRepository, TaskService taskService,
             AuthenticationContext authenticationContext, TreatmentReportService reportService,
@@ -87,7 +90,7 @@ public class TaskReviewDialog extends Dialog {
         ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
 
-        setHeaderTitle("Behandlungen überprüfen");
+        setHeaderTitle("Dokumentation");
         setWidth("900px");
         setHeight("700px");
         setDraggable(true);
@@ -115,23 +118,118 @@ public class TaskReviewDialog extends Dialog {
         H3 header = new H3(headerText);
         overviewLayout.add(header);
         
-        // Grid with simplified columns (no redundant date/location)
+        // Grid mit angepasster Spaltenreihenfolge: Patient, Auge, Medikament, Status & Genehmigung, Dokumentiert, Bericht, Auswahl
         Grid<Treatment> grid = new Grid<>(Treatment.class, false);
+        grid.setSizeFull();
+        
+        // Spalte 1: Patient (mit Renderer für bessere Darstellung)
+        grid.addComponentColumn(treatment -> {
+            if (treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null) {
+                de.bbajor.pvs.patient.model.Patient patient = treatment.getTreatmentPlan().getPatient();
+                VerticalLayout patientLayout = new VerticalLayout();
+                patientLayout.setSpacing(false);
+                patientLayout.setPadding(false);
+                
+                String name = (patient.getLastName() != null ? patient.getLastName() : "") + 
+                              (patient.getFirstName() != null ? ", " + patient.getFirstName() : "");
+                if (name.startsWith(", ")) name = name.substring(2);
+                if (name.isEmpty()) name = "-";
+                
+                Span nameSpan = new Span(name);
+                nameSpan.getStyle().set("font-weight", "600");
+                patientLayout.add(nameSpan);
+                
+                if (patient.getBirth() != null) {
+                    Span birthSpan = new Span("geb. " + 
+                        patient.getBirth().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+                    birthSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
+                    birthSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+                    patientLayout.add(birthSpan);
+                }
+                
+                return patientLayout;
+            }
+            return new Span("-");
+        }).setHeader("Patient").setAutoWidth(true).setResizable(true);
+        
+        // Spalte 2: Auge
         grid.addColumn(t -> t.getSideOfEye() != null ? t.getSideOfEye().toString() : "-")
-                .setHeader("Auge");
+                .setHeader("Auge").setAutoWidth(true).setResizable(true);
+        
+        // Spalte 3: Medikament
         grid.addColumn(t -> {
             if (t.getMedicationFavourite() != null && t.getMedicationFavourite().getMedication() != null) {
                 return t.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
             }
             return "-";
-        }).setHeader("Medikament");
-        grid.addColumn(t -> t.getTreatmentPlan() != null && t.getTreatmentPlan().getPatient() != null 
-                ? t.getTreatmentPlan().getPatient().toString() : "-")
-                .setHeader("Patient");
-        grid.addColumn(t -> t.getApprovalDate() != null ? "Genehmigt" : "Offen")
-                .setHeader("Status");
+        }).setHeader("Medikament").setAutoWidth(true).setResizable(true);
         
-        // Add report button column - always enabled, can generate preliminary reports
+        // Spalte 4: Status & Genehmigung (Status-Combobox + Ampel)
+        grid.addComponentColumn(treatment -> {
+            HorizontalLayout statusLayout = new HorizontalLayout();
+            statusLayout.setSpacing(true);
+            statusLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+            
+            // Combobox für Status
+            ComboBox<TreatmentStatus> statusComboBox = new ComboBox<>();
+            List<TreatmentStatus> statusOptions = java.util.Arrays.stream(TreatmentStatus.values())
+                    .sorted(java.util.Comparator.comparing(TreatmentStatus::getShortLabel))
+                    .collect(java.util.stream.Collectors.toList());
+            statusComboBox.setItems(statusOptions);
+            statusComboBox.setItemLabelGenerator(TreatmentStatus::getShortLabel);
+            statusComboBox.setValue(treatment.getTreatmentStatus() != null 
+                    ? treatment.getTreatmentStatus() 
+                    : TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL);
+            statusComboBox.setWidth("200px");
+            
+            // Ampel
+            Div trafficLight = createTrafficLight(treatment.getTreatmentStatus() != null 
+                    ? treatment.getTreatmentStatus() 
+                    : TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL);
+            
+            // Status-Änderung
+            statusComboBox.addValueChangeListener(e -> {
+                TreatmentStatus newStatus = e.getValue();
+                if (newStatus != null) {
+                    try {
+                        taskService.updateTreatmentStatus(treatment.getId(), newStatus);
+                        treatment.setTreatmentStatus(newStatus);
+                        trafficLight.removeAll();
+                        trafficLight.add(createTrafficLightIcon(newStatus));
+                    } catch (Exception ex) {
+                        log.error("Fehler beim Aktualisieren des Treatment-Status", ex);
+                        Notification errorNotification = new Notification(
+                            "Fehler beim Aktualisieren: " + ex.getMessage(),
+                            5000,
+                            Notification.Position.MIDDLE
+                        );
+                        errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                        errorNotification.open();
+                        statusComboBox.setValue(treatment.getTreatmentStatus());
+                    }
+                }
+            });
+            
+            statusLayout.add(statusComboBox, trafficLight);
+            return statusLayout;
+        }).setHeader("Status & Genehmigung").setAutoWidth(true).setResizable(true);
+        
+        // Spalte 5: Dokumentiert (grünes Häkchen oder graues X)
+        grid.addComponentColumn(treatment -> {
+            boolean isDocumented = treatment.getApprovalDate() != null;
+            Icon icon;
+            if (isDocumented) {
+                icon = VaadinIcon.CHECK_CIRCLE.create();
+                icon.setColor("var(--lumo-success-color)");
+            } else {
+                icon = VaadinIcon.CLOSE_CIRCLE.create();
+                icon.setColor("var(--lumo-contrast-50pct)");
+            }
+            icon.setSize("20px");
+            return icon;
+        }).setHeader("Dokumentiert").setAutoWidth(true).setResizable(true);
+        
+        // Spalte 6: Bericht
         grid.addComponentColumn(treatment -> {
             Button reportButton = new Button(VaadinIcon.FILE_TEXT.create(), e -> generatePatientReport(treatment));
             reportButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
@@ -139,20 +237,34 @@ public class TaskReviewDialog extends Dialog {
             if (isApproved) {
                 reportButton.setTooltipText("Bericht für diesen Patienten generieren");
             } else {
-                reportButton.setTooltipText("Vorläufigen Bericht generieren (Behandlung noch nicht genehmigt)");
+                reportButton.setTooltipText("Vorläufigen Bericht generieren (Behandlung noch nicht dokumentiert)");
             }
             reportButton.setEnabled(true); // Always enabled
             return reportButton;
-        }).setHeader("Bericht");
+        }).setHeader("Bericht").setAutoWidth(true).setResizable(true);
+        
+        // Spalte 7: Auswahl (nur Checkbox für Massengenehmigung)
+        grid.addComponentColumn(treatment -> {
+            com.vaadin.flow.component.checkbox.Checkbox approvalCheckbox = new com.vaadin.flow.component.checkbox.Checkbox();
+            approvalCheckbox.setValue(selectedTreatmentsForApproval.contains(treatment.getId()));
+            approvalCheckbox.addValueChangeListener(e -> {
+                if (e.getValue()) {
+                    selectedTreatmentsForApproval.add(treatment.getId());
+                } else {
+                    selectedTreatmentsForApproval.remove(treatment.getId());
+                }
+            });
+            approvalCheckbox.setTooltipText("Für Massengenehmigung markieren (bekannte Patienten ohne besondere Vorkommnisse)");
+            return approvalCheckbox;
+        }).setHeader("Auswahl").setAutoWidth(true).setResizable(true);
         
         grid.setItems(treatments);
-        grid.setSizeFull();
         overviewLayout.add(grid);
         
         // Buttons
         HorizontalLayout buttonLayout = new HorizontalLayout();
         
-        Button startReview = new Button("Überprüfung starten", e -> {
+        Button startReview = new Button("Dokumentation starten", e -> {
             if (treatments.isEmpty()) {
                 Notification.show("Keine Behandlungen vorhanden");
                 return;
@@ -162,6 +274,16 @@ public class TaskReviewDialog extends Dialog {
         startReview.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty());
         
+        // Button für Massengenehmigung
+        Button approveSelected = new Button("Auswahl dokumentieren", VaadinIcon.CHECK.create(), e -> {
+            approveSelectedTreatments();
+        });
+        approveSelected.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        approveSelected.setEnabled(!selectedTreatmentsForApproval.isEmpty() && !task.isCompleted() && hasReviewPermission());
+        if (!hasReviewPermission()) {
+            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
+        }
+        
         Button viewReport = new Button("Sammelbericht generieren", VaadinIcon.FILE_TEXT.create(), e -> generateCombinedReport());
         viewReport.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         
@@ -169,12 +291,12 @@ public class TaskReviewDialog extends Dialog {
         viewReport.setEnabled(!treatments.isEmpty());
         boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
         if (!allApproved && !treatments.isEmpty()) {
-            viewReport.setTooltipText("Vorläufiger Sammelbericht (nicht alle Behandlungen sind genehmigt)");
+            viewReport.setTooltipText("Vorläufiger Sammelbericht (nicht alle Behandlungen sind dokumentiert)");
         } else if (!treatments.isEmpty()) {
             viewReport.setTooltipText("Sammelbericht generieren");
         }
         
-        buttonLayout.add(startReview, viewReport);
+        buttonLayout.add(startReview, approveSelected, viewReport);
         overviewLayout.add(buttonLayout);
         
         mainContent.add(overviewLayout);
@@ -220,15 +342,15 @@ public class TaskReviewDialog extends Dialog {
         infoLayout.add(new Span("Frequenz: " + (treatment.getFrequency() != null ? treatment.getFrequency() : "-")));
         
         // Approval information
-        String approvalStatus = "Status: Offen";
+        String approvalStatus = "Status: Undokumentiert";
         if (treatment.getApprovalDate() != null) {
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
                     .ofPattern("dd.MM.yyyy HH:mm");
             if (treatment.getApprovalDateTime() != null) {
-                approvalStatus = "Status: Geprüft am " + formatter.format(treatment.getApprovalDateTime());
+                approvalStatus = "Status: Dokumentiert am " + formatter.format(treatment.getApprovalDateTime());
             } else {
                 // Fallback: Verwende approvalDate wenn approvalDateTime nicht gesetzt ist
-                approvalStatus = "Status: Geprüft am " + treatment.getApprovalDate().format(
+                approvalStatus = "Status: Dokumentiert am " + treatment.getApprovalDate().format(
                         java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             }
             if (treatment.getApprovedByUserName() != null) {
@@ -335,13 +457,13 @@ public class TaskReviewDialog extends Dialog {
         // Check if user can approve (only MEDICAL_STAFF, OWNER, DOCTOR - not ADMIN)
         boolean canApprove = hasReviewPermission();
         
-        Button approveSelected = new Button("Genehmigen", e -> {
+        Button approveSelected = new Button("Dokumentieren", e -> {
             try {
                 String user = authenticationContext.getPrincipalName().orElse("unknown");
                 String userId = user;
                 taskService.approveTreatment(treatment.getId(), userId, user, false);
                 saveAdditionalInfo(treatment, additionalInfoField.getValue());
-                Notification.show("Behandlung genehmigt");
+                Notification.show("Behandlung dokumentiert");
                 reloadTreatments();
                 
                 // Navigate to next treatment if available, otherwise go back to overview
@@ -353,7 +475,7 @@ public class TaskReviewDialog extends Dialog {
             } catch (AccessDeniedException ex) {
                 Notification errorNotification = new Notification(
                     ex.getMessage() != null ? ex.getMessage() : 
-                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu genehmigen.",
+                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu dokumentieren.",
                     10000,
                     Notification.Position.MIDDLE
                 );
@@ -361,7 +483,7 @@ public class TaskReviewDialog extends Dialog {
                 errorNotification.open();
             } catch (Exception ex) {
                 Notification errorNotification = new Notification(
-                    "Fehler beim Genehmigen der Behandlung: " + ex.getMessage(),
+                    "Fehler beim Dokumentieren der Behandlung: " + ex.getMessage(),
                     5000,
                     Notification.Position.MIDDLE
                 );
@@ -372,16 +494,16 @@ public class TaskReviewDialog extends Dialog {
         approveSelected.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         approveSelected.setEnabled(!task.isCompleted() && canApprove);
         if (!canApprove) {
-            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen genehmigen");
+            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
         }
         
-        Button approveSecond = new Button("Als Zweitprüfer bestätigen", e -> {
+        Button approveSecond = new Button("Als Zweitprüfer dokumentieren", e -> {
             try {
                 String user = authenticationContext.getPrincipalName().orElse("unknown");
                 String userId = user;
                 taskService.approveTreatment(treatment.getId(), userId, user, true);
                 saveAdditionalInfo(treatment, additionalInfoField.getValue());
-                Notification.show("Zweitprüfung durchgeführt");
+                Notification.show("Zweitprüfung dokumentiert");
                 reloadTreatments();
                 
                 // Navigate to next treatment if available, otherwise go back to overview
@@ -393,7 +515,7 @@ public class TaskReviewDialog extends Dialog {
             } catch (AccessDeniedException ex) {
                 Notification errorNotification = new Notification(
                     ex.getMessage() != null ? ex.getMessage() : 
-                    "Sie haben nicht die erforderlichen Berechtigungen für die Zweitprüfung.",
+                    "Sie haben nicht die erforderlichen Berechtigungen für die Zweitdokumentation.",
                     10000,
                     Notification.Position.MIDDLE
                 );
@@ -401,7 +523,7 @@ public class TaskReviewDialog extends Dialog {
                 errorNotification.open();
             } catch (Exception ex) {
                 Notification errorNotification = new Notification(
-                    "Fehler bei der Zweitprüfung: " + ex.getMessage(),
+                    "Fehler bei der Zweitdokumentation: " + ex.getMessage(),
                     5000,
                     Notification.Position.MIDDLE
                 );
@@ -412,7 +534,7 @@ public class TaskReviewDialog extends Dialog {
         approveSecond.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         approveSecond.setEnabled(!task.isCompleted() && canApprove);
         if (!canApprove) {
-            approveSecond.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen genehmigen");
+            approveSecond.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
         }
         
         // Follow-up booking button
@@ -787,5 +909,70 @@ public class TaskReviewDialog extends Dialog {
                 resourceUrl, filename
             );
         });
+    }
+    
+    /**
+     * Dokumentiert alle markierten Behandlungen in einem Durchgang (für bekannte Patienten ohne besondere Vorkommnisse).
+     */
+    private void approveSelectedTreatments() {
+        if (selectedTreatmentsForApproval.isEmpty()) {
+            Notification.show("Bitte wählen Sie mindestens eine Behandlung aus (bekannte Patienten ohne besondere Vorkommnisse).", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+        
+        if (!hasReviewPermission()) {
+            Notification errorNotification = new Notification(
+                "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu dokumentieren.",
+                10000,
+                Notification.Position.MIDDLE
+            );
+            errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            errorNotification.open();
+            return;
+        }
+        
+        try {
+            ensureInstitutionContext();
+            String user = authenticationContext.getPrincipalName().orElse("unknown");
+            String userId = user;
+            
+            int approvedCount = 0;
+            int failedCount = 0;
+            
+            for (Long treatmentId : selectedTreatmentsForApproval) {
+                try {
+                    taskService.approveTreatment(treatmentId, userId, user, false);
+                    approvedCount++;
+                } catch (Exception ex) {
+                    log.error("Fehler beim Dokumentieren der Behandlung " + treatmentId, ex);
+                    failedCount++;
+                }
+            }
+            
+            // Aktualisiere die Liste
+            reloadTreatments();
+            selectedTreatmentsForApproval.clear();
+            
+            // Zeige Ergebnis
+            if (failedCount == 0) {
+                Notification.show(approvedCount + " Behandlungen erfolgreich dokumentiert", 3000, Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } else {
+                Notification.show(approvedCount + " Behandlungen dokumentiert, " + failedCount + " Fehler", 5000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            }
+            
+            // Aktualisiere die Übersicht
+            showOverview();
+        } catch (Exception ex) {
+            log.error("Fehler bei der Massengenehmigung", ex);
+            Notification errorNotification = new Notification(
+                "Fehler bei der Massendokumentation: " + ex.getMessage(),
+                5000,
+                Notification.Position.MIDDLE
+            );
+            errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            errorNotification.open();
+        }
     }
 }

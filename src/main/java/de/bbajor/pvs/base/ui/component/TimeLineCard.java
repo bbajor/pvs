@@ -59,26 +59,12 @@ public class TimeLineCard extends Card {
             setSubtitle(new Div("Wochentag: " + wochentagString));
 
             if (!config.isFirst()) {
-                SideOfEye sideOfEye = config.getTreatment().getSideOfEye();
-                String sideOfEyeText = "";
-                if (treatmentDate.isAfter(now)) {
-                    sideOfEyeText = "Geplantes ";
-                } else if (treatmentDate.isEqual(now)) {
-                    LocalTime nowTime = LocalTime.now();
-                    if (timeSlot.getStartTime().isAfter(nowTime)) {
-                        sideOfEyeText = "Geplantes ";
-                    } else {
-                        sideOfEyeText = "Heutiges ";
-                    }
-                } else {
-                    sideOfEyeText = "Behandeltes ";
+                // Nur Medikament anzeigen (statt Behandlungsort, Auge, Uhrzeit)
+                if (config.getTreatment().getMedicationFavourite() != null 
+                        && config.getTreatment().getMedicationFavourite().getMedication() != null) {
+                    String medicationName = config.getTreatment().getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+                    add(new Paragraph("Medikament: " + medicationName));
                 }
-                sideOfEyeText += "Auge: ";
-                add(new Paragraph(sideOfEyeText + sideOfEye.toString()));
-                String locationInfo = timeSlot.getSurgicalCenter().getName();
-                add(new Paragraph("Behandlungsort: " + locationInfo));
-                LocalTime startTime = timeSlot.getStartTime();
-                add(new Paragraph("Uhrzeit: " + startTime.toString()));
                 String additionalInfo = config.getAdditionalInfo();
                 if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                     add(new Paragraph(additionalInfo));
@@ -101,10 +87,10 @@ public class TimeLineCard extends Card {
                 }
             }
         } else {
-            setTitle(new Div("In Behandlung seit: "
-                    + DateAndTimeUtils.getGermanDateTimeFormatter().format(config.getFirstDate())));
+            // Erste Card: Andere Darstellung, damit klar ist, dass es keine Behandlung ist
+            setTitle(new Div("Behandlungsplan"));
             String wochentagString = config.getFirstDate().getDayOfWeek().getDisplayName(TextStyle.FULL, getLocale());
-            setSubtitle(new Div("Wochentag: " + wochentagString));
+            setSubtitle(new Div("Start: " + DateAndTimeUtils.getGermanDateTimeFormatter().format(config.getFirstDate()) + " (" + wochentagString + ")"));
             
             // Statistiken anzeigen, falls vorhanden
             if (config.getTreatmentCount() != null && config.getTreatmentCount() > 0) {
@@ -120,12 +106,17 @@ public class TimeLineCard extends Card {
             }
             
             addClassName("start");
+            // Zusätzliches Styling für die erste Card, um sie von Behandlungen zu unterscheiden
+            getStyle().set("border-style", "dashed");
+            getStyle().set("border-width", "2px");
         }
         // Styling (optional)
         getStyle().set("border", "1px solid #ddd");
         getStyle().set("padding", "0.5rem");
         getStyle().set("margin-bottom", "0.4rem");
-        getStyle().set("min-width", "120px");
+        getStyle().set("width", "fit-content"); // Minimale benötigte Breite
+        getStyle().set("min-width", "fit-content"); // Keine Mindestbreite
+        getStyle().set("max-width", "fit-content"); // Maximale Breite = benötigte Breite
         getStyle().set("flex-shrink", "0");
     }
 }

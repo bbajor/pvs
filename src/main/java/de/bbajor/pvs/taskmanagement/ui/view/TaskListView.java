@@ -51,7 +51,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 @Route("aufgabenliste")
-@PageTitle("Zurückliegende Behandlungen die noch überprüft werden müssen")
+@PageTitle("Zurückliegende Behandlungen die noch dokumentiert werden müssen")
 @PermitAll
 public class TaskListView extends Main implements BeforeEnterObserver {
 

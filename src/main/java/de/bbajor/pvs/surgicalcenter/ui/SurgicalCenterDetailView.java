@@ -38,6 +38,7 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
     private final SurgicalCenterListPresenter surgicalCenterListPresenter;
     private final ApplicationContext applicationContext;
     private final SurgicalCenterLayout surgicalCenterLayout;
+    private Button saveButton;
 
     public SurgicalCenterDetailView(SurgicalCenterListPresenter surgicalCenterListPresenter,
             InstitutionRepository institutionRepository, ApplicationContext applicationContext) {
@@ -54,11 +55,14 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
             if (surgicalCenter.getId() == -1) {
                 surgicalCenter.setId(null);
             }
-            surgicalCenterListPresenter.save(surgicalCenter, surgicalCenterLayout.getTimeSlotsToCreate());
+            surgicalCenterListPresenter.saveWithTimeSlots(surgicalCenter, surgicalCenterLayout.getTimeSlotsToCreate());
             UI.getCurrent().navigate("surgicalcenter");
 
         });
         buttonBar.add(createButton);
+        
+        // Speichere Button-Referenz für spätere Aktualisierung
+        this.saveButton = createButton;
         Button cancelButton = new Button("Zurück");
         cancelButton.addClickListener(event -> {
             UI.getCurrent().navigate("surgicalcenter");
@@ -108,6 +112,7 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
                 }
                 
                 surgicalCenterLayout.setBean(newDto);
+                updateButtonText(newDto);
             } else {
                 SurgicalCenter dto = surgicalCenterListPresenter.getById(id);
                 if (dto == null) {
@@ -115,12 +120,29 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
                     return;
                 }
                 surgicalCenterLayout.setBean(dto);
+                updateButtonText(dto);
             }
         } catch (NumberFormatException nfe) {
             event.forwardTo(SurgicalCenterMainView.class);
         } catch (IllegalStateException e) {
             // Institution not found or access denied
             event.forwardTo(SurgicalCenterMainView.class);
+        }
+    }
+    
+    /**
+     * Aktualisiert den Button-Text basierend auf dem Persistenz-Status der Einrichtung.
+     */
+    private void updateButtonText(SurgicalCenter surgicalCenter) {
+        if (saveButton == null) {
+            return;
+        }
+        
+        // Wenn ID null oder -1, dann ist es eine neue Einrichtung
+        if (surgicalCenter == null || surgicalCenter.getId() == null || surgicalCenter.getId() == -1) {
+            saveButton.setText("Erstellen");
+        } else {
+            saveButton.setText("Speichern");
         }
     }
 }

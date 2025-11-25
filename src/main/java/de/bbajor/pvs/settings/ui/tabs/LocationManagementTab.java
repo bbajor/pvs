@@ -111,76 +111,40 @@ public class LocationManagementTab extends VerticalLayout {
         Button cancelButton = new Button("Abbrechen", e -> clearForm());
         cancelButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
-        FormLayout formLayout = new FormLayout();
-        formLayout.add(locationNameField, 2);
-        formLayout.add(streetField, houseNumberField);
-        formLayout.add(postalCodeField, cityField, countryField);
-        formLayout.add(phoneField, emailField);
-        formLayout.add(additionalInfoField, 2);
-        formLayout.add(createButton, 2);
-        formLayout.add(saveButton, cancelButton);
-        formLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2),
-                new FormLayout.ResponsiveStep("1000px", 3)
-        );
-
-        // Configure grid
+        // Configure grid with combined renderer
         grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         
         grid.addColumn(new ComponentRenderer<>(location -> {
-            String name = location.getLocationName() != null ? location.getLocationName() : "-";
-            Span span = new Span(name);
-            span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
-            return span;
-        })).setHeader("Name").setSortable(true).setAutoWidth(true);
-        
-        grid.addColumn(new ComponentRenderer<>(location -> {
-            String address = location.getFullAddress() != null ? location.getFullAddress() : "-";
-            Span span = new Span(address);
-            span.addClassNames(LumoUtility.TextColor.SECONDARY);
-            return span;
-        })).setHeader("Adresse").setAutoWidth(true);
-        
-        grid.addColumn(new ComponentRenderer<>(location -> {
-            String phone = location.getPhone() != null ? location.getPhone() : "-";
-            Span span = new Span(phone);
-            span.addClassNames(LumoUtility.TextColor.SECONDARY);
-            return span;
-        })).setHeader("Telefon").setAutoWidth(true);
-        
-        grid.addColumn(new ComponentRenderer<>(location -> {
-            String email = location.getEmail() != null ? location.getEmail() : "-";
-            Span span = new Span(email);
-            span.addClassNames(LumoUtility.TextColor.SECONDARY);
-            return span;
-        })).setHeader("E-Mail").setAutoWidth(true);
-        
-        grid.addColumn(new ComponentRenderer<>(location -> {
-            String status = location.isActive() ? "Aktiv" : "Inaktiv";
-            Span span = new Span(status);
-            if (location.isActive()) {
-                span.addClassNames(LumoUtility.TextColor.SUCCESS);
-            } else {
-                span.addClassNames(LumoUtility.TextColor.ERROR);
-            }
-            return span;
-        })).setHeader("Status").setSortable(true).setAutoWidth(true);
-
-        grid.addComponentColumn(location -> {
-            Button editButton = new Button("Bearbeiten", e -> editLocation(location));
-            editButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            VerticalLayout layout = new VerticalLayout();
+            layout.setSpacing(false);
+            layout.setPadding(false);
             
-            Button toggleButton = new Button(
-                    location.isActive() ? "Deaktivieren" : "Aktivieren",
-                    e -> toggleLocationStatus(location)
-            );
-            toggleButton.addThemeVariants(
-                    location.isActive() ? ButtonVariant.LUMO_ERROR : ButtonVariant.LUMO_SUCCESS,
-                    ButtonVariant.LUMO_SMALL
-            );
-            return new HorizontalLayout(editButton, toggleButton);
-        }).setHeader("Aktionen");
+            // Name
+            String name = location.getLocationName() != null ? location.getLocationName() : "-";
+            Span nameSpan = new Span(name);
+            nameSpan.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+            layout.add(nameSpan);
+            
+            // Adresse
+            String address = location.getFullAddress() != null ? location.getFullAddress() : "-";
+            Span addressSpan = new Span(address);
+            addressSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            layout.add(addressSpan);
+            
+            // Telefon
+            String phone = location.getPhone() != null ? location.getPhone() : "-";
+            Span phoneSpan = new Span("Tel: " + phone);
+            phoneSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            layout.add(phoneSpan);
+            
+            // E-Mail
+            String email = location.getEmail() != null ? location.getEmail() : "-";
+            Span emailSpan = new Span("E-Mail: " + email);
+            emailSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            layout.add(emailSpan);
+            
+            return layout;
+        })).setHeader("Standort").setSortable(true).setAutoWidth(true);
 
         grid.asSingleSelect().addValueChangeListener(e -> {
             if (e.getValue() != null) {
@@ -192,9 +156,40 @@ public class LocationManagementTab extends VerticalLayout {
 
         grid.setSizeFull();
 
+        // Form layout
+        FormLayout formLayout = new FormLayout();
+        formLayout.add(locationNameField, 2);
+        formLayout.add(streetField, houseNumberField);
+        formLayout.add(postalCodeField, cityField, countryField);
+        formLayout.add(phoneField, emailField);
+        formLayout.add(additionalInfoField, 2);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("1000px", 3)
+        );
+
+        // Button layout
+        HorizontalLayout buttonLayout = new HorizontalLayout(createButton, saveButton, cancelButton);
+        buttonLayout.setSpacing(true);
+
+        // Form section
+        VerticalLayout formSection = new VerticalLayout(formLayout, buttonLayout);
+        formSection.setSpacing(true);
+        formSection.setPadding(true);
+        formSection.setWidth("500px");
+
+        // Main layout: Grid left, Form right
+        HorizontalLayout mainLayout = new HorizontalLayout(grid, formSection);
+        mainLayout.setSizeFull();
+        mainLayout.setFlexGrow(1, grid);
+        mainLayout.setFlexGrow(0, formSection);
+
         setSizeFull();
-        add(title, formLayout, grid);
-        setFlexGrow(1, grid);
+        setPadding(false);
+        setSpacing(false);
+        add(title, mainLayout);
+        expand(mainLayout);
         refreshGrid();
     }
 

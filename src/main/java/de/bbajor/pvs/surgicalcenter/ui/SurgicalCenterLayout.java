@@ -4,6 +4,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -14,14 +15,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.accordion.AccordionPanel;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.details.DetailsVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -32,6 +33,7 @@ import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.server.StreamRegistration;
 import com.vaadin.flow.server.StreamResource;
@@ -52,6 +54,7 @@ import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotConfig;
+import de.bbajor.pvs.surgicalcenter.presenter.TimeSlotCreator;
 import de.bbajor.pvs.taskmanagement.service.TreatmentReportService;
 
 public class SurgicalCenterLayout extends HorizontalLayout {
@@ -68,10 +71,13 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     private TimeSlotConfigForm timeSlotConfigForm = new TimeSlotConfigForm();
     private final Grid<SurgicalCenterTimeSlot> availableTimeSlots = new Grid<>();
     private final Grid<Treatment> plannedTreatmentsGrid = new Grid<>();
+    private final Grid<SurgicalCenterTimeSlot> newTimeSlotsGrid = new Grid<>();
     private final ApplicationContext applicationContext;
     private SurgicalCenterTimeSlot selectedTimeSlot;
     private boolean showPastSlots = false;
     private Button togglePastSlotsButton;
+    private final List<SurgicalCenterTimeSlot> newTimeSlotsList = new ArrayList<>();
+    private Div plannedTreatmentsSection;
 
     public SurgicalCenterLayout(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -185,39 +191,57 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         detailsLayout.setSizeFull();
         detailsLayout.setPadding(true);
 
+        // Sections "Allgemeine Informationen" und "Adresse" nebeneinander
+        HorizontalLayout infoAndAddressLayout = new HorizontalLayout();
+        infoAndAddressLayout.setSizeFull();
+        infoAndAddressLayout.setSpacing(true);
+        infoAndAddressLayout.setPadding(false);
+        
+        // Section "Allgemeine Informationen" statt Accordion
+        Div generalSection = createSection("Allgemeine Informationen");
         FormLayout form = new FormLayout();
         form.setSizeFull();
-        form.setMinColumns(4);
+        form.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("400px", 2),
+                new FormLayout.ResponsiveStep("800px", 3),
+                new FormLayout.ResponsiveStep("1200px", 4)
+        );
         form.add(unitNameField, phoneField, emailField, contactField, phoneContactField);
-        AccordionPanel generalAccordion = new AccordionPanel("Allgemeine Informationen", form);
-        generalAccordion.addThemeVariants(DetailsVariant.SMALL);
-        generalAccordion.setOpened(true);
-        detailsLayout.add(generalAccordion);
+        // Telefon- und E-Mail-Felder auf normale Größe setzen
+        phoneField.setWidthFull();
+        emailField.setWidthFull();
+        phoneContactField.setWidthFull();
+        generalSection.add(form);
+        infoAndAddressLayout.add(generalSection);
+        infoAndAddressLayout.setFlexGrow(1, generalSection);
 
+        // Section "Adresse" statt Accordion
+        Div addressSection = createSection("Adresse");
         FormLayout addressFormLayout = new FormLayout();
         addressFormLayout.setSizeFull();
         addressFormLayout.add(addressForm);
         addressFormLayout.setColspan(addressForm, 2);
-        AccordionPanel addressAccordion = new AccordionPanel("Adresse", addressFormLayout);
-        addressAccordion.addThemeVariants(DetailsVariant.SMALL);
-        addressAccordion.setOpened(true);
-        detailsLayout.add(addressAccordion);
-
-        // Create TimeSlots Tab Content
-        VerticalLayout timeSlotsLayout = new VerticalLayout();
-        timeSlotsLayout.setSizeFull();
-        timeSlotsLayout.setPadding(true);
-
-        AccordionPanel timeSlotCreationAccordion = new AccordionPanel("OP-Slot hinzufügen", timeSlotConfigForm);
-        timeSlotCreationAccordion.addThemeVariants(DetailsVariant.SMALL);
-        timeSlotCreationAccordion.setOpened(true);
-        timeSlotsLayout.add(timeSlotCreationAccordion);
+        addressSection.add(addressFormLayout);
+        infoAndAddressLayout.add(addressSection);
+        infoAndAddressLayout.setFlexGrow(1, addressSection);
         
+        detailsLayout.add(infoAndAddressLayout);
+
+        // Zwei Grids nebeneinander: "Vorhandene Zeitslots" und "Geplante Behandlungen"
+        HorizontalLayout gridsLayout = new HorizontalLayout();
+        gridsLayout.setSizeFull();
+        gridsLayout.setSpacing(true);
+        gridsLayout.setPadding(false);
+
+        // Grid "Vorhandene Zeitslots"
         VerticalLayout availableTimeSlotsLayout = new VerticalLayout();
         availableTimeSlotsLayout.setSizeFull();
-        availableTimeSlotsLayout.setMinHeight("600px");
-        availableTimeSlotsLayout.setSpacing(true);
-        availableTimeSlotsLayout.setPadding(true);
+        availableTimeSlotsLayout.setPadding(false);
+        availableTimeSlotsLayout.setSpacing(false);
+        
+        Div availableSlotsSection = createSection("Vorhandene Zeitslots");
+        availableSlotsSection.setHeightFull();
         
         // Header mit Toggle-Button
         HorizontalLayout slotsHeader = new HorizontalLayout();
@@ -238,7 +262,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         slotsHeader.add(slotsTitle);
         slotsHeader.setFlexGrow(1, slotsTitle);
         slotsHeader.add(togglePastSlotsButton);
-        availableTimeSlotsLayout.add(slotsHeader);
+        availableSlotsSection.add(slotsHeader);
         
         // Grid konfigurieren
         availableTimeSlots.addColumn(dto -> DateAndTimeUtils.getGermanDateTimeFormatter().format(dto.getDate()))
@@ -262,7 +286,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         
         // PDF-Icon-Spalte für Sammelbericht (nur wenn Patienten vorhanden)
         availableTimeSlots.addColumn(
-            new com.vaadin.flow.data.renderer.ComponentRenderer<>(slot -> {
+            new ComponentRenderer<>(slot -> {
                 Integer patientCount = slot.getPatientCount();
                 if (patientCount == null || patientCount == 0) {
                     return new Div("-");
@@ -296,7 +320,8 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         );
         
         availableTimeSlots.setSizeFull();
-        availableTimeSlots.setPageSize(20); // Paging aktivieren
+        availableTimeSlots.setMinHeight("400px");
+        availableTimeSlots.setPageSize(20);
         availableTimeSlots.setSelectionMode(SelectionMode.SINGLE);
         availableTimeSlots.addSelectionListener(event -> {
             event.getFirstSelectedItem().ifPresentOrElse(
@@ -307,57 +332,74 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                 () -> {
                     selectedTimeSlot = null;
                     plannedTreatmentsGrid.setItems(List.of());
+                    plannedTreatmentsSection.setVisible(false);
                 }
             );
         });
         
-        availableTimeSlotsLayout.add(availableTimeSlots);
-        timeSlotsLayout.add(availableTimeSlotsLayout);
-        
-        // Grid für geplante Behandlungen
+        availableSlotsSection.add(availableTimeSlots);
+        availableTimeSlotsLayout.add(availableSlotsSection);
+        availableTimeSlotsLayout.setFlexGrow(1, availableSlotsSection);
+        gridsLayout.add(availableTimeSlotsLayout);
+        gridsLayout.setFlexGrow(1, availableTimeSlotsLayout);
+
+        // Grid "Geplante Behandlungen" mit Patientendaten-Renderer
         VerticalLayout plannedTreatmentsLayout = new VerticalLayout();
         plannedTreatmentsLayout.setSizeFull();
-        plannedTreatmentsLayout.setPadding(true);
-        plannedTreatmentsLayout.setSpacing(true);
+        plannedTreatmentsLayout.setPadding(false);
+        plannedTreatmentsLayout.setSpacing(false);
         
-        Div treatmentsTitle = new Div("Geplante Behandlungen");
-        treatmentsTitle.getStyle().set("font-weight", "bold");
-        treatmentsTitle.getStyle().set("font-size", "var(--lumo-font-size-l)");
-        plannedTreatmentsLayout.add(treatmentsTitle);
+        plannedTreatmentsSection = createSection("Geplante Behandlungen");
+        plannedTreatmentsSection.setHeightFull();
+        plannedTreatmentsSection.setVisible(false); // Initial nicht sichtbar
         
-        // Grid konfigurieren
+        // Grid konfigurieren - gleiche Höhe wie "Vorhandene Zeitslots"
         plannedTreatmentsGrid.setSizeFull();
         plannedTreatmentsGrid.setMinHeight("400px");
         plannedTreatmentsGrid.setSelectionMode(SelectionMode.NONE);
         
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN);
         
-        plannedTreatmentsGrid.addColumn(t -> {
+        // Patientendaten-Renderer (eine Spalte)
+        plannedTreatmentsGrid.addColumn(new ComponentRenderer<>(t -> {
             Patient patient = t.getTreatmentPlan() != null ? t.getTreatmentPlan().getPatient() : null;
-            return patient != null && patient.getLastName() != null ? patient.getLastName() : "-";
-        }).setHeader("Name").setWidth("150px").setFlexGrow(0);
-        
-        plannedTreatmentsGrid.addColumn(t -> {
-            Patient patient = t.getTreatmentPlan() != null ? t.getTreatmentPlan().getPatient() : null;
-            return patient != null && patient.getFirstName() != null ? patient.getFirstName() : "-";
-        }).setHeader("Vorname").setWidth("150px").setFlexGrow(0);
-        
-        plannedTreatmentsGrid.addColumn(t -> {
-            Patient patient = t.getTreatmentPlan() != null ? t.getTreatmentPlan().getPatient() : null;
-            if (patient != null && patient.getBirth() != null) {
-                return dateFormatter.format(patient.getBirth());
+            if (patient == null) {
+                return new Span("-");
             }
-            return "-";
-        }).setHeader("Geburtsdatum").setWidth("120px").setFlexGrow(0);
-        
-        plannedTreatmentsGrid.addColumn(t -> {
-            Patient patient = t.getTreatmentPlan() != null ? t.getTreatmentPlan().getPatient() : null;
-            if (patient != null && patient.getHealthInsurance() != null && 
+            VerticalLayout patientLayout = new VerticalLayout();
+            patientLayout.setSpacing(false);
+            patientLayout.setPadding(false);
+            
+            String name = "";
+            if (patient.getLastName() != null) {
+                name = patient.getLastName();
+            }
+            if (patient.getFirstName() != null) {
+                name += (name.isEmpty() ? "" : ", ") + patient.getFirstName();
+            }
+            if (!name.isEmpty()) {
+                Span nameSpan = new Span(name);
+                nameSpan.getStyle().set("font-weight", "600");
+                patientLayout.add(nameSpan);
+            }
+            
+            if (patient.getBirth() != null) {
+                Span birthSpan = new Span("geb. " + dateFormatter.format(patient.getBirth()));
+                birthSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
+                birthSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+                patientLayout.add(birthSpan);
+            }
+            
+            if (patient.getHealthInsurance() != null && 
                 patient.getHealthInsurance().getBillingCarrierName() != null) {
-                return patient.getHealthInsurance().getBillingCarrierName();
+                Span insuranceSpan = new Span(patient.getHealthInsurance().getBillingCarrierName());
+                insuranceSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
+                insuranceSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+                patientLayout.add(insuranceSpan);
             }
-            return "-";
-        }).setHeader("Versicherung").setWidth("150px").setFlexGrow(0);
+            
+            return patientLayout;
+        })).setHeader("Patient").setWidth("200px").setFlexGrow(1);
         
         plannedTreatmentsGrid.addColumn(t -> t.getSideOfEye() != null ? t.getSideOfEye().toString() : "-")
             .setHeader("Auge").setWidth("100px").setFlexGrow(0);
@@ -369,15 +411,87 @@ public class SurgicalCenterLayout extends HorizontalLayout {
             return "-";
         }).setHeader("Medikament").setWidth("200px").setFlexGrow(1);
         
-        plannedTreatmentsGrid.addColumn(t -> {
-            if (t.getAdditionalInfo() != null && !t.getAdditionalInfo().isBlank()) {
-                return t.getAdditionalInfo();
-            }
-            return "-";
-        }).setHeader("Bemerkungen").setWidth("200px").setFlexGrow(1);
+        plannedTreatmentsSection.add(plannedTreatmentsGrid);
+        plannedTreatmentsLayout.add(plannedTreatmentsSection);
+        plannedTreatmentsLayout.setFlexGrow(1, plannedTreatmentsSection);
+        gridsLayout.add(plannedTreatmentsLayout);
+        gridsLayout.setFlexGrow(1, plannedTreatmentsLayout);
         
-        plannedTreatmentsLayout.add(plannedTreatmentsGrid);
-        timeSlotsLayout.add(plannedTreatmentsLayout);
+        detailsLayout.add(gridsLayout);
+        detailsLayout.setFlexGrow(1, gridsLayout);
+
+        // Create TimeSlots Tab Content
+        VerticalLayout timeSlotsLayout = new VerticalLayout();
+        timeSlotsLayout.setSizeFull();
+        timeSlotsLayout.setPadding(true);
+
+        // Section "OP-Slot hinzufügen" statt Accordion - kompakter
+        Div timeSlotCreationSection = createSection("OP-Slot hinzufügen");
+        timeSlotCreationSection.getStyle().set("max-height", "300px");
+        timeSlotCreationSection.getStyle().set("overflow", "auto");
+        timeSlotCreationSection.add(timeSlotConfigForm);
+        timeSlotsLayout.add(timeSlotCreationSection);
+        
+        // Grid "Neue Zeitslots" für noch nicht persistierte Slots
+        Div newTimeSlotsSection = createSection("Neue Zeitslots");
+        
+        // Grid konfigurieren
+        newTimeSlotsGrid.setSizeFull();
+        newTimeSlotsGrid.setMinHeight("400px");
+        newTimeSlotsGrid.setSelectionMode(SelectionMode.MULTI);
+        
+        newTimeSlotsGrid.addColumn(dto -> DateAndTimeUtils.getGermanDateTimeFormatter().format(dto.getDate()))
+                .setHeader("Datum").setWidth("120px").setFlexGrow(0);
+        newTimeSlotsGrid.addColumn(new TextRenderer<>(slot -> {
+            LocalDate date = slot.getDate();
+            if (date == null) {
+                return "";
+            }
+            Locale locale = Locale.GERMAN;
+            DayOfWeek dow = date.getDayOfWeek();
+            return dow.getDisplayName(TextStyle.FULL, locale);
+        })).setHeader("Wochentag").setWidth("120px").setFlexGrow(0);
+        newTimeSlotsGrid.addColumn(new TextRenderer<>(slot -> {
+            String start = slot.getStartTime() == null ? "-" : slot.getStartTime().toString();
+            String end = slot.getEndTime() == null ? "-" : slot.getEndTime().toString();
+            return start + " - " + end + " Uhr";
+        })).setHeader("Uhrzeit").setWidth("150px").setFlexGrow(0);
+        
+        // Spalte für Löschen-Button
+        newTimeSlotsGrid.addColumn(new ComponentRenderer<>(slot -> {
+            Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            deleteButton.setTooltipText("Entfernen");
+            deleteButton.addClickListener(e -> {
+                newTimeSlotsList.remove(slot);
+                refreshNewTimeSlotsGrid();
+            });
+            return deleteButton;
+        })).setHeader("Aktion").setWidth("100px").setFlexGrow(0);
+        
+        // CSS-Klassen für ungültige Slots (Überschneidungen)
+        newTimeSlotsGrid.setClassNameGenerator(slot -> {
+            if (hasOverlap(slot)) {
+                return "invalid-time-slot";
+            }
+            return null;
+        });
+        
+        // Inline CSS für rote Hinterlegung bei Überschneidungen
+        getElement().executeJs(
+            "const style = document.createElement('style');" +
+            "style.textContent = `" +
+            "  vaadin-grid-row[class*='invalid-time-slot'] { background-color: #ffebee !important; }" +
+            "`;" +
+            "document.head.appendChild(style);"
+        );
+        
+        newTimeSlotsSection.add(newTimeSlotsGrid);
+        timeSlotsLayout.add(newTimeSlotsSection);
+        timeSlotsLayout.setFlexGrow(1, newTimeSlotsSection);
+        
+        // Setze Callback für TimeSlotConfigForm
+        timeSlotConfigForm.setOnSlotAddedCallback(this::handleAddTimeSlot);
 
         // Add tabs to TabSheet
         tabSheet.add("Stammdaten", detailsLayout);
@@ -388,6 +502,9 @@ public class SurgicalCenterLayout extends HorizontalLayout {
 
     public void setBean(SurgicalCenter dto) {
         binder.setBean(dto);
+        // Setze neue Slots-Liste zurück
+        newTimeSlotsList.clear();
+        refreshNewTimeSlotsGrid();
         if (dto != null && dto.getAvailableTimeSlots() != null) {
             refreshTimeSlotsGrid();
         }
@@ -454,13 +571,14 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         return surgicalCenter;
     }
 
-    public List<TimeSlotConfig> getTimeSlotsToCreate() {
-        return timeSlotConfigForm.getTimeSlotConfigList();
+    public List<SurgicalCenterTimeSlot> getTimeSlotsToCreate() {
+        return new ArrayList<>(newTimeSlotsList);
     }
     
     private void loadPlannedTreatments(SurgicalCenterTimeSlot timeSlot) {
         if (timeSlot == null || timeSlot.getId() == null) {
             plannedTreatmentsGrid.setItems(List.of());
+            plannedTreatmentsSection.setVisible(false);
             return;
         }
         
@@ -488,6 +606,9 @@ public class SurgicalCenterLayout extends HorizontalLayout {
             .collect(Collectors.toList());
         
         plannedTreatmentsGrid.setItems(sortedTreatments);
+        
+        // Section nur sichtbar machen, wenn Behandlungen vorhanden sind
+        plannedTreatmentsSection.setVisible(!sortedTreatments.isEmpty());
         
         // Button ist nicht mehr nötig, da PDF-Icon direkt im Grid ist
     }
@@ -558,6 +679,224 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                 resourceUrl, filename
             );
         });
+    }
+    
+    /**
+     * Erstellt eine Section (wie im IVOM-Planer) statt Accordion.
+     */
+    private Div createSection(String title) {
+        Div section = new Div();
+        section.addClassName("dialog-section");
+        section.setWidthFull();
+        section.getStyle().set("display", "flex");
+        section.getStyle().set("flex-direction", "column");
+        section.getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+        section.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
+        section.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
+        section.getStyle().set("padding", "var(--lumo-space-m)");
+        section.getStyle().set("box-sizing", "border-box");
+        section.getStyle().set("margin-bottom", "var(--lumo-space-m)");
+        
+        H4 sectionTitle = new H4(title);
+        sectionTitle.getStyle().set("margin-top", "0");
+        sectionTitle.getStyle().set("margin-bottom", "var(--lumo-space-s)");
+        sectionTitle.getStyle().set("color", "var(--lumo-primary-text-color)");
+        sectionTitle.getStyle().set("font-size", "var(--lumo-font-size-m)");
+        sectionTitle.getStyle().set("font-weight", "600");
+        sectionTitle.getStyle().set("flex-shrink", "0");
+        section.add(sectionTitle);
+        
+        return section;
+    }
+    
+    /**
+     * Behandelt das Hinzufügen eines neuen Zeitslots.
+     * Erstellt die Slots aus der Konfiguration und fügt sie zum Grid hinzu.
+     */
+    private void handleAddTimeSlot() {
+        List<TimeSlotConfig> configs = timeSlotConfigForm.getTimeSlotConfigList();
+        if (configs.isEmpty()) {
+            Notification.show("Bitte füllen Sie alle Felder aus und klicken Sie auf '+ hinzufügen'.", 
+                3000, Notification.Position.MIDDLE);
+            return;
+        }
+        
+        SurgicalCenter surgicalCenter = binder.getBean();
+        if (surgicalCenter == null) {
+            Notification.show("Bitte speichern Sie zuerst die Stammdaten.", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+        
+        // Erstelle Slots aus der letzten Konfiguration
+        TimeSlotConfig lastConfig = configs.get(configs.size() - 1);
+        lastConfig.setSurgicalCenter(surgicalCenter);
+        List<SurgicalCenterTimeSlot> newSlots = TimeSlotCreator.createTimeSlots(lastConfig);
+        
+        if (newSlots.isEmpty()) {
+            Notification.show("Es konnten keine Zeitslots erstellt werden. Bitte überprüfen Sie die Eingaben.", 
+                3000, Notification.Position.MIDDLE);
+            return;
+        }
+        
+        // Prüfe auf Duplikate und Überschneidungen
+        List<String> warnings = new ArrayList<>();
+        List<SurgicalCenterTimeSlot> slotsToAdd = new ArrayList<>();
+        
+        for (SurgicalCenterTimeSlot newSlot : newSlots) {
+            // Prüfe auf Duplikate in der neuen Liste
+            boolean isDuplicate = newTimeSlotsList.stream()
+                .anyMatch(existing -> isSameSlot(existing, newSlot));
+            
+            if (isDuplicate) {
+                warnings.add("Duplikat: " + formatSlotInfo(newSlot));
+                continue;
+            }
+            
+            // Prüfe auf Überschneidungen mit neuen Slots
+            SurgicalCenterTimeSlot overlappingNew = newTimeSlotsList.stream()
+                .filter(existing -> hasTimeOverlap(existing, newSlot))
+                .findFirst()
+                .orElse(null);
+            
+            if (overlappingNew != null) {
+                warnings.add("Überschneidung: " + formatSlotInfo(newSlot) + 
+                    " überschneidet sich mit " + formatSlotInfo(overlappingNew));
+            }
+            
+            // Prüfe auf Überschneidungen mit persistierten Slots
+            if (surgicalCenter.getAvailableTimeSlots() != null) {
+                SurgicalCenterTimeSlot overlappingExisting = surgicalCenter.getAvailableTimeSlots().stream()
+                    .filter(existing -> hasTimeOverlap(existing, newSlot))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (overlappingExisting != null) {
+                    warnings.add("Überschneidung: " + formatSlotInfo(newSlot) + 
+                        " überschneidet sich mit einem bereits vorhandenen Slot am " + 
+                        DateAndTimeUtils.getGermanDateTimeFormatter().format(newSlot.getDate()) + 
+                        " um " + (overlappingExisting.getStartTime() != null ? 
+                            overlappingExisting.getStartTime().toString() : "") + 
+                        " - " + (overlappingExisting.getEndTime() != null ? 
+                            overlappingExisting.getEndTime().toString() : ""));
+                }
+            }
+            
+            slotsToAdd.add(newSlot);
+        }
+        
+        // Zeige Warnungen an, aber füge Slots trotzdem hinzu
+        if (!warnings.isEmpty()) {
+            String warningMessage = "Warnung: Es wurden Überschneidungen oder Duplikate erkannt:\n" + 
+                String.join("\n", warnings) + 
+                "\n\nBitte lösen Sie die Überschneidungen auf, bevor Sie die Slots speichern.";
+            Notification notification = Notification.show(warningMessage, 10000, Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
+        }
+        
+        // Füge Slots zur Liste hinzu
+        newTimeSlotsList.addAll(slotsToAdd);
+        refreshNewTimeSlotsGrid();
+    }
+    
+    /**
+     * Prüft, ob eine Slot-Konfiguration gültig ist.
+     */
+    private boolean isValidSlotConfig(TimeSlotConfig config) {
+        return config != null && 
+               config.getDayOfWeek() != null &&
+               config.getStartTime() != null &&
+               config.getEndTime() != null &&
+               config.getPeriodStartDate() != null &&
+               config.getStartTime().isBefore(config.getEndTime());
+    }
+    
+    /**
+     * Prüft, ob zwei Slots identisch sind (Duplikat).
+     */
+    private boolean isSameSlot(SurgicalCenterTimeSlot slot1, SurgicalCenterTimeSlot slot2) {
+        if (slot1 == null || slot2 == null) {
+            return false;
+        }
+        return slot1.getDate() != null && slot2.getDate() != null &&
+               slot1.getDate().equals(slot2.getDate()) &&
+               slot1.getStartTime() != null && slot2.getStartTime() != null &&
+               slot1.getStartTime().equals(slot2.getStartTime()) &&
+               slot1.getEndTime() != null && slot2.getEndTime() != null &&
+               slot1.getEndTime().equals(slot2.getEndTime());
+    }
+    
+    /**
+     * Prüft, ob zwei Slots zeitlich überschneiden.
+     */
+    private boolean hasTimeOverlap(SurgicalCenterTimeSlot slot1, SurgicalCenterTimeSlot slot2) {
+        if (slot1 == null || slot2 == null) {
+            return false;
+        }
+        if (slot1.getDate() == null || slot2.getDate() == null) {
+            return false;
+        }
+        if (!slot1.getDate().equals(slot2.getDate())) {
+            return false;
+        }
+        if (slot1.getStartTime() == null || slot1.getEndTime() == null ||
+            slot2.getStartTime() == null || slot2.getEndTime() == null) {
+            return false;
+        }
+        
+        // Überschneidung: Start oder Ende von slot2 liegt innerhalb von slot1
+        return (slot2.getStartTime().isAfter(slot1.getStartTime()) && 
+                slot2.getStartTime().isBefore(slot1.getEndTime())) ||
+               (slot2.getEndTime().isAfter(slot1.getStartTime()) && 
+                slot2.getEndTime().isBefore(slot1.getEndTime())) ||
+               (slot2.getStartTime().equals(slot1.getStartTime()) && 
+                slot2.getEndTime().equals(slot1.getEndTime()));
+    }
+    
+    /**
+     * Prüft, ob ein Slot Überschneidungen hat.
+     */
+    private boolean hasOverlap(SurgicalCenterTimeSlot slot) {
+        if (slot == null) {
+            return false;
+        }
+        
+        // Prüfe Überschneidungen mit anderen neuen Slots
+        boolean hasOverlapWithNew = newTimeSlotsList.stream()
+            .anyMatch(existing -> existing != slot && hasTimeOverlap(existing, slot));
+        
+        if (hasOverlapWithNew) {
+            return true;
+        }
+        
+        // Prüfe Überschneidungen mit persistierten Slots
+        SurgicalCenter surgicalCenter = binder.getBean();
+        if (surgicalCenter != null && surgicalCenter.getAvailableTimeSlots() != null) {
+            return surgicalCenter.getAvailableTimeSlots().stream()
+                .anyMatch(existing -> hasTimeOverlap(existing, slot));
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Formatiert Slot-Informationen für Anzeige.
+     */
+    private String formatSlotInfo(SurgicalCenterTimeSlot slot) {
+        if (slot == null) {
+            return "unbekannt";
+        }
+        String date = slot.getDate() != null ? 
+            DateAndTimeUtils.getGermanDateTimeFormatter().format(slot.getDate()) : "unbekannt";
+        String time = slot.getStartTime() != null && slot.getEndTime() != null ?
+            slot.getStartTime().toString() + " - " + slot.getEndTime().toString() : "unbekannt";
+        return date + " " + time;
+    }
+    
+    /**
+     * Aktualisiert das Grid "Neue Zeitslots".
+     */
+    private void refreshNewTimeSlotsGrid() {
+        newTimeSlotsGrid.setItems(newTimeSlotsList);
     }
     
     /**
