@@ -14,6 +14,8 @@ WORKDIR /app
 # Copy dependency files first for better caching
 COPY build.gradle settings.gradle gradle.properties ./
 COPY gradle/ gradle/
+# Copy pvs-common module (required by settings.gradle)
+COPY pvs-common/ pvs-common/
 # Dependency-Download mit Cache (nur wenn nicht im CI)
 RUN gradle dependencies --no-daemon --build-cache --parallel || true
 
