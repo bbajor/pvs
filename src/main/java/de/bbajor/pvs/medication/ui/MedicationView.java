@@ -220,12 +220,16 @@ public class MedicationView extends Main {
 
         refreshData();
 
-        // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
-        getStyle().set("padding", "var(--lumo-space-l, 1.5rem)");
-        getStyle().set("box-sizing", "border-box");
+        // Container als Flexbox konfigurieren
         setSizeFull();
-        addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
-                "view-content", LumoUtility.Gap.MEDIUM);
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("min-height", "0");
+        addClassNames("view-content");
+        
+        // Grid-Styling wie im IVOM-Planer
+        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
     }
 
     private Upload initUpload() {

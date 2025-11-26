@@ -273,6 +273,12 @@ vaadin-vertical-layout.view-content vaadin-grid {
     margin-bottom: var(--lumo-space-m, 1rem) !important;
 }
 
+/* Grids direkt in Main-Views - konsistente Margins wie im IVOM-Planer */
+main > vaadin-grid {
+    margin-top: var(--lumo-space-m, 1rem) !important;
+    margin-bottom: var(--lumo-space-m, 1rem) !important;
+}
+
 /* Buttons in HorizontalLayouts - automatische Margins rechts */
 .view-content vaadin-horizontal-layout vaadin-button,
 main vaadin-horizontal-layout vaadin-button,

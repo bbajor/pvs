@@ -12,11 +12,9 @@ import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
-import de.bbajor.pvs.institution.context.InstitutionContext;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Menu;
@@ -56,7 +54,7 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         createButton.setText("Neue Einrichtung");
         createButton.addClickListener(event -> {
             SurgicalCenter dto = new SurgicalCenter();
-            dto.setId(Integer.valueOf(-1));
+            dto.setId(-1);
             navigateToDetailView(dto);
         });
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -76,6 +74,12 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         H1 title = new H1("Operative Einrichtungen");
         add(title);
 
+        // Container als Flexbox konfigurieren
+        setSizeFull();
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("min-height", "0");
+
         // Section für Buttons und Suche
         Div toolbarSection = createToolbarSection();
         toolbarSection.getStyle().set("flex-shrink", "0");
@@ -84,9 +88,9 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         // Grid - nimmt restlichen Platz ein und scrollt
         configureGrid();
         grid.setSizeFull();
+        grid.getStyle().set("flex-grow", "1");
+        grid.getStyle().set("min-height", "0");
         add(grid);
-
-        setSizeFull();
     }
 
     @Override
@@ -139,7 +143,7 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         return section;
     }
     
-    private void filterGrid(String searchTerm) {
+    private void filterGrid(@SuppressWarnings("unused") String searchTerm) {
         // TODO filtern über eine FilterRow im Grid
         grid.getDataProvider().refreshAll();
     }
@@ -165,7 +169,7 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         })).setHeader("Nr.").setResizable(false).setAutoWidth(true).setFlexGrow(0);
         
         // Verbesserte Grid-Spalten mit ComponentRenderer
-        Grid.Column<SurgicalCenter> nameColumn = grid.addColumn(new ComponentRenderer<>(center -> {
+        grid.addColumn(new ComponentRenderer<>(center -> {
             String nameStr = center.getName() != null ? center.getName() : "-";
             Span name = new Span(nameStr);
             name.addClassNames(LumoUtility.FontWeight.SEMIBOLD);

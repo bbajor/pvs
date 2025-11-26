@@ -48,6 +48,7 @@ public class SettingsView extends Main {
 
         Tabs tabs = new Tabs(generalTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
         tabs.setWidthFull();
+        tabs.getStyle().set("flex-shrink", "0");
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
@@ -69,15 +70,21 @@ public class SettingsView extends Main {
             }
         });
 
+        // Container als Flexbox konfigurieren
+        setSizeFull();
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("min-height", "0");
+
         content.setSizeFull();
+        content.getStyle().set("flex-grow", "1");
+        content.getStyle().set("min-height", "0");
 
         add(tabs, content);
 
         // Show first tab by default
         tabs.setSelectedTab(generalTab);
         content.add(institutionGeneralTab);
-
-        setSizeFull();
     }
 
 }

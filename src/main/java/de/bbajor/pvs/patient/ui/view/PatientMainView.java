@@ -70,6 +70,12 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         H1 title = new H1("Übersicht Patienten");
         add(title);
 
+        // Container als Flexbox konfigurieren
+        setSizeFull();
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("min-height", "0");
+
         // Section für Buttons und Suche
         Div toolbarSection = createToolbarSection();
         toolbarSection.getStyle().set("flex-shrink", "0");
@@ -78,9 +84,9 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         // Grid - nimmt restlichen Platz ein und scrollt
         configureGrid();
         patientGrid.setSizeFull();
+        patientGrid.getStyle().set("flex-grow", "1");
+        patientGrid.getStyle().set("min-height", "0");
         add(patientGrid);
-
-        setSizeFull();
     }
 
     private Div createToolbarSection() {
@@ -286,8 +292,9 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         // Zeilenumbruch in Zellen aktivieren
         patientGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
 
-        // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
+        // Grid-Styling wie im IVOM-Planer
         patientGrid.setWidthFull();
+        patientGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
         patientGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
         patientGrid.asSingleSelect().addValueChangeListener(event -> {
             Patient patientDto = event.getValue();

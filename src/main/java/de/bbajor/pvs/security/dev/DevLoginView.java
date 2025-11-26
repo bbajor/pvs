@@ -46,6 +46,9 @@ import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.PostConstruct;
+import javax.sql.DataSource;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.html.Label;
 
 /**
  * Login view for development.
@@ -63,18 +66,36 @@ class DevLoginView extends Main implements BeforeEnterObserver {
     private final AuthenticationContext authenticationContext;
     private final UserAccountRepository userAccountRepository;
     private final org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider;
+    private final DataSource dataSource;
     private final TextField tenantCodeField;
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final Button loginButton;
     private Div exampleUsersDiv;
+    private Div usersScrollContainer;
+    private Checkbox prodLoginModeCheckbox;
+    private H2 loginTitle;
+    private boolean isProdLoginMode = false;
+    private boolean isH2Database = false;
 
     DevLoginView(AuthenticationContext authenticationContext, UserAccountRepository userAccountRepository,
-                 org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider) {
+                 org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider,
+                 DataSource dataSource) {
         this.authenticationContext = authenticationContext;
         this.userAccountRepository = userAccountRepository;
         // Use ObjectProvider to avoid eager initialization issues
         this.authenticationManagerProvider = authenticationManagerProvider;
+        this.dataSource = dataSource;
+        
+        // Prüfe, ob H2-Datenbank verwendet wird
+        try {
+            String jdbcUrl = dataSource.getConnection().getMetaData().getURL();
+            isH2Database = jdbcUrl.startsWith("jdbc:h2:");
+            log.debug("Database URL: {}, isH2: {}", jdbcUrl, isH2Database);
+        } catch (Exception e) {
+            log.warn("Could not determine database type: {}", e.getMessage());
+            isH2Database = false;
+        }
 
         // Create custom login form with institution/tenant code field
         // During migration, supports both Institution Code and Tenant Code (legacy)
@@ -98,7 +119,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         loginButton.addClickListener(event -> performLogin());
 
         // Create login form with title
-        var loginTitle = new H2("Anmeldung");
+        loginTitle = new H2("Anmeldung");
         loginTitle.addClassNames("dev-login-title");
         
         var loginForm = new FormLayout();
@@ -126,6 +147,28 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         exampleUsersDiv = new Div();
         exampleUsersDiv.addClassNames("dev-users");
 
+        // Switch für Dev/Prod Login (nur bei H2-Datenbank)
+        if (isH2Database) {
+            prodLoginModeCheckbox = new Checkbox("Produktions-Login-Modus");
+            prodLoginModeCheckbox.setValue(false);
+            prodLoginModeCheckbox.addValueChangeListener(e -> {
+                isProdLoginMode = e.getValue();
+                updateLoginMode();
+            });
+            var switchLabel = new Label("Für lokales Testen mit H2-Datenbank können Sie zwischen Dev- und Prod-Login wechseln");
+            switchLabel.getStyle().set("font-size", "var(--lumo-font-size-s)");
+            switchLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            switchLabel.getStyle().set("margin-top", "var(--lumo-space-xs)");
+            
+            var switchContainer = new Div(prodLoginModeCheckbox, switchLabel);
+            switchContainer.getStyle().set("margin-top", "var(--lumo-space-m)");
+            switchContainer.getStyle().set("padding", "var(--lumo-space-s)");
+            switchContainer.getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+            switchContainer.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
+            switchContainer.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
+            loginFormContainer.add(switchContainer);
+        }
+
         // Configure the view
         setSizeFull();
         addClassNames("dev-login-view");
@@ -135,7 +178,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         getStyle().set("min-height", "100vh");
 
         // Wrap user list in scrollable container
-        var usersScrollContainer = new Div(exampleUsersHeader, exampleUsersDiv);
+        usersScrollContainer = new Div(exampleUsersHeader, exampleUsersDiv);
         usersScrollContainer.addClassNames("dev-users-scroll-container");
         usersScrollContainer.getStyle().set("display", "flex");
         usersScrollContainer.getStyle().set("flex-direction", "column");
@@ -160,6 +203,9 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         contentDiv.getStyle().set("max-height", "90vh");
         contentDiv.getStyle().set("width", "100%");
         add(contentDiv);
+        
+        // Initiale Anzeige basierend auf Login-Modus
+        updateLoginMode();
 
         var devModeMenuDiv = new Div("You can also use the Dev Mode Menu here to impersonate any user");
         devModeMenuDiv.addClassNames("dev-mode-speech-bubble");
@@ -176,8 +222,30 @@ class DevLoginView extends Main implements BeforeEnterObserver {
                 value -> devModeMenuDiv.setVisible(value == null));
     }
 
+    /**
+     * Aktualisiert die Anzeige basierend auf dem Login-Modus (Dev/Prod).
+     */
+    private void updateLoginMode() {
+        if (isProdLoginMode) {
+            // Prod-Modus: Benutzerliste ausblenden, Login-Formular professioneller
+            usersScrollContainer.setVisible(false);
+            loginTitle.setText("Anmeldung");
+            loginTitle.getStyle().set("color", "var(--lumo-primary-text-color)");
+        } else {
+            // Dev-Modus: Benutzerliste anzeigen
+            usersScrollContainer.setVisible(true);
+            loginTitle.setText("Anmeldung (Entwicklungsmodus)");
+            loginTitle.getStyle().set("color", "var(--lumo-primary-text-color)");
+        }
+    }
+
     @PostConstruct
     private void loadDatabaseUsers() {
+        // Nur im Dev-Modus Benutzer laden
+        if (isProdLoginMode) {
+            return;
+        }
+        
         // Load relevant users for dev login: Superadmin + one user per institution
         try {
             List<UserAccount> allUsers = userAccountRepository.findAll();
@@ -216,6 +284,15 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         } catch (Exception e) {
             log.warn("Could not load users from database: {}", e.getMessage());
             // Continue without database users - login will still work
+        }
+    }
+    
+    @Override
+    protected void onAttach(com.vaadin.flow.component.AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        // Lade Benutzer nach dem Attach, wenn im Dev-Modus
+        if (!isProdLoginMode && isH2Database) {
+            loadDatabaseUsers();
         }
     }
 
