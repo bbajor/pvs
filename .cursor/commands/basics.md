@@ -24,7 +24,8 @@ Dependency/CVE Scan (OWASP Dependency-Check, falls eingebunden):
 OpenAPI/Docs (wenn vorhanden):
 ./gradlew openApiGenerate || ./gradlew asciidoctor
 Flyway validate/migrate (vorsichtig in dev/test):
-./gradlew flywayValidate./gradlew flywayMigrate -Dflyway.configFiles=src/main/resources/flyway.conf
+./gradlew flywayValidate
+./gradlew flywayMigrate -Dflyway.configFiles=src/main/resources/flyway.conf
 Docker image (Spring Boot Buildpacks):
 ./gradlew bootBuildImage --imageName pvs-app:local
 Compose dev env:

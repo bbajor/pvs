@@ -44,8 +44,9 @@ RUN echo "🔨 Building classes..." && \
 # Build the application (Tests bereits im Workflow ausgeführt)
 # Nutze --build-cache und --parallel für schnellere Builds
 # Layered JAR für besseres Caching aktivieren
-RUN gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode --offline || \
-    gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode
+# First attempt without --offline (dependencies may not be cached), then with --offline as fallback
+RUN gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode || \
+    gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode --offline
 
 # Production stage - use distroless or minimal JRE image
 FROM eclipse-temurin:21-jre-jammy

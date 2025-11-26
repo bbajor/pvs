@@ -265,8 +265,8 @@ tasks.named('vaadinPrepareFrontend') {
     // This is necessary because we need to resolve dependencies at runtime
     notCompatibleWithConfigurationCache("Vaadin plugin needs runtime dependencies resolved at execution time")
     
-    // Skip this task if bootRun is the target (allows app to start without frontend prep)
-    onlyIf { !gradle.startParameter.taskNames.contains('bootRun') }
+    // Ensure frontend is prepared before bootRun (removed onlyIf condition that was skipping it)
+    // Vaadin requires frontend preparation before the application starts
     
     // Ensure runtime dependencies are available for annotation scanning
     // This is needed because Vaadin needs to read annotations that reference Spring classes

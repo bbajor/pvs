@@ -126,9 +126,7 @@ jobs:
             cd /opt/pvs
             
             # Login to GHCR (als Benutzer 'pvs')
-            sudo -u pvs bash <<'EOFHERE'
-            echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-            EOHERE
+            sudo -u pvs bash -c "echo '${{ secrets.GITHUB_TOKEN }}' | podman login ghcr.io -u ${{ github.actor }} --password-stdin"
             
             # Alle weiteren Befehle als Benutzer 'pvs'
             sudo -u pvs bash <<'EOFDEPLOY'
