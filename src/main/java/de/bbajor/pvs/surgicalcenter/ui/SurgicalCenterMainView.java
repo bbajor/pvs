@@ -253,6 +253,7 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
         grid.setWidthFull();
         grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
+        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
 
         grid.asSingleSelect().addValueChangeListener(event -> {
             SurgicalCenter surgicalCenterDto = event.getValue();

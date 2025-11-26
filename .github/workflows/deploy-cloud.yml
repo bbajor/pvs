@@ -125,15 +125,13 @@ jobs:
             set -e
             cd /opt/pvs
             
-            # Login to GHCR (als Benutzer 'pvs')
-            sudo -u pvs bash <<'EOFHERE'
-            echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-            EOHERE
-            
-            # Alle weiteren Befehle als Benutzer 'pvs'
+            # Alle Befehle als Benutzer 'pvs' (inkl. Login innerhalb des heredoc)
             sudo -u pvs bash <<'EOFDEPLOY'
             set -e
             cd /opt/pvs
+            
+            # Login to GHCR (muss innerhalb des heredoc sein, damit Credentials verfügbar sind)
+            echo '${{ secrets.GITHUB_TOKEN }}' | podman login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Backup current deployment
             BACKUP_TAG="${{ inputs.environment }}-backup-$(date +%Y%m%d-%H%M%S)"

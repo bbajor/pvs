@@ -1,6 +1,7 @@
 package de.bbajor.pvs.patient.ui.view;
 
-import java.time.format.DateTimeFormatter;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -16,29 +17,25 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.theme.lumo.LumoUtility;
-import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
-import com.vaadin.flow.router.Menu;
-import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.Route;
-
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.router.Menu;
+import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.QueryParameters;
+import com.vaadin.flow.router.Route;
+import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
-import de.bbajor.pvs.base.util.DateAndTimeUtils;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.service.FeatureFlagService;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.presenter.PatientListPresenter;
 import de.bbajor.pvs.security.AppRoles;
-import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
-import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.PermitAll;
 
 @Route("patient-search")
@@ -58,8 +55,6 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
     // Cache für TreatmentPlans pro Patient (wird beim Query gefüllt, um N+1 zu vermeiden)
     private java.util.Map<Integer, de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan> treatmentPlanCache = 
             new java.util.HashMap<>();
-
-    private final DateTimeFormatter germanFormatter = DateAndTimeUtils.getGermanDateTimeFormatter();
 
     public PatientMainView(PatientListPresenter patientListPresenter, VoiceTranscriptionService transcriptionService, 
             ExtractionOrchestrator extractionOrchestrator, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository,
@@ -150,35 +145,34 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
             return span;
         })).setHeader("Nr.").setResizable(false).setAutoWidth(true).setFlexGrow(0);
         
-        Grid.Column<Patient> lastNameColumn = patientGrid.addColumn(
-                new ComponentRenderer<>(patient -> {
-                    String lastName = patient.getLastName() != null ? patient.getLastName() : "-";
-                    Span span = new Span(lastName);
-                    span.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
-                    span.getStyle().set("white-space", "normal");
-                    span.getStyle().set("word-wrap", "break-word");
-                    return span;
-                })).setHeader("Nachname").setResizable(true).setAutoWidth(true);
-        
-        Grid.Column<Patient> firstNameColumn = patientGrid.addColumn(
-                new ComponentRenderer<>(patient -> {
-                    String firstName = patient.getFirstName() != null ? patient.getFirstName() : "-";
-                    Span span = new Span(firstName);
-                    span.getStyle().set("white-space", "normal");
-                    span.getStyle().set("word-wrap", "break-word");
-                    return span;
-                })).setHeader("Vorname").setResizable(true).setAutoWidth(true);
-        
-        Grid.Column<Patient> birthColumn = patientGrid.addColumn(
-                new ComponentRenderer<>(patient -> {
-                    String birth = patient != null && patient.getBirth() != null 
-                            ? germanFormatter.format(patient.getBirth()) : "-";
-                    Span span = new Span(birth);
-                    span.addClassNames(LumoUtility.TextColor.SECONDARY);
-                    span.getStyle().set("white-space", "normal");
-                    span.getStyle().set("word-wrap", "break-word");
-                    return span;
-                })).setHeader("Geburtsdatum").setResizable(true).setAutoWidth(true);
+        // Patientendaten-Renderer (eine Spalte) - wie im TaskReviewDialog
+        patientGrid.addColumn(new ComponentRenderer<>(patient -> {
+            if (patient != null) {
+                VerticalLayout patientLayout = new VerticalLayout();
+                patientLayout.setSpacing(false);
+                patientLayout.setPadding(false);
+                
+                String name = (patient.getLastName() != null ? patient.getLastName() : "") + 
+                              (patient.getFirstName() != null ? ", " + patient.getFirstName() : "");
+                if (name.startsWith(", ")) name = name.substring(2);
+                if (name.isEmpty()) name = "-";
+                
+                Span nameSpan = new Span(name);
+                nameSpan.getStyle().set("font-weight", "600");
+                patientLayout.add(nameSpan);
+                
+                if (patient.getBirth() != null) {
+                    Span birthSpan = new Span("geb. " + 
+                        patient.getBirth().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+                    birthSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
+                    birthSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+                    patientLayout.add(birthSpan);
+                }
+                
+                return patientLayout;
+            }
+            return new Span("-");
+        })).setHeader("Patient").setResizable(true).setAutoWidth(true);
         
         Grid.Column<Patient> insuranceColumn = patientGrid.addColumn(
                 new ComponentRenderer<>(patient -> {
@@ -294,6 +288,7 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
 
         // Nur Width auf 100% setzen, Höhe wird über Flexbox gesteuert
         patientGrid.setWidthFull();
+        patientGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
         patientGrid.asSingleSelect().addValueChangeListener(event -> {
             Patient patientDto = event.getValue();
             if (patientDto != null) {

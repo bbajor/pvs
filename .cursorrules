@@ -53,3 +53,10 @@
 - **Neue Migrationen**: Bei größeren Schema-Änderungen ein neues Migrationsskript (V3__, V4__, etc.) erstellen
 - **Synchronisation**: Flyway-Skripte müssen immer mit den aktuellen Entity-Definitionen synchron sein
 
+## Git Commits auf Windows
+- **WICHTIG**: Auf Windows-Systemen (PowerShell/cmd) werden mehrzeilige Commit-Messages nach dem ersten Newline abgeschnitten
+- **Lösung 1**: Einzeilige Commit-Messages verwenden (empfohlen für kurze Messages)
+- **Lösung 2**: Mehrere `-m` Flags für mehrere Zeilen: `git commit -m "Zusammenfassung" -m "Details"`
+- **Lösung 3**: Editor verwenden (ohne `-m`): `git commit` öffnet den Standard-Editor
+- **NIEMALS**: Mehrzeilige Strings mit Newlines direkt in `-m` verwenden, da diese als separate Befehle interpretiert werden
+

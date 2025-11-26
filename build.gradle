@@ -265,8 +265,8 @@ tasks.named('vaadinPrepareFrontend') {
     // This is necessary because we need to resolve dependencies at runtime
     notCompatibleWithConfigurationCache("Vaadin plugin needs runtime dependencies resolved at execution time")
     
-    // Skip this task if bootRun is the target (allows app to start without frontend prep)
-    onlyIf { !gradle.startParameter.taskNames.contains('bootRun') }
+    // Ensure frontend is prepared before bootRun (removed onlyIf condition that was skipping it)
+    // Vaadin requires frontend preparation before the application starts
     
     // Ensure runtime dependencies are available for annotation scanning
     // This is needed because Vaadin needs to read annotations that reference Spring classes
@@ -335,6 +335,24 @@ cyclonedxBom {
 // Disable configuration cache for CycloneDX task
 tasks.named('cyclonedxBom') {
     notCompatibleWithConfigurationCache("CycloneDX task needs project access at execution time")
+    
+    // Optimize: Only generate SBOM when dependencies change
+    // Inputs: dependency files that affect the SBOM (Gradle will check these for changes)
+    inputs.files(
+        file('build.gradle'),
+        file('gradle.properties'),
+        fileTree('gradle').include('*.gradle'),
+        fileTree('pvs-common').include('build.gradle')
+    ).withPropertyName("dependencyFiles")
+    
+    // Also track resolved dependencies as input (if lock file exists)
+    def lockFile = file('gradle.lockfile')
+    if (lockFile.exists()) {
+        inputs.file(lockFile).withPropertyName("dependencyLock")
+    }
+    
+    // Output: the generated SBOM file (Gradle will skip task if output is up-to-date)
+    outputs.file(file("build/reports/sbom.json")).withPropertyName("sbomOutput")
 }
 
 // Task to generate THIRD-PARTY-LICENSES.md

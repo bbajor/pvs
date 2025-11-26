@@ -14,6 +14,8 @@ WORKDIR /app
 # Copy dependency files first for better caching
 COPY build.gradle settings.gradle gradle.properties ./
 COPY gradle/ gradle/
+# Copy pvs-common module (required by settings.gradle)
+COPY pvs-common/ pvs-common/
 # Dependency-Download mit Cache (nur wenn nicht im CI)
 RUN gradle dependencies --no-daemon --build-cache --parallel || true
 
@@ -44,8 +46,9 @@ RUN echo "🔨 Building classes..." && \
 # Build the application (Tests bereits im Workflow ausgeführt)
 # Nutze --build-cache und --parallel für schnellere Builds
 # Layered JAR für besseres Caching aktivieren
-RUN gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode --offline || \
-    gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode
+# First attempt without --offline (dependencies may not be cached), then with --offline as fallback
+RUN gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode || \
+    gradle bootJar --no-daemon -x test --build-cache --parallel -Pvaadin.productionMode --offline
 
 # Production stage - use distroless or minimal JRE image
 FROM eclipse-temurin:21-jre-jammy

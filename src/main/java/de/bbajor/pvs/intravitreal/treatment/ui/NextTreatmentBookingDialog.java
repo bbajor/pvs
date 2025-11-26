@@ -315,8 +315,25 @@ public class NextTreatmentBookingDialog extends Dialog {
         sideOfEyeComboBox.setRequiredIndicatorVisible(true);
         treatmentLayout.add(sideOfEyeComboBox, 2);
 
-        // InstitutionContext muss gesetzt sein, bevor Ärzte geladen werden
+        // InstitutionContext MUSS gesetzt sein, bevor Ärzte und Medikamente geladen werden
         ensureInstitutionContext();
+        
+        if (!InstitutionContext.hasInstitution()) {
+            showError("Fehler: InstitutionContext konnte nicht gesetzt werden. Bitte versuchen Sie es erneut.");
+            LOG.error("InstitutionContext konnte nicht gesetzt werden beim Laden der Behandlungsdetails");
+            // Zeige leere Comboboxen mit Fehlermeldung
+            doctorComboBox = new ComboBox<>("Behandelnder Arzt");
+            doctorComboBox.setPlaceholder("Fehler: InstitutionContext nicht gesetzt");
+            doctorComboBox.setEnabled(false);
+            treatmentLayout.add(doctorComboBox, 2);
+            
+            medicationComboBox = new ComboBox<>("Medikament");
+            medicationComboBox.setPlaceholder("Fehler: InstitutionContext nicht gesetzt");
+            medicationComboBox.setEnabled(false);
+            treatmentLayout.add(medicationComboBox, 2);
+            return content;
+        }
+        
         UserAccountService userAccountService = context.getBean(UserAccountService.class);
         doctorComboBox = new ComboBox<>("Behandelnder Arzt");
         doctorComboBox.setItems(userAccountService.findUsersByRole(AppRoles.DOCTOR));
@@ -331,7 +348,13 @@ public class NextTreatmentBookingDialog extends Dialog {
         if (treatmentPlan != null && treatmentPlan.getInstitution() != null && treatmentPlan.getInstitution().getId() != null) {
             medicationFavourites = presenter.getDrugsForInstitution(treatmentPlan.getInstitution().getId());
         } else {
-            medicationFavourites = presenter.getDrugs();
+            // Fallback: Versuche über InstitutionContext
+            Long institutionId = InstitutionContext.getInstitutionId();
+            if (institutionId != null) {
+                medicationFavourites = presenter.getDrugsForInstitution(institutionId);
+            } else {
+                medicationFavourites = presenter.getDrugs();
+            }
         }
         medicationComboBox.setItems(medicationFavourites);
         medicationComboBox.setItemLabelGenerator(MedicationFavourite::getEffectiveDisplayName);
@@ -411,13 +434,32 @@ public class NextTreatmentBookingDialog extends Dialog {
         rulesContent.add(intervalLayout);
         
         surgicalCenterComboBox = new ComboBox<>("Behandlungsort");
-        // InstitutionContext muss gesetzt sein, bevor SurgicalCenters geladen werden
+        // InstitutionContext MUSS gesetzt sein, bevor SurgicalCenters geladen werden
         ensureInstitutionContext();
+        
+        if (!InstitutionContext.hasInstitution()) {
+            showError("Fehler: InstitutionContext konnte nicht gesetzt werden. Bitte versuchen Sie es erneut.");
+            LOG.error("InstitutionContext konnte nicht gesetzt werden beim Laden der Behandlungsorte");
+            surgicalCenterComboBox.setPlaceholder("Fehler: InstitutionContext nicht gesetzt");
+            surgicalCenterComboBox.setEnabled(false);
+            rulesContent.add(surgicalCenterComboBox);
+            rulesSection.add(rulesContent);
+            content.add(rulesSection);
+            content.expand(rulesSection);
+            return content;
+        }
+        
         List<SurgicalCenter> surgicalCenters;
         if (treatmentPlan != null && treatmentPlan.getInstitution() != null && treatmentPlan.getInstitution().getId() != null) {
             surgicalCenters = presenter.getSurgicalCentersForInstitution(treatmentPlan.getInstitution().getId());
         } else {
-            surgicalCenters = presenter.getSurgicalCenters();
+            // Fallback: Versuche über InstitutionContext
+            Long institutionId = InstitutionContext.getInstitutionId();
+            if (institutionId != null) {
+                surgicalCenters = presenter.getSurgicalCentersForInstitution(institutionId);
+            } else {
+                surgicalCenters = presenter.getSurgicalCenters();
+            }
         }
         surgicalCenterComboBox.setItems(surgicalCenters);
         surgicalCenterComboBox.setItemLabelGenerator(SurgicalCenter::getName);

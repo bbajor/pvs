@@ -15,11 +15,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
+
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -33,6 +36,9 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final AnalyticsRepository analyticsRepository;
+    
+    private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("MM.yyyy", Locale.GERMAN);
+    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", Locale.GERMAN);
 
     /**
      * Lädt alle Analytics-Daten für die aktuelle Institution.
@@ -63,7 +69,8 @@ public class AnalyticsService {
             .collect(Collectors.groupingBy(
                 t -> {
                     LocalDate date = t.getSurgicalCenterTimeSlot().getDate();
-                    return String.format("%d-%02d", date.getYear(), date.getMonthValue());
+                    // Format: MM.yyyy (z.B. "01.2024")
+                    return date.format(MONTH_FORMATTER);
                 },
                 Collectors.counting()
             ));
@@ -90,8 +97,11 @@ public class AnalyticsService {
             .collect(Collectors.groupingBy(
                 t -> {
                     var ts = t.getSurgicalCenterTimeSlot();
-                    return ts.getDate().format(DateTimeFormatter.ISO_LOCAL_DATE) + " " + 
-                           (ts.getStartTime() != null ? ts.getStartTime().toString() : "");
+                    // Format: dd.MM.yyyy HH:mm (z.B. "15.01.2024 10:00")
+                    if (ts.getStartTime() != null) {
+                        return ts.getDate().atTime(ts.getStartTime()).format(DATETIME_FORMATTER);
+                    }
+                    return DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate());
                 },
                 Collectors.counting()
             ));
@@ -204,7 +214,8 @@ public class AnalyticsService {
             .collect(Collectors.groupingBy(
                 t -> {
                     LocalDate date = t.getSurgicalCenterTimeSlot().getDate();
-                    String monthKey = String.format("%d-%02d", date.getYear(), date.getMonthValue());
+                    // Format: MM.yyyy (z.B. "01.2024")
+                    String monthKey = date.format(MONTH_FORMATTER);
                     Medication med = t.getMedication();
                     String medName = (med != null && med.getArzneimittelbezeichnung() != null) 
                         ? med.getArzneimittelbezeichnung() 

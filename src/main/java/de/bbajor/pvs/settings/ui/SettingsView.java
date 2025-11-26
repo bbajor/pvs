@@ -10,14 +10,13 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
+import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
 import de.bbajor.pvs.settings.ui.tabs.InsuranceSettingsTab;
-import de.bbajor.pvs.settings.ui.tabs.LayoutSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.SchedulerManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.UserSettingsTab;
-import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
 
 @Route("settings")
@@ -27,7 +26,6 @@ import jakarta.annotation.security.RolesAllowed;
 public class SettingsView extends Main {
 
     private final Tab generalTab = new Tab("Allgemein");
-    private final Tab layoutTab = new Tab("Layout");
     private final Tab locationTab = new Tab("Standorte");
     private final Tab schedulerTab = new Tab("Terminplaner");
     private final Tab userTab = new Tab("Benutzerverwaltung");
@@ -38,7 +36,6 @@ public class SettingsView extends Main {
     private final VerticalLayout content = new VerticalLayout();
 
     public SettingsView(InstitutionGeneralTab institutionGeneralTab,
-            LayoutSettingsTab layoutSettingsTab,
             LocationManagementTab locationManagementTab,
             SchedulerManagementTab schedulerManagementTab,
             UserSettingsTab userSettingsTab,
@@ -49,15 +46,13 @@ public class SettingsView extends Main {
         H1 title = new H1("Einstellungen");
         add(title);
 
-        Tabs tabs = new Tabs(generalTab, layoutTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
+        Tabs tabs = new Tabs(generalTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
         tabs.setWidthFull();
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
             if (selected == generalTab) {
                 content.add(institutionGeneralTab);
-            } else if (selected == layoutTab) {
-                content.add(layoutSettingsTab);
             } else if (selected == locationTab) {
                 content.add(locationManagementTab);
             } else if (selected == schedulerTab) {

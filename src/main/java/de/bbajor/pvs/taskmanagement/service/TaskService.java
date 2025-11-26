@@ -142,7 +142,7 @@ public class TaskService {
             newTimeSlotsforNewTasks.forEach(ts -> {
                 String description = "Behandlungen vom "
                         + DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate()) + " um " + ts.getStartTime()
-                        + " im " + ts.getSurgicalCenter().getName() + " sind noch nicht überprüft worden.";
+                        + " im " + ts.getSurgicalCenter().getName() + " wurden noch nicht dokumentiert.";
                 // Setze das Datum eine Woche in die Zukunft
                 LocalDate dueDate = ts.getDate().plusDays(7);
                 createTaskInternal(description, dueDate, ts);

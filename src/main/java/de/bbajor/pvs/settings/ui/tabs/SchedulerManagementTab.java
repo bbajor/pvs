@@ -19,6 +19,7 @@ import de.bbajor.pvs.appointment.model.SchedulerAssignment;
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.appointment.ui.OfficeHoursDialog;
+import de.bbajor.pvs.appointment.ui.SchedulerAssignmentDialog;
 import de.bbajor.pvs.appointment.ui.SchedulerDialog;
 import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
@@ -52,16 +53,20 @@ public class SchedulerManagementTab extends VerticalLayout {
     @PostConstruct
     public void init() {
         setSizeFull();
-        setPadding(false);
-        setSpacing(false);
+        setPadding(true);
+        setSpacing(true);
 
-        Button newSchedulerButton = new Button("Neuer Terminplaner", event -> openSchedulerDialog());
+        // Section for new scheduler button
+        VerticalLayout newSchedulerSection = new VerticalLayout();
+        newSchedulerSection.setPadding(true);
+        newSchedulerSection.setSpacing(true);
+        
+        Button newSchedulerButton = new Button("Terminplaner erstellen", event -> openSchedulerDialog());
         newSchedulerButton.setIcon(VaadinIcon.PLUS.create());
         newSchedulerButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        HorizontalLayout toolbar = new HorizontalLayout(newSchedulerButton);
-        toolbar.setWidthFull();
-        add(toolbar);
+        
+        newSchedulerSection.add(newSchedulerButton);
+        add(newSchedulerSection);
 
         Tabs tabs = createTabs();
         tabs.setWidthFull();
@@ -241,8 +246,18 @@ public class SchedulerManagementTab extends VerticalLayout {
     }
 
     private void openAssignmentDialog() {
-        // TODO: Implement assignment dialog
-        showNotification("Dialog zum Zuordnen von Benutzern/Rollen", NotificationVariant.LUMO_PRIMARY);
+        if (selectedScheduler == null) {
+            showNotification("Bitte wählen Sie zuerst einen Terminplaner aus", NotificationVariant.LUMO_WARNING);
+            return;
+        }
+        
+        SchedulerAssignmentDialog dialog = new SchedulerAssignmentDialog(
+            schedulerService,
+            userAccountRepository,
+            selectedScheduler
+        );
+        dialog.setOnSaveCallback(this::showAssignmentsTab);
+        dialog.open();
     }
 
     private void showNotification(String message, NotificationVariant variant) {

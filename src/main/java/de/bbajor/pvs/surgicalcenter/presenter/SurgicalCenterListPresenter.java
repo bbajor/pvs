@@ -74,6 +74,28 @@ public class SurgicalCenterListPresenter {
     }
     
     /**
+     * Speichert einen SurgicalCenter mit direkt übergebenen TimeSlots.
+     * Diese Methode wird verwendet, wenn die Slots bereits erstellt wurden.
+     */
+    public void saveWithTimeSlots(SurgicalCenter surgicalCenterDto, List<SurgicalCenterTimeSlot> newTimeSlots) {
+        LOG.debug("Entering save-method for SurgicalCenter with pre-created TimeSlots....");
+        
+        // Ensure InstitutionContext is set before service calls.
+        ensureInstitutionContext();
+        
+        LOG.debug("Found " + newTimeSlots.size() + " new TimeSlots for SurgicalCenter....");
+
+        if (surgicalCenterDto.getAvailableTimeSlots() != null) {
+            Collection<SurgicalCenterTimeSlot> invalidSlots = TimeSlotCreator
+                    .getNewInvalidTimeSlots(surgicalCenterDto.getAvailableTimeSlots(), newTimeSlots);
+            newTimeSlots.removeAll(invalidSlots);
+            LOG.debug("Found " + invalidSlots.size() + " invalid TimeSlots, that had to be removed before saving...");
+        }
+        LOG.debug("Saving SurgicalCenter with " + newTimeSlots.size() + " TimeSlots...");
+        surgicalCenterService.saveTimeSlotsAndSurgicalCenter(newTimeSlots, surgicalCenterDto);
+    }
+    
+    /**
      * Ensures InstitutionContext is set before service calls.
      * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
      * so the context might not be set, especially for Institutionsadmins.

@@ -10,11 +10,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.context.ApplicationContext;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -26,6 +28,9 @@ import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.Scroller.ScrollDirection;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
+import de.bbajor.pvs.base.util.DateAndTimeUtils;
+import de.bbajor.pvs.base.util.SideOfEye;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.intravitreal.treatment.ui.TreatmentDetailDialog;
 
@@ -48,6 +53,8 @@ public class TimelineView extends VerticalLayout {
     private final ApplicationContext context;
     private Runnable onBookNextTreatmentCallback;
     private Runnable onTreatmentDeletedCallback; // Callback nach dem Löschen eines Treatments
+    // QuickBooking wurde entfernt - wird jetzt außerhalb der TimelineView angezeigt
+    private SideOfEye sideOfEye;
 
     public TimelineView(ApplicationContext context) {
         addClassName("timeline-view");
@@ -121,6 +128,10 @@ public class TimelineView extends VerticalLayout {
         this.onTreatmentDeletedCallback = callback;
     }
 
+    public void setSideOfEye(SideOfEye sideOfEye) {
+        this.sideOfEye = sideOfEye;
+    }
+
 
     /**
      * NEU: Zentrale Methode, die die Timeline basierend auf den aktuellen Daten und
@@ -192,25 +203,21 @@ public class TimelineView extends VerticalLayout {
             prev = current;
         }
 
+        // QuickBookingCard wurde entfernt - wird jetzt außerhalb der TimelineView in der "Termin buchen"-Section angezeigt
+
         // Markiere die nächste Behandlung und scrolle dorthin
         updateNextTreatmentStatus();
     }
 
     /**
      * NEU: Bereitet die Liste der anzuzeigenden Elemente vor.
-     * Wendet Filter an oder erstellt die Start-/End-Marker, falls die Liste leer
-     * ist.
+     * Wendet Filter an - entfernt die erste Card (Startkachel), da diese jetzt außerhalb angezeigt wird.
      */
     private List<TimeLineCardConfig> prepareItemsForRendering() {
         List<TimeLineCardConfig> result = new ArrayList<>(this.itemList);
         
-        // Füge nur die "Erste"-Karte hinzu, wenn sie noch nicht vorhanden ist
-        // (wird jetzt manuell in TreatmentPlanLayout hinzugefügt, daher nur als Fallback)
-        boolean hasFirstCard = result.stream().anyMatch(TimeLineCardConfig::isFirst);
-        if (!hasFirstCard && !result.isEmpty()) {
-            // Nur hinzufügen, wenn Liste nicht leer ist und keine Startkachel vorhanden
-            result.add(0, new TimeLineCardConfig().setFirst(true).setFirstDate(startOfTreatmentPlan));
-        }
+        // Entferne die erste Card (Startkachel) - wird jetzt außerhalb der Timeline angezeigt
+        result.removeIf(TimeLineCardConfig::isFirst);
 
         if (isOnlyShowFutureAndPresentCards) {
             return result.stream()
@@ -251,10 +258,24 @@ public class TimelineView extends VerticalLayout {
 
         Div lineWithLabel;
         if (orientation == Orientation.HORIZONTAL) {
+            // Container für Linie und Pfeil
+            Div lineContainer = new Div();
+            lineContainer.getStyle().set("position", "relative");
+            lineContainer.getStyle().set("display", "flex");
+            lineContainer.getStyle().set("align-items", "center");
+            
             line.setHeight("2px");
             line.setWidth(px + "px");
+            lineContainer.add(line);
+            
+            // Pfeil nach rechts am rechten Ende
+            Icon arrowIcon = new Icon(VaadinIcon.ANGLE_RIGHT);
+            arrowIcon.setSize("16px");
+            arrowIcon.setColor("#999");
+            arrowIcon.getStyle().set("margin-left", "-4px"); // Leicht überlappend
+            lineContainer.add(arrowIcon);
 
-            lineWithLabel = new Div(label, line); // Label über der Linie
+            lineWithLabel = new Div(label, lineContainer); // Label über der Linie
             lineWithLabel.getStyle().set("display", "flex");
             lineWithLabel.getStyle().set("flex-direction", "column-reverse"); // Linie unten, Text oben
             lineWithLabel.getStyle().set("align-items", "center");
@@ -348,6 +369,10 @@ public class TimelineView extends VerticalLayout {
                 isLastTreatment);
         return card;
     }
+
+    // QuickBookingCard-Methoden wurden entfernt - Terminbuchung wird jetzt außerhalb der TimelineView in der "Termin buchen"-Section angezeigt
+
+    // QuickBooking-Methoden wurden entfernt - Terminbuchung wird jetzt außerhalb der TimelineView in der "Termin buchen"-Section angezeigt
 
     /**
      * Findet die nächste anstehende Behandlung und scrollt zu ihr
@@ -553,4 +578,19 @@ public class TimelineView extends VerticalLayout {
                 delta);
         }
     }
+
+    // QuickBooking-Enums und Interfaces - werden noch in TreatmentPlanLayout verwendet
+    public enum QuickBookingAction {
+        SHORTER_INTERVAL,
+        SAME_INTERVAL,
+        LONGER_INTERVAL,
+        CUSTOM_INTERVAL,
+        NEXT_AVAILABLE
+    }
+
+    public record QuickBookingRequest(
+            SideOfEye sideOfEye,
+            QuickBookingAction action,
+            Integer intervalWeeks
+    ) {}
 }
