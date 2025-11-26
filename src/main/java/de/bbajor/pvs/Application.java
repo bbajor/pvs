@@ -31,7 +31,8 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
         "de.bbajor.pvs.security.domain",
         "de.bbajor.pvs.security.email.repository",
         "de.bbajor.pvs.ai.repository",
-        "de.bbajor.pvs.analytics.repository"
+        "de.bbajor.pvs.analytics.repository",
+        "de.bbajor.pvs.cost.repository"
 })
 @EntityScan(basePackages = {
         "de.bbajor.pvs.patient.model",
@@ -45,7 +46,8 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
         "de.bbajor.pvs.location.model",
         "de.bbajor.pvs.appointment.model",
         "de.bbajor.pvs.taskmanagement.domain",
-        "de.bbajor.pvs.ai.domain"
+        "de.bbajor.pvs.ai.domain",
+        "de.bbajor.pvs.cost.model"
 })
 public class Application implements AppShellConfigurator {
 

@@ -26,6 +26,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Margin;
 import com.vaadin.flow.theme.lumo.LumoUtility.Padding;
 import com.vaadin.flow.theme.lumo.LumoUtility.Width;
 
+import de.bbajor.pvs.institution.service.FeatureFlagService;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class AnalyticsOverviewView extends Main implements BeforeEnterObserver {
+
+    private final FeatureFlagService featureFlagService;
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
@@ -120,6 +123,17 @@ public class AnalyticsOverviewView extends Main implements BeforeEnterObserver {
             VaadinIcon.PILL,
             "var(--lumo-primary-color-50pct)"
         ));
+
+        // Link 7: Kostenanalysen (nur wenn COST_MODULE aktiviert)
+        if (featureFlagService != null && featureFlagService.isFeatureEnabled("COST_MODULE")) {
+            content.add(createLinkCard(
+                "Kostenanalysen",
+                "Monatliche Kostenverläufe und Kostenübersicht",
+                "analytics/costs",
+                VaadinIcon.EURO,
+                "var(--lumo-success-color)"
+            ));
+        }
 
         return content;
     }

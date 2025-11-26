@@ -361,7 +361,8 @@ public class TimelineView extends VerticalLayout {
                     TreatmentDetailDialog dialog = new TreatmentDetailDialog(
                         t2.getTreatment(),
                         context.getBean(TreatmentPlanService.class),
-                        context.getBean(de.bbajor.pvs.security.service.UserAccountService.class)
+                        context.getBean(de.bbajor.pvs.security.service.UserAccountService.class),
+                        context
                     );
                     dialog.open();
                 },

@@ -19,11 +19,22 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.binder.ValidationException;
 
+import java.math.BigDecimal;
+
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.web.context.WebApplicationContext;
+
+import com.vaadin.flow.component.UI;
+
 import de.bbajor.pvs.ai.extraction.ExtractionResult;
 import de.bbajor.pvs.ai.service.ExtractionClient;
 import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.ai.ui.EntityVerificationDialog;
 import de.bbajor.pvs.ai.ui.VoiceInputDialog;
+import de.bbajor.pvs.cost.model.PatientCostHistory;
+import de.bbajor.pvs.cost.service.TreatmentCostService;
 import de.bbajor.pvs.institution.service.FeatureFlagService;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.model.PatientHistory;
@@ -111,7 +122,17 @@ public class PatientDialog extends Dialog {
         // Create tabs for Stammdaten and Patientengeschichte
         Tab stammdatenTab = new Tab("Stammdaten");
         Tab geschichteTab = new Tab("Patientengeschichte");
-        Tabs tabs = new Tabs(stammdatenTab, geschichteTab);
+        
+        // Kostenhistorie-Tab (nur wenn COST_MODULE aktiviert)
+        final boolean costModuleEnabled = featureFlagService != null && featureFlagService.isFeatureEnabled("COST_MODULE");
+        final Tab kostenTab = costModuleEnabled ? new Tab("Kostenhistorie") : null;
+        
+        Tabs tabs;
+        if (costModuleEnabled && kostenTab != null) {
+            tabs = new Tabs(stammdatenTab, geschichteTab, kostenTab);
+        } else {
+            tabs = new Tabs(stammdatenTab, geschichteTab);
+        }
         
         VerticalLayout content = new VerticalLayout();
         content.setSizeFull();
@@ -128,6 +149,13 @@ public class PatientDialog extends Dialog {
         geschichteContent.setSizeFull();
         geschichteContent.setPadding(true);
         
+        // Kostenhistorie tab content (nur wenn aktiviert)
+        final VerticalLayout kostenContent = costModuleEnabled ? createCostHistoryContent(patient) : null;
+        if (kostenContent != null) {
+            kostenContent.setSizeFull();
+            kostenContent.setPadding(true);
+        }
+        
         tabs.addSelectedChangeListener(event -> {
             content.removeAll();
             Tab selected = event.getSelectedTab();
@@ -135,6 +163,8 @@ public class PatientDialog extends Dialog {
                 content.add(stammdatenContent);
             } else if (selected == geschichteTab) {
                 content.add(geschichteContent);
+            } else if (costModuleEnabled && kostenTab != null && selected == kostenTab && kostenContent != null) {
+                content.add(kostenContent);
             }
         });
         
@@ -462,6 +492,117 @@ public class PatientDialog extends Dialog {
                 }
             }
         }
+    }
+
+    /**
+     * Erstellt den Tab-Inhalt für Kostenhistorie.
+     */
+    private VerticalLayout createCostHistoryContent(Patient patient) {
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+        layout.setPadding(true);
+        layout.setSpacing(true);
+
+        if (patient == null || patient.getId() == null) {
+            layout.add(new Span("Keine Kostenhistorie verfügbar. Bitte speichern Sie zuerst den Patienten."));
+            return layout;
+        }
+
+        try {
+            ensureInstitutionContext();
+            
+            // Hole ApplicationContext über Vaadin UI
+            ApplicationContext applicationContext = null;
+            try {
+                UI ui = UI.getCurrent();
+                if (ui != null && ui.getSession() != null) {
+                    var service = ui.getSession().getService();
+                    if (service instanceof WebApplicationContext) {
+                        applicationContext = (ApplicationContext) service;
+                    } else if (service instanceof com.vaadin.flow.server.VaadinService) {
+                        var context = ((com.vaadin.flow.server.VaadinService) service)
+                            .getContext();
+                        if (context instanceof org.springframework.web.context.WebApplicationContext) {
+                            applicationContext = (ApplicationContext) context;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // Context nicht verfügbar
+            }
+            
+            if (applicationContext == null) {
+                layout.add(new Span("Kostenhistorie nicht verfügbar."));
+                return layout;
+            }
+            
+            TreatmentCostService treatmentCostService = applicationContext.getBean(TreatmentCostService.class);
+            
+            List<PatientCostHistory> costHistory = treatmentCostService.findPatientCostHistory(patient.getId());
+            BigDecimal totalCosts = treatmentCostService.getTotalCostsByPatientId(patient.getId());
+
+            if (costHistory.isEmpty()) {
+                layout.add(new Span("Keine Kostenhistorie vorhanden."));
+                return layout;
+            }
+
+            // Gesamtkosten anzeigen
+            com.vaadin.flow.component.html.H3 totalLabel = new com.vaadin.flow.component.html.H3(
+                "Gesamtkosten: " + String.format("%.2f €", totalCosts));
+            totalLabel.getStyle().set("margin-top", "0");
+            layout.add(totalLabel);
+
+            // Grid mit Kostenhistorie
+            Grid<PatientCostHistory> grid = new Grid<>(PatientCostHistory.class, false);
+            grid.setSizeFull();
+
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN);
+
+            grid.addColumn(history -> history.getTreatmentDate() != null 
+                    ? history.getTreatmentDate().format(dateFormatter) : "-")
+                .setHeader("Datum")
+                .setAutoWidth(true)
+                .setSortable(true);
+
+            grid.addColumn(history -> history.getSurgicalCenter() != null 
+                    ? history.getSurgicalCenter().getName() : "-")
+                .setHeader("OP-Saal")
+                .setAutoWidth(true);
+
+            grid.addColumn(history -> String.format("%.2f €", history.getCostAmount()))
+                .setHeader("Kosten")
+                .setAutoWidth(true)
+                .setSortable(true);
+
+            grid.addColumn(history -> {
+                if (history.getTreatment() != null && history.getTreatment().getSurgicalCenterTimeSlot() != null) {
+                    var timeSlot = history.getTreatment().getSurgicalCenterTimeSlot();
+                    if (timeSlot.getStartTime() != null && timeSlot.getEndTime() != null) {
+                        return timeSlot.getStartTime().toString() + " - " + timeSlot.getEndTime().toString();
+                    }
+                }
+                return "-";
+            })
+            .setHeader("Uhrzeit")
+            .setAutoWidth(true);
+
+            grid.addColumn(history -> {
+                if (history.getTreatment() != null && history.getTreatment().getMedicationFavourite() != null
+                        && history.getTreatment().getMedicationFavourite().getMedication() != null) {
+                    return history.getTreatment().getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
+                }
+                return "-";
+            })
+            .setHeader("Medikament")
+            .setAutoWidth(true);
+
+            grid.setItems(costHistory);
+            layout.add(grid);
+        } catch (Exception e) {
+            layout.add(new Span("Fehler beim Laden der Kostenhistorie: " + e.getMessage()));
+        }
+
+        return layout;
     }
 
     public void valueChanged(ValueChangeEvent<?> event) {

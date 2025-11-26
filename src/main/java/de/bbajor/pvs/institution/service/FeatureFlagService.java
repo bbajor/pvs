@@ -139,6 +139,18 @@ public class FeatureFlagService {
             voiceFeature.setBeta(true);
             featureRepository.save(voiceFeature);
         }
+
+        // Cost Module Feature
+        if (!featureRepository.findByInstitutionIdAndFeatureKey(institutionId, "COST_MODULE").isPresent()) {
+            InstitutionFeature costFeature = new InstitutionFeature();
+            costFeature.setInstitution(institution);
+            costFeature.setFeatureKey("COST_MODULE");
+            costFeature.setFeatureName("Kostenmodul");
+            costFeature.setDescription("Ermöglicht die Berechnung und Verwaltung von OP-Saal-Kosten sowie Kostenhistorie am Patienten");
+            costFeature.setEnabled(false);
+            costFeature.setBeta(false);
+            featureRepository.save(costFeature);
+        }
     }
 }
 

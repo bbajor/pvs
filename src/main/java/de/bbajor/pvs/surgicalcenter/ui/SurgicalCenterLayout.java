@@ -78,6 +78,7 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     private Button togglePastSlotsButton;
     private final List<SurgicalCenterTimeSlot> newTimeSlotsList = new ArrayList<>();
     private Div plannedTreatmentsSection;
+    private Grid<de.bbajor.pvs.cost.model.CostCalculation> costCalculationGrid;
 
     public SurgicalCenterLayout(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -497,8 +498,182 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         tabSheet.add("Stammdaten", detailsLayout);
         tabSheet.add("OP-Slots", timeSlotsLayout);
 
+        // Preismodell-Tab (nur wenn COST_MODULE aktiviert)
+        try {
+            de.bbajor.pvs.institution.service.FeatureFlagService featureFlagService = 
+                applicationContext.getBean(de.bbajor.pvs.institution.service.FeatureFlagService.class);
+            if (featureFlagService != null && featureFlagService.isFeatureEnabled("COST_MODULE")) {
+                VerticalLayout costCalculationLayout = createCostCalculationTab();
+                tabSheet.add("Preismodell", costCalculationLayout);
+            }
+        } catch (Exception e) {
+            // Feature nicht verfügbar - Tab nicht anzeigen
+        }
+
         add(tabSheet);
     }
+
+    /**
+     * Erstellt den Tab für Preismodell-Verwaltung.
+     */
+    private VerticalLayout createCostCalculationTab() {
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+        layout.setPadding(true);
+        layout.setSpacing(true);
+
+        // Grid für Preismodelle
+        costCalculationGrid = new Grid<>(de.bbajor.pvs.cost.model.CostCalculation.class, false);
+        costCalculationGrid.setSizeFull();
+        costCalculationGrid.setMinHeight("400px");
+
+        // Spalten
+        costCalculationGrid.addColumn(calc -> calc.getPricingModel() != null 
+                ? translatePricingModel(calc.getPricingModel()) 
+                : "-")
+            .setHeader("Preismodell")
+            .setAutoWidth(true);
+
+        costCalculationGrid.addColumn(calc -> {
+            if (calc.getPricingModel() == de.bbajor.pvs.cost.model.PricingModel.RENTAL) {
+                if (calc.getPricePerSlot() != null) {
+                    return String.format("%.2f € pro Zeitslot", calc.getPricePerSlot());
+                } else if (calc.getPricePerHour() != null) {
+                    return String.format("%.2f € pro Stunde", calc.getPricePerHour());
+                }
+            } else if (calc.getPricingModel() == de.bbajor.pvs.cost.model.PricingModel.OWNED) {
+                if (calc.getMonthlyFixedCosts() != null) {
+                    String result = String.format("%.2f €/Monat", calc.getMonthlyFixedCosts());
+                    if (calc.getVariableCostPerTreatment() != null) {
+                        result += String.format(" + %.2f €/Behandlung", calc.getVariableCostPerTreatment());
+                    }
+                    return result;
+                }
+            }
+            return "-";
+        }).setHeader("Kosten").setAutoWidth(true);
+
+        costCalculationGrid.addColumn(calc -> calc.getValidFrom() != null 
+                ? DateAndTimeUtils.getGermanDateTimeFormatter().format(calc.getValidFrom())
+                : "-")
+            .setHeader("Gültig ab")
+            .setAutoWidth(true);
+
+        costCalculationGrid.addColumn(calc -> calc.getValidTo() != null 
+                ? DateAndTimeUtils.getGermanDateTimeFormatter().format(calc.getValidTo())
+                : "Unbegrenzt")
+            .setHeader("Gültig bis")
+            .setAutoWidth(true);
+
+        costCalculationGrid.addColumn(calc -> calc.getActive() != null && calc.getActive() ? "Aktiv" : "Inaktiv")
+            .setHeader("Status")
+            .setAutoWidth(true);
+
+        // Aktionen-Spalte
+        costCalculationGrid.addColumn(new ComponentRenderer<>(calc -> {
+            HorizontalLayout actions = new HorizontalLayout();
+            actions.setSpacing(true);
+
+            Button editButton = new Button("Bearbeiten", VaadinIcon.EDIT.create());
+            editButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            editButton.addClickListener(e -> openCostCalculationDialog(calc));
+
+            actions.add(editButton);
+            return actions;
+        })).setHeader("Aktionen").setAutoWidth(true);
+
+        // Button zum Hinzufügen
+        Button addButton = new Button("Neues Preismodell", VaadinIcon.PLUS.create());
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addButton.addClickListener(e -> {
+            SurgicalCenter surgicalCenter = binder.getBean();
+            if (surgicalCenter == null || surgicalCenter.getId() == null) {
+                Notification.show("Bitte speichern Sie zuerst die Stammdaten.", 3000, Notification.Position.MIDDLE);
+                return;
+            }
+            openCostCalculationDialog(null);
+        });
+
+        HorizontalLayout headerLayout = new HorizontalLayout();
+        headerLayout.setWidthFull();
+        headerLayout.setJustifyContentMode(HorizontalLayout.JustifyContentMode.BETWEEN);
+        headerLayout.add(new H4("Preismodelle"));
+        headerLayout.add(addButton);
+
+        layout.add(headerLayout, costCalculationGrid);
+
+        // Lade Preismodelle
+        refreshCostCalculationGrid(costCalculationGrid);
+
+        return layout;
+    }
+
+    private String translatePricingModel(de.bbajor.pvs.cost.model.PricingModel model) {
+        return switch (model) {
+            case RENTAL -> "Miete";
+            case OWNED -> "Eigener OP-Saal";
+        };
+    }
+
+    private void refreshCostCalculationGrid(Grid<de.bbajor.pvs.cost.model.CostCalculation> grid) {
+        SurgicalCenter surgicalCenter = binder.getBean();
+        if (surgicalCenter == null || surgicalCenter.getId() == null) {
+            grid.setItems(List.of());
+            return;
+        }
+
+        try {
+            ensureInstitutionContext();
+            de.bbajor.pvs.cost.service.CostCalculationService costCalculationService = 
+                applicationContext.getBean(de.bbajor.pvs.cost.service.CostCalculationService.class);
+            List<de.bbajor.pvs.cost.model.CostCalculation> calculations = 
+                costCalculationService.findBySurgicalCenter(surgicalCenter.getId());
+            grid.setItems(calculations);
+        } catch (Exception e) {
+            grid.setItems(List.of());
+        }
+    }
+
+    private void openCostCalculationDialog(de.bbajor.pvs.cost.model.CostCalculation costCalculation) {
+        SurgicalCenter surgicalCenter = binder.getBean();
+        if (surgicalCenter == null) {
+            Notification.show("Bitte speichern Sie zuerst die Stammdaten.", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+
+        try {
+            ensureInstitutionContext();
+            de.bbajor.pvs.cost.service.CostCalculationService costCalculationService = 
+                applicationContext.getBean(de.bbajor.pvs.cost.service.CostCalculationService.class);
+            de.bbajor.pvs.institution.repository.InstitutionRepository institutionRepository = 
+                applicationContext.getBean(de.bbajor.pvs.institution.repository.InstitutionRepository.class);
+            UserAccountRepository userAccountRepository = 
+                applicationContext.getBean(UserAccountRepository.class);
+
+            de.bbajor.pvs.cost.ui.CostCalculationDialog dialog = 
+                new de.bbajor.pvs.cost.ui.CostCalculationDialog(
+                    costCalculationService,
+                    institutionRepository,
+                    userAccountRepository,
+                    surgicalCenter,
+                    costCalculation
+                );
+
+            dialog.setOnSaveCallback(() -> {
+                // Grid aktualisieren
+                if (costCalculationGrid != null) {
+                    refreshCostCalculationGrid(costCalculationGrid);
+                }
+            });
+
+            dialog.open();
+        } catch (Exception e) {
+            Notification notification = Notification.show(
+                "Fehler beim Öffnen des Dialogs: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
 
     public void setBean(SurgicalCenter dto) {
         binder.setBean(dto);
