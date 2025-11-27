@@ -136,7 +136,9 @@ public class TaskListView extends Main implements BeforeEnterObserver {
                         // But only MEDICAL_STAFF, OWNER, DOCTOR can start review
                         TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
                                         this.authenticationContext, this.reportService, this.userAccountRepository,
-                                        this.applicationContext, this.treatmentPlanPresenter);
+                                        this.applicationContext, this.treatmentPlanPresenter,
+                                        applicationContext.getBean(de.bbajor.pvs.taskmanagement.service.StandardRemarkService.class),
+                                        applicationContext.getBean(de.bbajor.pvs.taskmanagement.service.TreatmentRemarkService.class));
                         dialog.open();
                 });
 

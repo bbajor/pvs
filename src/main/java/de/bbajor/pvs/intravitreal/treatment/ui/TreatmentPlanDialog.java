@@ -17,7 +17,7 @@ public class TreatmentPlanDialog extends Dialog {
 
     public TreatmentPlanDialog(TreatmentPlanPresenter dialogPresenter, TreatmentPlan treatmentPlan, ApplicationContext context) {
         setCloseOnEsc(true);
-        setCloseOnOutsideClick(true);
+        setCloseOnOutsideClick(false);
 
         TreatmentPlanLayout treatmentPlanForm = new TreatmentPlanLayout(dialogPresenter, treatmentPlan, context);
         add(treatmentPlanForm);

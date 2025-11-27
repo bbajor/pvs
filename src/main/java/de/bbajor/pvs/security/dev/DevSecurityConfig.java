@@ -100,9 +100,9 @@ class DevSecurityConfig {
         institutionAuthFilter.setAuthenticationManager(authenticationManager);
         
         // Configure success/failure handlers
-        // Success handler uses JavaScript to navigate directly to patient-search
+        // Success handler uses JavaScript to navigate directly to dashboard
         // This preserves the SecurityContext in the Vaadin thread
-        AuthenticationSuccessHandler successHandler = new VaadinInstitutionAuthenticationSuccessHandler("patient-search");
+        AuthenticationSuccessHandler successHandler = new VaadinInstitutionAuthenticationSuccessHandler("");
         AuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler(
                 "/" + DevLoginView.LOGIN_PATH + "?error");
         institutionAuthFilter.setAuthenticationSuccessHandler(successHandler);

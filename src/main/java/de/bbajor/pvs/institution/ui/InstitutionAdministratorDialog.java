@@ -93,6 +93,7 @@ public class InstitutionAdministratorDialog extends Dialog {
         add(content);
         
         setWidth("600px");
+        setCloseOnOutsideClick(false);
         open();
     }
 

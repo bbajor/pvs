@@ -67,6 +67,7 @@ public class WeekListDialog extends Dialog {
         
         setHeight("1200px");
         setWidth("1400px");
+        setCloseOnOutsideClick(false);
         // Kein Header-Titel mehr, da wir eine Section mit Überschrift verwenden
 
         grid.setSizeFull();

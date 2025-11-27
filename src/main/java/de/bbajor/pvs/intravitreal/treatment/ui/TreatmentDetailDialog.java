@@ -14,6 +14,7 @@ public class TreatmentDetailDialog extends Dialog {
         setWidth("1000px");
         setHeight("600px");
         setHeaderTitle("Behandlungsdetails für " + treatment.getPatientInfo());
+        setCloseOnOutsideClick(false);
 
         TreatmentDetailLayout layout = new TreatmentDetailLayout(
             treatment, 

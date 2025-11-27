@@ -20,6 +20,7 @@ public class EntityVerificationDialog<T> extends Dialog {
         setWidth("800px");
         setHeight("600px");
         setHeaderTitle("Patientendaten überprüfen");
+        setCloseOnOutsideClick(false);
 
         // Show confidence indicator
         double confidence = result.getConfidence();

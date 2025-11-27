@@ -404,8 +404,8 @@ class DevLoginView extends Main implements BeforeEnterObserver {
                 // Redirect to super admin settings with institution tab
                 UI.getCurrent().navigate("admin/super-settings");
             } else {
-                // Regular user with institution - go to patient search
-                UI.getCurrent().navigate("patient-search");
+                // Regular user with institution - go to dashboard
+                UI.getCurrent().navigate("");
             }
             
         } catch (BadCredentialsException e) {
@@ -538,9 +538,9 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         log.debug("DevLoginView.beforeEnter() called - location: {}, authenticated: {}", location, authenticated);
         
         if (authenticated) {
-            // Redirect to patient search if the user is already logged in
-            log.debug("User is authenticated in DevLoginView.beforeEnter(), redirecting to patient-search");
-            event.forwardTo("patient-search");
+            // Redirect to dashboard if the user is already logged in
+            log.debug("User is authenticated in DevLoginView.beforeEnter(), redirecting to dashboard");
+            event.forwardTo("");
             return;
         }
 

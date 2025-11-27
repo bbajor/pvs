@@ -78,9 +78,8 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         // Icon für Ophthalmoplan
         var appLogo = VaadinIcon.EYE.create();
         appLogo.addClassNames(TextColor.PRIMARY, IconSize.LARGE);
-        // Mindestabstand zum Rand - Business-App Style
+        // Professionelle Positionierung - zentriert mit angemessenem Abstand
         appLogo.getStyle()
-                .set("margin-left", "var(--lumo-space-s, 0.75rem)")
                 .set("min-width", "var(--lumo-icon-size-l, 1.5rem)")
                 .set("flex-shrink", "0")
                 .set("display", "flex")
@@ -90,7 +89,6 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         var appName = new Span("Ophthalmoplan");
         appName.addClassNames(FontWeight.SEMIBOLD, FontSize.LARGE);
         appName.getStyle()
-                .set("margin-left", "var(--lumo-space-s, 0.75rem)")
                 .set("cursor", "pointer")
                 .set("user-select", "none")
                 .set("display", "flex")
@@ -114,7 +112,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         });
 
         var header = new Div(dashboardLink);
-        header.addClassNames(Display.FLEX, Padding.MEDIUM, AlignItems.CENTER);
+        header.addClassNames(Display.FLEX, Padding.MEDIUM, AlignItems.CENTER, JustifyContent.CENTER);
         header.getStyle()
                 .set("min-height", "var(--lumo-size-xl, 3rem)")
                 .set("border-bottom", "1px solid var(--lumo-contrast-20pct)");
@@ -205,7 +203,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
 
         var avatar = new Avatar(user.getFullName(), user.getPictureUrl());
         avatar.addThemeVariants(AvatarVariant.LUMO_XSMALL);
-        avatar.addClassNames(Margin.Right.SMALL);
+        avatar.addClassNames(Margin.Right.MEDIUM);
         avatar.setColorIndex(5);
 
         var userMenu = new MenuBar();

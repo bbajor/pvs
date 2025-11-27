@@ -51,6 +51,7 @@ public class InstitutionEmailContactDialog extends Dialog {
         setHeight("90vh");
         setResizable(true);
         setDraggable(true);
+        setCloseOnOutsideClick(false);
 
         H3 title = new H3("E-Mail-Kontakte verwalten");
         

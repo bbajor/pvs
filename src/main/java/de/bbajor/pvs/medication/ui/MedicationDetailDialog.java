@@ -28,6 +28,7 @@ public class MedicationDetailDialog extends Dialog {
                 setWidth("1200px");
                 setHeight("1000px");
                 setCloseOnEsc(true);
+                setCloseOnOutsideClick(false);
 
                 TextField nr = new TextField("Nr");
                 nr.setReadOnly(isReadOnly);

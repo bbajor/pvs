@@ -63,3 +63,6 @@ All shell scripts (.ps1, .sh, .bash) MUST be in English only
 No German text, no emojis/icons, no special Unicode characters
 Use ASCII characters only for maximum compatibility
 Comments, error messages, user prompts, and output must be in English
+Imports:
+When importing a class, use the import keyword at the beginning of the class file instead of fully qualified class names
+Exception: Only use fully qualified names when there are naming conflicts (e.g., two classes with the same name from different packages)

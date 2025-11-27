@@ -1,6 +1,14 @@
 package de.bbajor.pvs.taskmanagement.ui.view;
 
+import java.io.ByteArrayInputStream;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,14 +17,16 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Section;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.StreamRegistration;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.notification.Notification.Position;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -40,6 +50,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.ui.NextTreatmentBookingDialog;
 import de.bbajor.pvs.base.util.SideOfEye;
+import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
@@ -63,21 +74,27 @@ public class TaskReviewDialog extends Dialog {
     private UserAccountRepository userAccountRepository;
     private ApplicationContext applicationContext;
     private TreatmentPlanPresenter treatmentPlanPresenter;
+    private de.bbajor.pvs.taskmanagement.service.StandardRemarkService standardRemarkService;
+    private de.bbajor.pvs.taskmanagement.service.TreatmentRemarkService treatmentRemarkService;
 
     private VerticalLayout mainContent;
     private VerticalLayout overviewLayout;
-    private VerticalLayout detailLayout;
     
     // Track which treatments have follow-up bookings for visual feedback
-    private java.util.Set<Long> treatmentsWithFollowUpBooking = new java.util.HashSet<>();
+    private Set<Long> treatmentsWithFollowUpBooking = new HashSet<>();
     
     // Track selected treatments for bulk approval
-    private java.util.Set<Long> selectedTreatmentsForApproval = new java.util.HashSet<>();
+    private Set<Long> selectedTreatmentsForApproval = new HashSet<>();
+    
+    // Referenz zur "Alle auswählen" Checkbox
+    private Checkbox selectAllCheckbox;
 
     public TaskReviewDialog(Task task, TreatmentRepository treatmentRepository, TaskService taskService,
             AuthenticationContext authenticationContext, TreatmentReportService reportService,
             UserAccountRepository userAccountRepository, ApplicationContext applicationContext,
-            TreatmentPlanPresenter treatmentPlanPresenter) {
+            TreatmentPlanPresenter treatmentPlanPresenter,
+            de.bbajor.pvs.taskmanagement.service.StandardRemarkService standardRemarkService,
+            de.bbajor.pvs.taskmanagement.service.TreatmentRemarkService treatmentRemarkService) {
         this.task = task;
         this.treatmentRepository = treatmentRepository;
         this.taskService = taskService;
@@ -86,25 +103,375 @@ public class TaskReviewDialog extends Dialog {
         this.userAccountRepository = userAccountRepository;
         this.applicationContext = applicationContext;
         this.treatmentPlanPresenter = treatmentPlanPresenter;
+        this.standardRemarkService = standardRemarkService;
+        this.treatmentRemarkService = treatmentRemarkService;
 
         ensureInstitutionContext();
         treatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
 
         setHeaderTitle("Dokumentation");
-        setWidth("900px");
-        setHeight("700px");
+        setWidth("1400px");
+        setHeight("900px");
         setDraggable(true);
         setResizable(true);
+        setCloseOnOutsideClick(false);
 
         mainContent = new VerticalLayout();
         mainContent.setSizeFull();
         mainContent.setPadding(false);
         mainContent.setSpacing(false);
 
-        // Show overview by default
-        showOverview();
-        
         add(mainContent);
+        
+        // Footer-Buttons ZUERST erstellen, bevor showOverview() aufgerufen wird
+        createFooterButtons();
+        
+        // Show overview by default (nach createFooterButtons, damit Buttons initialisiert sind)
+        showOverview();
+    }
+    
+    // Footer-Buttons als Instanzvariablen für Zugriff aus Detail-Ansicht
+    private Button closeButton;
+    private Button startReview;
+    private Button approveSelected;
+    private Button viewReport;
+    private Button backToOverview;
+    private Button prevButton;
+    private Button nextButton;
+    private Button approveSecond;
+    
+    /**
+     * Erstellt die Footer-Buttons analog zum PatientDialog.
+     */
+    private void createFooterButtons() {
+        closeButton = new Button("Schließen", e -> close());
+        
+        startReview = new Button("Dokumentation starten", e -> {
+            if (treatments.isEmpty()) {
+                Notification.show("Keine Behandlungen vorhanden");
+                return;
+            }
+            showTreatmentDetail(0);
+        });
+        startReview.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty());
+        
+        // Button für Massendokumentation (nur undokumentierte Behandlungen)
+        approveSelected = new Button("Dokumentation abschließen", VaadinIcon.CHECK.create(), e -> {
+            approveSelectedTreatments();
+        });
+        approveSelected.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        approveSelected.setEnabled(!selectedTreatmentsForApproval.isEmpty() && !task.isCompleted() && hasReviewPermission());
+        if (!hasReviewPermission()) {
+            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
+        }
+        
+        viewReport = new Button("Sammelbericht generieren", VaadinIcon.FILE_TEXT.create(), e -> generateCombinedReport());
+        viewReport.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        
+        // Always enabled - can generate preliminary reports
+        viewReport.setEnabled(!treatments.isEmpty());
+        boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
+        if (!allApproved && !treatments.isEmpty()) {
+            viewReport.setTooltipText("Vorläufiger Sammelbericht (nicht alle Behandlungen sind dokumentiert)");
+        } else if (!treatments.isEmpty()) {
+            viewReport.setTooltipText("Sammelbericht generieren");
+        }
+        
+        // Navigation-Buttons für Detail-Ansicht
+        backToOverview = new Button("Zurück zur Übersicht", e -> showOverview());
+        backToOverview.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        
+        prevButton = new Button(VaadinIcon.ANGLE_LEFT.create(), e -> {
+            if (currentTreatmentIndex > 0) {
+                Treatment currentTreatment = treatments.get(currentTreatmentIndex);
+                // Speichere zusätzliche Infos falls vorhanden
+                TextArea additionalInfoField = findAdditionalInfoField();
+                if (additionalInfoField != null) {
+                    saveAdditionalInfo(currentTreatment, additionalInfoField.getValue());
+                }
+                showTreatmentDetail(currentTreatmentIndex - 1);
+            }
+        });
+        
+        nextButton = new Button(VaadinIcon.ANGLE_RIGHT.create(), e -> {
+            if (currentTreatmentIndex < treatments.size() - 1) {
+                Treatment currentTreatment = treatments.get(currentTreatmentIndex);
+                // Speichere zusätzliche Infos falls vorhanden
+                TextArea additionalInfoField = findAdditionalInfoField();
+                if (additionalInfoField != null) {
+                    saveAdditionalInfo(currentTreatment, additionalInfoField.getValue());
+                }
+                showTreatmentDetail(currentTreatmentIndex + 1);
+            }
+        });
+        
+        // Check if user can approve (only MEDICAL_STAFF, OWNER, DOCTOR - not ADMIN)
+        boolean canApprove = hasReviewPermission();
+        
+        Button approveSingle = new Button("Dokumentieren", e -> {
+            Treatment currentTreatment = treatments.get(currentTreatmentIndex);
+            try {
+                String user = authenticationContext.getPrincipalName().orElse("unknown");
+                String userId = user;
+                taskService.approveTreatment(currentTreatment.getId(), userId, user, false);
+                TextArea additionalInfoField = findAdditionalInfoField();
+                if (additionalInfoField != null) {
+                    saveAdditionalInfo(currentTreatment, additionalInfoField.getValue());
+                }
+                Notification.show("Behandlung dokumentiert");
+                reloadTreatments();
+                
+                // Navigate to next treatment if available, otherwise go back to overview
+                if (currentTreatmentIndex < treatments.size() - 1) {
+                    showTreatmentDetail(currentTreatmentIndex + 1);
+                } else {
+                    showOverview();
+                }
+            } catch (AccessDeniedException ex) {
+                Notification errorNotification = new Notification(
+                    ex.getMessage() != null ? ex.getMessage() : 
+                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu dokumentieren.",
+                    10000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            } catch (Exception ex) {
+                Notification errorNotification = new Notification(
+                    "Fehler beim Dokumentieren der Behandlung: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            }
+        });
+        approveSingle.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        approveSingle.setEnabled(!task.isCompleted() && canApprove);
+        if (!canApprove) {
+            approveSingle.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
+        }
+        
+        approveSecond = new Button("Als Zweitprüfer dokumentieren", e -> {
+            Treatment currentTreatment = treatments.get(currentTreatmentIndex);
+            try {
+                String user = authenticationContext.getPrincipalName().orElse("unknown");
+                String userId = user;
+                taskService.approveTreatment(currentTreatment.getId(), userId, user, true);
+                TextArea additionalInfoField = findAdditionalInfoField();
+                if (additionalInfoField != null) {
+                    saveAdditionalInfo(currentTreatment, additionalInfoField.getValue());
+                }
+                Notification.show("Zweitprüfung dokumentiert");
+                reloadTreatments();
+                
+                // Navigate to next treatment if available, otherwise go back to overview
+                if (currentTreatmentIndex < treatments.size() - 1) {
+                    showTreatmentDetail(currentTreatmentIndex + 1);
+                } else {
+                    showOverview();
+                }
+            } catch (AccessDeniedException ex) {
+                Notification errorNotification = new Notification(
+                    ex.getMessage() != null ? ex.getMessage() : 
+                    "Sie haben nicht die erforderlichen Berechtigungen für die Zweitdokumentation.",
+                    10000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            } catch (Exception ex) {
+                Notification errorNotification = new Notification(
+                    "Fehler bei der Zweitdokumentation: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            }
+        });
+        approveSecond.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        approveSecond.setEnabled(!task.isCompleted() && canApprove);
+        if (!canApprove) {
+            approveSecond.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
+        }
+        
+        // Initial: Übersichts-Buttons anzeigen
+        showOverviewFooter();
+    }
+    
+    /**
+     * Zeigt die Footer-Buttons für die Übersicht.
+     */
+    private void showOverviewFooter() {
+        getFooter().removeAll();
+        getFooter().add(closeButton, approveSelected, startReview, viewReport);
+        updateFooterButtons();
+    }
+    
+    /**
+     * Zeigt die Footer-Buttons für die Detail-Ansicht.
+     */
+    private void showDetailFooter(int index) {
+        getFooter().removeAll();
+        prevButton.setEnabled(index > 0);
+        nextButton.setEnabled(index < treatments.size() - 1);
+        
+        // Button "Abschließen" für Einzeldokumentation
+        Treatment currentTreatment = treatments.get(index);
+        Button approveSingle = new Button("Abschließen", VaadinIcon.CHECK.create(), e -> {
+            try {
+                String user = authenticationContext.getPrincipalName().orElse("unknown");
+                String userId = user;
+                taskService.approveTreatment(currentTreatment.getId(), userId, user, false);
+                
+                Notification.show("Behandlung dokumentiert");
+                reloadTreatments();
+                
+                // Navigate to next treatment if available, otherwise go back to overview
+                if (index < treatments.size() - 1) {
+                    showTreatmentDetail(index + 1);
+                } else {
+                    showOverview();
+                }
+            } catch (AccessDeniedException ex) {
+                Notification errorNotification = new Notification(
+                    ex.getMessage() != null ? ex.getMessage() : 
+                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu dokumentieren.",
+                    10000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            } catch (Exception ex) {
+                Notification errorNotification = new Notification(
+                    "Fehler beim Dokumentieren der Behandlung: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.MIDDLE
+                );
+                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                errorNotification.open();
+            }
+        });
+        approveSingle.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        boolean canApprove = hasReviewPermission();
+        approveSingle.setEnabled(!task.isCompleted() && canApprove && currentTreatment.getApprovalDate() == null);
+        if (!canApprove) {
+            approveSingle.setTooltipText("Nur MFA, Inhaber, Ärzte und Institutionsadmins können Behandlungen dokumentieren");
+        }
+        
+        getFooter().add(closeButton, backToOverview, prevButton, nextButton, approveSingle, approveSecond);
+    }
+    
+    /**
+     * Aktualisiert die Footer-Buttons basierend auf dem aktuellen Zustand.
+     */
+    private void updateFooterButtons() {
+        if (approveSelected != null) {
+            approveSelected.setEnabled(!selectedTreatmentsForApproval.isEmpty() && !task.isCompleted() && hasReviewPermission());
+        }
+    }
+    
+    /**
+     * Findet das AdditionalInfo-TextArea in der Detail-Ansicht.
+     */
+    private TextArea findAdditionalInfoField() {
+        return findRemarksField();
+    }
+    
+    /**
+     * Findet das Bemerkungen-TextArea in der Detail-Ansicht.
+     * Wird nicht mehr verwendet, da TextArea entfernt wurde.
+     */
+    private TextArea findRemarksField() {
+        return null;
+    }
+    
+    /**
+     * Getter für TreatmentRepository (für TreatmentReviewDetailLayout).
+     */
+    TreatmentRepository getTreatmentRepository() {
+        return treatmentRepository;
+    }
+    
+    /**
+     * Getter für TaskService (für TreatmentReviewDetailLayout).
+     */
+    TaskService getTaskService() {
+        return taskService;
+    }
+    
+    /**
+     * Lädt alle ausgewählten Berichte herunter.
+     */
+    private void downloadSelectedReports() {
+        if (selectedTreatmentsForApproval.isEmpty()) {
+            Notification.show("Bitte wählen Sie mindestens eine Behandlung aus.", 3000, Notification.Position.MIDDLE);
+            return;
+        }
+        
+        try {
+            ensureInstitutionContext();
+            String treatingDoctor = authenticationContext.getPrincipalName().orElse("Unbekannt");
+            
+            int downloadedCount = 0;
+            int failedCount = 0;
+            
+            for (Long treatmentId : selectedTreatmentsForApproval) {
+                try {
+                    Treatment treatment = treatments.stream()
+                            .filter(t -> t.getId().equals(treatmentId))
+                            .findFirst()
+                            .orElse(null);
+                    
+                    if (treatment == null) {
+                        failedCount++;
+                        continue;
+                    }
+                    
+                    boolean isApproved = treatment.getApprovalDate() != null;
+                    byte[] pdfBytes = reportService.generatePatientPdfReport(treatment, task.getTimeSlot(), treatingDoctor, isApproved);
+                    
+                    // Create filename with patient name
+                    String patientName = treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null
+                            ? treatment.getTreatmentPlan().getPatient().getLastName() + "_" + treatment.getTreatmentPlan().getPatient().getFirstName()
+                            : "Patient";
+                    String prefix = isApproved ? "Behandlungsbericht" : "Vorläufiger_Behandlungsbericht";
+                    String filename = prefix + "_" + patientName + "_" + 
+                        LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+                    
+                    downloadPdf(pdfBytes, filename);
+                    downloadedCount++;
+                    
+                    // Kleine Verzögerung zwischen Downloads, damit Browser nicht überlastet wird
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                } catch (Exception ex) {
+                    log.error("Fehler beim Herunterladen des Berichts für Behandlung " + treatmentId, ex);
+                    failedCount++;
+                }
+            }
+            
+            if (failedCount == 0) {
+                Notification.show(downloadedCount + " Bericht(e) werden heruntergeladen", 3000, 
+                        Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } else {
+                Notification.show(downloadedCount + " Bericht(e) heruntergeladen, " + failedCount + " Fehler", 5000, 
+                        Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            }
+        } catch (Exception e) {
+            log.error("Fehler beim Herunterladen der Berichte", e);
+            Notification notification = Notification.show(
+                    "Fehler beim Herunterladen der Berichte: " + e.getMessage(), 5000, 
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     private void showOverview() {
@@ -113,10 +480,49 @@ public class TaskReviewDialog extends Dialog {
         overviewLayout = new VerticalLayout();
         overviewLayout.setSizeFull();
         
-        // Header with task info
-        String headerText = task.getDescription() != null ? task.getDescription() : "Behandlungen im Task";
-        H3 header = new H3(headerText);
-        overviewLayout.add(header);
+        // Section mit Header und Anzahl - auf zwei Zeilen umbrechen
+        Section headerSection = new Section();
+        headerSection.getStyle().set("margin-bottom", "var(--lumo-space-m)");
+        
+        // Berechne Anzahl der nicht dokumentierten Behandlungen
+        long notDocumentedCount = treatments.stream()
+                .filter(t -> t.getApprovalDate() == null)
+                .count();
+        long totalCount = treatments.size();
+        
+        // Zeile 1: "Behandlungen vom X um Y Uhr (Augenzentrum XY)"
+        String dateTimeText = "";
+        String centerName = "";
+        if (task.getTimeSlot() != null) {
+            var timeSlot = task.getTimeSlot();
+            if (timeSlot.getDate() != null && timeSlot.getStartTime() != null) {
+                dateTimeText = timeSlot.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) + 
+                               " um " + timeSlot.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")) + " Uhr";
+            }
+            if (timeSlot.getSurgicalCenter() != null && timeSlot.getSurgicalCenter().getName() != null) {
+                centerName = timeSlot.getSurgicalCenter().getName();
+            }
+        }
+        
+        Div headerLine1 = new Div();
+        headerLine1.getStyle().set("font-size", "var(--lumo-font-size-l)");
+        headerLine1.getStyle().set("font-weight", "600");
+        headerLine1.setText("Behandlungen vom " + dateTimeText + (centerName.isEmpty() ? "" : " (" + centerName + ")"));
+        
+        // Zeile 2: "3/8 Behandlungen sind noch nicht dokumentiert"
+        Div headerLine2 = new Div();
+        headerLine2.getStyle().set("font-size", "var(--lumo-font-size-m)");
+        headerLine2.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        headerLine2.getStyle().set("margin-top", "var(--lumo-space-xs)");
+        headerLine2.setText(String.format("%d/%d Behandlungen sind noch nicht dokumentiert", notDocumentedCount, totalCount));
+        
+        VerticalLayout headerLayout = new VerticalLayout();
+        headerLayout.setSpacing(false);
+        headerLayout.setPadding(false);
+        headerLayout.add(headerLine1, headerLine2);
+        
+        headerSection.add(headerLayout);
+        overviewLayout.add(headerSection);
         
         // Grid mit angepasster Spaltenreihenfolge: Patient, Auge, Medikament, Status & Genehmigung, Dokumentiert, Bericht, Auswahl
         Grid<Treatment> grid = new Grid<>(Treatment.class, false);
@@ -125,7 +531,7 @@ public class TaskReviewDialog extends Dialog {
         // Spalte 1: Patient (mit Renderer für bessere Darstellung)
         grid.addComponentColumn(treatment -> {
             if (treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null) {
-                de.bbajor.pvs.patient.model.Patient patient = treatment.getTreatmentPlan().getPatient();
+                Patient patient = treatment.getTreatmentPlan().getPatient();
                 VerticalLayout patientLayout = new VerticalLayout();
                 patientLayout.setSpacing(false);
                 patientLayout.setPadding(false);
@@ -141,7 +547,7 @@ public class TaskReviewDialog extends Dialog {
                 
                 if (patient.getBirth() != null) {
                     Span birthSpan = new Span("geb. " + 
-                        patient.getBirth().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+                        patient.getBirth().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
                     birthSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
                     birthSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
                     patientLayout.add(birthSpan);
@@ -152,9 +558,23 @@ public class TaskReviewDialog extends Dialog {
             return new Span("-");
         }).setHeader("Patient").setAutoWidth(true).setResizable(true);
         
-        // Spalte 2: Auge
-        grid.addColumn(t -> t.getSideOfEye() != null ? t.getSideOfEye().toString() : "-")
-                .setHeader("Auge").setAutoWidth(true).setResizable(true);
+        // Spalte 2: Auge (nur "rechts" oder "links" mit Farben)
+        grid.addComponentColumn(treatment -> {
+            if (treatment.getSideOfEye() == null) {
+                return new Span("-");
+            }
+            Span eyeSpan = new Span(treatment.getSideOfEye() == SideOfEye.RIGHT ? "rechts" : "links");
+            if (treatment.getSideOfEye() == SideOfEye.RIGHT) {
+                eyeSpan.getStyle().set("background-color", "#E3F2FD");
+                eyeSpan.getStyle().set("padding", "4px 8px");
+                eyeSpan.getStyle().set("border-radius", "4px");
+            } else {
+                eyeSpan.getStyle().set("background-color", "#FFF3E0");
+                eyeSpan.getStyle().set("padding", "4px 8px");
+                eyeSpan.getStyle().set("border-radius", "4px");
+            }
+            return eyeSpan;
+        }).setHeader("Auge").setAutoWidth(true).setResizable(true);
         
         // Spalte 3: Medikament
         grid.addColumn(t -> {
@@ -168,13 +588,13 @@ public class TaskReviewDialog extends Dialog {
         grid.addComponentColumn(treatment -> {
             HorizontalLayout statusLayout = new HorizontalLayout();
             statusLayout.setSpacing(true);
-            statusLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+            statusLayout.setAlignItems(Alignment.CENTER);
             
             // Combobox für Status
             ComboBox<TreatmentStatus> statusComboBox = new ComboBox<>();
-            List<TreatmentStatus> statusOptions = java.util.Arrays.stream(TreatmentStatus.values())
-                    .sorted(java.util.Comparator.comparing(TreatmentStatus::getShortLabel))
-                    .collect(java.util.stream.Collectors.toList());
+            List<TreatmentStatus> statusOptions = Arrays.stream(TreatmentStatus.values())
+                    .sorted(Comparator.comparing(TreatmentStatus::getShortLabel))
+                    .collect(Collectors.toList());
             statusComboBox.setItems(statusOptions);
             statusComboBox.setItemLabelGenerator(TreatmentStatus::getShortLabel);
             statusComboBox.setValue(treatment.getTreatmentStatus() != null 
@@ -212,7 +632,7 @@ public class TaskReviewDialog extends Dialog {
             
             statusLayout.add(statusComboBox, trafficLight);
             return statusLayout;
-        }).setHeader("Status & Genehmigung").setAutoWidth(true).setResizable(true);
+        }).setHeader("Behandlung erfolgt?").setAutoWidth(true).setResizable(true);
         
         // Spalte 5: Dokumentiert (grünes Häkchen oder graues X)
         grid.addComponentColumn(treatment -> {
@@ -245,7 +665,7 @@ public class TaskReviewDialog extends Dialog {
         
         // Spalte 7: Auswahl (nur Checkbox für Massengenehmigung)
         grid.addComponentColumn(treatment -> {
-            com.vaadin.flow.component.checkbox.Checkbox approvalCheckbox = new com.vaadin.flow.component.checkbox.Checkbox();
+            Checkbox approvalCheckbox = new Checkbox();
             approvalCheckbox.setValue(selectedTreatmentsForApproval.contains(treatment.getId()));
             approvalCheckbox.addValueChangeListener(e -> {
                 if (e.getValue()) {
@@ -253,6 +673,10 @@ public class TaskReviewDialog extends Dialog {
                 } else {
                     selectedTreatmentsForApproval.remove(treatment.getId());
                 }
+                // Aktualisiere "Alle auswählen" Checkbox
+                updateSelectAllCheckbox();
+                // Aktualisiere Footer-Buttons
+                updateFooterButtons();
             });
             approvalCheckbox.setTooltipText("Für Massengenehmigung markieren (bekannte Patienten ohne besondere Vorkommnisse)");
             return approvalCheckbox;
@@ -261,45 +685,70 @@ public class TaskReviewDialog extends Dialog {
         grid.setItems(treatments);
         overviewLayout.add(grid);
         
-        // Buttons
-        HorizontalLayout buttonLayout = new HorizontalLayout();
+        // Footer-Zeile unter dem Grid mit "Alle auswählen" Checkbox und "Berichte herunterladen" Button
+        Div gridFooter = new Div();
+        gridFooter.getStyle()
+                .set("display", "grid")
+                .set("grid-template-columns", "repeat(7, 1fr)")
+                .set("padding", "var(--lumo-space-s)")
+                .set("border-top", "1px solid var(--lumo-contrast-20pct)")
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("align-items", "center");
         
-        Button startReview = new Button("Dokumentation starten", e -> {
-            if (treatments.isEmpty()) {
-                Notification.show("Keine Behandlungen vorhanden");
-                return;
+        // Leere Zellen für Spalten 1-5
+        for (int i = 0; i < 5; i++) {
+            Div emptyCell = new Div();
+            gridFooter.add(emptyCell);
+        }
+        
+        // Spalte 6 (Bericht): "Berichte herunterladen" Button (nur Icon)
+        Button downloadReportsFooter = new Button(VaadinIcon.DOWNLOAD.create(), e -> {
+            downloadSelectedReports();
+        });
+        downloadReportsFooter.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
+        downloadReportsFooter.setTooltipText("Berichte herunterladen");
+        downloadReportsFooter.setEnabled(!selectedTreatmentsForApproval.isEmpty());
+        Div reportCell = new Div();
+        reportCell.add(downloadReportsFooter);
+        gridFooter.add(reportCell);
+        
+        // Spalte 7 (Auswahl): "Alle auswählen" Checkbox
+        Div selectAllCell = new Div();
+        selectAllCheckbox = new Checkbox("Alle auswählen");
+        selectAllCheckbox.addValueChangeListener(e -> {
+            if (e.getValue()) {
+                // Alle auswählen
+                treatments.forEach(t -> selectedTreatmentsForApproval.add(t.getId()));
+            } else {
+                // Alle deselektieren
+                selectedTreatmentsForApproval.clear();
             }
-            showTreatmentDetail(0);
+            // Grid aktualisieren, damit die Checkboxen aktualisiert werden
+            grid.getDataProvider().refreshAll();
+            // Aktualisiere Footer-Buttons
+            updateFooterButtons();
+            downloadReportsFooter.setEnabled(!selectedTreatmentsForApproval.isEmpty());
         });
-        startReview.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty());
+        selectAllCell.add(selectAllCheckbox);
+        gridFooter.add(selectAllCell);
         
-        // Button für Massengenehmigung
-        Button approveSelected = new Button("Auswahl dokumentieren", VaadinIcon.CHECK.create(), e -> {
-            approveSelectedTreatments();
-        });
-        approveSelected.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        approveSelected.setEnabled(!selectedTreatmentsForApproval.isEmpty() && !task.isCompleted() && hasReviewPermission());
-        if (!hasReviewPermission()) {
-            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
-        }
-        
-        Button viewReport = new Button("Sammelbericht generieren", VaadinIcon.FILE_TEXT.create(), e -> generateCombinedReport());
-        viewReport.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        
-        // Always enabled - can generate preliminary reports
-        viewReport.setEnabled(!treatments.isEmpty());
-        boolean allApproved = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
-        if (!allApproved && !treatments.isEmpty()) {
-            viewReport.setTooltipText("Vorläufiger Sammelbericht (nicht alle Behandlungen sind dokumentiert)");
-        } else if (!treatments.isEmpty()) {
-            viewReport.setTooltipText("Sammelbericht generieren");
-        }
-        
-        buttonLayout.add(startReview, approveSelected, viewReport);
-        overviewLayout.add(buttonLayout);
+        overviewLayout.add(gridFooter);
         
         mainContent.add(overviewLayout);
+        
+        // Footer für Übersicht anzeigen
+        showOverviewFooter();
+    }
+    
+    /**
+     * Aktualisiert den Status der "Alle auswählen" Checkbox basierend auf der aktuellen Auswahl.
+     */
+    private void updateSelectAllCheckbox() {
+        if (selectAllCheckbox != null && treatments != null && !treatments.isEmpty()) {
+            boolean allSelected = treatments.stream()
+                    .allMatch(t -> selectedTreatmentsForApproval.contains(t.getId()));
+            selectAllCheckbox.setValue(allSelected);
+        }
     }
 
     private void showTreatmentDetail(int index) {
@@ -315,258 +764,15 @@ public class TaskReviewDialog extends Dialog {
         
         mainContent.removeAll();
         
-        detailLayout = new VerticalLayout();
-        detailLayout.setSizeFull();
-        detailLayout.setPadding(true);
+        // Verwende das neue TreatmentReviewDetailLayout
+        TreatmentReviewDetailLayout detailLayoutComponent = new TreatmentReviewDetailLayout(
+                treatment, index, treatments.size(), this, standardRemarkService, treatmentRemarkService);
+        detailLayoutComponent.setSizeFull();
         
-        // Header with progress
-        H4 header = new H4(String.format("Behandlung %d von %d", index + 1, treatments.size()));
-        detailLayout.add(header);
+        mainContent.add(detailLayoutComponent);
         
-        // Treatment info display
-        VerticalLayout infoLayout = new VerticalLayout();
-        infoLayout.setPadding(true);
-        infoLayout.setSpacing(true);
-        infoLayout.getStyle().set("border", "1px solid #ddd");
-        infoLayout.getStyle().set("border-radius", "4px");
-        
-        infoLayout.add(new Span("Patient: " + (treatment.getTreatmentPlan() != null && treatment.getTreatmentPlan().getPatient() != null 
-                ? treatment.getTreatmentPlan().getPatient().toString() : "-")));
-        infoLayout.add(new Span("Auge: " + (treatment.getSideOfEye() != null ? treatment.getSideOfEye().toString() : "-")));
-        String medicationName = "-";
-        if (treatment.getMedicationFavourite() != null && treatment.getMedicationFavourite().getMedication() != null) {
-            medicationName = treatment.getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
-        }
-        infoLayout.add(new Span("Medikament: " + medicationName));
-        infoLayout.add(new Span("Dosierung: " + (treatment.getDosage() != null ? treatment.getDosage() : "-")));
-        infoLayout.add(new Span("Frequenz: " + (treatment.getFrequency() != null ? treatment.getFrequency() : "-")));
-        
-        // Approval information
-        String approvalStatus = "Status: Undokumentiert";
-        if (treatment.getApprovalDate() != null) {
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
-                    .ofPattern("dd.MM.yyyy HH:mm");
-            if (treatment.getApprovalDateTime() != null) {
-                approvalStatus = "Status: Dokumentiert am " + formatter.format(treatment.getApprovalDateTime());
-            } else {
-                // Fallback: Verwende approvalDate wenn approvalDateTime nicht gesetzt ist
-                approvalStatus = "Status: Dokumentiert am " + treatment.getApprovalDate().format(
-                        java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-            }
-            if (treatment.getApprovedByUserName() != null) {
-                approvalStatus += " von " + treatment.getApprovedByUserName();
-            }
-            if (treatment.getSecondApprovalDateTime() != null) {
-                approvalStatus += "\nZweitprüfung: " + formatter.format(treatment.getSecondApprovalDateTime());
-                if (treatment.getSecondApprovedByUserName() != null) {
-                    approvalStatus += " von " + treatment.getSecondApprovedByUserName();
-                }
-            }
-        }
-        infoLayout.add(new Span(approvalStatus));
-        
-        detailLayout.add(infoLayout);
-        
-        // Treatment Status Combobox mit Ampel
-        HorizontalLayout statusLayout = new HorizontalLayout();
-        statusLayout.setWidthFull();
-        statusLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
-        statusLayout.setSpacing(true);
-        
-        ComboBox<TreatmentStatus> statusComboBox = new ComboBox<>("Behandlungsstatus");
-        statusComboBox.setWidthFull();
-        
-        // Sortiere Status-Optionen alphanumerisch nach shortLabel
-        List<TreatmentStatus> statusOptions = java.util.Arrays.stream(TreatmentStatus.values())
-                .sorted(java.util.Comparator.comparing(TreatmentStatus::getShortLabel))
-                .collect(java.util.stream.Collectors.toList());
-        statusComboBox.setItems(statusOptions);
-        statusComboBox.setItemLabelGenerator(TreatmentStatus::getShortLabel);
-        
-        // Setze initialen Wert
-        final TreatmentStatus currentStatus = treatment.getTreatmentStatus() != null 
-            ? treatment.getTreatmentStatus() 
-            : TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL;
-        statusComboBox.setValue(currentStatus);
-        
-        // Info-Icon mit Tooltip für ausführliche Beschreibung
-        Icon infoIcon = VaadinIcon.INFO_CIRCLE.create();
-        infoIcon.setSize("16px");
-        infoIcon.getStyle().set("cursor", "help");
-        infoIcon.setTooltipText(currentStatus.getFullDescription());
-        
-        // Ampel-Darstellung
-        Div trafficLight = createTrafficLight(currentStatus);
-        
-        statusComboBox.addValueChangeListener(e -> {
-            TreatmentStatus newStatus = e.getValue();
-            if (newStatus != null) {
-                try {
-                    taskService.updateTreatmentStatus(treatment.getId(), newStatus);
-                    treatment.setTreatmentStatus(newStatus);
-                    infoIcon.setTooltipText(newStatus.getFullDescription());
-                    trafficLight.removeAll();
-                    trafficLight.add(createTrafficLightIcon(newStatus));
-                    Notification.show("Status aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
-                } catch (Exception ex) {
-                    log.error("Fehler beim Aktualisieren des Treatment-Status", ex);
-                    Notification errorNotification = new Notification(
-                        "Fehler beim Aktualisieren: " + ex.getMessage(),
-                        5000,
-                        Notification.Position.MIDDLE
-                    );
-                    errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    errorNotification.open();
-                    // Reset combobox to previous value
-                    statusComboBox.setValue(currentStatus);
-                }
-            }
-        });
-        
-        statusLayout.add(statusComboBox, trafficLight, infoIcon);
-        statusLayout.setFlexGrow(1, statusComboBox);
-        detailLayout.add(statusLayout);
-        
-        // Additional info input
-        TextArea additionalInfoField = new TextArea("Zusätzliche Informationen");
-        additionalInfoField.setWidthFull();
-        additionalInfoField.setMaxHeight("150px");
-        if (treatment.getAdditionalInfo() != null) {
-            additionalInfoField.setValue(treatment.getAdditionalInfo());
-        }
-        detailLayout.add(additionalInfoField);
-        
-        // Navigation and action buttons
-        HorizontalLayout buttonLayout = new HorizontalLayout();
-        
-        Button backToOverview = new Button("Zurück zur Übersicht", e -> showOverview());
-        backToOverview.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        
-        Button prevButton = new Button(VaadinIcon.ANGLE_LEFT.create(), e -> {
-            saveAdditionalInfo(treatment, additionalInfoField.getValue());
-            showTreatmentDetail(index - 1);
-        });
-        prevButton.setEnabled(index > 0);
-        
-        Button nextButton = new Button(VaadinIcon.ANGLE_RIGHT.create(), e -> {
-            saveAdditionalInfo(treatment, additionalInfoField.getValue());
-            showTreatmentDetail(index + 1);
-        });
-        nextButton.setEnabled(index < treatments.size() - 1);
-        
-        // Check if user can approve (only MEDICAL_STAFF, OWNER, DOCTOR - not ADMIN)
-        boolean canApprove = hasReviewPermission();
-        
-        Button approveSelected = new Button("Dokumentieren", e -> {
-            try {
-                String user = authenticationContext.getPrincipalName().orElse("unknown");
-                String userId = user;
-                taskService.approveTreatment(treatment.getId(), userId, user, false);
-                saveAdditionalInfo(treatment, additionalInfoField.getValue());
-                Notification.show("Behandlung dokumentiert");
-                reloadTreatments();
-                
-                // Navigate to next treatment if available, otherwise go back to overview
-                if (index < treatments.size() - 1) {
-                    showTreatmentDetail(index + 1);
-                } else {
-                    showOverview();
-                }
-            } catch (AccessDeniedException ex) {
-                Notification errorNotification = new Notification(
-                    ex.getMessage() != null ? ex.getMessage() : 
-                    "Sie haben nicht die erforderlichen Berechtigungen, um Behandlungen zu dokumentieren.",
-                    10000,
-                    Notification.Position.MIDDLE
-                );
-                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                errorNotification.open();
-            } catch (Exception ex) {
-                Notification errorNotification = new Notification(
-                    "Fehler beim Dokumentieren der Behandlung: " + ex.getMessage(),
-                    5000,
-                    Notification.Position.MIDDLE
-                );
-                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                errorNotification.open();
-            }
-        });
-        approveSelected.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        approveSelected.setEnabled(!task.isCompleted() && canApprove);
-        if (!canApprove) {
-            approveSelected.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
-        }
-        
-        Button approveSecond = new Button("Als Zweitprüfer dokumentieren", e -> {
-            try {
-                String user = authenticationContext.getPrincipalName().orElse("unknown");
-                String userId = user;
-                taskService.approveTreatment(treatment.getId(), userId, user, true);
-                saveAdditionalInfo(treatment, additionalInfoField.getValue());
-                Notification.show("Zweitprüfung dokumentiert");
-                reloadTreatments();
-                
-                // Navigate to next treatment if available, otherwise go back to overview
-                if (index < treatments.size() - 1) {
-                    showTreatmentDetail(index + 1);
-                } else {
-                    showOverview();
-                }
-            } catch (AccessDeniedException ex) {
-                Notification errorNotification = new Notification(
-                    ex.getMessage() != null ? ex.getMessage() : 
-                    "Sie haben nicht die erforderlichen Berechtigungen für die Zweitdokumentation.",
-                    10000,
-                    Notification.Position.MIDDLE
-                );
-                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                errorNotification.open();
-            } catch (Exception ex) {
-                Notification errorNotification = new Notification(
-                    "Fehler bei der Zweitdokumentation: " + ex.getMessage(),
-                    5000,
-                    Notification.Position.MIDDLE
-                );
-                errorNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                errorNotification.open();
-            }
-        });
-        approveSecond.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        approveSecond.setEnabled(!task.isCompleted() && canApprove);
-        if (!canApprove) {
-            approveSecond.setTooltipText("Nur MFA, Inhaber und Ärzte können Behandlungen dokumentieren");
-        }
-        
-        // Follow-up booking button
-        Button followUpBookingButton = new Button("Folgetermin planen", VaadinIcon.CALENDAR.create(), e -> {
-            openFollowUpBookingDialog(treatment, index);
-        });
-        followUpBookingButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        
-        // Check if follow-up booking is possible
-        boolean canBookFollowUp = false;
-        try {
-            canBookFollowUp = taskService.canBookFollowUpTreatment(treatment.getId());
-        } catch (Exception ex) {
-            log.warn("Fehler beim Prüfen der Folgetermin-Buchungsmöglichkeit", ex);
-        }
-        followUpBookingButton.setEnabled(canBookFollowUp && !task.isCompleted());
-        if (!canBookFollowUp) {
-            followUpBookingButton.setTooltipText("Folgetermin kann nur gebucht werden, wenn der Task noch offen ist und noch keine Folgebuchung existiert");
-        }
-        
-        // Visual indicator if follow-up was already booked
-        if (treatmentsWithFollowUpBooking.contains(treatment.getId())) {
-            followUpBookingButton.setIcon(VaadinIcon.CHECK_CIRCLE.create());
-            followUpBookingButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-            followUpBookingButton.setText("Folgetermin gebucht");
-            followUpBookingButton.setEnabled(false);
-        }
-        
-        buttonLayout.add(backToOverview, prevButton, nextButton, approveSelected, approveSecond, followUpBookingButton);
-        detailLayout.add(buttonLayout);
-        
-        mainContent.add(detailLayout);
+        // Footer für Detail-Ansicht anzeigen
+        showDetailFooter(index);
     }
 
     private void saveAdditionalInfo(Treatment treatment, String additionalInfo) {
@@ -587,7 +793,7 @@ public class TaskReviewDialog extends Dialog {
                 confirmDialog.setText(
                     "Für diese Behandlung existiert bereits ein Folgetermin am " +
                     (existingFollowUp.getDate() != null ? 
-                        existingFollowUp.getDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")) : 
+                        existingFollowUp.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : 
                         "unbekanntem Datum") +
                     ". Möchten Sie diesen Termin anpassen?"
                 );
@@ -698,7 +904,7 @@ public class TaskReviewDialog extends Dialog {
     
     /**
      * Check if the current user has permission to review/approve treatments.
-     * Only MEDICAL_STAFF, OWNER, and DOCTOR can approve. ADMIN cannot approve.
+     * MEDICAL_STAFF, OWNER, DOCTOR, and INSTITUTION_ADMIN can approve.
      */
     private boolean hasReviewPermission() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -710,6 +916,8 @@ public class TaskReviewDialog extends Dialog {
                     String authority = a.getAuthority();
                     return authority.equals("ROLE_" + AppRoles.MEDICAL_STAFF) ||
                            authority.equals("ROLE_" + AppRoles.OWNER) ||
+                           authority.equals("ROLE_" + AppRoles.ADMIN) ||
+                           authority.equals("ROLE_" + AppRoles.INSTITUTION_ADMIN) ||
                            authority.equals("ROLE_" + AppRoles.DOCTOR);
                 });
     }
@@ -723,8 +931,9 @@ public class TaskReviewDialog extends Dialog {
      * Ensures InstitutionContext is set before service calls.
      * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
      * so the context might not be set.
+     * Public für Zugriff aus TreatmentReviewDetailLayout.
      */
-    private void ensureInstitutionContext() {
+    public void ensureInstitutionContext() {
         // Only set if not already set
         if (InstitutionContext.hasInstitution()) {
             return;
@@ -758,8 +967,9 @@ public class TaskReviewDialog extends Dialog {
 
     /**
      * Erstellt eine Ampel-Darstellung für den Treatment-Status.
+     * Public für Zugriff aus TreatmentReviewDetailLayout.
      */
-    private Div createTrafficLight(TreatmentStatus status) {
+    public Div createTrafficLight(TreatmentStatus status) {
         Div trafficLight = new Div();
         trafficLight.getStyle()
             .set("width", "24px")
@@ -773,22 +983,17 @@ public class TaskReviewDialog extends Dialog {
     
     /**
      * Erstellt das Icon für die Ampel-Darstellung.
+     * Public für Zugriff aus TreatmentReviewDetailLayout.
      */
-    private Icon createTrafficLightIcon(TreatmentStatus status) {
+    public Icon createTrafficLightIcon(TreatmentStatus status) {
         Icon icon = VaadinIcon.CIRCLE.create();
         icon.setSize("24px");
         
         TreatmentStatus.StatusColor color = status.getColor();
         switch (color) {
-            case GREEN:
-                icon.setColor("var(--lumo-success-color)");
-                break;
-            case YELLOW:
-                icon.setColor("var(--lumo-warning-color)");
-                break;
-            case RED:
-                icon.setColor("var(--lumo-error-color)");
-                break;
+            case GREEN -> icon.setColor("var(--lumo-success-color)");
+            case YELLOW -> icon.setColor("var(--lumo-warning-color)");
+            case RED -> icon.setColor("var(--lumo-error-color)");
         }
         
         return icon;
@@ -816,11 +1021,11 @@ public class TaskReviewDialog extends Dialog {
             Treatment lastTreatment = allTreatments.stream()
                 .filter(t -> t.getSideOfEye() == sideOfEye)
                 .filter(t -> t.getDate() != null && t.getDate().isBefore(currentDate))
-                .max(java.util.Comparator.comparing(Treatment::getDate))
+                .max(Comparator.comparing(Treatment::getDate))
                 .orElse(null);
             
             if (lastTreatment != null && lastTreatment.getDate() != null) {
-                long weeks = java.time.temporal.ChronoUnit.WEEKS.between(lastTreatment.getDate(), currentDate);
+                long weeks = ChronoUnit.WEEKS.between(lastTreatment.getDate(), currentDate);
                 return (int) Math.max(1, Math.min(weeks, 16)); // Zwischen 1 und 16 Wochen
             }
         } catch (Exception ex) {
@@ -843,19 +1048,19 @@ public class TaskReviewDialog extends Dialog {
                     : "Patient";
             String prefix = isApproved ? "Behandlungsbericht" : "Vorläufiger_Behandlungsbericht";
             String filename = prefix + "_" + patientName + "_" + 
-                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
             
             downloadPdf(pdfBytes, filename);
             
             String message = isApproved ? "Bericht wird heruntergeladen" : "Vorläufiger Bericht wird heruntergeladen";
             Notification.show(message, 3000, 
-                    com.vaadin.flow.component.notification.Notification.Position.BOTTOM_CENTER);
+                    Position.BOTTOM_CENTER);
         } catch (Exception e) {
             log.error("Fehler beim Generieren des Patienten-Berichts", e);
             Notification notification = Notification.show(
                     "Fehler beim Generieren des Berichts: " + e.getMessage(), 5000, 
-                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
-            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+                    Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
     
@@ -869,26 +1074,26 @@ public class TaskReviewDialog extends Dialog {
             // Create filename with timestamp
             String prefix = allApproved ? "Sammelbericht" : "Vorläufiger_Sammelbericht";
             String filename = prefix + "_" + 
-                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
             
             downloadPdf(pdfBytes, filename);
             
             String message = allApproved ? "Sammelbericht wird heruntergeladen" : "Vorläufiger Sammelbericht wird heruntergeladen";
             Notification.show(message, 3000, 
-                    com.vaadin.flow.component.notification.Notification.Position.BOTTOM_CENTER);
+                    Position.BOTTOM_CENTER);
         } catch (Exception e) {
             log.error("Fehler beim Generieren des Sammelberichts", e);
             Notification notification = Notification.show(
                     "Fehler beim Generieren des Sammelberichts: " + e.getMessage(), 5000, 
-                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
-            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+                    Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
     
     private void downloadPdf(byte[] pdfBytes, String filename) {
         // Create StreamResource for download
         StreamResource streamResource = new StreamResource(filename, () -> {
-            return new java.io.ByteArrayInputStream(pdfBytes);
+            return new ByteArrayInputStream(pdfBytes);
         });
         streamResource.setContentType("application/pdf");
         
@@ -912,11 +1117,11 @@ public class TaskReviewDialog extends Dialog {
     }
     
     /**
-     * Dokumentiert alle markierten Behandlungen in einem Durchgang (für bekannte Patienten ohne besondere Vorkommnisse).
+     * Dokumentiert alle markierten undokumentierten Behandlungen in einem Durchgang.
      */
     private void approveSelectedTreatments() {
         if (selectedTreatmentsForApproval.isEmpty()) {
-            Notification.show("Bitte wählen Sie mindestens eine Behandlung aus (bekannte Patienten ohne besondere Vorkommnisse).", 3000, Notification.Position.MIDDLE);
+            Notification.show("Bitte wählen Sie mindestens eine Behandlung aus.", 3000, Notification.Position.MIDDLE);
             return;
         }
         
@@ -938,9 +1143,36 @@ public class TaskReviewDialog extends Dialog {
             
             int approvedCount = 0;
             int failedCount = 0;
+            int skippedCount = 0;
             
-            for (Long treatmentId : selectedTreatmentsForApproval) {
+            // Filtere nur undokumentierte Behandlungen
+            List<Long> undocumenteTreatments = selectedTreatmentsForApproval.stream()
+                    .filter(treatmentId -> {
+                        Treatment treatment = treatments.stream()
+                                .filter(t -> t.getId().equals(treatmentId))
+                                .findFirst()
+                                .orElse(null);
+                        return treatment != null && treatment.getApprovalDate() == null;
+                    })
+                    .collect(Collectors.toList());
+            
+            if (undocumenteTreatments.isEmpty()) {
+                Notification.show("Keine undokumentierten Behandlungen in der Auswahl.", 3000, Notification.Position.MIDDLE);
+                return;
+            }
+            
+            for (Long treatmentId : undocumenteTreatments) {
                 try {
+                    Treatment treatment = treatments.stream()
+                            .filter(t -> t.getId().equals(treatmentId))
+                            .findFirst()
+                            .orElse(null);
+                    
+                    if (treatment == null || treatment.getApprovalDate() != null) {
+                        skippedCount++;
+                        continue;
+                    }
+                    
                     taskService.approveTreatment(treatmentId, userId, user, false);
                     approvedCount++;
                 } catch (Exception ex) {
@@ -954,18 +1186,25 @@ public class TaskReviewDialog extends Dialog {
             selectedTreatmentsForApproval.clear();
             
             // Zeige Ergebnis
-            if (failedCount == 0) {
+            if (failedCount == 0 && skippedCount == 0) {
                 Notification.show(approvedCount + " Behandlungen erfolgreich dokumentiert", 3000, Notification.Position.BOTTOM_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
-                Notification.show(approvedCount + " Behandlungen dokumentiert, " + failedCount + " Fehler", 5000, Notification.Position.MIDDLE)
+                String message = approvedCount + " Behandlungen dokumentiert";
+                if (skippedCount > 0) {
+                    message += ", " + skippedCount + " bereits dokumentiert";
+                }
+                if (failedCount > 0) {
+                    message += ", " + failedCount + " Fehler";
+                }
+                Notification.show(message, 5000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_WARNING);
             }
             
-            // Aktualisiere die Übersicht
+            // Aktualisiere die Übersicht (inkl. "Alle auswählen" Checkbox)
             showOverview();
         } catch (Exception ex) {
-            log.error("Fehler bei der Massengenehmigung", ex);
+            log.error("Fehler bei der Massendokumentation", ex);
             Notification errorNotification = new Notification(
                 "Fehler bei der Massendokumentation: " + ex.getMessage(),
                 5000,

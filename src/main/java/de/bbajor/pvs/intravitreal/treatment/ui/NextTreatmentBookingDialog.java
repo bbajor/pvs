@@ -99,6 +99,7 @@ public class NextTreatmentBookingDialog extends Dialog {
         setWidth("1400px");
         setMaxWidth("95vw");
         setHeight("90vh");
+        setCloseOnOutsideClick(false);
 
         // Footer-Buttons zuerst erstellen, damit sie verfügbar sind
         createWizardFooter();

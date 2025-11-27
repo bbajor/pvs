@@ -856,10 +856,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
             shorterWeeksField.setMax(MAX_INTERVAL_WEEKS);
             shorterWeeksField.setStep(1);
             shorterWeeksField.setWidth("80px");
-            shorterWeeksField.setSuffixComponent(new com.vaadin.flow.component.html.Span("W"));
+            shorterWeeksField.setSuffixComponent(new com.vaadin.flow.component.html.Span("Woche"));
             shorterWeeksField.getStyle().set("flex-shrink", "0");
             
-            Button shorterButton = new Button("Verkürztes Intervall", VaadinIcon.ARROW_LEFT.create());
+            Button shorterButton = new Button("Verkürzen", VaadinIcon.ARROW_LEFT.create());
             shorterButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
             shorterButton.setWidthFull();
             shorterButton.addClickListener(e -> {
@@ -895,10 +895,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
             longerWeeksField.setMax(MAX_INTERVAL_WEEKS);
             longerWeeksField.setStep(1);
             longerWeeksField.setWidth("80px");
-            longerWeeksField.setSuffixComponent(new com.vaadin.flow.component.html.Span("W"));
+            longerWeeksField.setSuffixComponent(new com.vaadin.flow.component.html.Span("Woche"));
             longerWeeksField.getStyle().set("flex-shrink", "0");
             
-            Button longerButton = new Button("Verlängertes Intervall", VaadinIcon.ARROW_RIGHT.create());
+            Button longerButton = new Button("Verlängern", VaadinIcon.ARROW_RIGHT.create());
             longerButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
             longerButton.setWidthFull();
             longerButton.addClickListener(e -> {

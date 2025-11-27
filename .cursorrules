@@ -60,3 +60,7 @@
 - **Lösung 3**: Editor verwenden (ohne `-m`): `git commit` öffnet den Standard-Editor
 - **NIEMALS**: Mehrzeilige Strings mit Newlines direkt in `-m` verwenden, da diese als separate Befehle interpretiert werden
 
+## Imports
+- **Vollqualifizierte Klassennamen vermeiden**: Wenn eine Klasse importiert wird, soll dies möglichst über das `import` Keyword am Anfang der Klasse geschehen
+- **Ausnahme**: Nur wenn es zu Namenskonflikten kommt (z.B. zwei Klassen mit gleichem Namen aus verschiedenen Paketen), dürfen vollqualifizierte Namen verwendet werden
+

@@ -2,7 +2,9 @@ package de.bbajor.pvs.intravitreal.treatment.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import de.bbajor.pvs.base.domain.BasicEntity;
@@ -12,6 +14,7 @@ import de.bbajor.pvs.medication.model.Medication;
 import de.bbajor.pvs.medication.model.MedicationFavourite;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -21,6 +24,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -86,6 +90,13 @@ public class Treatment extends BasicEntity<Long> {
         inverseJoinColumns = @JoinColumn(name = "doctor_id")
     )
     private Set<UserAccount> treatingDoctors = new HashSet<>();
+    
+    /**
+     * Bemerkungen für diese Behandlung.
+     * Kann Standardbemerkungen oder benutzerdefinierte Bemerkungen enthalten.
+     */
+    @OneToMany(mappedBy = "treatment", cascade = { CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE }, orphanRemoval = true)
+    private List<de.bbajor.pvs.taskmanagement.domain.TreatmentRemark> remarks = new ArrayList<>();
 
     public String getSurgicalCenterString() {
         if (surgicalCenterTimeSlot != null && surgicalCenterTimeSlot.getSurgicalCenter() != null) {

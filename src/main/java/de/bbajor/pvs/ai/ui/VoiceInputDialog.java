@@ -61,6 +61,7 @@ public class VoiceInputDialog extends Dialog {
         setWidth("600px");
         setHeight("500px");
         setHeaderTitle("Spracheingabe");
+        setCloseOnOutsideClick(false);
 
         transcriptionArea = new TextArea("Transkription");
         transcriptionArea.setWidthFull();

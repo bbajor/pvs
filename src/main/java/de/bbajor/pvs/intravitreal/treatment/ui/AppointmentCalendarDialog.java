@@ -57,6 +57,7 @@ public class AppointmentCalendarDialog extends Dialog {
         setHeaderTitle("Termin auswählen");
         setWidth("900px");
         setHeight("700px");
+        setCloseOnOutsideClick(false);
         
         add(createContent());
         add(createFooter());

@@ -63,6 +63,7 @@ public class AppointmentDialog extends Dialog {
         setDraggable(true);
         setResizable(true);
         setWidth("600px");
+        setCloseOnOutsideClick(false);
 
         initializeDialog();
     }

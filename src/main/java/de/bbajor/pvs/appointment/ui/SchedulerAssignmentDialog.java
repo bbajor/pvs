@@ -48,6 +48,7 @@ public class SchedulerAssignmentDialog extends Dialog {
         setDraggable(true);
         setResizable(true);
         setWidth("500px");
+        setCloseOnOutsideClick(false);
 
         initializeDialog();
     }
