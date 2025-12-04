@@ -30,9 +30,10 @@ public class ProdUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        log.debug("Loading user: {}", username);
+        log.debug("Loading user: {} (can be username or email)", username);
         
-        UserAccount account = userAccountRepository.findByUsername(username)
+        // Support both username and email for login
+        UserAccount account = userAccountRepository.findByUsernameOrEmail(username)
                 .orElseThrow(() -> {
                     log.warn("User not found: {}", username);
                     return new UsernameNotFoundException("User not found: " + username);

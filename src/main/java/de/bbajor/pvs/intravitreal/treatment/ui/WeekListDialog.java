@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -67,7 +68,14 @@ public class WeekListDialog extends Dialog {
         
         setHeight("1200px");
         setWidth("1400px");
+        setCloseOnOutsideClick(false);
         // Kein Header-Titel mehr, da wir eine Section mit Überschrift verwenden
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         grid.setSizeFull();
         grid.setSelectionMode(SelectionMode.NONE);
@@ -185,9 +193,7 @@ public class WeekListDialog extends Dialog {
             "document.head.appendChild(style);"
         );
 
-        Button closeButton = new Button("Schließen");
-        closeButton.addClickListener(event -> close());
-        getFooter().add(closeButton);
+        // closeButton wird nicht mehr benötigt, da X-Icon im Header ist
     }
     
     private Div createWeekNavigationSection() {

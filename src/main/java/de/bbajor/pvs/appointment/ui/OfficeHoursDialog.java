@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -48,6 +49,13 @@ public class OfficeHoursDialog extends Dialog {
         setDraggable(true);
         setResizable(true);
         setWidth("500px");
+        setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         initializeDialog();
     }
@@ -119,8 +127,6 @@ public class OfficeHoursDialog extends Dialog {
         layout.setWidthFull();
         layout.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
 
-        Button cancelButton = new Button("Abbrechen", event -> close());
-        
         Button saveButton = new Button("Speichern", event -> saveOfficeHours());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -128,7 +134,7 @@ public class OfficeHoursDialog extends Dialog {
         deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         deleteButton.setVisible(officeHours.getId() != null);
 
-        layout.add(deleteButton, cancelButton, saveButton);
+        layout.add(deleteButton, saveButton);
         return layout;
     }
 

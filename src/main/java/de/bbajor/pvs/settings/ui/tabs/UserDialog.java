@@ -3,6 +3,7 @@ package de.bbajor.pvs.settings.ui.tabs;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -16,25 +17,32 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 
 import de.bbajor.pvs.institution.context.InstitutionContext;
-import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
 
 /**
  * Dialog for creating and editing users.
  */
+@Slf4j
 public class UserDialog extends Dialog {
 
     private final UserAccountRepository userAccountRepository;
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
-    private UserAccount userAccount;
+    private final CurrentUser currentUser;
+    private final UserAccount userAccount;
     private Runnable onSaveCallback;
 
     private TextField usernameField;
@@ -50,16 +58,25 @@ public class UserDialog extends Dialog {
             UserAccountRepository userAccountRepository,
             LocationService locationService,
             InstitutionRepository institutionRepository,
+            CurrentUser currentUser,
             UserAccount userAccount) {
         this.userAccountRepository = userAccountRepository;
         this.locationService = locationService;
         this.institutionRepository = institutionRepository;
+        this.currentUser = currentUser;
         this.userAccount = userAccount != null ? userAccount : new UserAccount();
 
         setModal(true);
         setDraggable(true);
         setResizable(true);
         setWidth("500px");
+        setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         initializeDialog();
     }
@@ -114,9 +131,11 @@ public class UserDialog extends Dialog {
         roleSelect.setWidthFull();
 
         locationComboBox = new ComboBox<>("Standort (optional)");
+        // Ensure InstitutionContext is set before loading locations
+        ensureInstitutionContext();
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId != null) {
-            // Load locations when dialog is opened
+            // Load locations for current institution
             locationComboBox.setItems(locationService.getAllLocations(true)); // Only active locations
             locationComboBox.setItemLabelGenerator(loc -> loc != null && loc.getLocationName() != null ? loc.getLocationName() : "");
         }
@@ -152,12 +171,10 @@ public class UserDialog extends Dialog {
         layout.setWidthFull();
         layout.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
 
-        Button cancelButton = new Button("Abbrechen", event -> close());
-        
         saveButton = new Button("Speichern", event -> saveUser());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        layout.add(cancelButton, saveButton);
+        layout.add(saveButton);
         return layout;
     }
 
@@ -169,13 +186,35 @@ public class UserDialog extends Dialog {
         if (!userAccount.getRoles().isEmpty()) {
             roleSelect.setValue(userAccount.getRoles().iterator().next());
         }
+        // Ensure InstitutionContext is set before loading locations
+        ensureInstitutionContext();
         // Reload locations to ensure they are available
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId != null) {
             locationComboBox.setItems(locationService.getAllLocations(true));
         }
-        locationComboBox.setValue(userAccount.getPreferredLocation());
+        Location preferredLocation = userAccount.getPreferredLocation();
+        locationComboBox.setValue(preferredLocation);
         enabledCheckbox.setValue(userAccount.isEnabled());
+        
+        // Disable enabled checkbox if current user is trying to deactivate themselves
+        // and they are an ADMIN (InstitutionAdmin)
+        if (userAccount.getId() != null) {
+            currentUser.get().ifPresent(appUser -> {
+                String preferredUsername = appUser.getPreferredUsername();
+                if (preferredUsername != null) {
+                    UserAccount currentUserAccount = userAccountRepository.findByUsername(preferredUsername).orElse(null);
+                    if (currentUserAccount != null && currentUserAccount.getId() != null 
+                            && currentUserAccount.getId().equals(userAccount.getId())) {
+                        // Check if current user has ADMIN role (InstitutionAdmin)
+                        if (currentUserAccount.getRoles() != null && currentUserAccount.getRoles().contains(AppRoles.ADMIN)) {
+                            enabledCheckbox.setEnabled(false);
+                            enabledCheckbox.setHelperText("Sie können sich nicht selbst deaktivieren");
+                        }
+                    }
+                }
+            });
+        }
     }
 
     private void saveUser() {
@@ -197,7 +236,32 @@ public class UserDialog extends Dialog {
         }
 
         try {
+            // Ensure InstitutionContext is set before saving
+            ensureInstitutionContext();
+            
             Long institutionId = InstitutionContext.getInstitutionId();
+            
+            // Fallback: If InstitutionContext is not set, try to get institution from userAccount
+            if (institutionId == null && userAccount.getInstitution() != null) {
+                institutionId = userAccount.getInstitution().getId();
+                InstitutionContext.setInstitutionId(institutionId);
+            }
+            
+            // If still no institution, try to get it from current user
+            if (institutionId == null) {
+                currentUser.get().ifPresent(appUser -> {
+                    String preferredUsername = appUser.getPreferredUsername();
+                    if (preferredUsername != null) {
+                        UserAccount currentUserAccount = userAccountRepository.findByUsername(preferredUsername).orElse(null);
+                        if (currentUserAccount != null && currentUserAccount.getInstitution() != null) {
+                            Long currentUserInstitutionId = currentUserAccount.getInstitution().getId();
+                            InstitutionContext.setInstitutionId(currentUserInstitutionId);
+                        }
+                    }
+                });
+                institutionId = InstitutionContext.getInstitutionId();
+            }
+            
             if (institutionId == null) {
                 showError("Keine Institution ausgewählt");
                 return;
@@ -243,7 +307,31 @@ public class UserDialog extends Dialog {
             // Set enabled status from checkbox (for editing) or based on password/email (for new users)
             if (userAccount.getId() != null) {
                 // For existing users, use checkbox value
-                userAccount.setEnabled(enabledCheckbox.getValue());
+                // But prevent InstitutionAdmin from deactivating themselves
+                boolean newEnabledValue = enabledCheckbox.getValue();
+                boolean canProceed = true;
+                var currentUserOpt = currentUser.get();
+                if (currentUserOpt.isPresent()) {
+                    var appUser = currentUserOpt.get();
+                    String preferredUsername = appUser.getPreferredUsername();
+                    if (preferredUsername != null) {
+                        UserAccount currentUserAccount = userAccountRepository.findByUsername(preferredUsername).orElse(null);
+                        if (currentUserAccount != null && currentUserAccount.getId() != null 
+                                && currentUserAccount.getId().equals(userAccount.getId())) {
+                            // Check if current user has ADMIN role (InstitutionAdmin)
+                            if (currentUserAccount.getRoles() != null && currentUserAccount.getRoles().contains(AppRoles.ADMIN)) {
+                                if (!newEnabledValue) {
+                                    showError("Sie können sich nicht selbst deaktivieren");
+                                    canProceed = false;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!canProceed) {
+                    return;
+                }
+                userAccount.setEnabled(newEnabledValue);
             } else {
                 // For new users, only active if password and email are set
                 boolean hasPassword = userAccount.getPasswordHash() != null && !userAccount.getPasswordHash().isEmpty();
@@ -277,6 +365,50 @@ public class UserDialog extends Dialog {
 
     public void setOnSaveCallback(Runnable callback) {
         this.onSaveCallback = callback;
+    }
+    
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks don't trigger BeforeEnterEvent,
+     * so the context might not be set, especially for InstitutionAdmins.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            try {
+                String username = adapter.getUsername();
+                UserAccount account = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (account != null && account.getInstitution() != null) {
+                    Long institutionId = account.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                    log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                            institutionId, account.getInstitution().getInstitutionCode());
+                } else {
+                    log.warn("UserAccount has no institution - cannot set InstitutionContext");
+                }
+            } catch (Exception e) {
+                log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+            }
+        } else {
+            log.debug("Authentication type: {}, Principal type: {} - cannot set InstitutionContext",
+                    authentication != null ? authentication.getClass().getSimpleName() : "null",
+                    authentication != null && authentication.getPrincipal() != null 
+                        ? authentication.getPrincipal().getClass().getSimpleName() : "null");
+        }
     }
 }
 

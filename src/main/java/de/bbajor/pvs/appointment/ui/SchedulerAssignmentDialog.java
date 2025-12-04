@@ -3,6 +3,7 @@ package de.bbajor.pvs.appointment.ui;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H3;
@@ -48,6 +49,13 @@ public class SchedulerAssignmentDialog extends Dialog {
         setDraggable(true);
         setResizable(true);
         setWidth("500px");
+        setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         initializeDialog();
     }
@@ -130,12 +138,10 @@ public class SchedulerAssignmentDialog extends Dialog {
         layout.setWidthFull();
         layout.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
 
-        Button cancelButton = new Button("Abbrechen", event -> close());
-        
         Button saveButton = new Button("Speichern", event -> saveAssignment());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        layout.add(cancelButton, saveButton);
+        layout.add(saveButton);
         return layout;
     }
 

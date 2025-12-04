@@ -8,6 +8,7 @@ import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -21,6 +22,7 @@ import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.mfa.MfaService;
 import jakarta.annotation.security.RolesAllowed;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * View for setting up Multi-Factor Authentication (MFA) using TOTP.
@@ -37,12 +39,14 @@ import jakarta.annotation.security.RolesAllowed;
  */
 @Route("mfa-setup")
 @PageTitle("MFA Einrichtung")
-@RolesAllowed({ AppRoles.SUPER_ADMIN, AppRoles.INSTITUTION_ADMIN })
+@RolesAllowed({ AppRoles.SUPER_ADMIN, AppRoles.INSTITUTION_ADMIN, AppRoles.ADMIN, AppRoles.USER, 
+               AppRoles.DOCTOR, AppRoles.MEDICAL_STAFF, AppRoles.OWNER, AppRoles.TECH_USER })
 public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver {
 
     private final CurrentUser currentUser;
     private final UserAccountRepository userAccountRepository;
     private final MfaService mfaService;
+    private final PasswordEncoder passwordEncoder;
 
     private final H2 title = new H2("Multi-Faktor-Authentifizierung einrichten");
     private final Paragraph instructions = new Paragraph(
@@ -50,17 +54,22 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
             "und geben Sie dann einen Code ein, um die Einrichtung zu bestätigen.");
     private final Div qrCodeContainer = new Div();
     private final TextField verificationCodeField = new TextField("Verifizierungscode");
+    private final PasswordField pinField = new PasswordField("PIN (6-stellig)");
+    private final PasswordField pinConfirmField = new PasswordField("PIN bestätigen");
     private final Button verifyButton = new Button("Verifizieren und aktivieren");
     private final Button generateButton = new Button("Neuen QR-Code generieren");
     private final Button resetButton = new Button("MFA zurücksetzen");
 
     private String currentSecret;
     private UserAccount userAccount;
+    private boolean isNormalUser = false;
 
-    public MfaSetupView(CurrentUser currentUser, UserAccountRepository userAccountRepository, MfaService mfaService) {
+    public MfaSetupView(CurrentUser currentUser, UserAccountRepository userAccountRepository, 
+                       MfaService mfaService, PasswordEncoder passwordEncoder) {
         this.currentUser = currentUser;
         this.userAccountRepository = userAccountRepository;
         this.mfaService = mfaService;
+        this.passwordEncoder = passwordEncoder;
 
         setSizeFull();
         setPadding(true);
@@ -73,6 +82,18 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
         verificationCodeField.setPattern("[0-9]{6}");
         verificationCodeField.setHelperText("6-stelliger Code aus Ihrer Authenticator-App");
 
+        pinField.setPlaceholder("000000");
+        pinField.setMaxLength(6);
+        pinField.setPattern("[0-9]{6}");
+        pinField.setHelperText("6-stellige PIN für passwortlosen Login");
+        pinField.setVisible(false);
+
+        pinConfirmField.setPlaceholder("000000");
+        pinConfirmField.setMaxLength(6);
+        pinConfirmField.setPattern("[0-9]{6}");
+        pinConfirmField.setHelperText("PIN zur Bestätigung wiederholen");
+        pinConfirmField.setVisible(false);
+
         verifyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         verifyButton.addClickListener(e -> verifyAndEnableMfa());
 
@@ -81,13 +102,19 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
         resetButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         resetButton.addClickListener(e -> resetMfa());
 
-        add(title, instructions, qrCodeContainer, verificationCodeField, verifyButton, generateButton, resetButton);
+        add(title, instructions, qrCodeContainer, verificationCodeField, pinField, pinConfirmField, 
+            verifyButton, generateButton, resetButton);
 
         // Load user account
         currentUser.get().ifPresent(user -> {
             userAccount = userAccountRepository.findByUsername(user.getPreferredUsername())
                     .orElse(null);
             if (userAccount != null) {
+                // Check if user is a normal user (not SUPER_ADMIN or INSTITUTION_ADMIN)
+                isNormalUser = userAccount.getRoles() != null 
+                        && !userAccount.getRoles().contains(AppRoles.SUPER_ADMIN)
+                        && !userAccount.getRoles().contains(AppRoles.INSTITUTION_ADMIN);
+                
                 if (userAccount.isMfaEnabled()) {
                     title.setText("MFA ist bereits aktiviert");
                     instructions.setText("Multi-Faktor-Authentifizierung ist für Ihr Konto bereits aktiviert. " +
@@ -96,11 +123,21 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
                             "manuell löschen, bevor Sie den neuen QR-Code scannen.");
                     generateButton.setVisible(false);
                     verificationCodeField.setVisible(false);
+                    pinField.setVisible(false);
+                    pinConfirmField.setVisible(false);
                     verifyButton.setVisible(false);
                     resetButton.setVisible(true);
                 } else {
                     generateNewSecret();
                     resetButton.setVisible(false);
+                    // Show PIN fields for normal users
+                    if (isNormalUser) {
+                        pinField.setVisible(true);
+                        pinConfirmField.setVisible(true);
+                        instructions.setText("Scannen Sie den QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Microsoft Authenticator) " +
+                                "und geben Sie dann einen Code ein, um die Einrichtung zu bestätigen.\n\n" +
+                                "Für passwortlosen Login geben Sie zusätzlich eine 6-stellige PIN ein.");
+                    }
                 }
             }
         });
@@ -157,6 +194,27 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
             return;
         }
 
+        // For normal users, validate PIN
+        if (isNormalUser) {
+            String pin = pinField.getValue();
+            String pinConfirm = pinConfirmField.getValue();
+            
+            if (pin == null || pin.length() != 6) {
+                Notification.show("Bitte geben Sie eine 6-stellige PIN ein", 3000, Notification.Position.MIDDLE);
+                return;
+            }
+            
+            if (!pin.equals(pinConfirm)) {
+                Notification.show("Die PINs stimmen nicht überein", 3000, Notification.Position.MIDDLE);
+                pinConfirmField.clear();
+                return;
+            }
+            
+            // Hash and store PIN
+            String pinHash = passwordEncoder.encode(pin);
+            userAccount.setPinHash(pinHash);
+        }
+
         // Verify the code
         if (!mfaService.verifyCode(currentSecret, code)) {
             Notification.show("Ungültiger Code. Bitte versuchen Sie es erneut.", 3000, Notification.Position.MIDDLE);
@@ -177,6 +235,8 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
                 "Sie können MFA zurücksetzen, um einen neuen QR-Code zu generieren.");
         qrCodeContainer.removeAll();
         verificationCodeField.setVisible(false);
+        pinField.setVisible(false);
+        pinConfirmField.setVisible(false);
         verifyButton.setVisible(false);
         generateButton.setVisible(false);
         resetButton.setVisible(true);
@@ -197,9 +257,10 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
         );
         warning.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_WARNING);
 
-        // Reset MFA
+        // Reset MFA and PIN
         userAccount.setMfaSecret(null);
         userAccount.setMfaEnabled(false);
+        userAccount.setPinHash(null);
         userAccountRepository.save(userAccount);
 
         Notification.show("MFA wurde zurückgesetzt. Bitte richten Sie MFA neu ein.", 3000, Notification.Position.MIDDLE);
@@ -212,5 +273,13 @@ public class MfaSetupView extends VerticalLayout implements BeforeEnterObserver 
                 "und geben Sie dann einen Code ein, um die Einrichtung zu bestätigen.");
         resetButton.setVisible(false);
         generateNewSecret(true); // Pass true to indicate this is a reset
+        
+        // Show PIN fields for normal users after reset
+        if (isNormalUser) {
+            pinField.setVisible(true);
+            pinConfirmField.setVisible(true);
+            pinField.clear();
+            pinConfirmField.clear();
+        }
     }
 }

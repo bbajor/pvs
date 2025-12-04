@@ -1,0 +1,35 @@
+[Unit]
+Description=PVS OnPremise Application
+Documentation=https://github.com/bbajor/pvs
+After=network-online.target podman.service
+Wants=network-online.target
+Requires=podman.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=pvs
+Group=pvs
+WorkingDirectory=/opt/pvs
+ExecStart=/usr/bin/podman-compose -f /opt/pvs/podman-compose.onpremise.yml --env-file /opt/pvs/.env up -d
+ExecStop=/usr/bin/podman-compose -f /opt/pvs/podman-compose.onpremise.yml down
+ExecReload=/usr/bin/podman-compose -f /opt/pvs/podman-compose.onpremise.yml restart
+
+# Restart-Policy für Container (nicht für Service)
+# Die Container haben restart: always in podman-compose.yml
+
+# Timeouts
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+# Umgebungsvariablen
+Environment="COMPOSE_PROJECT_NAME=pvs-onpremise"
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pvs-onpremise
+
+[Install]
+WantedBy=multi-user.target
+

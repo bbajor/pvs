@@ -71,6 +71,15 @@ public class UserAccount extends BasicEntity<Long> {
     @Column(name = "mfa_reset_token_expiry")
     private java.time.LocalDateTime mfaResetTokenExpiry;
 
+    @Column(name = "pin_hash")
+    private String pinHash;
+
+    @Column(name = "pin_reset_token")
+    private String pinResetToken;
+
+    @Column(name = "pin_reset_token_expiry")
+    private java.time.LocalDateTime pinResetTokenExpiry;
+
     /**
      * The institution this user belongs to.
      * <p>

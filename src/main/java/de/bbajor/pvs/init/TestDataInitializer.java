@@ -48,6 +48,8 @@ import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
+import de.bbajor.pvs.taskmanagement.domain.StandardRemark;
+import de.bbajor.pvs.taskmanagement.domain.StandardRemarkRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -73,6 +75,7 @@ public class TestDataInitializer {
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
     private final DataSource dataSource;
+    private final StandardRemarkRepository standardRemarkRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -216,6 +219,9 @@ public class TestDataInitializer {
 
         // Erzeuge Behandlungspläne für alle Patienten (mindestens 5 Termine in Vergangenheit, max 1 in Zukunft)
         createTreatmentPlansWithTreatments(savedPatients, savedFavourites, diagnosisDtos, surgicalCenters);
+
+        // Erstelle Standardbemerkungen für Institution 2
+        createStandardRemarks(testInstitutions.institution2);
 
         // Clear InstitutionContext after initialization to avoid side effects
         InstitutionContext.clear();
@@ -1094,5 +1100,33 @@ public class TestDataInitializer {
         }
 
         return treatment;
+    }
+    
+    /**
+     * Erstellt Standardbemerkungen für eine Institution.
+     */
+    private void createStandardRemarks(Institution institution) {
+        String[] standardTexts = {
+            "Keine Komplikationen bei der Behandlung",
+            "Patient ist eingeschränkt mobil",
+            "Patient ist Angstpatient",
+            "Patient wünscht keine Folgebehandlung"
+        };
+        
+        for (String text : standardTexts) {
+            // Prüfe, ob bereits vorhanden
+            boolean exists = standardRemarkRepository.findByInstitutionIdOrderBySortOrderAscTextAsc(institution.getId())
+                    .stream()
+                    .anyMatch(sr -> sr.getText().equals(text));
+            
+            if (!exists) {
+                StandardRemark remark = new StandardRemark();
+                remark.setInstitution(institution);
+                remark.setText(text);
+                standardRemarkRepository.save(remark);
+            }
+        }
+        
+        log.debug("Standardbemerkungen für Institution {} erstellt", institution.getInstitutionCode());
     }
 }

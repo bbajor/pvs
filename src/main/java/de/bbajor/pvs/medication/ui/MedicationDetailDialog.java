@@ -3,8 +3,10 @@ package de.bbajor.pvs.medication.ui;
 import java.util.function.Consumer;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep;
 import com.vaadin.flow.component.orderedlayout.Scroller;
@@ -28,6 +30,13 @@ public class MedicationDetailDialog extends Dialog {
                 setWidth("1200px");
                 setHeight("1000px");
                 setCloseOnEsc(true);
+                setCloseOnOutsideClick(false);
+                
+                // X-Icon im Header hinzufügen
+                Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+                closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                closeIconButton.getStyle().set("margin-left", "auto");
+                getHeader().add(closeIconButton);
 
                 TextField nr = new TextField("Nr");
                 nr.setReadOnly(isReadOnly);
@@ -113,12 +122,8 @@ public class MedicationDetailDialog extends Dialog {
                         }
                         close();
                 });
-                Button cancelButton = new Button("Abbrechen");
-                cancelButton.addClickListener(event -> {
-                        close();
-                });
 
-        getFooter().add(saveButton, cancelButton);
+        getFooter().add(saveButton);
 
                 binder.forField(nr).bind(Medication::getZulassungsNr, Medication::setZulassungsNr);
                 binder.forField(eingangsnummer).bind(Medication::getEingangsnummer,

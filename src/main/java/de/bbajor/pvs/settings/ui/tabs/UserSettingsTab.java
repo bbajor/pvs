@@ -2,6 +2,7 @@ package de.bbajor.pvs.settings.ui.tabs;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -18,6 +19,7 @@ import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.CurrentUser;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
@@ -46,6 +48,7 @@ public class UserSettingsTab extends VerticalLayout {
     private final UserAccountRepository userAccountRepository;
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
+    private final CurrentUser currentUser;
 
     private Grid<UserAccount> userGrid;
     private Button createButton;
@@ -166,6 +169,21 @@ public class UserSettingsTab extends VerticalLayout {
                 ButtonVariant.LUMO_SMALL
             );
             
+            // Disable toggle button if current user is trying to deactivate themselves and they are ADMIN
+            if (ua.isEnabled()) {
+                currentUser.get().ifPresent(appUser -> {
+                    UserAccount currentUserAccount = userAccountRepository.findByUsername(appUser.getPreferredUsername()).orElse(null);
+                    if (currentUserAccount != null && currentUserAccount.getId() != null 
+                            && currentUserAccount.getId().equals(ua.getId())) {
+                        // Check if current user has ADMIN role (InstitutionAdmin)
+                        if (currentUserAccount.getRoles() != null && currentUserAccount.getRoles().contains(AppRoles.ADMIN)) {
+                            toggleButton.setEnabled(false);
+                            toggleButton.setTooltipText("Sie können sich nicht selbst deaktivieren");
+                        }
+                    }
+                });
+            }
+            
             buttonLayout.add(editButton, toggleButton);
             return buttonLayout;
         }).setHeader("Aktionen").setAutoWidth(true);
@@ -186,6 +204,7 @@ public class UserSettingsTab extends VerticalLayout {
             userAccountRepository,
             locationService,
             institutionRepository,
+            currentUser,
             userAccount
         );
         dialog.setOnSaveCallback(this::refreshUsers);
@@ -197,17 +216,69 @@ public class UserSettingsTab extends VerticalLayout {
             return;
         }
         
+        // Check if current user is trying to deactivate themselves
+        currentUser.get().ifPresent(appUser -> {
+            UserAccount currentUserAccount = userAccountRepository.findByUsername(appUser.getPreferredUsername()).orElse(null);
+            if (currentUserAccount != null && currentUserAccount.getId() != null 
+                    && currentUserAccount.getId().equals(userAccount.getId())) {
+                // Check if current user has ADMIN role (InstitutionAdmin)
+                if (currentUserAccount.getRoles() != null && currentUserAccount.getRoles().contains(AppRoles.ADMIN)) {
+                    if (userAccount.isEnabled()) {
+                        // Trying to deactivate themselves - prevent this
+                        Notification.show("Sie können sich nicht selbst deaktivieren", 5000, Notification.Position.MIDDLE)
+                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                        return;
+                    }
+                }
+            }
+        });
+        
+        // If deactivating, show confirm dialog
+        if (userAccount.isEnabled()) {
+            ConfirmDialog confirmDialog = new ConfirmDialog();
+            confirmDialog.setHeader("Benutzer deaktivieren");
+            confirmDialog.setText("Möchten Sie diesen Benutzer wirklich deaktivieren? Der Benutzer wird sofort ausgeloggt und kann keine Änderungen mehr speichern.");
+            confirmDialog.setConfirmText("Deaktivieren");
+            confirmDialog.setCancelText("Abbrechen");
+            confirmDialog.setConfirmButtonTheme("error");
+            confirmDialog.addConfirmListener(e -> {
+                performDeactivation(userAccount);
+            });
+            confirmDialog.open();
+        } else {
+            // Activating - no confirmation needed
+            performActivation(userAccount);
+        }
+    }
+    
+    private void performDeactivation(UserAccount userAccount) {
         try {
-            userAccount.setEnabled(!userAccount.isEnabled());
+            userAccount.setEnabled(false);
             userAccountRepository.save(userAccount);
             refreshUsers();
             
-            String message = userAccount.isEnabled() ? "Benutzer wurde aktiviert" : "Benutzer wurde deaktiviert";
-            Notification.show(message, 3000, Notification.Position.MIDDLE)
+            Notification.show("Benutzer wurde deaktiviert. Der Benutzer wird beim nächsten Request ausgeloggt.", 
+                    5000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
-            log.error("Error toggling user status: {}", e.getMessage(), e);
-            Notification.show("Fehler beim Ändern des Status: " + e.getMessage(),
+            log.error("Error deactivating user: {}", e.getMessage(), e);
+            Notification.show("Fehler beim Deaktivieren: " + e.getMessage(),
+                    5000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    private void performActivation(UserAccount userAccount) {
+        try {
+            userAccount.setEnabled(true);
+            userAccountRepository.save(userAccount);
+            refreshUsers();
+            
+            Notification.show("Benutzer wurde aktiviert", 3000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        } catch (Exception e) {
+            log.error("Error activating user: {}", e.getMessage(), e);
+            Notification.show("Fehler beim Aktivieren: " + e.getMessage(),
                     5000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }

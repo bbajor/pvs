@@ -43,7 +43,7 @@ public class AppointmentOverviewDialog extends Dialog {
         setWidth("1000px");
         setHeight("700px");
         setModal(true);
-        setCloseOnOutsideClick(true);
+        setCloseOnOutsideClick(false);
 
         VerticalLayout content = new VerticalLayout();
         content.setSizeFull();

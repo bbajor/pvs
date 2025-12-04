@@ -11,8 +11,10 @@ import com.vaadin.flow.router.Route;
 
 import de.bbajor.pvs.institution.ui.tabs.MfaSettingsTab;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.settings.ui.tabs.AuditLogsTab;
 import de.bbajor.pvs.settings.ui.tabs.InstitutionGeneralTab;
 import de.bbajor.pvs.settings.ui.tabs.InsuranceSettingsTab;
+import de.bbajor.pvs.settings.ui.tabs.IvomPlannerTab;
 import de.bbajor.pvs.settings.ui.tabs.LocationManagementTab;
 import de.bbajor.pvs.settings.ui.tabs.MedicationSettingsTab;
 import de.bbajor.pvs.settings.ui.tabs.SchedulerManagementTab;
@@ -22,7 +24,7 @@ import jakarta.annotation.security.RolesAllowed;
 @Route("settings")
 @PageTitle("Einstellungen")
 @Menu(order = 6, icon = "vaadin:cog", title = "Einstellungen")
-@RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER })
+@RolesAllowed({ AppRoles.ADMIN, AppRoles.TECH_USER, AppRoles.OWNER, AppRoles.INSTITUTION_ADMIN })
 public class SettingsView extends Main {
 
     private final Tab generalTab = new Tab("Allgemein");
@@ -32,8 +34,14 @@ public class SettingsView extends Main {
     private final Tab medicationTab = new Tab("Medikamentendatenbank");
     private final Tab insuranceTab = new Tab("Versicherungen");
     private final Tab mfaTab = new Tab("Multi-Faktor-Authentifizierung");
+    private final Tab ivomPlannerTab = new Tab("IVOM-Planer");
+    private final Tab auditLogsTab = new Tab("Audit-Logs");
+    
+    private final IvomPlannerTab ivomPlannerTabComponent;
 
     private final VerticalLayout content = new VerticalLayout();
+    
+    private final AuditLogsTab auditLogsTabComponent;
 
     public SettingsView(InstitutionGeneralTab institutionGeneralTab,
             LocationManagementTab locationManagementTab,
@@ -41,12 +49,16 @@ public class SettingsView extends Main {
             UserSettingsTab userSettingsTab,
             MedicationSettingsTab medicationSettingsTab,
             InsuranceSettingsTab insuranceSettingsTab,
-            MfaSettingsTab mfaSettingsTab) {
+            MfaSettingsTab mfaSettingsTab,
+            IvomPlannerTab ivomPlannerTabComponent,
+            AuditLogsTab auditLogsTabComponent) {
+        this.auditLogsTabComponent = auditLogsTabComponent;
+        this.ivomPlannerTabComponent = ivomPlannerTabComponent;
         // Überschrift
         H1 title = new H1("Einstellungen");
         add(title);
 
-        Tabs tabs = new Tabs(generalTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab);
+        Tabs tabs = new Tabs(generalTab, locationTab, schedulerTab, userTab, medicationTab, insuranceTab, mfaTab, ivomPlannerTab, auditLogsTab);
         tabs.setWidthFull();
         tabs.getStyle().set("flex-shrink", "0");
         tabs.addSelectedChangeListener(event -> {
@@ -67,6 +79,11 @@ public class SettingsView extends Main {
             } else if (selected == mfaTab) {
                 mfaSettingsTab.refresh(); // Refresh MFA status when tab is selected
                 content.add(mfaSettingsTab);
+            } else if (selected == ivomPlannerTab) {
+                content.add(ivomPlannerTabComponent);
+            } else if (selected == auditLogsTab) {
+                auditLogsTabComponent.refresh(); // Refresh audit logs when tab is selected
+                content.add(auditLogsTabComponent);
             }
         });
 

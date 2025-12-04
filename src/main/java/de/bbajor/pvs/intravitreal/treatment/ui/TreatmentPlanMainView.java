@@ -28,6 +28,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.TextField;
@@ -87,7 +88,10 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private final Grid<TreatmentPlan> ivomPlanGrid = new Grid<>(TreatmentPlan.class, false);
     private final VerticalLayout treatmentPlansContent = new VerticalLayout();
     private final Button toggleFinishedButton = new Button();
+    private final ProgressBar gridLoadingProgressBar = new ProgressBar();
+    private final Div gridContainer = new Div();
     private volatile boolean showFinished = true;
+    private volatile boolean isGridInitialized = false;
 
     // Task Review Tab Components
     private final Grid<Task> taskGrid = new Grid<>();
@@ -219,9 +223,43 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         toolbarSection.getStyle().set("flex-shrink", "0");
         treatmentPlansContent.add(toolbarSection);
 
+        // Grid-Container mit ProgressBar
+        gridContainer.setSizeFull();
+        gridContainer.getStyle()
+                .set("position", "relative")
+                .set("display", "flex")
+                .set("flex-direction", "column");
+        
+        // ProgressBar über dem Grid positionieren
+        gridLoadingProgressBar.setIndeterminate(true);
+        gridLoadingProgressBar.setWidthFull();
+        gridLoadingProgressBar.getStyle()
+                .set("position", "absolute")
+                .set("top", "0")
+                .set("left", "0")
+                .set("right", "0")
+                .set("z-index", "10")
+                .set("margin", "0");
+        
         ivomPlanGrid.setSizeFull();
-        // Höhe wird über Flexbox gesteuert, nicht über setHeightFull()
-        treatmentPlansContent.add(ivomPlanGrid);
+        // Grid initial unsichtbar, bis es geladen ist
+        ivomPlanGrid.setVisible(false);
+        
+        // Nach dem ersten Attach des Grids ProgressBar ausblenden und Grid einblenden
+        ivomPlanGrid.addAttachListener(e -> {
+            if (!isGridInitialized) {
+                // Kurze Verzögerung, damit das Grid Zeit zum Rendern hat
+                UI.getCurrent().access(() -> {
+                    UI.getCurrent().getPage().executeJs(
+                        "setTimeout(function() { $0.$server.hideProgressBarAfterLoad(); }, 200);",
+                        getElement()
+                    );
+                });
+            }
+        });
+        
+        gridContainer.add(gridLoadingProgressBar, ivomPlanGrid);
+        treatmentPlansContent.add(gridContainer);
 
         configureGrid();
         configureSearch();
@@ -285,7 +323,9 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             Task t = ev.getItem();
             TaskReviewDialog dialog = new TaskReviewDialog(t, this.treatmentRepository, this.taskService,
                     this.authenticationContext, this.reportService, this.userAccountRepository,
-                    this.applicationContext, this.treatmentPlanPresenter);
+                    this.applicationContext, this.treatmentPlanPresenter,
+                    applicationContext.getBean(de.bbajor.pvs.taskmanagement.service.StandardRemarkService.class),
+                    applicationContext.getBean(de.bbajor.pvs.taskmanagement.service.TreatmentRemarkService.class));
             dialog.open();
         });
 
@@ -803,11 +843,48 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         // Ensure InstitutionContext is set before service call
         ensureInstitutionContext();
 
+        // Zeige ProgressBar während des Refreshs (nur wenn Grid bereits initialisiert wurde)
+        if (isGridInitialized) {
+            gridLoadingProgressBar.setVisible(true);
+            ivomPlanGrid.setVisible(false);
+            
+            // Nach kurzer Verzögerung ProgressBar ausblenden und Grid einblenden
+            // Dies gibt dem Grid Zeit zum Rendern
+            UI.getCurrent().access(() -> {
+                UI.getCurrent().setPollInterval(100);
+                UI.getCurrent().getPage().executeJs(
+                    "setTimeout(function() { $0.$server.hideProgressBarAfterRefresh(); }, 300);",
+                    getElement()
+                );
+            });
+        }
+
         // Verwende refreshAll() statt setItems(), um Paging zu erhalten
         ivomPlanGrid.getDataProvider().refreshAll();
 
         // Aktualisiere Toggle-Button Status nach Refresh
         updateToggleFinishedButton();
+    }
+
+    /**
+     * Wird von JavaScript aufgerufen, um die ProgressBar nach dem ersten Load auszublenden.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void hideProgressBarAfterLoad() {
+        if (!isGridInitialized) {
+            gridLoadingProgressBar.setVisible(false);
+            ivomPlanGrid.setVisible(true);
+            isGridInitialized = true;
+        }
+    }
+
+    /**
+     * Wird von JavaScript aufgerufen, um die ProgressBar nach dem Refresh auszublenden.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void hideProgressBarAfterRefresh() {
+        gridLoadingProgressBar.setVisible(false);
+        ivomPlanGrid.setVisible(true);
     }
 
     @Override

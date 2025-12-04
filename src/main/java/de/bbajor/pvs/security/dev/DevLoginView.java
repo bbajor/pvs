@@ -45,10 +45,13 @@ import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.pin.PinAuthenticationToken;
 import jakarta.annotation.PostConstruct;
 import javax.sql.DataSource;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Label;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 
 /**
  * Login view for development.
@@ -67,25 +70,31 @@ class DevLoginView extends Main implements BeforeEnterObserver {
     private final UserAccountRepository userAccountRepository;
     private final org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider;
     private final DataSource dataSource;
+    private final Environment environment;
     private final TextField tenantCodeField;
     private final TextField usernameField;
     private final PasswordField passwordField;
+    private final PasswordField pinField;
+    private final TextField mfaCodeField;
     private final Button loginButton;
     private Div exampleUsersDiv;
     private Div usersScrollContainer;
     private Checkbox prodLoginModeCheckbox;
+    private Checkbox pinLoginCheckbox;
     private H2 loginTitle;
     private boolean isProdLoginMode = false;
     private boolean isH2Database = false;
+    private boolean isPinLogin = false;
 
     DevLoginView(AuthenticationContext authenticationContext, UserAccountRepository userAccountRepository,
                  org.springframework.beans.factory.ObjectProvider<AuthenticationManager> authenticationManagerProvider,
-                 DataSource dataSource) {
+                 DataSource dataSource, Environment environment) {
         this.authenticationContext = authenticationContext;
         this.userAccountRepository = userAccountRepository;
         // Use ObjectProvider to avoid eager initialization issues
         this.authenticationManagerProvider = authenticationManagerProvider;
         this.dataSource = dataSource;
+        this.environment = environment;
         
         // Prüfe, ob H2-Datenbank verwendet wird
         try {
@@ -103,15 +112,52 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         tenantCodeField.setPlaceholder("z.B. DEV-TEST oder PRAX-001");
         tenantCodeField.setRequired(true);
         tenantCodeField.setWidthFull();
+        
+        // Check if onpremise profile is active and institution code is configured
+        String[] activeProfiles = environment.getActiveProfiles();
+        boolean isOnPremise = java.util.Arrays.asList(activeProfiles).contains("onpremise");
+        String onPremiseInstitutionCode = environment.getProperty("app.onpremise.institution-code", "");
+        
+        if (isOnPremise && onPremiseInstitutionCode != null && !onPremiseInstitutionCode.trim().isEmpty()) {
+            // OnPremise: Set institution code automatically and hide field
+            tenantCodeField.setValue(onPremiseInstitutionCode);
+            tenantCodeField.setVisible(false);
+            tenantCodeField.setRequired(false);
+            log.info("OnPremise mode: Institution code automatically set to: {}", onPremiseInstitutionCode);
+        }
 
-        usernameField = new TextField("Benutzername");
+        usernameField = new TextField("Benutzername oder E-Mail");
         usernameField.setRequired(true);
         usernameField.setWidthFull();
+        usernameField.setHelperText("Sie können sich mit Ihrem Benutzernamen oder Ihrer E-Mail-Adresse anmelden");
 
         passwordField = new PasswordField("Passwort");
         passwordField.setRequired(true);
         passwordField.setWidthFull();
         passwordField.setRevealButtonVisible(true); // Show/Hide password button with eye icon
+
+        pinField = new PasswordField("PIN (6-stellig)");
+        pinField.setPlaceholder("000000");
+        pinField.setMaxLength(6);
+        pinField.setPattern("[0-9]{6}");
+        pinField.setHelperText("6-stellige PIN für passwortlosen Login");
+        pinField.setWidthFull();
+        pinField.setVisible(false);
+
+        mfaCodeField = new TextField("MFA-Code");
+        mfaCodeField.setPlaceholder("000000");
+        mfaCodeField.setMaxLength(6);
+        mfaCodeField.setPattern("[0-9]{6}");
+        mfaCodeField.setHelperText("6-stelliger Code aus Ihrer Authenticator-App");
+        mfaCodeField.setWidthFull();
+        mfaCodeField.setVisible(false);
+
+        pinLoginCheckbox = new Checkbox("Passwortloser Login mit PIN");
+        pinLoginCheckbox.setValue(false);
+        pinLoginCheckbox.addValueChangeListener(e -> {
+            isPinLogin = e.getValue();
+            updateLoginMode();
+        });
 
         loginButton = new Button("Anmelden");
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -123,7 +169,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         loginTitle.addClassNames("dev-login-title");
         
         var loginForm = new FormLayout();
-        loginForm.add(tenantCodeField, usernameField, passwordField, loginButton);
+        loginForm.add(tenantCodeField, usernameField, pinLoginCheckbox, passwordField, pinField, mfaCodeField, loginButton);
         loginForm.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1)
         );
@@ -223,7 +269,7 @@ class DevLoginView extends Main implements BeforeEnterObserver {
     }
 
     /**
-     * Aktualisiert die Anzeige basierend auf dem Login-Modus (Dev/Prod).
+     * Aktualisiert die Anzeige basierend auf dem Login-Modus (Dev/Prod) und PIN-Login.
      */
     private void updateLoginMode() {
         if (isProdLoginMode) {
@@ -236,6 +282,23 @@ class DevLoginView extends Main implements BeforeEnterObserver {
             usersScrollContainer.setVisible(true);
             loginTitle.setText("Anmeldung (Entwicklungsmodus)");
             loginTitle.getStyle().set("color", "var(--lumo-primary-text-color)");
+        }
+        
+        // Update PIN login fields visibility
+        if (isPinLogin) {
+            passwordField.setVisible(false);
+            passwordField.setRequired(false);
+            pinField.setVisible(true);
+            pinField.setRequired(true);
+            mfaCodeField.setVisible(true);
+            mfaCodeField.setRequired(true);
+        } else {
+            passwordField.setVisible(true);
+            passwordField.setRequired(true);
+            pinField.setVisible(false);
+            pinField.setRequired(false);
+            mfaCodeField.setVisible(false);
+            mfaCodeField.setRequired(false);
         }
     }
 
@@ -300,18 +363,31 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         String tenantCode = tenantCodeField.getValue();
         String username = usernameField.getValue();
         String password = passwordField.getValue();
+        String pin = pinField.getValue();
+        String mfaCode = mfaCodeField.getValue();
 
-        // Validate required fields
-        if (username.isEmpty() || password.isEmpty()) {
-            Notification.show("Bitte geben Sie Benutzername und Passwort ein", 3000, Notification.Position.TOP_CENTER);
-            return;
+        // Validate required fields based on login mode
+        if (isPinLogin) {
+            if (username.isEmpty() || pin == null || pin.isEmpty() || mfaCode == null || mfaCode.isEmpty()) {
+                Notification.show("Bitte geben Sie Benutzername, PIN und MFA-Code ein", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (pin.length() != 6 || mfaCode.length() != 6) {
+                Notification.show("PIN und MFA-Code müssen jeweils 6-stellig sein", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+        } else {
+            if (username.isEmpty() || password.isEmpty()) {
+                Notification.show("Bitte geben Sie Benutzername und Passwort ein", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
         }
 
         // Check if institution code is empty and if user is SUPER_ADMIN or INSTITUTION_ADMIN
         boolean isEmptyInstitutionCode = tenantCode == null || tenantCode.trim().isEmpty();
         if (isEmptyInstitutionCode) {
-            // Try to load user from database to check roles
-            Optional<UserAccount> userOpt = userAccountRepository.findByUsername(username);
+            // Try to load user from database to check roles (by username or email)
+            Optional<UserAccount> userOpt = userAccountRepository.findByUsernameOrEmail(username);
             if (userOpt.isPresent()) {
                 UserAccount user = userOpt.get();
                 boolean hasSuperAdminRole = user.getRoles() != null && 
@@ -338,10 +414,22 @@ class DevLoginView extends Main implements BeforeEnterObserver {
             AuthenticationManager authManager = authenticationManagerProvider.getObject();
             
             // Authenticate directly in Vaadin thread - this preserves SecurityContext
-            // Use empty string if institution code is empty (for SUPER_ADMIN/INSTITUTION_ADMIN)
-            String institutionCodeForAuth = isEmptyInstitutionCode ? "" : tenantCode;
-            InstitutionAuthenticationToken authRequest = new InstitutionAuthenticationToken(institutionCodeForAuth, username, password);
-            Authentication authResult = authManager.authenticate(authRequest);
+            Authentication authResult;
+            
+            if (isPinLogin) {
+                // PIN login - use PinAuthenticationToken
+                if (isEmptyInstitutionCode) {
+                    Notification.show("Institution-Code ist für PIN-Login erforderlich", 3000, Notification.Position.TOP_CENTER);
+                    return;
+                }
+                PinAuthenticationToken pinAuthRequest = new PinAuthenticationToken(tenantCode, username, pin, mfaCode);
+                authResult = authManager.authenticate(pinAuthRequest);
+            } else {
+                // Password login - use InstitutionAuthenticationToken
+                String institutionCodeForAuth = isEmptyInstitutionCode ? "" : tenantCode;
+                InstitutionAuthenticationToken authRequest = new InstitutionAuthenticationToken(institutionCodeForAuth, username, password);
+                authResult = authManager.authenticate(authRequest);
+            }
             
             // Set authentication in SecurityContext
             SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
@@ -369,30 +457,33 @@ class DevLoginView extends Main implements BeforeEnterObserver {
             
             log.debug("Login successful for user: {} (institution/tenant: {})", username, tenantCode);
             
-            // Check if MFA is required before navigating
-            UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
-            if (userAccount != null) {
-                // Check if MFA is required (mandatory for SUPER_ADMIN only)
-                boolean mfaRequired = isMfaRequired(userAccount);
-                
-                if (mfaRequired && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
-                    // MFA is required but not set up - redirect to setup
-                    Notification.show("MFA ist für Ihr Konto erforderlich. Bitte richten Sie MFA ein.", 
-                            5000, Notification.Position.MIDDLE)
-                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                    UI.getCurrent().navigate("/mfa-setup");
-                    return;
-                }
-                
-                if (userAccount.isMfaEnabled() && userAccount.getMfaSecret() != null) {
-                    // MFA is enabled - set session flag and redirect to verification
-                    if (vaadinRequest != null) {
-                        jakarta.servlet.http.HttpSession session = vaadinRequest.getHttpServletRequest().getSession();
-                        session.setAttribute("MFA_REQUIRED", true);
-                        session.setAttribute("MFA_USERNAME", username);
-                        log.debug("MFA required for user {}, redirecting to verification", username);
-                        UI.getCurrent().navigate("/mfa-verify");
+            // For PIN login, MFA is already verified, so skip MFA verification
+            if (!isPinLogin) {
+            // Check if MFA is required before navigating (support username or email)
+            UserAccount userAccount = userAccountRepository.findByUsernameOrEmail(username).orElse(null);
+                if (userAccount != null) {
+                    // Check if MFA is required (mandatory for SUPER_ADMIN only)
+                    boolean mfaRequired = isMfaRequired(userAccount);
+                    
+                    if (mfaRequired && (userAccount.getMfaSecret() == null || !userAccount.isMfaEnabled())) {
+                        // MFA is required but not set up - redirect to setup
+                        Notification.show("MFA ist für Ihr Konto erforderlich. Bitte richten Sie MFA ein.", 
+                                5000, Notification.Position.MIDDLE)
+                                .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                        UI.getCurrent().navigate("/mfa-setup");
                         return;
+                    }
+                    
+                    if (userAccount.isMfaEnabled() && userAccount.getMfaSecret() != null) {
+                        // MFA is enabled - set session flag and redirect to verification
+                        if (vaadinRequest != null) {
+                            jakarta.servlet.http.HttpSession session = vaadinRequest.getHttpServletRequest().getSession();
+                            session.setAttribute("MFA_REQUIRED", true);
+                            session.setAttribute("MFA_USERNAME", username);
+                            log.debug("MFA required for user {}, redirecting to verification", username);
+                            UI.getCurrent().navigate("/mfa-verify");
+                            return;
+                        }
                     }
                 }
             }
@@ -404,8 +495,8 @@ class DevLoginView extends Main implements BeforeEnterObserver {
                 // Redirect to super admin settings with institution tab
                 UI.getCurrent().navigate("admin/super-settings");
             } else {
-                // Regular user with institution - go to patient search
-                UI.getCurrent().navigate("patient-search");
+                // Regular user with institution - go to dashboard
+                UI.getCurrent().navigate("");
             }
             
         } catch (BadCredentialsException e) {
@@ -538,9 +629,9 @@ class DevLoginView extends Main implements BeforeEnterObserver {
         log.debug("DevLoginView.beforeEnter() called - location: {}, authenticated: {}", location, authenticated);
         
         if (authenticated) {
-            // Redirect to patient search if the user is already logged in
-            log.debug("User is authenticated in DevLoginView.beforeEnter(), redirecting to patient-search");
-            event.forwardTo("patient-search");
+            // Redirect to dashboard if the user is already logged in
+            log.debug("User is authenticated in DevLoginView.beforeEnter(), redirecting to dashboard");
+            event.forwardTo("");
             return;
         }
 

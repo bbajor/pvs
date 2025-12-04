@@ -20,6 +20,13 @@ public class EntityVerificationDialog<T> extends Dialog {
         setWidth("800px");
         setHeight("600px");
         setHeaderTitle("Patientendaten überprüfen");
+        setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         // Show confidence indicator
         double confidence = result.getConfidence();
@@ -61,7 +68,6 @@ public class EntityVerificationDialog<T> extends Dialog {
 
         content.add(confidenceSpan);
 
-        Button cancelButton = new Button("Abbrechen", e -> close());
         Button confirmButton = new Button("Übernehmen", e -> {
             if (confirmListener != null) {
                 confirmListener.onConfirmed(result.getEntity());
@@ -71,7 +77,7 @@ public class EntityVerificationDialog<T> extends Dialog {
         confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         add(content);
-        getFooter().add(cancelButton, confirmButton);
+        getFooter().add(confirmButton);
     }
 
     private HorizontalLayout createInfoRow(String label, String value, double confidence) {
