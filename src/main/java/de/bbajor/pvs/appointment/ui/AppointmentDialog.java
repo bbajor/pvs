@@ -7,6 +7,7 @@ import java.util.List;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -17,13 +18,24 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import de.bbajor.pvs.appointment.model.Appointment;
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.AppointmentStatus;
 import de.bbajor.pvs.appointment.service.AppointmentService;
+import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 
 /**
  * Dialog for creating and editing appointments.
@@ -31,9 +43,12 @@ import de.bbajor.pvs.patient.service.PatientService;
  */
 public class AppointmentDialog extends Dialog {
 
+    private static final Logger log = LoggerFactory.getLogger(AppointmentDialog.class);
+
     private final AppointmentService appointmentService;
     private final PatientService patientService;
     private final AppointmentScheduler scheduler;
+    private final ApplicationContext applicationContext;
     
     private Appointment appointment;
     private Runnable onSaveCallback;
@@ -54,9 +69,19 @@ public class AppointmentDialog extends Dialog {
             PatientService patientService,
             AppointmentScheduler scheduler,
             Appointment appointment) {
+        this(appointmentService, patientService, scheduler, appointment, null);
+    }
+
+    public AppointmentDialog(
+            AppointmentService appointmentService,
+            PatientService patientService,
+            AppointmentScheduler scheduler,
+            Appointment appointment,
+            ApplicationContext applicationContext) {
         this.appointmentService = appointmentService;
         this.patientService = patientService;
         this.scheduler = scheduler;
+        this.applicationContext = applicationContext;
         this.appointment = appointment != null ? appointment : createNewAppointment();
 
         setModal(true);
@@ -64,6 +89,12 @@ public class AppointmentDialog extends Dialog {
         setResizable(true);
         setWidth("600px");
         setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         initializeDialog();
     }
@@ -92,6 +123,9 @@ public class AppointmentDialog extends Dialog {
             new FormLayout.ResponsiveStep("0", 1),
             new FormLayout.ResponsiveStep("500px", 2)
         );
+
+        // InstitutionContext sicherstellen, bevor Patienten geladen werden
+        ensureInstitutionContext();
 
         // Patient selection
         patientComboBox = new ComboBox<>("Patient");
@@ -171,8 +205,6 @@ public class AppointmentDialog extends Dialog {
         layout.setWidthFull();
         layout.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
 
-        Button cancelButton = new Button("Abbrechen", event -> close());
-        
         Button saveButton = new Button("Speichern", event -> saveAppointment());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -180,7 +212,7 @@ public class AppointmentDialog extends Dialog {
         deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         deleteButton.setVisible(appointment.getId() != null);
 
-        layout.add(deleteButton, cancelButton, saveButton);
+        layout.add(deleteButton, saveButton);
         return layout;
     }
 
@@ -292,5 +324,45 @@ public class AppointmentDialog extends Dialog {
 
     public void setOnSaveCallback(Runnable callback) {
         this.onSaveCallback = callback;
+    }
+
+    /**
+     * Stellt sicher, dass der InstitutionContext gesetzt ist.
+     * Dies ist notwendig, da Vaadin Button-Klicks kein BeforeEnterEvent auslösen,
+     * sodass der Context möglicherweise nicht gesetzt ist.
+     */
+    private void ensureInstitutionContext() {
+        // Nur setzen, wenn noch nicht gesetzt
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+                log.debug("InstitutionContext set from InstitutionAuthenticationToken: {} (institution code: {})",
+                        institutionAuth.getInstitutionId(), institutionAuth.getInstitutionCode());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication wurde aus Session deserialisiert
+            if (applicationContext != null) {
+                try {
+                    UserAccountRepository userAccountRepository = applicationContext.getBean(UserAccountRepository.class);
+                    String username = adapter.getUsername();
+                    UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                    
+                    if (userAccount != null && userAccount.getInstitution() != null) {
+                        Long institutionId = userAccount.getInstitution().getId();
+                        InstitutionContext.setInstitutionId(institutionId);
+                        log.debug("InstitutionContext restored from UserAccount.institution: {} (institution code: {})",
+                                institutionId, userAccount.getInstitution().getInstitutionCode());
+                    }
+                } catch (Exception e) {
+                    log.warn("Error restoring InstitutionContext from UserAccount: {}", e.getMessage());
+                }
+            }
+        }
     }
 }

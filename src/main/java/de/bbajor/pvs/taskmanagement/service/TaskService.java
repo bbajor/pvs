@@ -158,7 +158,7 @@ public class TaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'INSTITUTION_ADMIN')")
     public void approveTreatment(Long treatmentId, String actorUserId, String actorUserName, boolean secondApproval) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)

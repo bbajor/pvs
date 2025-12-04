@@ -40,8 +40,8 @@ final class DevUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // Load user exclusively from database
-        Optional<UserAccount> userAccount = userAccountRepository.findByUsername(username);
+        // Load user exclusively from database (support both username and email)
+        Optional<UserAccount> userAccount = userAccountRepository.findByUsernameOrEmail(username);
         if (userAccount.isPresent()) {
             return new UserAccountUserDetailsAdapter(userAccount.get());
         }

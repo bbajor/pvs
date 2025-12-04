@@ -38,6 +38,8 @@ import de.bbajor.pvs.base.util.SideOfEye;
 import de.bbajor.pvs.base.util.TimePeriod;
 import de.bbajor.pvs.base.util.TimeSlotRepetition;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
@@ -56,6 +58,7 @@ public class NextTreatmentBookingDialog extends Dialog {
     private final SideOfEye sideOfEye;
     private final ApplicationContext context;
     private final TreatmentPlanPresenter presenter;
+    private InstitutionRepository institutionRepository;
     private final Consumer<Treatment> onTreatmentCreated;
 
     private RadioButtonGroup<String> intervalTypeGroup;
@@ -90,6 +93,7 @@ public class NextTreatmentBookingDialog extends Dialog {
         this.sideOfEye = sideOfEye;
         this.context = context;
         this.presenter = presenter;
+        this.institutionRepository = context.getBean(InstitutionRepository.class);
         this.onTreatmentCreated = onTreatmentCreated;
 
         // InstitutionContext sofort setzen, damit alle Service-Aufrufe funktionieren
@@ -100,6 +104,12 @@ public class NextTreatmentBookingDialog extends Dialog {
         setMaxWidth("95vw");
         setHeight("90vh");
         setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         // Footer-Buttons zuerst erstellen, damit sie verfügbar sind
         createWizardFooter();
@@ -1031,6 +1041,51 @@ public class NextTreatmentBookingDialog extends Dialog {
         if (selectedTimeSlot == null) {
             showError("Bitte wählen Sie einen Termin aus.");
             return;
+        }
+        
+        // Prüfe auf Zeitsperre zwischen beiden Augen (IVOM-Planer)
+        try {
+            ensureInstitutionContext();
+            if (InstitutionContext.hasInstitution()) {
+                Long institutionId = InstitutionContext.getInstitutionId();
+                Institution institution = institutionRepository.findById(institutionId).orElse(null);
+                
+                if (institution != null && institution.getIvomEyeTreatmentLockoutDays() != null 
+                        && institution.getIvomEyeTreatmentLockoutDays() > 0) {
+                    int lockoutDays = institution.getIvomEyeTreatmentLockoutDays();
+                    SideOfEye currentEye = sideOfEyeComboBox.getValue();
+                    SideOfEye otherEye = (currentEye == SideOfEye.LEFT) ? SideOfEye.RIGHT : SideOfEye.LEFT;
+                    
+                    // Hole alle Treatments für das andere Auge
+                    List<Treatment> otherEyeTreatments = presenter.getTreatmentDtos(otherEye, treatmentPlan.getId());
+                    
+                    // Prüfe, ob der ausgewählte Termin innerhalb des Sperrzeitraums liegt
+                    LocalDate selectedDate = selectedTimeSlot.getDate();
+                    if (selectedDate != null) {
+                        for (Treatment otherTreatment : otherEyeTreatments) {
+                            if (otherTreatment.getDate() != null) {
+                                long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+                                    otherTreatment.getDate(), selectedDate);
+                                
+                                // Prüfe, ob der ausgewählte Termin innerhalb des Sperrzeitraums liegt
+                                if (Math.abs(daysBetween) <= lockoutDays) {
+                                    String eyeLabel = otherEye == SideOfEye.LEFT ? "linken" : "rechten";
+                                    String dateStr = otherTreatment.getDate().format(
+                                        DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                                    showError(String.format(
+                                        "Eine Buchung ist nicht möglich: Das %s Auge wird bereits am %s behandelt. " +
+                                        "Die Zeitsperre zwischen beiden Augen beträgt %d Tag%s.",
+                                        eyeLabel, dateStr, lockoutDays, lockoutDays == 1 ? "" : "e"));
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Fehler bei der Prüfung der Zeitsperre zwischen beiden Augen: {}", e.getMessage(), e);
+            // Fehler nicht blockierend - Buchung kann trotzdem fortgesetzt werden
         }
         
         // Prüfe auf Überbuchung (> 40 Patienten pro Stunde)

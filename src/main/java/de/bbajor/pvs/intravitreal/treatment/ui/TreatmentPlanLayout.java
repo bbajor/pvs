@@ -828,14 +828,14 @@ public class TreatmentPlanLayout extends VerticalLayout {
         buttonLayout.setPadding(false);
         buttonLayout.setWidthFull();
         
-        if (treatmentCount < 2) {
-            // Weniger als 2 Behandlungen: Einfacher Button
-            Button bookButton = new Button("Folgetermin buchen", VaadinIcon.CALENDAR.create());
-            bookButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-            bookButton.setWidthFull();
-            bookButton.addClickListener(e -> openNextTreatmentBookingDialog(side));
-            buttonLayout.add(bookButton);
-        } else {
+        // Button "Nächsten Termin buchen" - immer verfügbar, auch ab 2 Behandlungen
+        Button bookButton = new Button("Nächsten Termin buchen", VaadinIcon.CALENDAR.create());
+        bookButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        bookButton.setWidthFull();
+        bookButton.addClickListener(e -> openNextTreatmentBookingDialog(side));
+        buttonLayout.add(bookButton);
+        
+        if (treatmentCount >= 2) {
             // Ab 2 Behandlungen: Intervall-Buttons
             // Berechne vorheriges Intervall für Stepper-Initialisierung
             List<Treatment> sortedTreatments = new ArrayList<>(treatments);
@@ -861,7 +861,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
             
             Button shorterButton = new Button("Verkürzen", VaadinIcon.ARROW_LEFT.create());
             shorterButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-            shorterButton.setWidthFull();
+            shorterButton.setWidth(null); // Nicht full width, damit bündig mit bookButton
+            shorterButton.getStyle().set("flex-grow", "1");
             shorterButton.addClickListener(e -> {
                 Integer weeksToShorten = shorterWeeksField.getValue();
                 if (weeksToShorten == null || weeksToShorten < 1) {
@@ -900,7 +901,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
             
             Button longerButton = new Button("Verlängern", VaadinIcon.ARROW_RIGHT.create());
             longerButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-            longerButton.setWidthFull();
+            longerButton.setWidth(null); // Nicht full width, damit bündig mit bookButton
+            longerButton.getStyle().set("flex-grow", "1");
             longerButton.addClickListener(e -> {
                 Integer weeksToExtend = longerWeeksField.getValue();
                 if (weeksToExtend == null || weeksToExtend < 1) {
@@ -914,29 +916,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
             longerLayout.add(longerButton);
             longerLayout.setFlexGrow(1, longerButton);
             buttonLayout.add(longerLayout);
-            
-            // Nächster Anschlusstermin mit Info-Icon
-            HorizontalLayout nextAvailableLayout = new HorizontalLayout();
-            nextAvailableLayout.setSpacing(true);
-            nextAvailableLayout.setWidthFull();
-            nextAvailableLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
-            
-            Button nextAvailableButton = new Button("Anschlusstermin", VaadinIcon.CALENDAR_CLOCK.create());
-            nextAvailableButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-            nextAvailableButton.setWidthFull();
-            nextAvailableButton.addClickListener(e -> handleQuickBooking(
-                new TimelineView.QuickBookingRequest(side, TimelineView.QuickBookingAction.NEXT_AVAILABLE, null)));
-            
-            Icon infoIcon = VaadinIcon.INFO_CIRCLE.create();
-            infoIcon.setSize("16px");
-            infoIcon.setColor("var(--lumo-secondary-text-color)");
-            infoIcon.setTooltipText("Bucht den nächstmöglichen Anschlusstermin, der auf den letzten Termin folgt");
-            
-            nextAvailableLayout.add(nextAvailableButton);
-            nextAvailableLayout.add(infoIcon);
-            nextAvailableLayout.setFlexGrow(1, nextAvailableButton);
-            nextAvailableLayout.setFlexGrow(0, infoIcon);
-            buttonLayout.add(nextAvailableLayout);
         }
         
         card.add(buttonLayout);

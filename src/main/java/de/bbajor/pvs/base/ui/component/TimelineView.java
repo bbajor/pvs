@@ -363,6 +363,12 @@ public class TimelineView extends VerticalLayout {
                         context.getBean(TreatmentPlanService.class),
                         context.getBean(de.bbajor.pvs.security.service.UserAccountService.class)
                     );
+                    // Callback setzen, damit Timeline nach Löschen/Absagen aktualisiert wird
+                    dialog.setOnTreatmentDeletedOrCancelled(() -> {
+                        if (onTreatmentDeletedCallback != null) {
+                            onTreatmentDeletedCallback.run();
+                        }
+                    });
                     dialog.open();
                 },
                 onBookNextTreatmentCallback,

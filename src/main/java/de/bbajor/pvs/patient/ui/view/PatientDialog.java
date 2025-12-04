@@ -102,12 +102,16 @@ public class PatientDialog extends Dialog {
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        var cancelBtn = new Button("Abbrechen", event -> close());
-
         // Configure the dialog
         String title = patient == null || patient.getId() == null ? "Neuer Patient"
                 : "Patient " + patient.toString();
         setHeaderTitle(title);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
         
         // Create tabs for Stammdaten and Patientengeschichte
         Tab stammdatenTab = new Tab("Stammdaten");
@@ -143,7 +147,6 @@ public class PatientDialog extends Dialog {
         add(tabs, content);
         
         // Footer-Buttons: nur die hinzufügen, die existieren (Features aktiviert)
-        getFooter().add(cancelBtn);
         if (readBtn != null) {
             getFooter().add(readBtn);
         }
@@ -300,6 +303,12 @@ public class PatientDialog extends Dialog {
                 ? record.getDateOfRecord().format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN))
                 : "Unbekanntes Datum"));
         
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> detailDialog.close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        detailDialog.getHeader().add(closeIconButton);
+        
         // Create content similar to OphthalmologyAppointmentView
         com.vaadin.flow.component.tabs.TabSheet tabSheet = new com.vaadin.flow.component.tabs.TabSheet();
         tabSheet.setSizeFull();
@@ -400,8 +409,7 @@ public class PatientDialog extends Dialog {
         
         detailDialog.add(tabSheet);
         
-        Button closeButton = new Button("Schließen", e -> detailDialog.close());
-        detailDialog.getFooter().add(closeButton);
+        // closeButton wird nicht mehr benötigt, da X-Icon im Header ist
         
         detailDialog.open();
     }

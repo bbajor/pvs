@@ -59,6 +59,12 @@ public class AppointmentCalendarDialog extends Dialog {
         setHeight("700px");
         setCloseOnOutsideClick(false);
         
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
+        
         add(createContent());
         add(createFooter());
     }
@@ -228,8 +234,6 @@ public class AppointmentCalendarDialog extends Dialog {
         footer.setJustifyContentMode(com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.END);
         footer.setSpacing(true);
         
-        Button cancelButton = new Button("Abbrechen", e -> close());
-        
         selectButton = new Button("Auswählen", e -> {
             if (selectedDate != null) {
                 onDateSelected.accept(selectedDate);
@@ -239,7 +243,7 @@ public class AppointmentCalendarDialog extends Dialog {
         selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         selectButton.setEnabled(false);
         
-        footer.add(cancelButton, selectButton);
+        footer.add(selectButton);
         return footer;
     }
     

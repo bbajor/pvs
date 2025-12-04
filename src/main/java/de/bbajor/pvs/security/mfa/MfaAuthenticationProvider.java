@@ -47,26 +47,28 @@ public class MfaAuthenticationProvider implements AuthenticationProvider {
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        String username = authentication.getName();
+        String identifier = authentication.getName(); // Can be username or email
         String password = authentication.getCredentials().toString();
 
-        log.debug("Authenticating user: {}", username);
+        log.debug("Authenticating user: {} (can be username or email)", identifier);
 
-        // Load user details
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        // Load user details (UserDetailsService now supports username or email)
+        UserDetails userDetails = userDetailsService.loadUserByUsername(identifier);
         
         // Verify password
         if (!passwordEncoder.matches(password, userDetails.getPassword())) {
-            log.warn("Invalid password for user: {}", username);
-            throw new BadCredentialsException("Invalid username or password");
+            log.warn("Invalid password for user: {}", identifier);
+            throw new BadCredentialsException("Invalid username/email or password");
         }
 
         // Check if user account exists and get MFA status
-        UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+        UserAccount userAccount = userAccountRepository.findByUsernameOrEmail(identifier).orElse(null);
         if (userAccount == null) {
-            log.warn("User account not found: {}", username);
-            throw new BadCredentialsException("Invalid username or password");
+            log.warn("User account not found: {}", identifier);
+            throw new BadCredentialsException("Invalid username/email or password");
         }
+        
+        String username = userAccount.getUsername(); // Use actual username from database
 
         // If MFA is enabled, check if MFA code is provided
         if (userAccount.isMfaEnabled() && userAccount.getMfaSecret() != null) {
@@ -101,7 +103,7 @@ public class MfaAuthenticationProvider implements AuthenticationProvider {
 
         authenticatedToken.setDetails(authentication.getDetails());
 
-        log.debug("Authentication successful for user: {}", username);
+        log.debug("Authentication successful for user: {} (identifier was: {})", username, identifier);
         return authenticatedToken;
     }
 

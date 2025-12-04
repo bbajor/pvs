@@ -62,6 +62,12 @@ public class VoiceInputDialog extends Dialog {
         setHeight("500px");
         setHeaderTitle("Spracheingabe");
         setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         transcriptionArea = new TextArea("Transkription");
         transcriptionArea.setWidthFull();
@@ -115,8 +121,6 @@ public class VoiceInputDialog extends Dialog {
         hintLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");
         hintLabel.getStyle().set("font-style", "italic");
 
-        Button cancelButton = new Button("Abbrechen", e -> close());
-
         hiddenUpload = createHiddenUpload();
 
         HorizontalLayout buttonLayout = new HorizontalLayout();
@@ -131,7 +135,7 @@ public class VoiceInputDialog extends Dialog {
         content.add(transcriptionArea, hintLabel, buttonLayout, progressBar, statusLabel, hiddenUpload);
         add(content);
 
-        getFooter().add(cancelButton, extractButton);
+        getFooter().add(extractButton);
 
         initializeMediaRecorder();
     }

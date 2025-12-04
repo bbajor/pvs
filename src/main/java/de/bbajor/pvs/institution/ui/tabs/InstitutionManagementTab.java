@@ -44,6 +44,10 @@ public class InstitutionManagementTab extends VerticalLayout {
     private void init() {
         setSpacing(true);
         setPadding(true);
+        setSizeFull();
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("min-height", "0");
 
         H3 title = new H3("Institution-Verwaltung");
 
@@ -97,8 +101,11 @@ public class InstitutionManagementTab extends VerticalLayout {
         }).setHeader("Aktionen");
 
         grid.setSizeFull();
+        grid.getStyle().set("flex-grow", "1");
+        grid.getStyle().set("min-height", "0");
 
         add(title, formLayout, grid);
+        setFlexGrow(1, grid);
         refreshGrid();
     }
 

@@ -33,11 +33,16 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.appointment.model.Appointment;
 import de.bbajor.pvs.appointment.model.AppointmentScheduler;
 import de.bbajor.pvs.appointment.model.OfficeHours;
+import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.Sort;
+
 import de.bbajor.pvs.appointment.service.AppointmentSchedulerService;
 import de.bbajor.pvs.appointment.service.AppointmentService;
 import de.bbajor.pvs.appointment.service.GlobalAppointmentService;
 import de.bbajor.pvs.appointment.service.OfficeHoursService;
 import de.bbajor.pvs.patient.service.PatientService;
+import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
+import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -66,6 +71,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
     private final OfficeHoursService officeHoursService;
     private final PatientService patientService;
     private final GlobalAppointmentService globalAppointmentService;
+    private final ApplicationContext applicationContext;
+    private final SurgicalCenterTimeSlotRepository timeSlotRepository;
 
     private AppointmentScheduler currentScheduler;
     private LocalDate currentDate;
@@ -82,12 +89,16 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             AppointmentService appointmentService,
             OfficeHoursService officeHoursService,
             PatientService patientService,
-            GlobalAppointmentService globalAppointmentService) {
+            GlobalAppointmentService globalAppointmentService,
+            ApplicationContext applicationContext,
+            SurgicalCenterTimeSlotRepository timeSlotRepository) {
         this.schedulerService = schedulerService;
         this.appointmentService = appointmentService;
         this.officeHoursService = officeHoursService;
         this.patientService = patientService;
         this.globalAppointmentService = globalAppointmentService;
+        this.applicationContext = applicationContext;
+        this.timeSlotRepository = timeSlotRepository;
         this.currentDate = LocalDate.now();
 
         // Padding ZUERST setzen, dann sizeFull() - wichtig für box-sizing: border-box
@@ -342,12 +353,24 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             endOfWeek
         );
 
+        // Get SurgicalCenterTimeSlots for the week
+        List<SurgicalCenterTimeSlot> weekTimeSlots = timeSlotRepository.findByDateBetween(
+            weekStart, 
+            weekEnd, 
+            Sort.by("date").ascending()
+                .and(Sort.by("startTime").ascending())
+        );
+
         // Group appointments by date
         Map<LocalDate, List<Appointment>> appointmentsByDate = weekAppointments.stream()
             .collect(Collectors.groupingBy(apt -> apt.getStartTime().toLocalDate()));
 
+        // Group time slots by date
+        Map<LocalDate, List<SurgicalCenterTimeSlot>> timeSlotsByDate = weekTimeSlots.stream()
+            .collect(Collectors.groupingBy(SurgicalCenterTimeSlot::getDate));
+
         // Create week grid
-        HorizontalLayout weekGrid = createWeekGrid(weekStart, appointmentsByDate);
+        HorizontalLayout weekGrid = createWeekGrid(weekStart, appointmentsByDate, timeSlotsByDate);
         calendarContainer.add(weekGrid);
     }
 
@@ -434,9 +457,11 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         return slot;
     }
 
-    private HorizontalLayout createWeekGrid(LocalDate weekStart, Map<LocalDate, List<Appointment>> appointmentsByDate) {
+    private HorizontalLayout createWeekGrid(LocalDate weekStart, Map<LocalDate, List<Appointment>> appointmentsByDate,
+                                           Map<LocalDate, List<SurgicalCenterTimeSlot>> timeSlotsByDate) {
         HorizontalLayout weekLayout = new HorizontalLayout();
         weekLayout.setWidthFull();
+        weekLayout.setHeightFull();
         weekLayout.setSpacing(false);
         weekLayout.setPadding(false);
         weekLayout.addClassNames(LumoUtility.Gap.SMALL);
@@ -453,7 +478,7 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
                     .map(OfficeHours::getStartTime)
                     .min(LocalTime::compareTo)
                     .orElse(LocalTime.of(8, 0))
-                    .minusHours(2);
+                    .minusHours(1);
                 LocalTime dayLatest = dayOfficeHours.stream()
                     .map(OfficeHours::getEndTime)
                     .max(LocalTime::compareTo)
@@ -487,7 +512,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         for (int i = 0; i < 7; i++) {
             LocalDate day = weekStart.plusDays(i);
             VerticalLayout dayColumn = createDayColumn(day, earliestTime, latestTime, 
-                appointmentsByDate.getOrDefault(day, new ArrayList<>()));
+                appointmentsByDate.getOrDefault(day, new ArrayList<>()),
+                timeSlotsByDate.getOrDefault(day, new ArrayList<>()));
             weekLayout.add(dayColumn);
         }
 
@@ -495,15 +521,17 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
     }
 
     private VerticalLayout createDayColumn(LocalDate day, LocalTime earliestTime, LocalTime latestTime, 
-                                          List<Appointment> dayAppointments) {
+                                          List<Appointment> dayAppointments,
+                                          List<SurgicalCenterTimeSlot> dayTimeSlots) {
         VerticalLayout column = new VerticalLayout();
         column.setPadding(false);
         column.setSpacing(false);
         column.setWidth("14%");
+        column.setHeightFull();
         column.addClassNames(LumoUtility.Border.ALL, LumoUtility.BorderRadius.SMALL);
         column.getStyle().set("min-width", "150px");
 
-        // Day header
+        // Day header - clickable to open appointment dialog
         H4 dayHeader = new H4(day.getDayOfWeek().toString() + "\n" + day.format(DateTimeFormatter.ofPattern("dd.MM.")));
         dayHeader.getStyle()
             .set("text-align", "center")
@@ -511,7 +539,9 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             .set("margin", "0")
             .set("background-color", day.equals(LocalDate.now()) 
                 ? "var(--lumo-primary-color-10pct)" 
-                : "var(--lumo-contrast-5pct)");
+                : "var(--lumo-contrast-5pct)")
+            .set("cursor", "pointer");
+        dayHeader.addClickListener(e -> handleDayClick(day, dayAppointments));
         column.add(dayHeader);
 
         // Get office hours for this day
@@ -520,13 +550,13 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
         // Time slots
         Div timeSlotsContainer = new Div();
         timeSlotsContainer.setWidthFull();
+        timeSlotsContainer.setHeightFull();
         timeSlotsContainer.getStyle()
-            .set("overflow-y", "auto")
-            .set("max-height", "600px");
+            .set("overflow-y", "auto");
 
         LocalTime currentTime = earliestTime;
         while (currentTime.isBefore(latestTime)) {
-            Div timeSlot = createWeekTimeSlot(day, currentTime, dayOfficeHours, dayAppointments);
+            Div timeSlot = createWeekTimeSlot(day, currentTime, dayOfficeHours, dayAppointments, dayTimeSlots);
             timeSlotsContainer.add(timeSlot);
             currentTime = currentTime.plusMinutes(15);
         }
@@ -538,7 +568,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
     }
 
     private Div createWeekTimeSlot(LocalDate day, LocalTime time, List<OfficeHours> officeHours, 
-                                   List<Appointment> appointments) {
+                                   List<Appointment> appointments,
+                                   List<SurgicalCenterTimeSlot> timeSlots) {
         Div slot = new Div();
         slot.getStyle()
             .set("border-bottom", "1px solid var(--lumo-contrast-10pct)")
@@ -592,7 +623,66 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
                 slot.add(appointmentLabel);
             });
 
+        // Check for SurgicalCenterTimeSlots at this time (readonly)
+        timeSlots.stream()
+            .filter(ts -> !time.isBefore(ts.getStartTime()) && time.isBefore(ts.getEndTime()))
+            .forEach(ts -> {
+                Span timeSlotLabel = new Span(
+                    (ts.getSurgicalCenter() != null ? ts.getSurgicalCenter().getName() : "Behandlungsort") +
+                    (ts.getDescription() != null && !ts.getDescription().isEmpty() ? ": " + ts.getDescription() : "")
+                );
+                timeSlotLabel.getStyle()
+                    .set("background-color", "var(--lumo-success-color-10pct)")
+                    .set("color", "var(--lumo-success-text-color)")
+                    .set("border", "1px solid var(--lumo-success-color-50pct)")
+                    .set("padding", "2px 4px")
+                    .set("border-radius", "var(--lumo-border-radius-s)")
+                    .set("font-size", "var(--lumo-font-size-xs)")
+                    .set("display", "block")
+                    .set("margin-top", "2px")
+                    .set("white-space", "nowrap")
+                    .set("overflow", "hidden")
+                    .set("text-overflow", "ellipsis");
+                slot.add(timeSlotLabel);
+            });
+
         return slot;
+    }
+
+    private void handleDayClick(LocalDate day, List<Appointment> dayAppointments) {
+        if (currentScheduler == null) {
+            Notification.show("Bitte wählen Sie zuerst einen Terminplaner aus", 3000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
+        // Check if there are appointments on this day
+        if (!dayAppointments.isEmpty()) {
+            // If there's only one appointment, open it directly
+            if (dayAppointments.size() == 1) {
+                openAppointmentDialog(dayAppointments.get(0));
+            } else {
+                // If multiple appointments, open the first one (could be enhanced to show a list)
+                openAppointmentDialog(dayAppointments.get(0));
+            }
+        } else {
+            // No appointment exists, create new one with pre-filled date
+            Appointment newAppointment = new Appointment();
+            newAppointment.setScheduler(currentScheduler);
+            // Set to start of day (could be enhanced to use office hours)
+            newAppointment.setStartTime(day.atTime(LocalTime.of(9, 0)));
+            newAppointment.setEndTime(day.atTime(LocalTime.of(9, 30)));
+            
+            AppointmentDialog dialog = new AppointmentDialog(
+                appointmentService,
+                patientService,
+                currentScheduler,
+                newAppointment,
+                applicationContext
+            );
+            dialog.setOnSaveCallback(this::refreshCalendar);
+            dialog.open();
+        }
     }
 
     private void openAppointmentDialog() {
@@ -606,7 +696,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             appointmentService,
             patientService,
             currentScheduler,
-            null
+            null,
+            applicationContext
         );
         dialog.setOnSaveCallback(this::refreshCalendar);
         dialog.open();
@@ -617,7 +708,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
             appointmentService,
             patientService,
             currentScheduler,
-            appointment
+            appointment,
+            applicationContext
         );
         dialog.setOnSaveCallback(this::refreshCalendar);
         dialog.open();
@@ -650,7 +742,8 @@ public class AppointmentCalendarView extends Main implements BeforeEnterObserver
                         appointmentService,
                         patientService,
                         slot.scheduler(),
-                        newAppointment
+                        newAppointment,
+                        applicationContext
                     );
                     dialog.setOnSaveCallback(this::refreshCalendar);
                     dialog.open();

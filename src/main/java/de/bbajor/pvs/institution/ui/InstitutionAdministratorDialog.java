@@ -11,6 +11,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.security.AppRoles;
@@ -41,7 +42,6 @@ public class InstitutionAdministratorDialog extends Dialog {
     private TextField fullNameField;
     private EmailField emailField;
     private Button saveButton;
-    private Button cancelButton;
 
     private Institution institution;
 
@@ -74,8 +74,6 @@ public class InstitutionAdministratorDialog extends Dialog {
         saveButton = new Button("Administrator anlegen", e -> createAdministrator());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         
-        cancelButton = new Button("Abbrechen", e -> close());
-        
         FormLayout formLayout = new FormLayout();
         formLayout.add(usernameField, fullNameField, emailField);
         formLayout.setResponsiveSteps(
@@ -83,7 +81,7 @@ public class InstitutionAdministratorDialog extends Dialog {
                 new FormLayout.ResponsiveStep("500px", 2)
         );
         
-        HorizontalLayout buttonLayout = new HorizontalLayout(saveButton, cancelButton);
+        HorizontalLayout buttonLayout = new HorizontalLayout(saveButton);
         buttonLayout.setSpacing(true);
         
         VerticalLayout content = new VerticalLayout(title, formLayout, buttonLayout);
@@ -94,6 +92,13 @@ public class InstitutionAdministratorDialog extends Dialog {
         
         setWidth("600px");
         setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
+        
         open();
     }
 

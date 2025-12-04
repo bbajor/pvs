@@ -67,6 +67,13 @@ public class InstitutionGeneralTab extends VerticalLayout {
 
         H3 title = new H3("Institutions-Daten");
 
+        // Institution code (read-only, for login)
+        TextField institutionCodeField = new TextField("Institutions-Code (für Login)");
+        institutionCodeField.setValue(institution.getInstitutionCode() != null ? institution.getInstitutionCode() : "");
+        institutionCodeField.setReadOnly(true);
+        institutionCodeField.setWidthFull();
+        institutionCodeField.setHelperText("Dieser Code wird beim Login benötigt");
+
         // Institution name and company information
         institutionNameField = new TextField("Institutions-Name");
         institutionNameField.setRequired(true);
@@ -124,7 +131,7 @@ public class InstitutionGeneralTab extends VerticalLayout {
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         FormLayout formLayout = new FormLayout();
-        formLayout.add(institutionNameField, companyNameField, taxIdField,
+        formLayout.add(institutionCodeField, institutionNameField, companyNameField, taxIdField,
                 streetField, houseNumberField, postalCodeField, cityField, countryField,
                 phoneField, faxField, emailField, descriptionField, saveButton);
         formLayout.setResponsiveSteps(

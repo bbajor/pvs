@@ -116,6 +116,12 @@ public class TaskReviewDialog extends Dialog {
         setResizable(true);
         setCloseOnOutsideClick(false);
 
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
+
         mainContent = new VerticalLayout();
         mainContent.setSizeFull();
         mainContent.setPadding(false);
@@ -131,7 +137,6 @@ public class TaskReviewDialog extends Dialog {
     }
     
     // Footer-Buttons als Instanzvariablen für Zugriff aus Detail-Ansicht
-    private Button closeButton;
     private Button startReview;
     private Button approveSelected;
     private Button viewReport;
@@ -144,7 +149,7 @@ public class TaskReviewDialog extends Dialog {
      * Erstellt die Footer-Buttons analog zum PatientDialog.
      */
     private void createFooterButtons() {
-        closeButton = new Button("Schließen", e -> close());
+        // closeButton wird nicht mehr benötigt, da X-Icon im Header ist
         
         startReview = new Button("Dokumentation starten", e -> {
             if (treatments.isEmpty()) {
@@ -154,7 +159,9 @@ public class TaskReviewDialog extends Dialog {
             showTreatmentDetail(0);
         });
         startReview.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty());
+        // Prüfe ob alle Behandlungen dokumentiert sind
+        boolean allDocumented = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
+        startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty() && !allDocumented);
         
         // Button für Massendokumentation (nur undokumentierte Behandlungen)
         approveSelected = new Button("Dokumentation abschließen", VaadinIcon.CHECK.create(), e -> {
@@ -306,7 +313,10 @@ public class TaskReviewDialog extends Dialog {
      */
     private void showOverviewFooter() {
         getFooter().removeAll();
-        getFooter().add(closeButton, approveSelected, startReview, viewReport);
+        // Prüfe ob alle Behandlungen dokumentiert sind
+        boolean allDocumented = treatments.stream().allMatch(t -> t.getApprovalDate() != null);
+        startReview.setEnabled(!task.isCompleted() && !treatments.isEmpty() && !allDocumented);
+        getFooter().add(approveSelected, startReview, viewReport);
         updateFooterButtons();
     }
     
@@ -361,7 +371,7 @@ public class TaskReviewDialog extends Dialog {
             approveSingle.setTooltipText("Nur MFA, Inhaber, Ärzte und Institutionsadmins können Behandlungen dokumentieren");
         }
         
-        getFooter().add(closeButton, backToOverview, prevButton, nextButton, approveSingle, approveSecond);
+        getFooter().add(backToOverview, prevButton, nextButton, approveSingle, approveSecond);
     }
     
     /**
@@ -590,6 +600,9 @@ public class TaskReviewDialog extends Dialog {
             statusLayout.setSpacing(true);
             statusLayout.setAlignItems(Alignment.CENTER);
             
+            // Prüfe ob Behandlung bereits dokumentiert ist
+            boolean isDocumented = treatment.getApprovalDate() != null;
+            
             // Combobox für Status
             ComboBox<TreatmentStatus> statusComboBox = new ComboBox<>();
             List<TreatmentStatus> statusOptions = Arrays.stream(TreatmentStatus.values())
@@ -601,6 +614,8 @@ public class TaskReviewDialog extends Dialog {
                     ? treatment.getTreatmentStatus() 
                     : TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL);
             statusComboBox.setWidth("200px");
+            // Deaktiviere Combobox wenn Behandlung bereits dokumentiert ist
+            statusComboBox.setEnabled(!isDocumented);
             
             // Ampel
             Div trafficLight = createTrafficLight(treatment.getTreatmentStatus() != null 
@@ -683,9 +698,26 @@ public class TaskReviewDialog extends Dialog {
         }).setHeader("Auswahl").setAutoWidth(true).setResizable(true);
         
         grid.setItems(treatments);
+        
+        // Grid-Row-Click-Listener: Springe zur Behandlungssicht
+        grid.addItemClickListener(e -> {
+            Treatment clickedTreatment = e.getItem();
+            int index = treatments.indexOf(clickedTreatment);
+            if (index >= 0) {
+                showTreatmentDetail(index);
+            }
+        });
+        
         overviewLayout.add(grid);
         
         // Footer-Zeile unter dem Grid mit "Alle auswählen" Checkbox und "Berichte herunterladen" Button
+        // Section um den Footer, damit er die volle Grid-Breite einnimmt
+        Section gridFooterSection = new Section();
+        gridFooterSection.getStyle()
+                .set("width", "100%")
+                .set("margin", "0")
+                .set("padding", "0");
+        
         Div gridFooter = new Div();
         gridFooter.getStyle()
                 .set("display", "grid")
@@ -732,7 +764,8 @@ public class TaskReviewDialog extends Dialog {
         selectAllCell.add(selectAllCheckbox);
         gridFooter.add(selectAllCell);
         
-        overviewLayout.add(gridFooter);
+        gridFooterSection.add(gridFooter);
+        overviewLayout.add(gridFooterSection);
         
         mainContent.add(overviewLayout);
         

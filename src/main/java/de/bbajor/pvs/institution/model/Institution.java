@@ -235,6 +235,14 @@ public class Institution extends BasicEntity<Long> {
     private String layoutFontFamily;
 
     /**
+     * IVOM-Planer: Zeitsperre zwischen der Behandlung beider Augen (in Tagen).
+     * Verhindert, dass beide Augen innerhalb dieses Zeitraums behandelt werden.
+     * Standard: 0 (keine Sperre).
+     */
+    @Column(name = "ivom_eye_treatment_lockout_days")
+    private Integer ivomEyeTreatmentLockoutDays = 0;
+
+    /**
      * Note: Locations are stored in the institution's own database,
      * not in the registry database where this Institution entity is stored.
      * Therefore, there is no @OneToMany relationship here - the relationship

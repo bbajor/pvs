@@ -15,6 +15,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import de.bbajor.pvs.institution.model.EmailEncryptionMethod;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.model.InstitutionEmailContact;
@@ -41,7 +42,7 @@ public class InstitutionEmailContactDialog extends Dialog {
     private TextArea notesField;
     private Span encryptionWarning;
     private Button saveButton;
-    private Button cancelButton;
+    private Button newButton;
     private InstitutionEmailContact currentContact;
 
     public InstitutionEmailContactDialog(InstitutionEmailContactService emailContactService) {
@@ -52,6 +53,12 @@ public class InstitutionEmailContactDialog extends Dialog {
         setResizable(true);
         setDraggable(true);
         setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen
+        Button closeIconButton = new Button(VaadinIcon.CLOSE.create(), e -> close());
+        closeIconButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeIconButton.getStyle().set("margin-left", "auto");
+        getHeader().add(closeIconButton);
 
         H3 title = new H3("E-Mail-Kontakte verwalten");
         
@@ -182,15 +189,10 @@ public class InstitutionEmailContactDialog extends Dialog {
         saveButton = new Button("Speichern", e -> saveContact());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        cancelButton = new Button("Abbrechen", e -> {
-            clearForm();
-            close();
-        });
-
-        Button newButton = new Button("Neuer Kontakt", e -> newContact());
+        newButton = new Button("Neuer Kontakt", e -> newContact());
         newButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 
-        HorizontalLayout buttonLayout = new HorizontalLayout(newButton, saveButton, cancelButton);
+        HorizontalLayout buttonLayout = new HorizontalLayout(newButton, saveButton);
         buttonLayout.setSpacing(true);
 
         VerticalLayout content = new VerticalLayout(title, grid, formLayout, buttonLayout);

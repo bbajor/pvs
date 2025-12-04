@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,6 +22,7 @@ import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentAuditLog;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
+import de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentPlanRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
@@ -430,16 +432,27 @@ public class TreatmentPlanService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'INSTITUTION_ADMIN', 'MEDICAL_STAFF', 'OWNER')")
     public void deleteTreatment(Long treatmentId) {
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContextForTreatment(treatmentId);
+        
         Treatment existing = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
         
-        // Validierung: Nur löschen, wenn Termin heute oder in der Zukunft liegt
+        // Validierung: Nur löschen, wenn Termin mindestens 1 Tag in der Zukunft liegt
         LocalDate treatmentDate = existing.getDate();
         LocalDate today = LocalDate.now();
-        if (treatmentDate != null && treatmentDate.isBefore(today)) {
-            throw new IllegalArgumentException("Behandlung kann nicht gelöscht werden: Termin liegt in der Vergangenheit");
+        if (treatmentDate == null || treatmentDate.isBefore(today) || treatmentDate.equals(today)) {
+            throw new IllegalArgumentException("Behandlung kann nur gelöscht werden, wenn der Termin mindestens 1 Tag in der Zukunft liegt");
+        }
+        
+        // Prüfe, ob mindestens 24 Stunden bis zum Termin verbleiben
+        java.time.LocalDateTime treatmentDateTime = treatmentDate.atStartOfDay();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        long hoursUntilTreatment = java.time.temporal.ChronoUnit.HOURS.between(now, treatmentDateTime);
+        if (hoursUntilTreatment < 24) {
+            throw new IllegalArgumentException("Behandlung kann nicht mehr gelöscht werden: Weniger als 24 Stunden bis zum Termin. Bitte verwenden Sie 'Absagen'.");
         }
         
         // Audit-Log VOR dem Löschen erstellen und speichern
@@ -451,10 +464,67 @@ public class TreatmentPlanService {
             log.setActorUserId(actor.getUserId().toString());
             log.setActorUserName(actor.getPreferredUsername());
         });
+        log.setDetails("Behandlung gelöscht");
         auditLogRepository.save(log);
         
         // Jetzt erst das Treatment löschen
         treatmentRepository.delete(existing);
+    }
+    
+    /**
+     * Sagt eine Behandlung ab. Kann verwendet werden, wenn weniger als 24 Stunden bis zum Termin verbleiben.
+     * Der Termin wird nicht gelöscht, sondern als abgesagt markiert.
+     * 
+     * @param treatmentId Die ID der Behandlung
+     * @param cancellationReason Der Grund für die Absage (muss angegeben werden)
+     */
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'INSTITUTION_ADMIN', 'MEDICAL_STAFF', 'OWNER')")
+    public void cancelTreatment(Long treatmentId, String cancellationReason) {
+        Objects.requireNonNull(cancellationReason, "Absagegrund muss angegeben werden");
+        if (cancellationReason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Absagegrund darf nicht leer sein");
+        }
+        
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContextForTreatment(treatmentId);
+        
+        Treatment existing = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
+        
+        // Validierung: Nur absagen, wenn Termin in der Zukunft liegt
+        LocalDate treatmentDate = existing.getDate();
+        LocalDate today = LocalDate.now();
+        if (treatmentDate == null || treatmentDate.isBefore(today)) {
+            throw new IllegalArgumentException("Behandlung kann nicht abgesagt werden: Termin liegt in der Vergangenheit");
+        }
+        
+        // Setze Status auf PATIENT_CANCELLED
+        existing.setTreatmentStatus(TreatmentStatus.PATIENT_CANCELLED);
+        
+        // Speichere Absagegrund in additionalInfo (mit Präfix für bessere Erkennbarkeit)
+        String existingInfo = existing.getAdditionalInfo() != null ? existing.getAdditionalInfo() : "";
+        String cancellationInfo = "ABSAGE: " + cancellationReason.trim();
+        if (!existingInfo.isEmpty()) {
+            existing.setAdditionalInfo(existingInfo + "\n\n" + cancellationInfo);
+        } else {
+            existing.setAdditionalInfo(cancellationInfo);
+        }
+        
+        // Audit-Log erstellen
+        TreatmentAuditLog log = new TreatmentAuditLog();
+        log.setTreatment(existing);
+        log.setActionType(TreatmentAuditLog.ActionType.DELETE); // Verwende DELETE für Absage
+        log.setActionTimestamp(java.time.LocalDateTime.now());
+        currentUser.get().ifPresent(actor -> {
+            log.setActorUserId(actor.getUserId().toString());
+            log.setActorUserName(actor.getPreferredUsername());
+        });
+        log.setDetails("Behandlung abgesagt. Grund: " + cancellationReason.trim());
+        auditLogRepository.save(log);
+        
+        // Behandlung speichern
+        treatmentRepository.save(existing);
     }
     
     /**
@@ -499,6 +569,23 @@ public class TreatmentPlanService {
         treatmentPlanRepository.save(treatmentPlan);
     }
 
+    /**
+     * Ensures InstitutionContext is set before accessing treatment data.
+     * Tries to get institution from Treatment if available.
+     */
+    private void ensureInstitutionContextForTreatment(Long treatmentId) {
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Treatment treatment = treatmentRepository.findById(treatmentId).orElse(null);
+        if (treatment != null && treatment.getTreatmentPlan() != null 
+                && treatment.getTreatmentPlan().getInstitution() != null
+                && treatment.getTreatmentPlan().getInstitution().getId() != null) {
+            InstitutionContext.setInstitutionId(treatment.getTreatmentPlan().getInstitution().getId());
+        }
+    }
+    
     /**
      * Ensures InstitutionContext is set before accessing patient data.
      * Tries to get institution from TreatmentPlan if available.

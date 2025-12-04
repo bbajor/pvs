@@ -41,6 +41,9 @@ public class WhisperInstallationDialog extends Dialog {
         setModal(true);
         setCloseOnEsc(false);
         setCloseOnOutsideClick(false);
+        
+        // X-Icon im Header hinzufügen (nur wenn Installation abgeschlossen oder abgebrochen)
+        // Wird dynamisch in cancelInstallation() und nach erfolgreicher Installation hinzugefügt
 
         VerticalLayout content = new VerticalLayout();
         content.setSizeFull();

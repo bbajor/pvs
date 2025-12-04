@@ -10,6 +10,15 @@ import org.springframework.data.repository.query.Param;
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
     Optional<UserAccount> findByUsername(String username);
     
+    Optional<UserAccount> findByEmail(String email);
+    
+    /**
+     * Finds a user by username or email address.
+     * This allows users to login with either their username or email.
+     */
+    @Query("SELECT ua FROM UserAccount ua WHERE ua.username = :identifier OR ua.email = :identifier")
+    Optional<UserAccount> findByUsernameOrEmail(@Param("identifier") String identifier);
+    
     /**
      * Loads all UserAccounts with their preferredLocation eagerly fetched.
      * This prevents LazyInitializationException when accessing location data

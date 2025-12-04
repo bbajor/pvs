@@ -44,6 +44,10 @@ public class FeatureFlagsTab extends VerticalLayout {
     private void init() {
         setSpacing(true);
         setPadding(true);
+        setSizeFull();
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("min-height", "0");
 
         H3 title = new H3("Feature-Flags pro Institution");
 
@@ -106,6 +110,8 @@ public class FeatureFlagsTab extends VerticalLayout {
         })).setHeader("Status").setAutoWidth(true);
 
         grid.setSizeFull();
+        grid.getStyle().set("flex-grow", "1");
+        grid.getStyle().set("min-height", "0");
 
         // Button zum Initialisieren der Standard-Features
         Button initButton = new Button("Standard-Features initialisieren", e -> {
@@ -135,6 +141,7 @@ public class FeatureFlagsTab extends VerticalLayout {
         headerLayout.setFlexGrow(1, institutionComboBox);
 
         add(title, headerLayout, grid);
+        setFlexGrow(1, grid);
     }
 
     private void refreshGrid(Long institutionId) {

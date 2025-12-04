@@ -46,19 +46,20 @@ public class InstitutionAuthenticationProvider implements AuthenticationProvider
 
         InstitutionAuthenticationToken token = (InstitutionAuthenticationToken) authentication;
         String institutionCode = token.getInstitutionCode();
-        String username = token.getName();
+        String identifier = token.getName(); // Can be username or email
         String password = token.getCredentials().toString();
 
-        log.debug("Attempting authentication for institution: {}, username: {}", institutionCode, username);
+        log.debug("Attempting authentication for institution: {}, identifier: {}", institutionCode, identifier);
 
-        // Find user first to check roles
-        Optional<UserAccount> userOpt = userAccountRepository.findByUsername(username);
+        // Find user by username or email
+        Optional<UserAccount> userOpt = userAccountRepository.findByUsernameOrEmail(identifier);
         if (userOpt.isEmpty()) {
-            log.warn("Login failed: User not found: {}", username);
-            throw new BadCredentialsException("Invalid username or password");
+            log.warn("Login failed: User not found: {}", identifier);
+            throw new BadCredentialsException("Invalid username/email or password");
         }
 
         UserAccount user = userOpt.get();
+        String username = user.getUsername(); // Use actual username from database
         log.debug("User found: {} (Institution: {})", username, user.getInstitution() != null ? user.getInstitution().getInstitutionCode() : "null");
 
         // Check if user has SUPER_ADMIN or INSTITUTION_ADMIN role (can login without institution)
