@@ -99,8 +99,35 @@ public class TreatmentRemarkService {
                 .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
         
         // Prüfe, ob Behandlung bereits dokumentiert ist
-        if (treatment.getApprovalDate() != null) {
-            throw new IllegalStateException("Cannot modify remarks for documented treatment");
+        boolean isDocumented = treatment.getApprovalDate() != null;
+        boolean isSecondApproved = treatment.getSecondApprovalDateTime() != null;
+        
+        // Wenn bereits zweitgeprüft, können keine Bemerkungen mehr hinzugefügt werden
+        if (isSecondApproved) {
+            throw new IllegalStateException("Behandlung wurde bereits zweitgeprüft. Keine Änderungen mehr möglich.");
+        }
+        
+        // Wenn dokumentiert, aber nicht zweitgeprüft: Nur Zweitprüfer können Bemerkungen hinzufügen
+        if (isDocumented && !isSecondApproved) {
+            // Prüfe, ob der aktuelle Benutzer ein Zweitprüfer ist (nicht der erste Prüfer)
+            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) {
+                throw new org.springframework.security.access.AccessDeniedException("Keine Authentifizierung gefunden.");
+            }
+            
+            String currentUserId = auth.getName();
+            if (treatment.getApprovedByUserId() != null && treatment.getApprovedByUserId().equals(currentUserId)) {
+                throw new IllegalStateException("Nach der ersten Dokumentation können nur Zweitprüfer Bemerkungen hinzufügen.");
+            }
+            
+            // Prüfe, ob Text mit Präfix beginnt
+            String prefix = "Bemerkung Zweitprüfer: ";
+            if (!text.trim().startsWith(prefix)) {
+                throw new IllegalArgumentException("Bemerkungen von Zweitprüfern müssen mit '" + prefix + "' beginnen.");
+            }
+        } else if (!isDocumented) {
+            // Wenn noch nicht dokumentiert, können normale Bemerkungen hinzugefügt werden
+            // (keine Prüfung auf Präfix)
         }
         
         Long institutionId = InstitutionContext.getInstitutionId();

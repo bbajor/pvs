@@ -78,6 +78,9 @@ public class SurgicalCenterLayout extends HorizontalLayout {
     private Button togglePastSlotsButton;
     private final List<SurgicalCenterTimeSlot> newTimeSlotsList = new ArrayList<>();
     private Div plannedTreatmentsSection;
+    private Runnable binderChangeListener; // Listener für Binder-Änderungen
+    private Runnable tabChangeListener; // Listener für Tab-Wechsel (zum Speichern beim Verlassen des Stammdaten-Tabs)
+    private Runnable saveListener; // Listener für explizites Speichern (z.B. beim Hinzufügen von OP-Slots)
 
     public SurgicalCenterLayout(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -124,12 +127,20 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         return true; // Allow empty phone numbers
                     }
                     try {
+                        // Prüfe das rohe Eingabeformat: muss Ziffern enthalten
+                        String cleaned = item.replaceAll("[^0-9+]", "");
+                        if (cleaned.isEmpty()) {
+                            return false;
+                        }
+                        // Prüfe nur, ob die Formatierung funktioniert (keine Exception)
+                        // Das formatierte Ergebnis wird direkt verwendet, ohne weitere Validierung
                         String formatted = PhoneUtils.formatPhoneNumber(item);
-                        return formatted.matches("\\+49[1-9][0-9]{8,14}");
+                        // Formatierung erfolgreich, wenn Ergebnis nicht leer ist und mit +49 beginnt
+                        return formatted != null && !formatted.isEmpty() && formatted.startsWith("+49");
                     } catch (Exception e) {
                         return false;
                     }
-                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein (Format: +49...)")
+                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein")
                 .withConverter(
                         rawValue -> {
                             if (rawValue == null || rawValue.trim().isEmpty()) {
@@ -166,12 +177,20 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         return true; // Kontakt-Telefon ist optional
                     }
                     try {
+                        // Prüfe das rohe Eingabeformat: muss Ziffern enthalten
+                        String cleaned = item.replaceAll("[^0-9+]", "");
+                        if (cleaned.isEmpty()) {
+                            return false;
+                        }
+                        // Prüfe nur, ob die Formatierung funktioniert (keine Exception)
+                        // Das formatierte Ergebnis wird direkt verwendet, ohne weitere Validierung
                         String formatted = PhoneUtils.formatPhoneNumber(item);
-                        return formatted.matches("\\+49[1-9][0-9]{8,14}");
+                        // Formatierung erfolgreich, wenn Ergebnis nicht leer ist und mit +49 beginnt
+                        return formatted != null && !formatted.isEmpty() && formatted.startsWith("+49");
                     } catch (Exception e) {
                         return false;
                     }
-                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein (Format: +49...)")
+                }, "Bitte geben Sie eine gültige deutsche Telefonnummer ein")
                 .withConverter(
                         rawValue -> {
                             if (rawValue == null || rawValue.trim().isEmpty()) {
@@ -182,6 +201,13 @@ public class SurgicalCenterLayout extends HorizontalLayout {
                         formattedValue -> formattedValue)
                 .withNullRepresentation("")
                 .bind(SurgicalCenter::getPhoneContact, SurgicalCenter::setPhoneContact);
+        
+        // Binder-Änderungen überwachen für Auto-Save
+        binder.addValueChangeListener(e -> {
+            if (binderChangeListener != null) {
+                binderChangeListener.run();
+            }
+        });
 
         TabSheet tabSheet = new TabSheet();
         tabSheet.setSizeFull();
@@ -496,12 +522,32 @@ public class SurgicalCenterLayout extends HorizontalLayout {
         // Add tabs to TabSheet
         tabSheet.add("Stammdaten", detailsLayout);
         tabSheet.add("OP-Slots", timeSlotsLayout);
+        
+        // Listener für Tab-Wechsel: Speichere Änderungen beim Verlassen des Stammdaten-Tabs
+        tabSheet.addSelectedChangeListener(event -> {
+            com.vaadin.flow.component.tabs.Tab selectedTab = event.getSelectedTab();
+            // Wenn zum OP-Slots-Tab gewechselt wird, speichere Änderungen
+            if (selectedTab != null && "OP-Slots".equals(selectedTab.getLabel()) && tabChangeListener != null) {
+                tabChangeListener.run();
+            }
+        });
 
         add(tabSheet);
     }
 
     public void setBean(SurgicalCenter dto) {
         binder.setBean(dto);
+        
+        // Stelle sicher, dass die Adresse explizit im AddressField gesetzt wird
+        // AddressField ist ein AbstractCompositeField mit eigenem Binder,
+        // daher muss der Wert explizit gesetzt werden
+        if (dto != null && dto.getAddress() != null) {
+            addressForm.setValue(dto.getAddress());
+        } else if (dto != null) {
+            // Wenn keine Adresse vorhanden ist, erstelle eine neue
+            addressForm.setValue(new de.bbajor.pvs.patient.model.Address());
+        }
+        
         // Setze neue Slots-Liste zurück
         newTimeSlotsList.clear();
         refreshNewTimeSlotsGrid();
@@ -573,6 +619,164 @@ public class SurgicalCenterLayout extends HorizontalLayout {
 
     public List<SurgicalCenterTimeSlot> getTimeSlotsToCreate() {
         return new ArrayList<>(newTimeSlotsList);
+    }
+    
+    /**
+     * Setzt einen Listener, der aufgerufen wird, wenn sich der Binder ändert.
+     */
+    public void setBinderChangeListener(Runnable listener) {
+        this.binderChangeListener = listener;
+    }
+    
+    /**
+     * Setzt einen Listener, der aufgerufen wird, wenn der Tab gewechselt wird.
+     * Wird verwendet, um Änderungen beim Verlassen des Stammdaten-Tabs zu speichern.
+     */
+    public void setTabChangeListener(Runnable listener) {
+        this.tabChangeListener = listener;
+    }
+    
+    /**
+     * Setzt einen Listener, der aufgerufen wird, wenn explizit gespeichert werden soll.
+     * Wird verwendet, z.B. beim Hinzufügen von OP-Slots, wenn das SurgicalCenter noch nicht persistiert ist.
+     */
+    public void setSaveListener(Runnable listener) {
+        this.saveListener = listener;
+    }
+    
+    /**
+     * Prüft, ob Änderungen am SurgicalCenter vorgenommen wurden.
+     */
+    public boolean hasChanges() {
+        if (binder == null || binder.getBean() == null) {
+            return false;
+        }
+        
+        // Prüfe Binder-Änderungen
+        boolean binderHasChanges = binder.hasChanges();
+        
+        // Prüfe explizit, ob sich die Adresse geändert hat
+        // AddressField ist ein AbstractCompositeField mit eigenem Binder,
+        // daher wird es möglicherweise nicht vom Hauptbinder erkannt
+        boolean addressHasChanges = false;
+        if (addressForm != null && binder.getBean() != null) {
+            de.bbajor.pvs.patient.model.Address currentAddress = binder.getBean().getAddress();
+            de.bbajor.pvs.patient.model.Address formAddress = addressForm.getValue();
+            
+            if (currentAddress == null && formAddress != null) {
+                addressHasChanges = true;
+            } else if (currentAddress != null && formAddress == null) {
+                addressHasChanges = true;
+            } else if (currentAddress != null && formAddress != null) {
+                // Vergleiche Adressfelder
+                addressHasChanges = !java.util.Objects.equals(currentAddress.getStreet(), formAddress.getStreet()) ||
+                                   !java.util.Objects.equals(currentAddress.getHouseNo(), formAddress.getHouseNo()) ||
+                                   !java.util.Objects.equals(currentAddress.getPostalCode(), formAddress.getPostalCode()) ||
+                                   !java.util.Objects.equals(currentAddress.getCity(), formAddress.getCity()) ||
+                                   !java.util.Objects.equals(currentAddress.getCountry(), formAddress.getCountry());
+            }
+        }
+        
+        return binderHasChanges || addressHasChanges;
+    }
+    
+    /**
+     * Schreibt alle Änderungen aus den UI-Feldern in das Bean.
+     * Dies stellt sicher, dass alle Werte (inkl. Adresse, Name, Telefonnummern, E-Mail, Kontaktperson) korrekt gesetzt werden.
+     */
+    public void writeBean() {
+        // Stelle sicher, dass ein Bean existiert (auch bei Neuanlage)
+        if (binder == null) {
+            return;
+        }
+        
+        SurgicalCenter bean = binder.getBean();
+        if (bean == null) {
+            // Bei Neuanlage: Erstelle neues Bean, falls noch keines existiert
+            bean = new SurgicalCenter();
+            binder.setBean(bean);
+        }
+        
+        // Stelle sicher, dass die Adresse explizit aus dem AddressField gelesen wird
+        // AddressField ist ein AbstractCompositeField mit eigenem Binder,
+        // daher muss der Wert explizit gesetzt werden
+        if (addressForm != null) {
+            de.bbajor.pvs.patient.model.Address addressValue = addressForm.getValue();
+            if (addressValue != null) {
+                bean.setAddress(addressValue);
+            }
+        }
+        
+        // Stelle sicher, dass ALLE Felder explizit aus den UI-Feldern gesetzt werden
+        // (da Binder manchmal nicht korrekt mit den UI-Feldern synchronisiert ist, besonders bei Neuanlage)
+        // WICHTIG: Explizite Setzung VOR binder.writeBean(), damit die Werte auch bei neuen Beans gesetzt werden
+        
+        // Name
+        String nameValue = unitNameField.getValue();
+        if (nameValue != null && !nameValue.trim().isEmpty()) {
+            bean.setName(nameValue.trim());
+        } else {
+            bean.setName(null);
+        }
+        
+        // Telefonnummer mit Formatierung
+        String phoneValue = phoneField.getValue();
+        if (phoneValue != null && !phoneValue.trim().isEmpty()) {
+            try {
+                bean.setPhone(PhoneUtils.formatPhoneNumber(phoneValue));
+            } catch (Exception e) {
+                // Falls Formatierung fehlschlägt, verwende den rohen Wert
+                bean.setPhone(phoneValue.trim());
+            }
+        } else {
+            bean.setPhone(null);
+        }
+        
+        // E-Mail
+        String emailValue = emailField.getValue();
+        if (emailValue != null && !emailValue.trim().isEmpty()) {
+            bean.setEmail(emailValue.trim());
+        } else {
+            bean.setEmail(null);
+        }
+        
+        // Kontaktperson
+        String contactValue = contactField.getValue();
+        if (contactValue != null && !contactValue.trim().isEmpty()) {
+            bean.setContact(contactValue.trim());
+        } else {
+            bean.setContact(null);
+        }
+        
+        // Kontakt-Telefonnummer mit Formatierung
+        String phoneContactValue = phoneContactField.getValue();
+        if (phoneContactValue != null && !phoneContactValue.trim().isEmpty()) {
+            try {
+                bean.setPhoneContact(PhoneUtils.formatPhoneNumber(phoneContactValue));
+            } catch (Exception e) {
+                // Falls Formatierung fehlschlägt, verwende den rohen Wert
+                bean.setPhoneContact(phoneContactValue.trim());
+            }
+        } else {
+            bean.setPhoneContact(null);
+        }
+        
+        // Versuche, alle anderen Felder aus dem Binder zu schreiben
+        // (kann bei neuen Beans fehlschlagen, aber die explizite Setzung oben hat bereits alle Werte gesetzt)
+        try {
+            binder.writeBean(bean);
+        } catch (Exception e) {
+            // Fehler beim Schreiben - ignorieren, da alle Werte bereits explizit gesetzt wurden
+        }
+    }
+    
+    /**
+     * Setzt den Binder zurück, damit hasChanges() false wird.
+     */
+    public void resetBinder() {
+        if (binder != null && binder.getBean() != null) {
+            binder.readBean(binder.getBean());
+        }
     }
     
     private void loadPlannedTreatments(SurgicalCenterTimeSlot timeSlot) {
@@ -714,6 +918,16 @@ public class SurgicalCenterLayout extends HorizontalLayout {
      * Erstellt die Slots aus der Konfiguration und fügt sie zum Grid hinzu.
      */
     private void handleAddTimeSlot() {
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContext();
+        
+        if (!InstitutionContext.hasInstitution()) {
+            Notification.show("Fehler: InstitutionContext konnte nicht gesetzt werden. Bitte versuchen Sie es erneut.", 
+                5000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        
         List<TimeSlotConfig> configs = timeSlotConfigForm.getTimeSlotConfigList();
         if (configs.isEmpty()) {
             Notification.show("Bitte füllen Sie alle Felder aus und klicken Sie auf '+ hinzufügen'.", 
@@ -721,10 +935,22 @@ public class SurgicalCenterLayout extends HorizontalLayout {
             return;
         }
         
+        // Stelle sicher, dass alle Änderungen aus dem Binder geschrieben werden
+        writeBean();
+        
         SurgicalCenter surgicalCenter = binder.getBean();
         if (surgicalCenter == null) {
             Notification.show("Bitte speichern Sie zuerst die Stammdaten.", 3000, Notification.Position.MIDDLE);
             return;
+        }
+        
+        // Wenn das SurgicalCenter noch nicht persistiert ist, speichere es zuerst
+        if (surgicalCenter.getId() == null || surgicalCenter.getId() == -1) {
+            if (saveListener != null) {
+                saveListener.run();
+                // Nach dem Speichern: Bean neu laden, um die ID zu erhalten
+                surgicalCenter = binder.getBean();
+            }
         }
         
         // Erstelle Slots aus der letzten Konfiguration

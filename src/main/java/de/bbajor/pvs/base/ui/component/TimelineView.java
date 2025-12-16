@@ -55,6 +55,7 @@ public class TimelineView extends VerticalLayout {
     private Runnable onTreatmentDeletedCallback; // Callback nach dem Löschen eines Treatments
     // QuickBooking wurde entfernt - wird jetzt außerhalb der TimelineView angezeigt
     private SideOfEye sideOfEye;
+    private Treatment scrollTargetTreatment; // Behandlung, zu der gescrollt werden soll (null = zum nächsten Termin)
 
     public TimelineView(ApplicationContext context) {
         addClassName("timeline-view");
@@ -327,34 +328,112 @@ public class TimelineView extends VerticalLayout {
     private TimeLineCard createCard(TimeLineCardConfig config, boolean isLastTreatment) {
         // Das Entfernen aus der Liste sollte auch ein Neuzeichnen auslösen
         TimeLineCard card = new TimeLineCard(config, t -> {
-            // Try to delete via service (secured by roles)
-            try {
-                if (t.getTreatment() != null && t.getTreatment().getId() != null) {
-                    context.getBean(TreatmentPlanService.class).deleteTreatment(t.getTreatment().getId());
-                    // Nach erfolgreichem Löschen: Callback aufrufen, um Daten neu zu laden
-                    if (onTreatmentDeletedCallback != null) {
-                        onTreatmentDeletedCallback.run();
+            // Bestätigungsdialog für Löschen
+            com.vaadin.flow.component.dialog.Dialog confirmDialog = new com.vaadin.flow.component.dialog.Dialog();
+            confirmDialog.setHeaderTitle("Termin löschen");
+            com.vaadin.flow.component.html.Span message = new com.vaadin.flow.component.html.Span(
+                "Möchten Sie diesen Termin wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.");
+            confirmDialog.add(message);
+            
+            Button confirmButton = new Button("Löschen", VaadinIcon.TRASH.create());
+            confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            confirmButton.addClickListener(e -> {
+                confirmDialog.close();
+                // Try to delete via service (secured by roles)
+                try {
+                    if (t.getTreatment() != null && t.getTreatment().getId() != null) {
+                        TreatmentPlanService service = context.getBean(TreatmentPlanService.class);
+                        service.deleteTreatment(t.getTreatment().getId());
+                        // Nach erfolgreichem Löschen: Callback aufrufen, um Daten neu zu laden
+                        if (onTreatmentDeletedCallback != null) {
+                            onTreatmentDeletedCallback.run();
+                        }
+                        Notification.show("Termin wurde gelöscht", 3000, Notification.Position.BOTTOM_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                     }
+                } catch (IllegalArgumentException ex) {
+                    // Validierungsfehler (z.B. Termin in Vergangenheit) - zeige Fehlermeldung
+                    LOG.warning("Fehler beim Löschen des Treatments: " + ex.getMessage());
+                    Notification notification = Notification.show(
+                        ex.getMessage(),
+                        5000,
+                        Notification.Position.MIDDLE
+                    );
+                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                } catch (Exception ex) {
+                    // Andere Fehler - zeige generische Fehlermeldung
+                    LOG.warning("Fehler beim Löschen des Treatments: " + ex.getMessage());
+                    Notification notification = Notification.show(
+                        "Fehler beim Löschen der Behandlung. Bitte versuchen Sie es erneut oder kontaktieren Sie den Administrator.",
+                        5000,
+                        Notification.Position.MIDDLE
+                    );
+                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 }
-            } catch (IllegalArgumentException ex) {
-                // Validierungsfehler (z.B. Termin in Vergangenheit) - zeige Fehlermeldung
-                LOG.warning("Fehler beim Löschen des Treatments: " + ex.getMessage());
-                Notification notification = Notification.show(
-                    ex.getMessage(),
-                    5000,
-                    Notification.Position.MIDDLE
-                );
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            } catch (Exception ex) {
-                // Andere Fehler - zeige generische Fehlermeldung
-                LOG.warning("Fehler beim Löschen des Treatments: " + ex.getMessage());
-                Notification notification = Notification.show(
-                    "Fehler beim Löschen der Behandlung. Bitte versuchen Sie es erneut oder kontaktieren Sie den Administrator.",
-                    5000,
-                    Notification.Position.MIDDLE
-                );
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
+            });
+            
+            Button cancelButton = new Button("Abbrechen", e -> confirmDialog.close());
+            confirmDialog.getFooter().add(cancelButton, confirmButton);
+            confirmDialog.open();
+        }, t -> {
+            // Bestätigungsdialog für Absagen
+            com.vaadin.flow.component.dialog.Dialog cancelDialog = new com.vaadin.flow.component.dialog.Dialog();
+            cancelDialog.setHeaderTitle("Termin absagen");
+            com.vaadin.flow.component.html.Span message = new com.vaadin.flow.component.html.Span(
+                "Möchten Sie diesen Termin wirklich absagen?");
+            cancelDialog.add(message);
+            
+            com.vaadin.flow.component.textfield.TextArea reasonField = new com.vaadin.flow.component.textfield.TextArea("Absagegrund");
+            reasonField.setRequired(true);
+            reasonField.setWidthFull();
+            cancelDialog.add(reasonField);
+            
+            Button confirmButton = new Button("Absagen", VaadinIcon.BAN.create());
+            confirmButton.addThemeVariants(ButtonVariant.LUMO_WARNING);
+            confirmButton.addClickListener(e -> {
+                String reason = reasonField.getValue();
+                if (reason == null || reason.trim().isEmpty()) {
+                    Notification.show("Bitte geben Sie einen Absagegrund an", 3000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                cancelDialog.close();
+                // Try to cancel via service (secured by roles)
+                try {
+                    if (t.getTreatment() != null && t.getTreatment().getId() != null) {
+                        TreatmentPlanService service = context.getBean(TreatmentPlanService.class);
+                        service.cancelTreatment(t.getTreatment().getId(), reason.trim());
+                        // Nach erfolgreichem Absagen: Callback aufrufen, um Daten neu zu laden
+                        if (onTreatmentDeletedCallback != null) {
+                            onTreatmentDeletedCallback.run();
+                        }
+                        Notification.show("Termin wurde abgesagt", 3000, Notification.Position.BOTTOM_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    }
+                } catch (IllegalArgumentException ex) {
+                    // Validierungsfehler - zeige Fehlermeldung
+                    LOG.warning("Fehler beim Absagen des Treatments: " + ex.getMessage());
+                    Notification notification = Notification.show(
+                        ex.getMessage(),
+                        5000,
+                        Notification.Position.MIDDLE
+                    );
+                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                } catch (Exception ex) {
+                    // Andere Fehler - zeige generische Fehlermeldung
+                    LOG.warning("Fehler beim Absagen des Treatments: " + ex.getMessage());
+                    Notification notification = Notification.show(
+                        "Fehler beim Absagen der Behandlung. Bitte versuchen Sie es erneut oder kontaktieren Sie den Administrator.",
+                        5000,
+                        Notification.Position.MIDDLE
+                    );
+                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            });
+            
+            Button cancelButton = new Button("Abbrechen", e -> cancelDialog.close());
+            cancelDialog.getFooter().add(cancelButton, confirmButton);
+            cancelDialog.open();
         },
                 t2 -> {
                     // Hier können Sie die Logik für den Klick-Handler hinzufügen
@@ -442,8 +521,84 @@ public class TimelineView extends VerticalLayout {
         // Entferne zuerst alle "next" Klassen
         configToComponentMap.values().forEach(card -> card.removeClassName("next"));
         
-        // Scrolle zur nächsten Behandlung
-        scrollToNextTreatment();
+        // Wenn ein spezifisches Treatment als Scroll-Ziel gesetzt wurde, scrolle zu diesem
+        if (scrollTargetTreatment != null) {
+            scrollToTreatment(scrollTargetTreatment);
+            // Reset nach dem Scrollen, damit beim nächsten Neuladen wieder zum nächsten Termin gescrollt wird
+            scrollTargetTreatment = null;
+        } else {
+            // Ansonsten scrolle zur nächsten Behandlung
+            scrollToNextTreatment();
+        }
+    }
+    
+    /**
+     * Setzt das Ziel für das Scrolling auf ein spezifisches Treatment.
+     * Beim nächsten refresh() wird zu diesem Treatment gescrollt statt zum nächsten Termin.
+     * @param treatment Das Treatment, zu dem gescrollt werden soll (null = zum nächsten Termin)
+     */
+    public void setScrollTarget(Treatment treatment) {
+        this.scrollTargetTreatment = treatment;
+    }
+    
+    /**
+     * Scrollt zu einem spezifischen Treatment.
+     * @param treatment Das Treatment, zu dem gescrollt werden soll
+     */
+    private void scrollToTreatment(Treatment treatment) {
+        if (treatment == null) {
+            // Fallback: Scrolle zum nächsten Termin
+            scrollToNextTreatment();
+            return;
+        }
+        
+        // Finde die Card für dieses Treatment
+        TimeLineCardConfig targetConfig = itemList.stream()
+            .filter(item -> !item.isFirst())
+            .filter(item -> item.getTreatment() != null && item.getTreatment().getId() != null)
+            .filter(item -> item.getTreatment().getId().equals(treatment.getId()))
+            .findFirst()
+            .orElse(null);
+        
+        if (targetConfig != null) {
+            TimeLineCard card = configToComponentMap.get(targetConfig);
+            if (card != null) {
+                // Markiere die Karte als "next"
+                card.addClassName("next");
+                
+                // Scrolle zu dieser Karte
+                if (orientation == Orientation.HORIZONTAL) {
+                    scroller.getElement().executeJs(
+                        "setTimeout(() => {" +
+                        "  const scroller = this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this;" +
+                        "  const card = $0;" +
+                        "  if (scroller && card) {" +
+                        "    const cardRect = card.getBoundingClientRect();" +
+                        "    const scrollerRect = scroller.getBoundingClientRect();" +
+                        "    const scrollLeft = scroller.scrollLeft + cardRect.left - scrollerRect.left - (scrollerRect.width / 2) + (cardRect.width / 2);" +
+                        "    scroller.scrollTo({ left: scrollLeft, behavior: 'smooth' });" +
+                        "  }" +
+                        "}, 500);",
+                        card.getElement());
+                } else {
+                    scroller.getElement().executeJs(
+                        "setTimeout(() => {" +
+                        "  const scroller = this.shadowRoot && this.shadowRoot.querySelector('[part=\"content\"]') || this;" +
+                        "  const card = $0;" +
+                        "  if (scroller && card) {" +
+                        "    const cardRect = card.getBoundingClientRect();" +
+                        "    const scrollerRect = scroller.getBoundingClientRect();" +
+                        "    const scrollTop = scroller.scrollTop + cardRect.top - scrollerRect.top - (scrollerRect.height / 2) + (cardRect.height / 2);" +
+                        "    scroller.scrollTo({ top: scrollTop, behavior: 'smooth' });" +
+                        "  }" +
+                        "}, 500);",
+                        card.getElement());
+                }
+            }
+        } else {
+            // Treatment nicht gefunden, fallback zum nächsten Termin
+            scrollToNextTreatment();
+        }
     }
 
     /**

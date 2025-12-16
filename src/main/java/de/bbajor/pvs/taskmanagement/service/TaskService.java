@@ -22,6 +22,7 @@ import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogRepository;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
+import de.bbajor.pvs.medication.repository.MedicationFavouriteRepository;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
@@ -47,6 +48,9 @@ public class TaskService {
     
     @Autowired
     private UserAccountRepository userAccountRepository;
+    
+    @Autowired
+    private MedicationFavouriteRepository medicationFavouriteRepository;
 
     @Autowired
     private Clock clock;
@@ -158,7 +162,7 @@ public class TaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'INSTITUTION_ADMIN')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'OWNER', 'INSTITUTION_ADMIN', 'TECH_USER', 'USER', 'MEDICAL_STAFF')")
     public void approveTreatment(Long treatmentId, String actorUserId, String actorUserName, boolean secondApproval) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
@@ -181,45 +185,65 @@ public class TaskService {
                 .orElseThrow(() -> new IllegalStateException("Benutzer nicht gefunden: " + auth.getName()));
         
         if (!secondApproval) {
-            // First approval: Must be done by a treating doctor
-            if (treatment.getTreatingDoctors() == null || treatment.getTreatingDoctors().isEmpty()) {
-                throw new IllegalStateException(
-                    "Die Behandlung hat keinen zugewiesenen behandelnden Arzt. " +
-                    "Bitte weisen Sie zuerst einen behandelnden Arzt zu.");
-            }
+            // First approval: Can be done by OWNER, INSTITUTION_ADMIN, TECH_USER, USER, MEDICAL_STAFF, or treating doctor
+            boolean isOwner = userRoles.contains("OWNER");
+            boolean isInstitutionAdmin = userRoles.contains("INSTITUTION_ADMIN");
+            boolean isTechUser = userRoles.contains("TECH_USER");
+            boolean isUser = userRoles.contains("USER");
+            boolean isMedicalStaff = userRoles.contains("MEDICAL_STAFF");
+            boolean isDoctor = userRoles.contains("DOCTOR");
             
-            boolean isTreatingDoctor = treatment.getTreatingDoctors().stream()
-                    .anyMatch(doctor -> doctor.getId().equals(currentUser.getId()));
-            
-            if (!isTreatingDoctor) {
-                throw new org.springframework.security.access.AccessDeniedException(
-                    "Die erste Genehmigung muss vom behandelnden Arzt durchgeführt werden. " +
-                    "Sie sind nicht als behandelnder Arzt für diese Behandlung zugewiesen.");
+            // OWNER, INSTITUTION_ADMIN, TECH_USER, USER, MEDICAL_STAFF können immer dokumentieren
+            if (!isOwner && !isInstitutionAdmin && !isTechUser && !isUser && !isMedicalStaff) {
+                // DOCTOR muss behandelnder Arzt sein
+                if (!isDoctor) {
+                    throw new org.springframework.security.access.AccessDeniedException(
+                        "Sie haben keine Berechtigung zum Dokumentieren. " +
+                        "Ihre Rolle: " + String.join(", ", userRoles));
+                }
+                
+                if (treatment.getTreatingDoctors() == null || treatment.getTreatingDoctors().isEmpty()) {
+                    throw new IllegalStateException(
+                        "Die Behandlung hat keinen zugewiesenen behandelnden Arzt. " +
+                        "Bitte weisen Sie zuerst einen behandelnden Arzt zu.");
+                }
+                
+                boolean isTreatingDoctor = treatment.getTreatingDoctors().stream()
+                        .anyMatch(doctor -> doctor.getId().equals(currentUser.getId()));
+                
+                if (!isTreatingDoctor) {
+                    throw new org.springframework.security.access.AccessDeniedException(
+                        "Die erste Genehmigung muss vom behandelnden Arzt durchgeführt werden. " +
+                        "Sie sind nicht als behandelnder Arzt für diese Behandlung zugewiesen.");
+                }
             }
         } else {
-            // Second approval: Can be done by MFA, OWNER, or another doctor (not the first approver)
+            // Second approval: Can be done by OWNER, INSTITUTION_ADMIN, or another doctor (not the first approver)
             if (treatment.getApprovedByUserId() == null) {
                 throw new IllegalStateException(
                     "Die Behandlung wurde noch nicht erstmalig genehmigt. " +
                     "Bitte führen Sie zuerst die erste Genehmigung durch.");
             }
             
-            // Check if current user is the first approver
-            if (actorUserId != null && actorUserId.equals(treatment.getApprovedByUserId())) {
-                throw new IllegalStateException(
-                    "Die Zweitprüfung darf nicht vom selben Benutzer durchgeführt werden, " +
-                    "der die erste Genehmigung durchgeführt hat.");
+            // Check if user has valid role for second approval
+            boolean isOwner = userRoles.contains("OWNER");
+            boolean isInstitutionAdmin = userRoles.contains("INSTITUTION_ADMIN");
+            boolean isDoctor = userRoles.contains("DOCTOR");
+            
+            if (!isOwner && !isInstitutionAdmin && !isDoctor) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                    "Die Zweitprüfung kann nur von Inhaber, Institutionsadministrator oder einem Arzt durchgeführt werden. " +
+                    "Ihre Rolle: " + String.join(", ", userRoles));
             }
             
-            // Check if user has valid role for second approval
-            boolean hasValidRole = userRoles.contains("MEDICAL_STAFF") || 
-                                  userRoles.contains("OWNER") || 
-                                  userRoles.contains("DOCTOR");
-            
-            if (!hasValidRole) {
-                throw new org.springframework.security.access.AccessDeniedException(
-                    "Die Zweitprüfung kann nur von MFA, Inhaber oder einem Arzt durchgeführt werden. " +
-                    "Ihre Rolle: " + String.join(", ", userRoles));
+            // OWNER und INSTITUTION_ADMIN können immer zweitprüfen (auch wenn sie bereits dokumentiert haben)
+            // DOCTOR kann nur zweitprüfen, wenn er nicht der Erstprüfer ist
+            if (isDoctor && !isOwner && !isInstitutionAdmin) {
+                if (actorUserId != null && actorUserId.equals(treatment.getApprovedByUserId())) {
+                    throw new IllegalStateException(
+                        "Die Zweitprüfung darf nicht vom selben Arzt durchgeführt werden, " +
+                        "der die erste Genehmigung durchgeführt hat.");
+                }
             }
         }
         
@@ -236,9 +260,7 @@ public class TaskService {
             treatment.setApprovedByUserId(actorUserId);
             treatment.setApprovedByUserName(actorUserName);
         } else {
-            if (actorUserId != null && actorUserId.equals(treatment.getApprovedByUserId())) {
-                throw new IllegalStateException("Zweitprüfung darf nicht vom selben Arzt durchgeführt werden.");
-            }
+            // Prüfung wurde bereits oben durchgeführt, hier nur noch setzen
             treatment.setSecondApprovalDateTime(clock.instant().atZone(clock.getZone()).toLocalDateTime());
             treatment.setSecondApprovedByUserId(actorUserId);
             treatment.setSecondApprovedByUserName(actorUserName);
@@ -337,8 +359,13 @@ public class TaskService {
         Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
         institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
         
+        String oldAdditionalInfo = treatment.getAdditionalInfo();
         treatment.setAdditionalInfo(additionalInfo);
         treatmentRepository.save(treatment);
+        
+        // Audit log
+        createAuditLog(treatment, TreatmentAuditLog.ActionType.UPDATE, 
+                "Zusatzinformationen geändert");
     }
 
     @Transactional
@@ -355,6 +382,7 @@ public class TaskService {
         Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
         institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
         
+        Boolean oldPatientAppeared = treatment.getPatientAppeared();
         treatment.setPatientAppeared(patientAppeared);
         // Update treatmentStatus for backward compatibility
         if (patientAppeared != null) {
@@ -369,15 +397,25 @@ public class TaskService {
             }
         }
         treatmentRepository.save(treatment);
+        
+        // Audit log
+        createAuditLog(treatment, TreatmentAuditLog.ActionType.UPDATE, 
+                "Patient erschienen geändert: " + (oldPatientAppeared != null ? oldPatientAppeared.toString() : "null") + 
+                " -> " + (patientAppeared != null ? patientAppeared.toString() : "null"));
     }
     
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
     public void updateTreatmentStatus(Long treatmentId, de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus treatmentStatus) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(treatmentStatus);
         Treatment treatment = treatmentRepository.findById(treatmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Check if treatment is immutable (second approved)
+        if (treatment.getSecondApprovalDateTime() != null) {
+            throw new IllegalStateException("Behandlung wurde bereits zweitgeprüft und kann nicht mehr geändert werden.");
+        }
         
         // Validate institution context: ensure treatment belongs to current institution
         if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
@@ -386,12 +424,144 @@ public class TaskService {
         Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
         institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
         
+        de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus oldStatus = treatment.getTreatmentStatus();
         treatment.setTreatmentStatus(treatmentStatus);
         // Update patientAppeared for backward compatibility
         treatment.setPatientAppeared(treatmentStatus == de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_SUCCESSFUL
                 || treatmentStatus == de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_NEEDS_RETREATMENT
                 || treatmentStatus == de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus.PATIENT_APPEARED_NO_TREATMENT);
         treatmentRepository.save(treatment);
+        
+        // Audit log
+        createAuditLog(treatment, TreatmentAuditLog.ActionType.UPDATE, 
+                "Behandlungsstatus geändert: " + (oldStatus != null ? oldStatus.getShortLabel() : "null") + " -> " + treatmentStatus.getShortLabel());
+    }
+    
+    @Transactional
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    public void updateTreatmentDosage(Long treatmentId, String dosage) {
+        Objects.requireNonNull(treatmentId);
+        Objects.requireNonNull(dosage);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Check if treatment is immutable (second approved)
+        if (treatment.getSecondApprovalDateTime() != null) {
+            throw new IllegalStateException("Behandlung wurde bereits zweitgeprüft und kann nicht mehr geändert werden.");
+        }
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        String oldDosage = treatment.getDosage();
+        treatment.setDosage(dosage);
+        treatmentRepository.save(treatment);
+        
+        // Audit log
+        createAuditLog(treatment, TreatmentAuditLog.ActionType.UPDATE, 
+                "Dosierung geändert: " + (oldDosage != null ? oldDosage : "null") + " -> " + dosage);
+    }
+    
+    @Transactional
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    public void updateTreatmentMedication(Long treatmentId, Long medicationFavouriteId) {
+        Objects.requireNonNull(treatmentId);
+        Objects.requireNonNull(medicationFavouriteId);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Check if treatment is immutable (second approved)
+        if (treatment.getSecondApprovalDateTime() != null) {
+            throw new IllegalStateException("Behandlung wurde bereits zweitgeprüft und kann nicht mehr geändert werden.");
+        }
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        de.bbajor.pvs.medication.model.MedicationFavourite oldMedication = treatment.getMedicationFavourite();
+        de.bbajor.pvs.medication.model.MedicationFavourite newMedication = medicationFavouriteRepository.findById(medicationFavouriteId)
+                .orElseThrow(() -> new IllegalArgumentException("MedicationFavourite not found: " + medicationFavouriteId));
+        
+        treatment.setMedicationFavourite(newMedication);
+        treatmentRepository.save(treatment);
+        
+        // Audit log
+        createAuditLog(treatment, TreatmentAuditLog.ActionType.UPDATE, 
+                "Medikament geändert: " + (oldMedication != null ? oldMedication.getEffectiveDisplayName() : "null") + 
+                " -> " + newMedication.getEffectiveDisplayName());
+    }
+    
+    @Transactional
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    public void updateTreatmentTreatingDoctors(Long treatmentId, java.util.Set<Long> doctorIds) {
+        Objects.requireNonNull(treatmentId);
+        Objects.requireNonNull(doctorIds);
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
+        
+        // Check if treatment is immutable (second approved)
+        if (treatment.getSecondApprovalDateTime() != null) {
+            throw new IllegalStateException("Behandlung wurde bereits zweitgeprüft und kann nicht mehr geändert werden.");
+        }
+        
+        // Validate institution context: ensure treatment belongs to current institution
+        if (treatment.getTreatmentPlan() == null || treatment.getTreatmentPlan().getInstitution() == null) {
+            throw new IllegalStateException("Treatment " + treatmentId + " has no treatment plan or institution");
+        }
+        Long treatmentInstitutionId = treatment.getTreatmentPlan().getInstitution().getId();
+        institutionAccessValidator.validateInstitutionAccess(treatmentInstitutionId, "Treatment", treatmentId);
+        
+        java.util.Set<de.bbajor.pvs.security.domain.UserAccount> oldDoctors = new java.util.HashSet<>(treatment.getTreatingDoctors());
+        treatment.getTreatingDoctors().clear();
+        if (!doctorIds.isEmpty()) {
+            for (Long doctorId : doctorIds) {
+                de.bbajor.pvs.security.domain.UserAccount doctor = userAccountRepository.findById(doctorId)
+                        .orElseThrow(() -> new IllegalArgumentException("UserAccount not found: " + doctorId));
+                treatment.getTreatingDoctors().add(doctor);
+            }
+        }
+        treatmentRepository.save(treatment);
+        
+        // Audit log
+        String oldDoctorsStr = oldDoctors.stream()
+                .map(d -> d.getFullName() != null ? d.getFullName() : d.getUsername())
+                .collect(java.util.stream.Collectors.joining(", "));
+        String newDoctorsStr = treatment.getTreatingDoctors().stream()
+                .map(d -> d.getFullName() != null ? d.getFullName() : d.getUsername())
+                .collect(java.util.stream.Collectors.joining(", "));
+        createAuditLog(treatment, TreatmentAuditLog.ActionType.UPDATE, 
+                "Behandelnde Ärzte geändert: " + (oldDoctorsStr.isEmpty() ? "keine" : oldDoctorsStr) + 
+                " -> " + (newDoctorsStr.isEmpty() ? "keine" : newDoctorsStr));
+    }
+    
+    private void createAuditLog(Treatment treatment, TreatmentAuditLog.ActionType actionType, String details) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        String actorUserId = auth != null ? auth.getName() : "SYSTEM";
+        String actorUserName = auth != null ? auth.getName() : "SYSTEM";
+        
+        if (auth != null && auth.getPrincipal() instanceof de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter adapter) {
+            actorUserId = adapter.getUsername();
+            actorUserName = adapter.getAppUser().getFullName() != null 
+                    ? adapter.getAppUser().getFullName() 
+                    : adapter.getUsername();
+        }
+        
+        TreatmentAuditLog log = new TreatmentAuditLog();
+        log.setTreatment(treatment);
+        log.setActionType(actionType);
+        log.setActionTimestamp(clock.instant().atZone(clock.getZone()).toLocalDateTime());
+        log.setActorUserId(actorUserId);
+        log.setActorUserName(actorUserName);
+        log.setDetails(details);
+        auditLogRepository.save(log);
     }
 
     @Transactional(readOnly = true)

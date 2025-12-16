@@ -413,6 +413,13 @@ public class TaskReviewDialog extends Dialog {
     }
     
     /**
+     * Getter für ApplicationContext (für TreatmentReviewDetailLayout).
+     */
+    ApplicationContext getApplicationContext() {
+        return applicationContext;
+    }
+    
+    /**
      * Lädt alle ausgewählten Berichte herunter.
      */
     private void downloadSelectedReports() {
@@ -649,7 +656,7 @@ public class TaskReviewDialog extends Dialog {
             return statusLayout;
         }).setHeader("Behandlung erfolgt?").setAutoWidth(true).setResizable(true);
         
-        // Spalte 5: Dokumentiert (grünes Häkchen oder graues X)
+        // Spalte 5: Dokumentiert (pro Behandlung: grün wenn dokumentiert, gelb wenn nicht)
         grid.addComponentColumn(treatment -> {
             boolean isDocumented = treatment.getApprovalDate() != null;
             Icon icon;
@@ -658,13 +665,34 @@ public class TaskReviewDialog extends Dialog {
                 icon.setColor("var(--lumo-success-color)");
             } else {
                 icon = VaadinIcon.CLOSE_CIRCLE.create();
-                icon.setColor("var(--lumo-contrast-50pct)");
+                icon.setColor("var(--lumo-warning-color)");
             }
             icon.setSize("20px");
             return icon;
         }).setHeader("Dokumentiert").setAutoWidth(true).setResizable(true);
         
-        // Spalte 6: Bericht
+        // Spalte 6: Zweitprüfung (pro Behandlung: grün wenn zweitgeprüft, gelb wenn nicht, grau wenn nicht dokumentiert)
+        grid.addComponentColumn(treatment -> {
+            boolean isDocumented = treatment.getApprovalDate() != null;
+            boolean isSecondApproved = treatment.getSecondApprovalDateTime() != null;
+            
+            Icon icon;
+            if (!isDocumented) {
+                // Nicht dokumentiert - grau
+                icon = VaadinIcon.CIRCLE_THIN.create();
+                icon.setColor("var(--lumo-contrast-30pct)");
+            } else if (isSecondApproved) {
+                icon = VaadinIcon.CHECK_CIRCLE.create();
+                icon.setColor("var(--lumo-success-color)");
+            } else {
+                icon = VaadinIcon.CLOSE_CIRCLE.create();
+                icon.setColor("var(--lumo-warning-color)");
+            }
+            icon.setSize("20px");
+            return icon;
+        }).setHeader("Zweitprüfung").setAutoWidth(true).setResizable(true);
+        
+        // Spalte 7: Bericht
         grid.addComponentColumn(treatment -> {
             Button reportButton = new Button(VaadinIcon.FILE_TEXT.create(), e -> generatePatientReport(treatment));
             reportButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
@@ -678,7 +706,7 @@ public class TaskReviewDialog extends Dialog {
             return reportButton;
         }).setHeader("Bericht").setAutoWidth(true).setResizable(true);
         
-        // Spalte 7: Auswahl (nur Checkbox für Massengenehmigung)
+        // Spalte 8: Auswahl (nur Checkbox für Massengenehmigung)
         grid.addComponentColumn(treatment -> {
             Checkbox approvalCheckbox = new Checkbox();
             approvalCheckbox.setValue(selectedTreatmentsForApproval.contains(treatment.getId()));

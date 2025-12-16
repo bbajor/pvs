@@ -302,7 +302,8 @@ public class PatientService {
         // Validate that location is set
         if (patient.getLocation() == null) {
             throw new IllegalStateException(
-                "No location found. Ensure LocationService has a location configured for the current institution.");
+                "Keine Standort gefunden. Bitte legen Sie zuerst mindestens einen aktiven Standort " +
+                "für diese Einrichtung in den Einstellungen unter 'Standorte' an, bevor Sie Patienten anlegen.");
         }
         
         // Validate that location has an institution (but don't check InstitutionContext match here)

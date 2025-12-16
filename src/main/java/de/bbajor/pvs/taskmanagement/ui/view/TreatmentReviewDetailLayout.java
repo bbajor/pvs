@@ -35,11 +35,17 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.service.UserAccountService;
+import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.taskmanagement.domain.StandardRemark;
 import de.bbajor.pvs.taskmanagement.domain.TreatmentRemark;
 import de.bbajor.pvs.taskmanagement.service.StandardRemarkService;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
 import de.bbajor.pvs.taskmanagement.service.TreatmentRemarkService;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 
 public class TreatmentReviewDetailLayout extends VerticalLayout {
 
@@ -49,6 +55,8 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
     private final TaskReviewDialog parentDialog;
     private ComboBox<String> dosageComboBox;
     private ComboBox<TreatmentStatus> statusComboBox;
+    private ComboBox<MedicationFavourite> medicationComboBox;
+    private MultiSelectComboBox<UserAccount> treatingDoctorsComboBox;
     private Div trafficLight;
     private Icon infoIcon;
     private final StandardRemarkService standardRemarkService;
@@ -59,6 +67,7 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
     private List<TreatmentRemark> usedRemarks = new ArrayList<>();
     private TextField customRemarkField;
     private boolean isDocumented;
+    private boolean isSecondApproved;
 
     public TreatmentReviewDetailLayout(Treatment treatment, int index, int total, TaskReviewDialog parentDialog,
             StandardRemarkService standardRemarkService, TreatmentRemarkService treatmentRemarkService) {
@@ -67,6 +76,7 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
         this.standardRemarkService = standardRemarkService;
         this.treatmentRemarkService = treatmentRemarkService;
         this.isDocumented = treatment.getApprovalDate() != null;
+        this.isSecondApproved = treatment.getSecondApprovalDateTime() != null;
         
         setSizeFull();
         setPadding(true);
@@ -135,27 +145,46 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
         }
         content.add(new Span("Medikament: " + medicationName));
         
-        // Approval information
-        String approvalStatus = "Status: Undokumentiert";
+        // Prüfungsinformationen
+        VerticalLayout verificationLayout = new VerticalLayout();
+        verificationLayout.setSpacing(false);
+        verificationLayout.setPadding(false);
+        
+        Span verificationHeader = new Span("Prüfung");
+        verificationHeader.getStyle().set("font-weight", "600");
+        verificationHeader.getStyle().set("font-size", "var(--lumo-font-size-m)");
+        verificationLayout.add(verificationHeader);
+        
         if (treatment.getApprovalDate() != null) {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+            
+            // Dokumentationsdatum
             if (treatment.getApprovalDateTime() != null) {
-                approvalStatus = "Status: Dokumentiert am " + formatter.format(treatment.getApprovalDateTime());
+                verificationLayout.add(new Span("Dokumentiert am: " + formatter.format(treatment.getApprovalDateTime())));
             } else {
-                approvalStatus = "Status: Dokumentiert am " + treatment.getApprovalDate().format(
-                        DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                verificationLayout.add(new Span("Dokumentiert am: " + treatment.getApprovalDate().format(dateFormatter)));
             }
+            
+            // Dokumentierer
             if (treatment.getApprovedByUserName() != null) {
-                approvalStatus += " von " + treatment.getApprovedByUserName();
+                verificationLayout.add(new Span("Dokumentiert von: " + treatment.getApprovedByUserName()));
             }
+            
+            // Zweitprüfung
             if (treatment.getSecondApprovalDateTime() != null) {
-                approvalStatus += "\nZweitprüfung: " + formatter.format(treatment.getSecondApprovalDateTime());
+                verificationLayout.add(new Span("Zweitprüfung am: " + formatter.format(treatment.getSecondApprovalDateTime())));
                 if (treatment.getSecondApprovedByUserName() != null) {
-                    approvalStatus += " von " + treatment.getSecondApprovedByUserName();
+                    verificationLayout.add(new Span("Zweitprüfung von: " + treatment.getSecondApprovedByUserName()));
                 }
+            } else {
+                verificationLayout.add(new Span("Zweitprüfung: Nicht durchgeführt"));
             }
+        } else {
+            verificationLayout.add(new Span("Dokumentation: Ausstehend"));
         }
-        content.add(new Span(approvalStatus));
+        
+        content.add(verificationLayout);
         
         infoSection.add(content);
         return infoSection;
@@ -174,7 +203,40 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
         content.setPadding(false);
         content.setWidthFull();
         
-        // Dosierung als ComboBox
+        // Medikament und Dosierung in einer Zeile
+        HorizontalLayout medicationDosageLayout = new HorizontalLayout();
+        medicationDosageLayout.setWidthFull();
+        medicationDosageLayout.setSpacing(true);
+        medicationDosageLayout.setAlignItems(Alignment.BASELINE);
+        
+        // Medikament (links)
+        medicationComboBox = new ComboBox<>("Medikament");
+        TreatmentPlanService treatmentPlanService = parentDialog.getApplicationContext()
+                .getBean(TreatmentPlanService.class);
+        medicationComboBox.setItems(treatmentPlanService.getFavouriteMedications());
+        medicationComboBox.setValue(treatment.getMedicationFavourite());
+        medicationComboBox.setItemLabelGenerator(MedicationFavourite::getEffectiveDisplayName);
+        medicationComboBox.setWidthFull();
+        medicationComboBox.setEnabled(!isDocumented && !isSecondApproved);
+        medicationComboBox.addValueChangeListener(e -> {
+            if (e.getValue() != null && !isDocumented && !isSecondApproved) {
+                try {
+                    parentDialog.ensureInstitutionContext();
+                    parentDialog.getTaskService().updateTreatmentMedication(treatment.getId(), e.getValue().getId());
+                    treatment.setMedicationFavourite(e.getValue());
+                    Notification.show("Medikament aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
+                } catch (Exception ex) {
+                    log.error("Fehler beim Aktualisieren des Medikaments", ex);
+                    Notification.show("Fehler beim Aktualisieren des Medikaments: " + ex.getMessage(), 3000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    medicationComboBox.setValue(treatment.getMedicationFavourite());
+                }
+            }
+        });
+        medicationDosageLayout.add(medicationComboBox);
+        medicationDosageLayout.setFlexGrow(1, medicationComboBox);
+        
+        // Dosierung (rechts)
         dosageComboBox = new ComboBox<>("Dosierung");
         dosageComboBox.setItems("0,5 mg", "1 mg", "1,5 mg", "2 mg", "2,5 mg", "3 mg", "4 mg");
         dosageComboBox.setAllowCustomValue(true);
@@ -182,23 +244,60 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
         if (treatment.getDosage() != null) {
             dosageComboBox.setValue(treatment.getDosage());
         }
-        dosageComboBox.setEnabled(!isDocumented);
+        dosageComboBox.setEnabled(!isDocumented && !isSecondApproved);
         dosageComboBox.addValueChangeListener(e -> {
-            if (e.getValue() != null && !isDocumented) {
+            if (e.getValue() != null && !isDocumented && !isSecondApproved) {
                 try {
                     parentDialog.ensureInstitutionContext();
-                    Treatment treatmentToUpdate = parentDialog.getTreatmentRepository().findById(treatment.getId())
-                            .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatment.getId()));
-                    treatmentToUpdate.setDosage(e.getValue());
-                    parentDialog.getTreatmentRepository().save(treatmentToUpdate);
+                    parentDialog.getTaskService().updateTreatmentDosage(treatment.getId(), e.getValue());
                     treatment.setDosage(e.getValue());
+                    Notification.show("Dosierung aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
                 } catch (Exception ex) {
                     log.error("Fehler beim Aktualisieren der Dosierung", ex);
-                    Notification.show("Fehler beim Aktualisieren der Dosierung: " + ex.getMessage(), 3000, Notification.Position.MIDDLE);
+                    Notification.show("Fehler beim Aktualisieren der Dosierung: " + ex.getMessage(), 3000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    dosageComboBox.setValue(treatment.getDosage());
                 }
             }
         });
-        content.add(dosageComboBox);
+        medicationDosageLayout.add(dosageComboBox);
+        medicationDosageLayout.setFlexGrow(1, dosageComboBox);
+        
+        content.add(medicationDosageLayout);
+        
+        // Behandelnder Arzt
+        treatingDoctorsComboBox = new MultiSelectComboBox<>("Behandelnder Arzt");
+        UserAccountService userAccountService = parentDialog.getApplicationContext()
+                .getBean(UserAccountService.class);
+        treatingDoctorsComboBox.setItems(userAccountService.findUsersByRole(AppRoles.DOCTOR));
+        treatingDoctorsComboBox.setValue(treatment.getTreatingDoctors());
+        treatingDoctorsComboBox.setItemLabelGenerator(user -> 
+            user.getFullName() != null ? user.getFullName() : user.getUsername()
+        );
+        treatingDoctorsComboBox.setPlaceholder("Ärzte auswählen");
+        treatingDoctorsComboBox.setWidthFull();
+        treatingDoctorsComboBox.setEnabled(!isDocumented && !isSecondApproved);
+        treatingDoctorsComboBox.addValueChangeListener(e -> {
+            if (!isDocumented && !isSecondApproved) {
+                try {
+                    parentDialog.ensureInstitutionContext();
+                    java.util.Set<Long> doctorIds = e.getValue() != null 
+                            ? e.getValue().stream()
+                                    .map(UserAccount::getId)
+                                    .collect(Collectors.toSet())
+                            : java.util.Collections.emptySet();
+                    parentDialog.getTaskService().updateTreatmentTreatingDoctors(treatment.getId(), doctorIds);
+                    treatment.setTreatingDoctors(e.getValue() != null ? new java.util.HashSet<>(e.getValue()) : new java.util.HashSet<>());
+                    Notification.show("Behandelnder Arzt aktualisiert", 2000, Notification.Position.BOTTOM_CENTER);
+                } catch (Exception ex) {
+                    log.error("Fehler beim Aktualisieren der behandelnden Ärzte", ex);
+                    Notification.show("Fehler beim Aktualisieren der behandelnden Ärzte: " + ex.getMessage(), 3000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    treatingDoctorsComboBox.setValue(treatment.getTreatingDoctors());
+                }
+            }
+        });
+        content.add(treatingDoctorsComboBox);
         
         // Treatment Status Combobox mit Ampel
         HorizontalLayout statusLayout = new HorizontalLayout();
@@ -231,10 +330,10 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
         // Ampel-Darstellung
         trafficLight = parentDialog.createTrafficLight(currentStatus);
         
-        statusComboBox.setEnabled(!isDocumented);
+        statusComboBox.setEnabled(!isDocumented && !isSecondApproved);
         statusComboBox.addValueChangeListener(e -> {
             TreatmentStatus newStatus = e.getValue();
-            if (newStatus != null && !isDocumented) {
+            if (newStatus != null && !isDocumented && !isSecondApproved) {
                 try {
                     parentDialog.getTaskService().updateTreatmentStatus(treatment.getId(), newStatus);
                     treatment.setTreatmentStatus(newStatus);
@@ -321,11 +420,12 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
                 .setHeader("Bemerkung")
                 .setAutoWidth(true);
         availableRemarksGrid.setHeight("200px");
-        availableRemarksGrid.setEnabled(!isDocumented);
+        // Standardbemerkungen nur vor Dokumentation verfügbar
+        availableRemarksGrid.setEnabled(!isDocumented && !isSecondApproved);
         // Textauswahl deaktivieren
         availableRemarksGrid.getStyle().set("user-select", "none");
         availableRemarksGrid.addItemDoubleClickListener(e -> {
-            if (!isDocumented && e.getItem() != null) {
+            if (!isDocumented && !isSecondApproved && e.getItem() != null) {
                 addRemarkToTreatment(e.getItem());
             }
         });
@@ -334,13 +434,29 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
         // Feld für eigene Bemerkung
         customRemarkField = new TextField("Eigene Bemerkung hinzufügen");
         customRemarkField.setWidthFull();
-        customRemarkField.setEnabled(!isDocumented);
-        customRemarkField.setPlaceholder("Text eingeben und Enter drücken");
+        // Nach Dokumentation: Nur Zweitprüfer können Bemerkungen hinzufügen
+        // Nach Zweitprüfung: Keine Änderungen mehr möglich
+        boolean canAddRemarks = !isSecondApproved && (!isDocumented || canAddSecondReviewerRemark());
+        customRemarkField.setEnabled(canAddRemarks);
+        if (isDocumented && !isSecondApproved) {
+            customRemarkField.setPlaceholder("Bemerkung Zweitprüfer: Text eingeben und Enter drücken");
+        } else if (!isDocumented) {
+            customRemarkField.setPlaceholder("Text eingeben und Enter drücken");
+        } else {
+            customRemarkField.setPlaceholder("Keine Änderungen mehr möglich");
+        }
         // Enter-Taste über KeyDownEvent abfangen
         customRemarkField.addKeyDownListener(e -> {
-            if (e.getKey().equals(Key.ENTER) && !isDocumented) {
+            if (e.getKey().equals(Key.ENTER) && canAddRemarks) {
                 String text = customRemarkField.getValue();
                 if (text != null && !text.trim().isEmpty()) {
+                    // Wenn dokumentiert, aber nicht zweitgeprüft: Präfix hinzufügen falls nicht vorhanden
+                    if (isDocumented && !isSecondApproved) {
+                        String prefix = "Bemerkung Zweitprüfer: ";
+                        if (!text.trim().startsWith(prefix)) {
+                            text = prefix + text.trim();
+                        }
+                    }
                     addCustomRemark(text.trim());
                     customRemarkField.clear();
                 }
@@ -370,11 +486,12 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
                 .setHeader("Bemerkung")
                 .setAutoWidth(true);
         usedRemarksGrid.setHeight("200px");
-        usedRemarksGrid.setEnabled(!isDocumented);
+        // Bemerkungen können nur vor Zweitprüfung entfernt werden
+        usedRemarksGrid.setEnabled(!isDocumented && !isSecondApproved);
         // Textauswahl deaktivieren
         usedRemarksGrid.getStyle().set("user-select", "none");
         usedRemarksGrid.addItemDoubleClickListener(e -> {
-            if (!isDocumented && e.getItem() != null) {
+            if (!isDocumented && !isSecondApproved && e.getItem() != null) {
                 removeRemarkFromTreatment(e.getItem());
             }
         });
@@ -437,14 +554,34 @@ public class TreatmentReviewDetailLayout extends VerticalLayout {
             log.error("Fehler beim Aktualisieren der verwendeten Bemerkungen", e);
         }
         
-        // Filtere verfügbare Bemerkungen neu
-        List<StandardRemark> filteredAvailable = availableRemarks.stream()
-                .filter(sr -> usedRemarks.stream()
-                        .noneMatch(tr -> tr.getStandardRemark() != null && tr.getStandardRemark().getId().equals(sr.getId())))
-                .sorted(Comparator.comparing(StandardRemark::getText))
-                .collect(Collectors.toList());
-        availableRemarksGrid.setItems(filteredAvailable);
+        // Filtere verfügbare Bemerkungen neu (nur wenn noch nicht dokumentiert)
+        if (!isDocumented && !isSecondApproved) {
+            List<StandardRemark> filteredAvailable = availableRemarks.stream()
+                    .filter(sr -> usedRemarks.stream()
+                            .noneMatch(tr -> tr.getStandardRemark() != null && tr.getStandardRemark().getId().equals(sr.getId())))
+                    .sorted(Comparator.comparing(StandardRemark::getText))
+                    .collect(Collectors.toList());
+            availableRemarksGrid.setItems(filteredAvailable);
+        }
         
+    }
+    
+    /**
+     * Prüft, ob der aktuelle Benutzer als Zweitprüfer Bemerkungen hinzufügen kann.
+     */
+    private boolean canAddSecondReviewerRemark() {
+        if (!isDocumented || isSecondApproved) {
+            return false;
+        }
+        
+        // Prüfe, ob der aktuelle Benutzer nicht der erste Prüfer ist
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        
+        String currentUserId = auth.getName();
+        return treatment.getApprovedByUserId() == null || !treatment.getApprovedByUserId().equals(currentUserId);
     }
 }
 

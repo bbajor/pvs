@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterRepository;
 import de.bbajor.pvs.surgicalcenter.repository.SurgicalCenterTimeSlotRepository;
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class SurgicalCenterService {
@@ -54,6 +56,77 @@ public class SurgicalCenterService {
         }
         // No institution context - return empty slice
         return org.springframework.data.domain.Page.empty(pageable);
+    }
+    
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Slice<SurgicalCenter> findAllBy(String searchTerm, org.springframework.data.domain.Pageable pageable) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            // No institution context - return empty slice
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        
+        // Wenn kein Suchbegriff, verwende findAll
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return findAll(pageable);
+        }
+        
+        // Erstelle Specification für Suche
+        Specification<SurgicalCenter> spec = (root, query, cb) -> {
+            Predicate institutionPredicate = cb.equal(root.get("institution").get("id"), institutionId);
+            
+            String searchPattern = "%" + searchTerm.toLowerCase() + "%";
+            
+            // Suche in String-Feldern - nur wenn Feld nicht null ist
+            Predicate namePredicate = cb.and(
+                root.get("name").isNotNull(),
+                cb.like(cb.lower(root.get("name")), searchPattern)
+            );
+            Predicate contactPredicate = cb.and(
+                root.get("contact").isNotNull(),
+                cb.like(cb.lower(root.get("contact")), searchPattern)
+            );
+            Predicate phonePredicate = cb.and(
+                root.get("phone").isNotNull(),
+                cb.like(cb.lower(root.get("phone")), searchPattern)
+            );
+            Predicate phoneContactPredicate = cb.and(
+                root.get("phoneContact").isNotNull(),
+                cb.like(cb.lower(root.get("phoneContact")), searchPattern)
+            );
+            Predicate emailPredicate = cb.and(
+                root.get("email").isNotNull(),
+                cb.like(cb.lower(root.get("email")), searchPattern)
+            );
+            
+            // Suche in der Adresse - nur wenn Adresse und Feld nicht null sind
+            jakarta.persistence.criteria.Path<?> addressPath = root.get("address");
+            Predicate streetPredicate = cb.and(
+                addressPath.isNotNull(),
+                addressPath.get("street").isNotNull(),
+                cb.like(cb.lower(addressPath.get("street")), searchPattern)
+            );
+            Predicate cityPredicate = cb.and(
+                addressPath.isNotNull(),
+                addressPath.get("city").isNotNull(),
+                cb.like(cb.lower(addressPath.get("city")), searchPattern)
+            );
+            
+            Predicate addressPredicate = cb.or(streetPredicate, cityPredicate);
+            
+            Predicate searchPredicate = cb.or(
+                namePredicate,
+                contactPredicate,
+                phonePredicate,
+                phoneContactPredicate,
+                emailPredicate,
+                addressPredicate
+            );
+            
+            return cb.and(institutionPredicate, searchPredicate);
+        };
+        
+        return surgicalCenterRepository.findAll(spec, pageable);
     }
 
     @Transactional(readOnly = true)

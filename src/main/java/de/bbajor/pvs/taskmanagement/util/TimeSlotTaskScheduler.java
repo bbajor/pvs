@@ -1,6 +1,7 @@
 package de.bbajor.pvs.taskmanagement.util;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -8,7 +9,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import de.bbajor.pvs.base.ui.component.TimelineView;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
@@ -16,7 +16,11 @@ import de.bbajor.pvs.taskmanagement.service.TaskService;
 @Component
 public class TimeSlotTaskScheduler {
 
-    private static final Logger LOG = Logger.getLogger(TimelineView.class.getName());
+    private static final Logger LOG = Logger.getLogger(TimeSlotTaskScheduler.class.getName());
+    
+    // Flag, um sicherzustellen, dass der Startup-Job nur einmal ausgeführt wird
+    // (Spring DevTools kann ApplicationReadyEvent mehrfach auslösen)
+    private static final AtomicBoolean startupJobExecuted = new AtomicBoolean(false);
 
     private final TaskService taskService;
     private final InstitutionRepository institutionRepository;
@@ -36,8 +40,14 @@ public class TimeSlotTaskScheduler {
     // 2. Läuft beim Start der Anwendung einmal
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
-        LOG.info("Anwendung gestartet — Initial-Tasks werden für alle aktiven Institutionen angelegt");
-        createTasksForAllActiveInstitutions();
+        // Stelle sicher, dass der Startup-Job nur einmal ausgeführt wird
+        // (Spring DevTools kann ApplicationReadyEvent mehrfach auslösen)
+        if (startupJobExecuted.compareAndSet(false, true)) {
+            LOG.info("Anwendung gestartet — Initial-Tasks werden für alle aktiven Institutionen angelegt");
+            createTasksForAllActiveInstitutions();
+        } else {
+            LOG.fine("Startup-Job wurde bereits ausgeführt - überspringe erneute Ausführung");
+        }
     }
 
     /**

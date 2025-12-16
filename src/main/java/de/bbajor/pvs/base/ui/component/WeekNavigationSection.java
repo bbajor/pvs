@@ -84,7 +84,7 @@ public class WeekNavigationSection extends Div {
         datePicker = new DatePicker("Datum auswählen");
         datePicker.setValue(currentWeekStart);
         datePicker.setWidth("200px");
-        datePicker.setHelperText("Wählen Sie ein Datum aus der gewünschten Woche");
+        datePicker.setTooltipText("Wählen Sie ein Datum aus der gewünschten Woche");
         
         // Montag als ersten Tag der Woche setzen
         DatePicker.DatePickerI18n i18n = new DatePicker.DatePickerI18n();
