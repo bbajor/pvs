@@ -19,11 +19,17 @@ public class TimeLineCard extends Card {
 
     public TimeLineCard(TimeLineCardConfig config, Consumer<TimeLineCardConfig> onDelete,
             Consumer<TimeLineCardConfig> onClick) {
-        this(config, onDelete, onClick, null, false);
+        this(config, onDelete, null, onClick, null, false);
     }
 
     public TimeLineCard(TimeLineCardConfig config, Consumer<TimeLineCardConfig> onDelete,
             Consumer<TimeLineCardConfig> onClick, Runnable onBookNextTreatment, boolean isLastTreatment) {
+        this(config, onDelete, null, onClick, onBookNextTreatment, isLastTreatment);
+    }
+    
+    public TimeLineCard(TimeLineCardConfig config, Consumer<TimeLineCardConfig> onDelete,
+            Consumer<TimeLineCardConfig> onCancel, Consumer<TimeLineCardConfig> onClick, 
+            Runnable onBookNextTreatment, boolean isLastTreatment) {
         addClassName("timeline-card");
 
         if (config == null) {
@@ -69,16 +75,27 @@ public class TimeLineCard extends Card {
                 if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                     add(new Paragraph(additionalInfo));
                 }
-                // Löschen erlauben, wenn Termin heute oder in der Zukunft liegt und nicht genehmigt
+                // Löschen/Absagen erlauben, wenn Termin in der Zukunft liegt und nicht genehmigt
                 LocalDate today = LocalDate.now();
-                boolean canDelete = treatmentDate != null && 
-                    !treatmentDate.isBefore(today) && 
-                    !config.isApproved() && 
-                    onDelete != null;
-                if (canDelete) {
-                    Button delete = new Button("löschen", e -> onDelete.accept(config));
-                    delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-                    add(delete);
+                boolean isFuture = treatmentDate != null && !treatmentDate.isBefore(today);
+                boolean canDeleteOrCancel = isFuture && !config.isApproved() && (onDelete != null || onCancel != null);
+                
+                if (canDeleteOrCancel) {
+                    // Prüfe, ob Termin mindestens 2 Tage in der Zukunft liegt
+                    long daysUntil = treatmentDate != null ? java.time.temporal.ChronoUnit.DAYS.between(today, treatmentDate) : -1;
+                    boolean canDelete = daysUntil >= 2;
+                    
+                    if (canDelete && onDelete != null) {
+                        // Löschen-Button (mindestens 2 Tage in der Zukunft)
+                        Button delete = new Button("Löschen", e -> onDelete.accept(config));
+                        delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+                        add(delete);
+                    } else if (!canDelete && onCancel != null) {
+                        // Absagen-Button (weniger als 2 Tage in der Zukunft)
+                        Button cancel = new Button("Absagen", e -> onCancel.accept(config));
+                        cancel.addThemeVariants(ButtonVariant.LUMO_WARNING);
+                        add(cancel);
+                    }
                 }
                 if (onClick != null && config.getTreatment() != null) {
                     Button detailsButton = new Button("Details", event -> onClick.accept(config));

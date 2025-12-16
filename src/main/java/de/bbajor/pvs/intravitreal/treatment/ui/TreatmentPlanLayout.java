@@ -13,7 +13,6 @@ import org.springframework.context.ApplicationContext;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -27,11 +26,24 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.SelectionMode;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
+
+import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.time.temporal.ChronoUnit;
 
 import de.bbajor.pvs.appointment.service.AppointmentReportService;
 import de.bbajor.pvs.base.ui.component.TimeLineCardConfig;
@@ -84,20 +96,18 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private final ApplicationContext context;
     
     // Sections
-    private VerticalLayout overviewSection; // Neue "Übersicht"-Section für Patientendaten
+    private VerticalLayout overviewSection;
     private VerticalLayout generalSection;
     private VerticalLayout treatmentHistorySection;
-    // appointmentBookingSection und finishTreatmentPlanSection entfernt - werden nicht mehr benötigt
-    // terminSectionDiv entfernt - wird nicht mehr benötigt
-    private com.vaadin.flow.component.html.Div detailsSectionDiv; // Die Section-Div für "Details" (umbenannt von "Allgemein")
-    private com.vaadin.flow.component.html.Div overviewSectionDiv; // Die Section-Div für "Übersicht"
-    // finishSectionDiv entfernt - wird nicht mehr benötigt
+    private Div detailsSectionDiv;
+    private Div overviewSectionDiv;
     
     // View-Toggle und Container
     private VerticalLayout timelineContainer;
     private static final int MIN_INTERVAL_WEEKS = 1;
     private static final int DEFAULT_INTERVAL_WEEKS = 4;
     private static final int MAX_INTERVAL_WEEKS = 16;
+    private static final long NEW_TREATMENT_PLAN_ID = -1L;
 
     public TreatmentPlanLayout(TreatmentPlanPresenter presenter, TreatmentPlan treatmentPlan,
             ApplicationContext context) {
@@ -250,7 +260,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
         
         // Patient-Combobox nur anzeigen, wenn kein Patient vorhanden (Neuanlage)
-        boolean showPatientComboBox = (current == null || current.getId() == null || current.getId() == -1 || current.getPatient() == null);
+        boolean showPatientComboBox = isNewTreatmentPlan() || current.getPatient() == null;
         patientSelectComboBox.setVisible(showPatientComboBox);
     }
     
@@ -262,7 +272,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         treatmentHistorySection.setWidthFull();
         
         // Section "Behandlungsverlauf" - als Section wie die anderen
-        com.vaadin.flow.component.html.Div treatmentHistorySectionDiv = createSection("Behandlungsverlauf");
+        Div treatmentHistorySectionDiv = createSection("Behandlungsverlauf");
         
         // Container für Timeline-Ansicht (nur Timeline, kein Grid mehr)
         timelineContainer = new VerticalLayout();
@@ -278,20 +288,15 @@ public class TreatmentPlanLayout extends VerticalLayout {
         treatmentHistorySection.expand(treatmentHistorySectionDiv);
     }
     
-    // Grid-Ansicht und View-Toggle wurden entfernt - nur Timeline wird angezeigt
-    // Alle Grid-Methoden wurden entfernt: createEyeOverview, createTreatmentGrid, refreshGrids, refreshGridsWithTreatments
-    
-    // initializeAppointmentBookingSection() und updateAppointmentBookingSection() entfernt - wird nicht mehr benötigt
-    // Die Logik ist jetzt in updateOverviewSection()
     
     private void openAppointmentPlanningDialog() {
-        if (current == null || current.getId() == null || current.getId() == -1) {
+        if (isNewTreatmentPlan()) {
             Notification.show("Bitte speichern Sie zuerst den Behandlungsplan.", 3000,
                     Notification.Position.MIDDLE);
             return;
         }
         
-        com.vaadin.flow.component.dialog.Dialog dialog = new com.vaadin.flow.component.dialog.Dialog();
+        Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Terminserie buchen");
         dialog.setWidth("90vw");
         dialog.setMaxWidth("1400px");
@@ -304,7 +309,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         dialogTimeSlotGrid.setSelectionMode(SelectionMode.MULTI);
         
         // Spalte: Einrichtung (breiter, resizable)
-        Grid.Column<SurgicalCenterTimeSlot> centerColumn = dialogTimeSlotGrid.addColumn(ts -> 
+        dialogTimeSlotGrid.addColumn(ts -> 
             ts.getSurgicalCenter() != null ? ts.getSurgicalCenter().getName() : "-")
             .setHeader("Einrichtung")
             .setResizable(true)
@@ -313,7 +318,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         
         // Spalte: Datum
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("E dd.MM.yyyy", Locale.GERMAN);
-        Grid.Column<SurgicalCenterTimeSlot> dateColumn = dialogTimeSlotGrid.addColumn(ts -> 
+        dialogTimeSlotGrid.addColumn(ts -> 
             ts.getDate() != null ? ts.getDate().format(dateFormatter) : "-")
             .setHeader("Datum")
             .setResizable(true)
@@ -322,7 +327,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         
         // Spalte: Uhrzeit
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN);
-        Grid.Column<SurgicalCenterTimeSlot> timeColumn = dialogTimeSlotGrid.addColumn(ts -> {
+        dialogTimeSlotGrid.addColumn(ts -> {
             if (ts.getStartTime() == null) {
                 return "-";
             }
@@ -399,9 +404,32 @@ public class TreatmentPlanLayout extends VerticalLayout {
             
             try {
                 ensureInstitutionContext();
-                presenter.save(current.getId(), treatmentsToCreate);
+                TreatmentPlan savedPlan = presenter.save(current.getId(), treatmentsToCreate);
                 Notification.show("Terminserie erfolgreich gespeichert.", 3000,
                         Notification.Position.BOTTOM_CENTER);
+                
+                // Finde das neueste Treatment (nach Datum sortiert) für jedes Auge
+                if (savedPlan.getTreatments() != null && !savedPlan.getTreatments().isEmpty()) {
+                    // Finde das neueste Treatment für das linke Auge
+                    Treatment newestLeftTreatment = savedPlan.getTreatments().stream()
+                        .filter(t -> t.getSideOfEye() == SideOfEye.LEFT && t.getDate() != null)
+                        .max((a, b) -> a.getDate().compareTo(b.getDate()))
+                        .orElse(null);
+                    
+                    // Finde das neueste Treatment für das rechte Auge
+                    Treatment newestRightTreatment = savedPlan.getTreatments().stream()
+                        .filter(t -> t.getSideOfEye() == SideOfEye.RIGHT && t.getDate() != null)
+                        .max((a, b) -> a.getDate().compareTo(b.getDate()))
+                        .orElse(null);
+                    
+                    // Setze Scroll-Target auf das neueste Treatment für das entsprechende Auge
+                    if (newestLeftTreatment != null && sideOfEye.getValue() == SideOfEye.LEFT) {
+                        timeLineViewLeftEye.setScrollTarget(newestLeftTreatment);
+                    }
+                    if (newestRightTreatment != null && sideOfEye.getValue() == SideOfEye.RIGHT) {
+                        timeLineViewRightEye.setScrollTarget(newestRightTreatment);
+                    }
+                }
                 
                 // Aktualisiere Timeline und Section
                 setLeftEyeTreatmentHistory(current.getId());
@@ -432,7 +460,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             return;
         }
         
-        if (current.getId() == null || current.getId() == -1) {
+        if (isNewTreatmentPlan()) {
             Notification.show("Bitte speichern Sie zuerst den Behandlungsplan.", 3000,
                     Notification.Position.MIDDLE);
             return;
@@ -454,7 +482,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             List<Treatment> futureTreatments = allTreatments.stream()
                 .filter(t -> t.getDate() != null && !t.getDate().isBefore(now))
                 .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
             
             // Verwende Treatments direkt für den Report
             AppointmentReportService reportService = context.getBean(AppointmentReportService.class);
@@ -473,7 +501,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             // Erstelle Download-Link
             String patientName = patient.getLastName() + "_" + patient.getFirstName();
             String filename = "Terminuebersicht_" + patientName + "_" + 
-                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
+                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".pdf";
             
             downloadPdf(pdfBytes, filename);
             
@@ -483,7 +511,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             Notification notification = Notification.show(
                     "Fehler beim Generieren des Termin-Ausdrucks: " + e.getMessage(), 5000, 
                     Notification.Position.MIDDLE);
-            notification.addThemeVariants(com.vaadin.flow.component.notification.NotificationVariant.LUMO_ERROR);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
     
@@ -514,7 +542,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
         if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
             if (institutionAuth.getInstitutionId() != null) {
                 InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
-                return;
             }
         } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
             // Authentication was deserialized from session
@@ -526,7 +553,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 if (userAccount != null && userAccount.getInstitution() != null) {
                     Long institutionId = userAccount.getInstitution().getId();
                     InstitutionContext.setInstitutionId(institutionId);
-                    return;
                 }
             } catch (Exception e) {
                 // Log but don't fail - will be caught by service layer
@@ -561,8 +587,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
     }
     
     // Maps für Info-Kacheln und Terminbuchung pro Auge
-    private final java.util.Map<SideOfEye, com.vaadin.flow.component.html.Div> infoCardMap = new java.util.HashMap<>();
-    private final java.util.Map<SideOfEye, com.vaadin.flow.component.html.Div> bookingCardMap = new java.util.HashMap<>();
+    private final Map<SideOfEye, Div> infoCardMap = new HashMap<>();
+    private final Map<SideOfEye, Div> bookingCardMap = new HashMap<>();
     
     private void updateTimelineLayout(VerticalLayout timeLineLayout, TimelineView.Orientation orientation) {
         // Remove existing timeline accordions and eyesContainer
@@ -590,7 +616,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         } else {
             // Horizontal: show vertically stacked mit Info-Kachel links und Terminbuchung rechts
             // Rechtes Auge - mit Rahmen um gesamte Section
-            com.vaadin.flow.component.html.Div rightEyeSection = new com.vaadin.flow.component.html.Div();
+            Div rightEyeSection = new Div();
             rightEyeSection.getStyle()
                 .set("border", "1px solid var(--lumo-contrast-20pct)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
@@ -607,7 +633,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             rightEyeLayout.setPadding(false);
             
             // Info-Kachel links
-            com.vaadin.flow.component.html.Div rightInfoCard = createInfoCard(SideOfEye.RIGHT);
+            Div rightInfoCard = createInfoCard(SideOfEye.RIGHT);
             infoCardMap.put(SideOfEye.RIGHT, rightInfoCard);
             rightInfoCard.getStyle().set("margin-right", "var(--lumo-space-s)");
             rightEyeLayout.add(rightInfoCard);
@@ -628,7 +654,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             rightEyeLayout.setFlexGrow(1, rightTimelineWrapper);
             
             // Terminbuchung rechts
-            com.vaadin.flow.component.html.Div rightBookingCard = createBookingCard(SideOfEye.RIGHT);
+            Div rightBookingCard = createBookingCard(SideOfEye.RIGHT);
             bookingCardMap.put(SideOfEye.RIGHT, rightBookingCard);
             rightBookingCard.getStyle().set("margin-left", "var(--lumo-space-s)");
             rightEyeLayout.add(rightBookingCard);
@@ -639,7 +665,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             timeLineLayout.add(rightEyeSection);
             
             // Linkes Auge - mit Rahmen um gesamte Section
-            com.vaadin.flow.component.html.Div leftEyeSection = new com.vaadin.flow.component.html.Div();
+            Div leftEyeSection = new Div();
             leftEyeSection.getStyle()
                 .set("border", "1px solid var(--lumo-contrast-20pct)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
@@ -656,7 +682,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             leftEyeLayout.setPadding(false);
             
             // Info-Kachel links
-            com.vaadin.flow.component.html.Div leftInfoCard = createInfoCard(SideOfEye.LEFT);
+            Div leftInfoCard = createInfoCard(SideOfEye.LEFT);
             infoCardMap.put(SideOfEye.LEFT, leftInfoCard);
             leftInfoCard.getStyle().set("margin-right", "var(--lumo-space-s)");
             leftEyeLayout.add(leftInfoCard);
@@ -677,7 +703,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             leftEyeLayout.setFlexGrow(1, leftTimelineWrapper);
             
             // Terminbuchung rechts
-            com.vaadin.flow.component.html.Div leftBookingCard = createBookingCard(SideOfEye.LEFT);
+            Div leftBookingCard = createBookingCard(SideOfEye.LEFT);
             bookingCardMap.put(SideOfEye.LEFT, leftBookingCard);
             leftBookingCard.getStyle().set("margin-left", "var(--lumo-space-s)");
             leftEyeLayout.add(leftBookingCard);
@@ -692,8 +718,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
     /**
      * Erstellt eine Info-Kachel mit Behandlungsplan-Informationen.
      */
-    private com.vaadin.flow.component.html.Div createInfoCard(SideOfEye side) {
-        com.vaadin.flow.component.html.Div card = new com.vaadin.flow.component.html.Div();
+    private Div createInfoCard(SideOfEye side) {
+        Div card = new Div();
         card.addClassName("timeline-info-card");
         card.getStyle()
             .set("background-color", "var(--lumo-base-color)")
@@ -711,11 +737,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
     /**
      * Aktualisiert die Info-Kachel mit aktuellen Daten.
      */
-    private void updateInfoCard(com.vaadin.flow.component.html.Div card, SideOfEye side) {
+    private void updateInfoCard(Div card, SideOfEye side) {
         card.removeAll();
         
-        if (current == null || current.getId() == null || current.getId() == -1) {
-            com.vaadin.flow.component.html.Span noData = new com.vaadin.flow.component.html.Span("Keine Daten verfügbar");
+        if (isNewTreatmentPlan()) {
+            Span noData = new Span("Keine Daten verfügbar");
             card.add(noData);
             return;
         }
@@ -725,8 +751,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         LocalDate now = LocalDate.now();
         
         // Titel
-        com.vaadin.flow.component.html.H4 title = new com.vaadin.flow.component.html.H4(
-            side == SideOfEye.LEFT ? "Linkes Auge (OS)" : "Rechtes Auge (OD)");
+        H4 title = new H4(side == SideOfEye.LEFT ? "Linkes Auge (OS)" : "Rechtes Auge (OD)");
         title.getStyle()
             .set("margin-top", "0")
             .set("margin-bottom", "var(--lumo-space-s)")
@@ -782,8 +807,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
     /**
      * Erstellt eine Terminbuchungs-Kachel.
      */
-    private com.vaadin.flow.component.html.Div createBookingCard(SideOfEye side) {
-        com.vaadin.flow.component.html.Div card = new com.vaadin.flow.component.html.Div();
+    private Div createBookingCard(SideOfEye side) {
+        Div card = new Div();
         card.addClassName("timeline-booking-card");
         card.getStyle()
             .set("background-color", "var(--lumo-base-color)")
@@ -801,11 +826,11 @@ public class TreatmentPlanLayout extends VerticalLayout {
     /**
      * Aktualisiert die Terminbuchungs-Kachel.
      */
-    private void updateBookingCard(com.vaadin.flow.component.html.Div card, SideOfEye side) {
+    private void updateBookingCard(Div card, SideOfEye side) {
         card.removeAll();
         
-        if (current == null || current.getId() == null || current.getId() == -1) {
-            com.vaadin.flow.component.html.Span noData = new com.vaadin.flow.component.html.Span("Bitte speichern Sie zuerst den Behandlungsplan.");
+        if (isNewTreatmentPlan()) {
+            Span noData = new Span("Bitte speichern Sie zuerst den Behandlungsplan.");
             card.add(noData);
             return;
         }
@@ -815,7 +840,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         int treatmentCount = treatments != null ? treatments.size() : 0;
         
         // Titel
-        com.vaadin.flow.component.html.H4 title = new com.vaadin.flow.component.html.H4("Termin buchen");
+        H4 title = new H4("Termin buchen");
         title.getStyle()
             .set("margin-top", "0")
             .set("margin-bottom", "var(--lumo-space-s)")
@@ -848,7 +873,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             HorizontalLayout shorterLayout = new HorizontalLayout();
             shorterLayout.setSpacing(true);
             shorterLayout.setWidthFull();
-            shorterLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+            shorterLayout.setAlignItems(FlexComponent.Alignment.CENTER);
             
             IntegerField shorterWeeksField = new IntegerField();
             shorterWeeksField.setValue(1);
@@ -856,7 +881,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             shorterWeeksField.setMax(MAX_INTERVAL_WEEKS);
             shorterWeeksField.setStep(1);
             shorterWeeksField.setWidth("80px");
-            shorterWeeksField.setSuffixComponent(new com.vaadin.flow.component.html.Span("Woche"));
+            shorterWeeksField.setSuffixComponent(new Span("Woche"));
             shorterWeeksField.getStyle().set("flex-shrink", "0");
             
             Button shorterButton = new Button("Verkürzen", VaadinIcon.ARROW_LEFT.create());
@@ -888,7 +913,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             HorizontalLayout longerLayout = new HorizontalLayout();
             longerLayout.setSpacing(true);
             longerLayout.setWidthFull();
-            longerLayout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+            longerLayout.setAlignItems(FlexComponent.Alignment.CENTER);
             
             IntegerField longerWeeksField = new IntegerField();
             longerWeeksField.setValue(1);
@@ -896,7 +921,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             longerWeeksField.setMax(MAX_INTERVAL_WEEKS);
             longerWeeksField.setStep(1);
             longerWeeksField.setWidth("80px");
-            longerWeeksField.setSuffixComponent(new com.vaadin.flow.component.html.Span("Woche"));
+            longerWeeksField.setSuffixComponent(new Span("Woche"));
             longerWeeksField.getStyle().set("flex-shrink", "0");
             
             Button longerButton = new Button("Verlängern", VaadinIcon.ARROW_RIGHT.create());
@@ -925,12 +950,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
      * Aktualisiert Info-Kachel und Terminbuchung für ein Auge.
      */
     private void updateTimelineInfoAndBooking(SideOfEye side) {
-        com.vaadin.flow.component.html.Div infoCard = infoCardMap.get(side);
+        Div infoCard = infoCardMap.get(side);
         if (infoCard != null) {
             updateInfoCard(infoCard, side);
         }
         
-        com.vaadin.flow.component.html.Div bookingCard = bookingCardMap.get(side);
+        Div bookingCard = bookingCardMap.get(side);
         if (bookingCard != null) {
             updateBookingCard(bookingCard, side);
         }
@@ -944,6 +969,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
         return treatments != null && !treatments.isEmpty();
     }
 
+    /**
+     * Prüft, ob es sich um einen neuen (noch nicht gespeicherten) Behandlungsplan handelt.
+     */
+    private boolean isNewTreatmentPlan() {
+        return current == null || current.getId() == null || current.getId() == NEW_TREATMENT_PLAN_ID;
+    }
 
     private void initializeBinder(TreatmentPlan dto) {
         binder.bind(creationDatePicker, TreatmentPlan::getCreationDate,
@@ -1008,7 +1039,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
                     startDatePicker.getValue(), timePeriodComboBox.getValue(), repetitionComboBox.getValue(),
                     id);
             timeSlotGrid.setItems(availableAndFilteredSlots);
-            timeSlotGrid.setItems(availableAndFilteredSlots);
         });
 
         verticalLayout.add(formLayout);
@@ -1022,8 +1052,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineViewRightEye.setWidthFull();
         timeLineViewRightEye.setHeightFull();
         timeLineLayout.add(timeLineViewRightEye);
-        if (timeLineLayout instanceof VerticalLayout) {
-            ((VerticalLayout) timeLineLayout).expand(timeLineViewRightEye);
+        if (timeLineLayout instanceof VerticalLayout verticalLayout) {
+            verticalLayout.expand(timeLineViewRightEye);
         }
         setRightEyeTreatmentHistory(current == null ? null : current.getId());
     }
@@ -1041,7 +1071,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 // Verwende bereits geladene Treatments statt neue Query
                 treatments = allTreatments.stream()
                     .filter(t -> SideOfEye.RIGHT.equals(t.getSideOfEye()))
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
             } else {
                 // Fallback: Lade Treatments wenn nicht vorhanden
                 treatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, treatmentPlanId);
@@ -1053,8 +1083,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 rightEyeTreatments.add(config);
             }
         }
-        
-        // Keine Startkachel mehr - wird jetzt außerhalb der Timeline angezeigt
         
         // Callback nach dem Löschen: Timeline neu laden
         timeLineViewRightEye.setOnTreatmentDeletedCallback(() -> {
@@ -1079,9 +1107,9 @@ public class TreatmentPlanLayout extends VerticalLayout {
      * Erstellt eine Card mit den wichtigsten Patientendaten.
      * Diese ist immer sichtbar, damit der Arzt schnell die wichtigsten Infos sieht.
      */
-    private com.vaadin.flow.component.html.Div createPatientInfoCard() {
+    private Div createPatientInfoCard() {
         Patient patient = current.getPatient();
-        com.vaadin.flow.component.html.Div card = new com.vaadin.flow.component.html.Div();
+        Div card = new Div();
         card.addClassName("patient-info-card");
         card.getStyle().set("background-color", "var(--lumo-base-color)");
         card.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
@@ -1090,7 +1118,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         card.getStyle().set("margin-bottom", "var(--lumo-space-m)");
         
         // Titel
-        com.vaadin.flow.component.html.H3 title = new com.vaadin.flow.component.html.H3("Patientendaten");
+        H3 title = new H3("Patientendaten");
         title.getStyle().set("margin-top", "0");
         title.getStyle().set("margin-bottom", "var(--lumo-space-s)");
         title.getStyle().set("color", "var(--lumo-primary-text-color)");
@@ -1113,7 +1141,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         // Geburtsdatum
         if (patient.getBirth() != null) {
             String birthDate = patient.getBirth().format(
-                    java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy", java.util.Locale.GERMAN));
+                    DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN));
             infoLayout.add(createInfoRow("Geburtsdatum", birthDate));
         }
         
@@ -1141,14 +1169,14 @@ public class TreatmentPlanLayout extends VerticalLayout {
         HorizontalLayout row = new HorizontalLayout();
         row.setSpacing(true);
         row.setWidthFull();
-        row.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE);
+        row.setAlignItems(FlexComponent.Alignment.BASELINE);
         
-        com.vaadin.flow.component.html.Span labelSpan = new com.vaadin.flow.component.html.Span(label + ":");
+        Span labelSpan = new Span(label + ":");
         labelSpan.getStyle().set("font-weight", "600");
         labelSpan.getStyle().set("min-width", "120px");
         labelSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
         
-        com.vaadin.flow.component.html.Span valueSpan = new com.vaadin.flow.component.html.Span(value);
+        Span valueSpan = new Span(value);
         valueSpan.getStyle().set("color", "var(--lumo-body-text-color)");
         
         row.add(labelSpan, valueSpan);
@@ -1165,7 +1193,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         row.setWidthFull();
         row.setPadding(false);
         
-        com.vaadin.flow.component.html.Span span = new com.vaadin.flow.component.html.Span(text);
+        Span span = new Span(text);
         span.getStyle().set("font-size", "var(--lumo-font-size-s)");
         row.add(span);
         
@@ -1180,8 +1208,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
         timeLineViewLeftEye.setWidthFull();
         timeLineViewLeftEye.setHeightFull();
         timeLineLayout.add(timeLineViewLeftEye);
-        if (timeLineLayout instanceof VerticalLayout) {
-            ((VerticalLayout) timeLineLayout).expand(timeLineViewLeftEye);
+        if (timeLineLayout instanceof VerticalLayout verticalLayout) {
+            verticalLayout.expand(timeLineViewLeftEye);
         }
         setLeftEyeTreatmentHistory(current == null ? null : current.getId());
     }
@@ -1199,7 +1227,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 // Verwende bereits geladene Treatments statt neue Query
                 treatments = allTreatments.stream()
                     .filter(t -> SideOfEye.LEFT.equals(t.getSideOfEye()))
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
             } else {
                 // Fallback: Lade Treatments wenn nicht vorhanden
                 treatments = presenter.getTreatmentDtos(SideOfEye.LEFT, treatmentPlanId);
@@ -1211,8 +1239,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 leftEyeTreatments.add(config);
             }
         }
-        
-        // Keine Startkachel mehr - wird jetzt außerhalb der Timeline angezeigt
         
         // Callback nach dem Löschen: Timeline neu laden
         timeLineViewLeftEye.setOnTreatmentDeletedCallback(() -> {
@@ -1233,10 +1259,41 @@ public class TreatmentPlanLayout extends VerticalLayout {
     }
 
     public TreatmentPlan getCurrent() {
+        // Stelle sicher, dass alle Änderungen aus dem Binder geschrieben werden
+        writeBean();
+        
         TreatmentPlan dto = binder.getBean();
         dto.getTreatments().addAll(getTimeSlotsToCreate());
+        
+        // Stelle sicher, dass Patient und Diagnosis explizit aus den UI-Feldern gesetzt werden
+        // (da ComboBoxen manchmal nicht korrekt mit dem Binder synchronisiert sind)
         dto.setPatient(patientSelectComboBox.getValue());
+        dto.setDiagnosis(reasonForTreatmentComboBox.getValue());
+        
         return dto;
+    }
+    
+    /**
+     * Schreibt alle Änderungen aus den UI-Feldern in das Bean.
+     * Dies stellt sicher, dass alle Werte (inkl. Behandlungsgrund und Notizen) korrekt gesetzt werden.
+     */
+    public void writeBean() {
+        if (binder != null && binder.getBean() != null) {
+            try {
+                // Schreibe alle Felder aus dem Binder
+                binder.writeBean(binder.getBean());
+                
+                // Stelle sicher, dass Diagnosis und AdditionalInformation explizit aus den UI-Feldern gesetzt werden
+                // (da ComboBoxen und TextAreas manchmal nicht korrekt mit dem Binder synchronisiert sind)
+                TreatmentPlan bean = binder.getBean();
+                if (bean != null) {
+                    bean.setDiagnosis(reasonForTreatmentComboBox.getValue());
+                    bean.setAdditionalInformation(additionalInformation.getValue());
+                }
+            } catch (Exception e) {
+                // Fehler beim Schreiben - ignorieren, da Validierung beim Speichern erfolgt
+            }
+        }
     }
 
     public List<Treatment> getTimeSlotsToCreate() {
@@ -1256,8 +1313,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
     /**
      * Erstellt eine Section (wie im PatientDialog) statt Accordion.
      */
-    private com.vaadin.flow.component.html.Div createSection(String title) {
-        com.vaadin.flow.component.html.Div section = new com.vaadin.flow.component.html.Div();
+    private Div createSection(String title) {
+        Div section = new Div();
         section.addClassName("dialog-section");
         section.setWidthFull();
         // Flexbox für Höhenanpassung
@@ -1270,7 +1327,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         section.getStyle().set("box-sizing", "border-box");
         section.getStyle().set("margin-bottom", "var(--lumo-space-m)");
         
-        com.vaadin.flow.component.html.H4 sectionTitle = new com.vaadin.flow.component.html.H4(title);
+        H4 sectionTitle = new H4(title);
         sectionTitle.getStyle().set("margin-top", "0");
         sectionTitle.getStyle().set("margin-bottom", "var(--lumo-space-s)");
         sectionTitle.getStyle().set("color", "var(--lumo-primary-text-color)");
@@ -1287,25 +1344,28 @@ public class TreatmentPlanLayout extends VerticalLayout {
      * Berücksichtigt sowohl Binder-Änderungen als auch neue Treatments (z.B. gebuchte Folgetermine).
      */
     public boolean hasChanges() {
-        if (binder == null || current == null) {
+        if (binder == null) {
             return false;
         }
         
         // Prüfe ob Binder Änderungen hat
         boolean binderHasChanges = binder.hasChanges();
         
-        // Prüfe ob neue Treatments gebucht wurden (z.B. Folgetermine)
+        // Bei Neuanlage: Nur Binder-Änderungen prüfen
+        if (isNewTreatmentPlan()) {
+            return binderHasChanges;
+        }
+        
+        // Bei bestehendem Plan: Prüfe auch Treatments
         int currentTreatmentCount = 0;
-        if (current.getId() != null) {
-            try {
-                // Lade aktuelle Treatments aus der DB
-                List<Treatment> leftTreatments = presenter.getTreatmentDtos(SideOfEye.LEFT, current.getId());
-                List<Treatment> rightTreatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, current.getId());
-                currentTreatmentCount = leftTreatments.size() + rightTreatments.size();
-            } catch (Exception e) {
-                // Bei Fehler: Binder-Änderungen als Indikator verwenden
-                return binderHasChanges;
-            }
+        try {
+            // Lade aktuelle Treatments aus der DB
+            List<Treatment> leftTreatments = presenter.getTreatmentDtos(SideOfEye.LEFT, current.getId());
+            List<Treatment> rightTreatments = presenter.getTreatmentDtos(SideOfEye.RIGHT, current.getId());
+            currentTreatmentCount = leftTreatments.size() + rightTreatments.size();
+        } catch (Exception e) {
+            // Bei Fehler: Binder-Änderungen als Indikator verwenden
+            return binderHasChanges;
         }
         
         boolean treatmentsChanged = currentTreatmentCount != initialTreatmentCount;
@@ -1329,6 +1389,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
             initialTreatmentCount = 0;
         }
         
+        // Stelle sicher, dass kein Scroll-Target gesetzt ist (beim Neuladen soll zum nächsten Termin gescrollt werden)
+        timeLineViewLeftEye.setScrollTarget(null);
+        timeLineViewRightEye.setScrollTarget(null);
+        
         // Verwende bereits geladene Treatments statt neue Queries
         setLeftEyeTreatmentHistory(newCurrent.getId(), newCurrent.getTreatments());
         setRightEyeTreatmentHistory(newCurrent.getId(), newCurrent.getTreatments());
@@ -1339,11 +1403,6 @@ public class TreatmentPlanLayout extends VerticalLayout {
         // Aktualisiere Details-Section (Patient-Combobox Sichtbarkeit)
         updateDetailsSection();
         
-        // Grid-Ansicht wurde entfernt
-        
-        // Refresh timeline display if orientation toggle exists
-        // Note: This will be called after the layout is already built, so we need to update it
-        // The accordions will be re-added by updateTimelineLayout if needed
     }
     
     /**
@@ -1356,7 +1415,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
         
         // Entferne alle Kinder außer dem Titel (Index 0 = H4 Titel)
-        List<com.vaadin.flow.component.Component> childrenToRemove = new ArrayList<>();
+        List<Component> childrenToRemove = new ArrayList<>();
         for (int i = 1; i < overviewSectionDiv.getComponentCount(); i++) {
             childrenToRemove.add(overviewSectionDiv.getComponentAt(i));
         }
@@ -1380,10 +1439,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
             }
             current.setPatient(patient);
             
-            com.vaadin.flow.component.html.Div patientCard = createPatientInfoCard();
+            Div patientCard = createPatientInfoCard();
             // Entferne den Titel aus der Card, da er bereits in der Section ist
             patientCard.getChildren()
-                .filter(c -> c instanceof com.vaadin.flow.component.html.H3)
+                .filter(c -> c instanceof H3)
                 .findFirst()
                 .ifPresent(patientCard::remove);
             
@@ -1397,10 +1456,39 @@ public class TreatmentPlanLayout extends VerticalLayout {
             }
         }
         
-        // Nächste Termine werden jetzt in der TimelineView-Übersicht angezeigt, nicht mehr hier
+        
+        // Button "Erstellen" hinzufügen (nur bei Neuanlage)
+        if (isNewTreatmentPlan()) {
+            Button createButton = new Button("Erstellen", VaadinIcon.PLUS.create());
+            createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            createButton.setWidthFull();
+            createButton.getStyle().set("margin-top", "var(--lumo-space-m)");
+            createButton.addClickListener(e -> {
+                // Stelle sicher, dass InstitutionContext gesetzt ist
+                ensureInstitutionContext();
+                
+                TreatmentPlan treatmentPlanToSave = binder.getBean();
+                if (treatmentPlanToSave != null && treatmentPlanToSave.getId() != null 
+                        && treatmentPlanToSave.getId() == NEW_TREATMENT_PLAN_ID) {
+                    treatmentPlanToSave.setId(null);
+                }
+                
+                TreatmentPlan saved = presenter.saveTreatmentPlanAndTreatments(treatmentPlanToSave,
+                        getTimeSlotsToCreate());
+                // Nach dem Speichern: Binder zurücksetzen und neu laden
+                if (saved != null && saved.getId() != null) {
+                    resetBinder();
+                    current = presenter.getByIdWithFullDetails(saved.getId());
+                    setCurrent(current);
+                    // Navigiere zur Detailansicht
+                    UI.getCurrent().navigate("ivom/" + saved.getId());
+                }
+            });
+            overviewSectionDiv.add(createButton);
+        }
         
         // Button "Terminübersicht drucken" hinzufügen
-        if (current != null && current.getId() != null && current.getId() != -1) {
+        if (!isNewTreatmentPlan()) {
             Button exportButton = new Button("Terminübersicht drucken", VaadinIcon.PRINT.create());
             exportButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
             exportButton.setWidthFull();
@@ -1410,10 +1498,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
         
         // Button "Behandlungsplan abschließen" hinzufügen
-        if (current != null && current.getId() != null && current.getId() != -1) {
-            // Prüfe, ob bereits abgeschlossen
+        if (!isNewTreatmentPlan()) {
+                // Prüfe, ob bereits abgeschlossen
             if (current.getFinishedDate() != null) {
-                com.vaadin.flow.component.html.Span statusText = new com.vaadin.flow.component.html.Span(
+                Span statusText = new Span(
                     "Dieser Behandlungsplan wurde am " + 
                     current.getFinishedDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN)) + 
                     " abgeschlossen.");
@@ -1433,7 +1521,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
                         .anyMatch(t -> t.getDate() != null && t.getDate().isAfter(now));
                 
                 if (hasFutureTreatments) {
-                    com.vaadin.flow.component.html.Span infoText = new com.vaadin.flow.component.html.Span(
+                    Span infoText = new Span(
                         "Der Behandlungsplan kann erst abgeschlossen werden, wenn keine zukünftigen Termine mehr anstehen.");
                     infoText.getStyle().set("color", "var(--lumo-secondary-text-color)");
                     infoText.getStyle().set("margin-top", "var(--lumo-space-m)");
@@ -1445,10 +1533,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
                     finishButton.setWidthFull();
                     finishButton.getStyle().set("margin-top", "var(--lumo-space-m)");
                     finishButton.addClickListener(e -> {
-                        com.vaadin.flow.component.dialog.Dialog confirmDialog = new com.vaadin.flow.component.dialog.Dialog();
+                        Dialog confirmDialog = new Dialog();
                         confirmDialog.setHeaderTitle("Behandlungsplan abschließen");
                         
-                        com.vaadin.flow.component.html.Span message = new com.vaadin.flow.component.html.Span(
+                        Span message = new Span(
                             "Möchten Sie diesen Behandlungsplan wirklich abschließen? " +
                             "Dies kann nicht rückgängig gemacht werden.");
                         confirmDialog.add(message);
@@ -1483,27 +1571,23 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
     }
     
-    /**
-     * Aktualisiert die Patientendaten-Card in der Section "Allgemein".
-     * @deprecated Wird nicht mehr verwendet, da Patientendaten jetzt in "Übersicht" sind
-     */
-    @Deprecated
-    private void updatePatientInfoCard() {
-        // Nicht mehr verwendet - Patientendaten sind jetzt in "Übersicht"
-    }
 
     private void openNextTreatmentBookingDialog(SideOfEye sideOfEye) {
         if (current == null || current.getId() == null) {
-            com.vaadin.flow.component.notification.Notification.show(
+            Notification.show(
                     "Bitte speichern Sie zuerst den Behandlungsplan.", 3000,
-                    com.vaadin.flow.component.notification.Notification.Position.MIDDLE);
+                    Notification.Position.MIDDLE);
             return;
         }
 
         NextTreatmentBookingDialog dialog = new NextTreatmentBookingDialog(
                 current, sideOfEye, context, presenter, treatment -> {
                     // UI-Updates müssen im UI-Thread passieren
-                    com.vaadin.flow.component.UI.getCurrent().access(() -> {
+                    UI.getCurrent().access(() -> {
+                        // Setze Scroll-Target auf das neu erstellte Treatment
+                        TimelineView targetTimeline = sideOfEye == SideOfEye.LEFT ? timeLineViewLeftEye : timeLineViewRightEye;
+                        targetTimeline.setScrollTarget(treatment);
+                        
                         // Nach erfolgreicher Buchung: Timeline aktualisieren
                         setLeftEyeTreatmentHistory(current.getId());
                         setRightEyeTreatmentHistory(current.getId());
@@ -1582,7 +1666,25 @@ public class TreatmentPlanLayout extends VerticalLayout {
         }
         Treatment newTreatment = cloneTreatmentForQuickBooking(lastTreatment, selectedSlot, request.sideOfEye());
 
-        presenter.save(current.getId(), List.of(newTreatment));
+        TreatmentPlan savedPlan = presenter.save(current.getId(), List.of(newTreatment));
+        
+        // Finde das neu erstellte Treatment im zurückgegebenen Plan
+        Treatment savedTreatment = null;
+        if (savedPlan != null && savedPlan.getTreatments() != null) {
+            savedTreatment = savedPlan.getTreatments().stream()
+                .filter(t -> t.getSurgicalCenterTimeSlot() != null 
+                    && t.getSurgicalCenterTimeSlot().getId() != null
+                    && t.getSurgicalCenterTimeSlot().getId().equals(selectedSlot.getId())
+                    && t.getSideOfEye() == request.sideOfEye())
+                .findFirst()
+                .orElse(null);
+        }
+        
+        // Setze Scroll-Target auf das neu erstellte Treatment
+        if (savedTreatment != null) {
+            TimelineView targetTimeline = request.sideOfEye() == SideOfEye.LEFT ? timeLineViewLeftEye : timeLineViewRightEye;
+            targetTimeline.setScrollTarget(savedTreatment);
+        }
     }
 
     private int compareTreatmentsByDate(Treatment a, Treatment b) {
@@ -1604,7 +1706,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         if (previous == null || previous.getDate() == null || last == null || last.getDate() == null) {
             return DEFAULT_INTERVAL_WEEKS;
         }
-        long weeks = java.time.temporal.ChronoUnit.WEEKS.between(previous.getDate(), last.getDate());
+                long weeks = ChronoUnit.WEEKS.between(previous.getDate(), last.getDate());
         if (weeks <= 0) {
             weeks = DEFAULT_INTERVAL_WEEKS;
         }
@@ -1664,7 +1766,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         List<SurgicalCenterTimeSlot> slots = slotCollection.stream()
                 .filter(slot -> slot.getDate() != null)
                 .sorted(this::compareTimeSlots)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
 
         if (slots.isEmpty()) {
             throw new IllegalStateException("Keine freien Termine im ausgewählten Behandlungsort gefunden.");
@@ -1718,10 +1820,10 @@ public class TreatmentPlanLayout extends VerticalLayout {
         List<SurgicalCenterTimeSlot> filtered = slots.stream()
                 .filter(slot -> !slot.getDate().isBefore(lastDate.plusDays(1)))
                 .filter(slot -> {
-                    long deltaDays = java.time.temporal.ChronoUnit.DAYS.between(lastDate, slot.getDate());
+                    long deltaDays = ChronoUnit.DAYS.between(lastDate, slot.getDate());
                     return preferShorter ? deltaDays < previousDays : deltaDays > previousDays;
                 })
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
 
         if (filtered.isEmpty()) {
             return selectClosestSlot(slots, lastDate, targetIntervalWeeks);
@@ -1742,7 +1844,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
         return slots.stream()
                 .filter(slot -> !slot.getDate().isBefore(lastDate.plusDays(1)))
                 .min(Comparator.<SurgicalCenterTimeSlot>comparingLong(slot -> Math.abs(
-                                java.time.temporal.ChronoUnit.DAYS.between(lastDate, slot.getDate()) - targetDays))
+                                ChronoUnit.DAYS.between(lastDate, slot.getDate()) - targetDays))
                         .thenComparing(SurgicalCenterTimeSlot::getDate)
                         .thenComparing(slot -> slot.getStartTime()))
                 .orElse(slots.get(0));
@@ -1766,7 +1868,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
             newTreatment.setDosage(source.getDosage());
             newTreatment.setAdditionalInfo(source.getAdditionalInfo());
             if (source.getTreatingDoctors() != null && !source.getTreatingDoctors().isEmpty()) {
-                newTreatment.setTreatingDoctors(new java.util.HashSet<>(source.getTreatingDoctors()));
+                newTreatment.setTreatingDoctors(new HashSet<>(source.getTreatingDoctors()));
             }
         }
         return newTreatment;
@@ -1816,12 +1918,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
         });
 
         // Berechne Intervalle zwischen aufeinanderfolgenden Behandlungen
-        java.util.Map<Integer, Integer> intervalCounts = new java.util.HashMap<>();
+        Map<Integer, Integer> intervalCounts = new HashMap<>();
         for (int i = 1; i < sorted.size(); i++) {
             LocalDate prevDate = sorted.get(i - 1).getDate();
             LocalDate currDate = sorted.get(i).getDate();
             if (prevDate != null && currDate != null) {
-                long weeks = java.time.temporal.ChronoUnit.WEEKS.between(prevDate, currDate);
+                long weeks = ChronoUnit.WEEKS.between(prevDate, currDate);
                 if (weeks > 0 && weeks <= 16) {
                     int weeksInt = (int) weeks;
                     intervalCounts.put(weeksInt, intervalCounts.getOrDefault(weeksInt, 0) + 1);
@@ -1831,8 +1933,8 @@ public class TreatmentPlanLayout extends VerticalLayout {
 
         // Finde das häufigste Intervall
         return intervalCounts.entrySet().stream()
-                .max(java.util.Map.Entry.comparingByValue())
-                .map(java.util.Map.Entry::getKey)
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
                 .orElse(null);
     }
 }

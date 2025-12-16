@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -171,10 +172,10 @@ public class TreatmentReportService {
             yPosition = Math.min(yPosition, startY - (location != null ? 80 : 40));
             yPosition -= sectionSpacing;
             
-            // Section header with separation line: Termindetails (professional styling)
+            // Section header with separation line: Termin (professional styling)
             contentStream.setNonStrokingColor(0, 0, 0); // Black for headers
             contentStream.setFont(headerFont, 12); // Slightly larger for better hierarchy
-            yPosition = addTextLine(contentStream, "Termindetails", margin, yPosition, lineHeight);
+            yPosition = addTextLine(contentStream, "Termin", margin, yPosition, lineHeight);
             contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
             yPosition -= 6;
             
@@ -187,10 +188,22 @@ public class TreatmentReportService {
             contentStream.setStrokingColor(0, 0, 0);
             yPosition -= 12;
             
-            // Termindetails content
+            // Termin content
             contentStream.setFont(normalFont, 9);
             if (timeSlot != null && timeSlot.getSurgicalCenter() != null) {
-                yPosition = addTextLine(contentStream, "Behandlungsort: " + timeSlot.getSurgicalCenter().getName(), margin, yPosition, lineHeight);
+                // Behandlungsort fett hervorheben
+                contentStream.setFont(headerFont, 9);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(margin, yPosition);
+                contentStream.showText("Behandlungsort: ");
+                contentStream.endText();
+                contentStream.setFont(normalFont, 9);
+                contentStream.beginText();
+                float textWidth = headerFont.getStringWidth("Behandlungsort: ") / 1000 * 9;
+                contentStream.newLineAtOffset(margin + textWidth, yPosition);
+                contentStream.showText(timeSlot.getSurgicalCenter().getName());
+                contentStream.endText();
+                yPosition -= lineHeight;
                 if (timeSlot.getSurgicalCenter().getAddress() != null) {
                     yPosition = addTextLine(contentStream, "Adresse: " + timeSlot.getSurgicalCenter().getAddress().toString(), margin, yPosition, lineHeight);
                 }
@@ -214,10 +227,10 @@ public class TreatmentReportService {
             yPosition = addTextLine(contentStream, "Behandelnder Arzt: " + treatingDoctorFullName, margin, yPosition, lineHeight);
             yPosition -= sectionSpacing;
             
-            // Section header with separation line: Behandlungsdetails (professional styling)
+            // Section header with separation line: Details (professional styling)
             contentStream.setNonStrokingColor(0, 0, 0);
             contentStream.setFont(headerFont, 12); // Slightly larger for better hierarchy
-            yPosition = addTextLine(contentStream, "Behandlungsdetails", margin, yPosition, lineHeight);
+            yPosition = addTextLine(contentStream, "Details", margin, yPosition, lineHeight);
             contentStream.setNonStrokingColor(0, 0, 0);
             yPosition -= 6;
             
@@ -229,11 +242,6 @@ public class TreatmentReportService {
             contentStream.stroke();
             contentStream.setStrokingColor(0, 0, 0);
             yPosition -= 12;
-            
-            // Sammelbericht in Tabellenform
-            contentStream.setFont(headerFont, 12);
-            yPosition = addTextLine(contentStream, "Behandlungen", margin, yPosition, lineHeight);
-            yPosition -= 10;
             
             // Sortiere Treatments: Zuerst nach Auge (RIGHT, dann LEFT), dann nach Nachname
             List<Treatment> sortedTreatments = treatments.stream()
@@ -373,8 +381,8 @@ public class TreatmentReportService {
                 
                 String versicherung = "-";
                 if (patient != null && patient.getHealthInsurance() != null && 
-                    patient.getHealthInsurance().getBillingCarrierName() != null) {
-                    versicherung = patient.getHealthInsurance().getBillingCarrierName();
+                    patient.getHealthInsurance().getCostCarrierName() != null) {
+                    versicherung = patient.getHealthInsurance().getCostCarrierName();
                     if (versicherung.length() > 12) versicherung = versicherung.substring(0, 9) + "...";
                 }
                 addTextLine(contentStream, versicherung, colVersicherung, currentRowY, lineHeight);
@@ -462,39 +470,126 @@ public class TreatmentReportService {
             contentStream.setNonStrokingColor(0, 0, 0);
             yPosition -= 10;
             
-            // Prüfungsinformationen (nur wenn geprüft)
+            // Prüfungsinformationen für alle Behandlungen
             contentStream.setFont(normalFont, 9);
-            Treatment firstTreatment = sortedTreatments.stream().findFirst().orElse(null);
-            if (firstTreatment != null && firstTreatment.getApprovalDate() != null) {
-                // Find approving doctor from treatments
-                String approvingDoctor = treatments.stream()
-                        .filter(t -> t.getApprovedByUserName() != null)
-                        .map(Treatment::getApprovedByUserName)
-                        .findFirst()
-                        .orElse("-");
-                
-                // Get full name of approving doctor
-                if (!"-".equals(approvingDoctor)) {
-                    try {
-                        UserAccount approvingDoctorAccount = userAccountRepository.findByUsername(approvingDoctor).orElse(null);
-                        if (approvingDoctorAccount != null && approvingDoctorAccount.getFullName() != null && !approvingDoctorAccount.getFullName().isBlank()) {
-                            approvingDoctor = approvingDoctorAccount.getFullName();
+            
+            // Sammle alle dokumentierten Behandlungen
+            List<Treatment> documentedTreatments = sortedTreatments.stream()
+                    .filter(t -> t.getApprovalDate() != null)
+                    .collect(Collectors.toList());
+            
+            if (!documentedTreatments.isEmpty()) {
+                // Wenn nur eine Behandlung dokumentiert wurde, zeige Details
+                if (documentedTreatments.size() == 1) {
+                    Treatment documentedTreatment = documentedTreatments.get(0);
+                    
+                    // Dokumentationsdatum
+                    if (documentedTreatment.getApprovalDateTime() != null) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+                        yPosition = addTextLine(contentStream, "Dokumentiert am: " + dateFormatter.format(documentedTreatment.getApprovalDateTime()), margin, yPosition, lineHeight);
+                    } else if (documentedTreatment.getApprovalDate() != null) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                        yPosition = addTextLine(contentStream, "Dokumentiert am: " + dateFormatter.format(documentedTreatment.getApprovalDate()), margin, yPosition, lineHeight);
+                    }
+                    
+                    // Dokumentierer
+                    String documentedBy = documentedTreatment.getApprovedByUserName();
+                    if (documentedBy != null && !documentedBy.isBlank()) {
+                        // Get full name of documenting doctor
+                        try {
+                            UserAccount documentedByAccount = userAccountRepository.findByUsername(documentedBy).orElse(null);
+                            if (documentedByAccount != null && documentedByAccount.getFullName() != null && !documentedByAccount.getFullName().isBlank()) {
+                                documentedBy = documentedByAccount.getFullName();
+                            }
+                        } catch (Exception e) {
+                            // Fallback to username if lookup fails
                         }
-                    } catch (Exception e) {
-                        // Fallback to username if lookup fails
+                        yPosition = addTextLine(contentStream, "Dokumentiert von: " + documentedBy, margin, yPosition, lineHeight);
+                    }
+                    
+                    // Zweitprüfung
+                    if (documentedTreatment.getSecondApprovalDateTime() != null) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+                        yPosition = addTextLine(contentStream, "Zweitprüfung am: " + dateFormatter.format(documentedTreatment.getSecondApprovalDateTime()), margin, yPosition, lineHeight);
+                        
+                        String secondApprovedBy = documentedTreatment.getSecondApprovedByUserName();
+                        if (secondApprovedBy != null && !secondApprovedBy.isBlank()) {
+                            // Get full name of second approving doctor
+                            try {
+                                UserAccount secondApprovedByAccount = userAccountRepository.findByUsername(secondApprovedBy).orElse(null);
+                                if (secondApprovedByAccount != null && secondApprovedByAccount.getFullName() != null && !secondApprovedByAccount.getFullName().isBlank()) {
+                                    secondApprovedBy = secondApprovedByAccount.getFullName();
+                                }
+                            } catch (Exception e) {
+                                // Fallback to username if lookup fails
+                            }
+                            yPosition = addTextLine(contentStream, "Zweitprüfung von: " + secondApprovedBy, margin, yPosition, lineHeight);
+                        }
+                    } else {
+                        yPosition = addTextLine(contentStream, "Zweitprüfung: Nicht durchgeführt", margin, yPosition, lineHeight);
+                    }
+                } else {
+                    // Mehrere Behandlungen dokumentiert - zeige zusammenfassende Informationen
+                    // Finde das früheste und späteste Dokumentationsdatum
+                    java.util.Optional<LocalDateTime> earliestDoc = documentedTreatments.stream()
+                            .map(Treatment::getApprovalDateTime)
+                            .filter(dt -> dt != null)
+                            .min(java.util.Comparator.naturalOrder());
+                    
+                    java.util.Optional<LocalDateTime> latestDoc = documentedTreatments.stream()
+                            .map(Treatment::getApprovalDateTime)
+                            .filter(dt -> dt != null)
+                            .max(java.util.Comparator.naturalOrder());
+                    
+                    if (earliestDoc.isPresent()) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+                        yPosition = addTextLine(contentStream, "Erste Dokumentation am: " + dateFormatter.format(earliestDoc.get()), margin, yPosition, lineHeight);
+                    }
+                    
+                    if (latestDoc.isPresent() && !latestDoc.equals(earliestDoc)) {
+                        DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+                        yPosition = addTextLine(contentStream, "Letzte Dokumentation am: " + dateFormatter.format(latestDoc.get()), margin, yPosition, lineHeight);
+                    }
+                    
+                    // Sammle alle Dokumentierer
+                    java.util.Set<String> documenters = documentedTreatments.stream()
+                            .map(Treatment::getApprovedByUserName)
+                            .filter(name -> name != null && !name.isBlank())
+                            .collect(Collectors.toSet());
+                    
+                    if (!documenters.isEmpty()) {
+                        // Get full names
+                        java.util.List<String> documenterNames = documenters.stream()
+                                .map(username -> {
+                                    try {
+                                        UserAccount account = userAccountRepository.findByUsername(username).orElse(null);
+                                        if (account != null && account.getFullName() != null && !account.getFullName().isBlank()) {
+                                            return account.getFullName();
+                                        }
+                                        return username;
+                                    } catch (Exception e) {
+                                        return username;
+                                    }
+                                })
+                                .collect(Collectors.toList());
+                        yPosition = addTextLine(contentStream, "Dokumentiert von: " + String.join(", ", documenterNames), margin, yPosition, lineHeight);
+                    }
+                    
+                    // Prüfe Zweitprüfung
+                    long secondApprovedCount = documentedTreatments.stream()
+                            .filter(t -> t.getSecondApprovalDateTime() != null)
+                            .count();
+                    
+                    if (secondApprovedCount == documentedTreatments.size()) {
+                        yPosition = addTextLine(contentStream, "Zweitprüfung: Alle Behandlungen zweitgeprüft", margin, yPosition, lineHeight);
+                    } else if (secondApprovedCount > 0) {
+                        yPosition = addTextLine(contentStream, "Zweitprüfung: " + secondApprovedCount + " von " + documentedTreatments.size() + " Behandlungen zweitgeprüft", margin, yPosition, lineHeight);
+                    } else {
+                        yPosition = addTextLine(contentStream, "Zweitprüfung: Nicht durchgeführt", margin, yPosition, lineHeight);
                     }
                 }
-                
-                if (firstTreatment.getApprovalDateTime() != null) {
-                    DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-                    yPosition = addTextLine(contentStream, "Geprüft am: " + dateFormatter.format(firstTreatment.getApprovalDateTime()), margin, yPosition, lineHeight);
-                } else {
-                    DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
-                    yPosition = addTextLine(contentStream, "Geprüft am: " + dateFormatter.format(firstTreatment.getApprovalDate()), margin, yPosition, lineHeight);
-                }
-                if (!"-".equals(approvingDoctor)) {
-                    yPosition = addTextLine(contentStream, "von: " + approvingDoctor, margin, yPosition, lineHeight);
-                }
+            } else {
+                yPosition = addTextLine(contentStream, "Dokumentation: Ausstehend", margin, yPosition, lineHeight);
             }
             yPosition -= 15;
             

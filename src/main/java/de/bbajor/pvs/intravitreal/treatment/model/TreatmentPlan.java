@@ -82,7 +82,8 @@ public class TreatmentPlan extends BasicEntity<Long> {
         if (patient.getHealthInsurance() == null) {
             return "-";
         }
-        return patient.getHealthInsurance().getBillingCarrierName();
+        // Verwende toString() wie in der Patientenübersicht, um costCarrierName zu priorisieren
+        return patient.getHealthInsurance().toString();
     }
 
     public LocalDate getBirth() {

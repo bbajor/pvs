@@ -202,6 +202,15 @@ public class LocationManagementTab extends VerticalLayout {
         }
 
         try {
+            // Stelle sicher, dass InstitutionContext gesetzt ist
+            Long institutionId = InstitutionContext.getInstitutionId();
+            if (institutionId == null) {
+                Notification.show("Keine Institution ausgewählt. Bitte melden Sie sich mit einer Institution an.",
+                        5000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+
             Location location = new Location();
             location.setLocationName(name);
             location.setStreet(streetField.getValue());
@@ -215,7 +224,6 @@ public class LocationManagementTab extends VerticalLayout {
             location.setActive(true);
 
             // Set institution from current context
-            Long institutionId = InstitutionContext.getInstitutionId();
             Institution institution = institutionRepository.findById(institutionId)
                     .orElseThrow(() -> new IllegalStateException("Institution not found: " + institutionId));
             location.setInstitution(institution);

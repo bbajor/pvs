@@ -1,5 +1,6 @@
 package de.bbajor.pvs.intravitreal.treatment.ui;
 
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -8,6 +9,8 @@ import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.NativeLabel;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.binder.Binder;
 
@@ -85,6 +88,48 @@ public class TreatmentDetailLayout extends FormLayout {
 
         approvalDatePicker.setValue(treatment.getApprovalDate());
         add(approvalDatePicker);
+        
+        // Prüfungsinformationen-Section
+        VerticalLayout verificationLayout = new VerticalLayout();
+        verificationLayout.setSpacing(true);
+        verificationLayout.setPadding(false);
+        verificationLayout.setWidthFull();
+        
+        Span verificationHeader = new Span("Prüfung");
+        verificationHeader.getStyle().set("font-weight", "600");
+        verificationHeader.getStyle().set("font-size", "var(--lumo-font-size-m)");
+        verificationLayout.add(verificationHeader);
+        
+        if (treatment.getApprovalDate() != null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+            
+            // Dokumentationsdatum
+            if (treatment.getApprovalDateTime() != null) {
+                verificationLayout.add(new Span("Dokumentiert am: " + formatter.format(treatment.getApprovalDateTime())));
+            } else {
+                verificationLayout.add(new Span("Dokumentiert am: " + treatment.getApprovalDate().format(dateFormatter)));
+            }
+            
+            // Dokumentierer
+            if (treatment.getApprovedByUserName() != null) {
+                verificationLayout.add(new Span("Dokumentiert von: " + treatment.getApprovedByUserName()));
+            }
+            
+            // Zweitprüfung
+            if (treatment.getSecondApprovalDateTime() != null) {
+                verificationLayout.add(new Span("Zweitprüfung am: " + formatter.format(treatment.getSecondApprovalDateTime())));
+                if (treatment.getSecondApprovedByUserName() != null) {
+                    verificationLayout.add(new Span("Zweitprüfung von: " + treatment.getSecondApprovedByUserName()));
+                }
+            } else {
+                verificationLayout.add(new Span("Zweitprüfung: Nicht durchgeführt"));
+            }
+        } else {
+            verificationLayout.add(new Span("Dokumentation: Ausstehend"));
+        }
+        
+        add(verificationLayout, 2);
 
         initializeBinder(treatment);
 

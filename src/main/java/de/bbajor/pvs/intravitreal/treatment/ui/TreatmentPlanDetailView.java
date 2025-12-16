@@ -72,63 +72,37 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         treatmentPlanLayout.setSizeFull();
         expand(treatmentPlanLayout); // Layout soll verfügbaren Platz nutzen
         
-        // Binder-Änderungen überwachen für Button-Status
-        treatmentPlanLayout.setBinderChangeListener(() -> updateCreateButton());
+        // Binder-Änderungen überwachen für Auto-Save
+        treatmentPlanLayout.setBinderChangeListener(() -> autoSaveIfNeeded());
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();
         
-        // Prüfe, ob Benutzer berechtigt ist, Termine zu buchen
-        boolean canBook = currentUser.getPrincipal()
-                .map(principal -> {
-                    return principal.getAuthorities().stream()
-                            .anyMatch(auth -> {
-                                String authority = auth.getAuthority();
-                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
-                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
-                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
-                            });
-                })
-                .orElse(false);
-
-        createButton.addClickListener(event -> {
-            // Stelle sicher, dass InstitutionContext gesetzt ist
-            ensureInstitutionContext();
-            
-            TreatmentPlan treatmentPlan = treatmentPlanLayout.getCurrent();
-            if (treatmentPlan != null && treatmentPlan.getId() != null && treatmentPlan.getId() == -1) {
-                treatmentPlan.setId(null);
-            }
-
-            TreatmentPlan saved = treatmenPlanPresenter.saveTreatmentPlanAndTreatments(treatmentPlan,
-                    treatmentPlanLayout.getTimeSlotsToCreate());
-            // Nach dem Speichern: Binder zurücksetzen, damit hasChanges() false wird
-            treatmentPlanLayout.resetBinder();
-            if (saved != null && saved.getId() != null) {
-                UI.getCurrent().navigate("ivom/" + saved.getId());
-            } else {
-                UI.getCurrent().navigate("ivom");
-            }
-
-        });
-        
-        // Button nur für berechtigte Rollen aktivieren
-        createButton.setEnabled(canBook);
-        if (!canBook) {
-            createButton.setTooltipText("Sie benötigen die Rolle ADMIN, DOCTOR oder TECH_USER, um Termine zu buchen oder zu löschen");
-        }
-        
-        buttonBar.add(createButton);
+        // Erstellen-Button wird jetzt in der Übersicht-Section angezeigt (nur bei Neuanlage)
+        // Hier nur noch Zurück-Button
 
         cancelButton.addClickListener(event -> {
-            // Prüfe auf ungespeicherte Änderungen
-            if (treatmentPlanLayout != null && treatmentPlanLayout.hasChanges()) {
-                showUnsavedChangesDialog(() -> {
-                    UI.getCurrent().navigate("ivom");
-                });
-            } else {
-                UI.getCurrent().navigate("ivom");
+            // Beim Zurück-Button: Änderungen IMMER persistieren (auch bei Neuanlage)
+            // Stelle sicher, dass alle Änderungen aus dem Binder geschrieben werden
+            if (treatmentPlanLayout != null) {
+                treatmentPlanLayout.writeBean();
+                
+                ensureInstitutionContext();
+                TreatmentPlan treatmentPlanToSave = treatmentPlanLayout.getCurrent();
+                if (treatmentPlanToSave != null) {
+                    // ID zurücksetzen, falls -1 (für Neuanlage)
+                    if (treatmentPlanToSave.getId() != null && treatmentPlanToSave.getId() == -1) {
+                        treatmentPlanToSave.setId(null);
+                    }
+                    // Speichern sowohl bei Neuanlage als auch bei bestehenden Plänen
+                    // WICHTIG: Immer speichern, auch wenn hasChanges() false ist,
+                    // da Änderungen am Behandlungsgrund und an Notizen möglicherweise nicht erkannt werden
+                    treatmenPlanPresenter.saveTreatmentPlanAndTreatments(treatmentPlanToSave,
+                            treatmentPlanLayout.getTimeSlotsToCreate());
+                    treatmentPlanLayout.resetBinder();
+                }
             }
+            UI.getCurrent().navigate("ivom");
         });
         buttonBar.add(cancelButton);
         HorizontalLayout dummy = new HorizontalLayout();
@@ -222,7 +196,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                     log.info("Setting current treatment plan in layout");
                     treatmentPlanLayout.setCurrent(newTreatmentPlan);
                     this.treatmentPlan = newTreatmentPlan;
-                    updateCreateButton();
+                    // Erstellen-Button wird jetzt in der Übersicht-Section angezeigt
                     log.info("Successfully created new treatment plan with id -1");
                 } catch (Exception e) {
                     log.error("Error setting current treatment plan: {}", e.getMessage(), e);
@@ -240,7 +214,7 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
                 }
                 treatmentPlanLayout.setCurrent(existingTreatmentPlan);
                 this.treatmentPlan = existingTreatmentPlan;
-                updateCreateButton();
+                // Bei bestehendem Plan: Kein Erstellen-Button mehr in der Button-Bar
             }
         } catch (NumberFormatException nfe) {
             log.debug("Invalid id format: {}", idParameter.orElse("null"));
@@ -253,28 +227,35 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         }
     }
 
-    private void updateCreateButton() {
-        boolean isNewTreatmentPlan = treatmentPlan == null || treatmentPlan.getId() == null
-                || treatmentPlan.getId() == -1;
-        createButton.setText(isNewTreatmentPlan ? "Erstellen" : "Speichern");
-        createButton.setIcon(isNewTreatmentPlan ? VaadinIcon.PLUS.create() : VaadinIcon.CHECK.create());
+    /**
+     * Auto-Save: Speichert Änderungen automatisch, wenn ein bestehender Plan bearbeitet wird.
+     * Bei Neuanlage wird nichts gespeichert (Button in Übersicht-Section).
+     */
+    private void autoSaveIfNeeded() {
+        if (treatmentPlan == null || treatmentPlan.getId() == null || treatmentPlan.getId() == -1) {
+            // Neuanlage: Nicht automatisch speichern
+            return;
+        }
         
-        // Berechtigung prüfen
-        boolean canBook = currentUser.getPrincipal()
-                .map(principal -> {
-                    return principal.getAuthorities().stream()
-                            .anyMatch(auth -> {
-                                String authority = auth.getAuthority();
-                                return authority.equals("ROLE_" + AppRoles.ADMIN) ||
-                                        authority.equals("ROLE_" + AppRoles.DOCTOR) ||
-                                        authority.equals("ROLE_" + AppRoles.TECH_USER);
-                            });
-                })
-                .orElse(false);
-        
-        // Button nur aktivieren wenn: berechtigt UND (neu ODER Änderungen vorhanden)
-        boolean hasChanges = treatmentPlanLayout != null && treatmentPlanLayout.hasChanges();
-        createButton.setEnabled(canBook && (isNewTreatmentPlan || hasChanges));
+        // Nur speichern, wenn Änderungen vorhanden sind
+        if (treatmentPlanLayout != null && treatmentPlanLayout.hasChanges()) {
+            // Stelle sicher, dass alle Änderungen aus dem Binder geschrieben werden
+            treatmentPlanLayout.writeBean();
+            
+            ensureInstitutionContext();
+            TreatmentPlan treatmentPlanToSave = treatmentPlanLayout.getCurrent();
+            if (treatmentPlanToSave != null) {
+                try {
+                    treatmentPlanPresenter.saveTreatmentPlanAndTreatments(treatmentPlanToSave,
+                            treatmentPlanLayout.getTimeSlotsToCreate());
+                    treatmentPlanLayout.resetBinder();
+                    // Aktualisiere current, damit weitere Änderungen erkannt werden
+                    this.treatmentPlan = treatmentPlanToSave;
+                } catch (Exception e) {
+                    log.error("Fehler beim Auto-Save: {}", e.getMessage(), e);
+                }
+            }
+        }
     }
     
     /**
@@ -315,12 +296,35 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
 
     @Override
     public void beforeLeave(BeforeLeaveEvent event) {
-        // Prüfe auf ungespeicherte Änderungen beim Verlassen der View
-        if (treatmentPlanLayout != null && treatmentPlanLayout.hasChanges()) {
-            BeforeLeaveEvent.ContinueNavigationAction action = event.postpone();
-            showUnsavedChangesDialog(() -> {
-                action.proceed();
-            });
+        // Beim Verlassen der View: Stelle sicher, dass alle Änderungen geschrieben werden
+        if (treatmentPlanLayout != null) {
+            // Schreibe alle Änderungen in das Bean (auch wenn hasChanges() false ist)
+            treatmentPlanLayout.writeBean();
+            
+            // Prüfe auf ungespeicherte Änderungen beim Verlassen der View
+            // WICHTIG: Prüfe nach writeBean(), damit alle Änderungen erkannt werden
+            if (treatmentPlanLayout.hasChanges()) {
+                BeforeLeaveEvent.ContinueNavigationAction action = event.postpone();
+                showUnsavedChangesDialog(() -> {
+                    action.proceed();
+                });
+            } else if (treatmentPlan != null && treatmentPlan.getId() != null && treatmentPlan.getId() != -1) {
+                // Auch wenn hasChanges() false ist, speichere bei bestehenden Plänen,
+                // da Änderungen am Behandlungsgrund und an Notizen möglicherweise nicht erkannt werden
+                // Auto-Save im Hintergrund (ohne Dialog)
+                try {
+                    ensureInstitutionContext();
+                    TreatmentPlan treatmentPlanToSave = treatmentPlanLayout.getCurrent();
+                    if (treatmentPlanToSave != null) {
+                        treatmentPlanPresenter.saveTreatmentPlanAndTreatments(treatmentPlanToSave,
+                                treatmentPlanLayout.getTimeSlotsToCreate());
+                        treatmentPlanLayout.resetBinder();
+                    }
+                } catch (Exception e) {
+                    log.warn("Fehler beim Auto-Save beim Verlassen: {}", e.getMessage());
+                    // Fehler ignorieren, da Navigation fortgesetzt werden soll
+                }
+            }
         }
     }
     
@@ -341,6 +345,9 @@ public class TreatmentPlanDetailView extends VerticalLayout implements BeforeEnt
         saveButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> {
             dialog.close();
+            // Stelle sicher, dass alle Änderungen aus dem Binder geschrieben werden
+            treatmentPlanLayout.writeBean();
+            
             // Speichern und dann fortfahren
             ensureInstitutionContext();
             TreatmentPlan treatmentPlan = treatmentPlanLayout.getCurrent();

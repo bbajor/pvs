@@ -338,8 +338,8 @@ public class TimeSlotReportService {
                 
                 String versicherung = "-";
                 if (patient != null && patient.getHealthInsurance() != null && 
-                    patient.getHealthInsurance().getBillingCarrierName() != null) {
-                    versicherung = patient.getHealthInsurance().getBillingCarrierName();
+                    patient.getHealthInsurance().getCostCarrierName() != null) {
+                    versicherung = patient.getHealthInsurance().getCostCarrierName();
                     if (versicherung.length() > 12) versicherung = versicherung.substring(0, 9) + "...";
                 }
                 addTextLine(contentStream, versicherung, colVersicherung, currentRowY, lineHeight);

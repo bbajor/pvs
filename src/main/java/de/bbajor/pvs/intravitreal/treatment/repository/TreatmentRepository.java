@@ -82,5 +82,16 @@ public interface TreatmentRepository
                         order by ts.date asc
                         """)
         List<Treatment> findByTimeSlotId(Long timeSlotId);
+        
+        @Query("""
+                        select distinct t from Treatment t
+                        inner join fetch t.treatmentPlan tp
+                        left join fetch tp.patient p
+                        left join fetch t.medicationFavourite mf
+                        left join fetch t.surgicalCenterTimeSlot ts
+                        left join fetch ts.surgicalCenter sc
+                        where t.id = :id
+                        """)
+        java.util.Optional<Treatment> findByIdWithAllRelationships(Long id);
 
 }

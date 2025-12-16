@@ -123,12 +123,21 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation "com.tngtech.archunit:archunit-junit5:${archunitVersion}"
+    
+    // UI/E2E Testing (frei für kommerzielle Nutzung)
+    testImplementation 'io.github.bonigarcia:selenium-jupiter:5.0.1'
+    testImplementation 'org.seleniumhq.selenium:selenium-java:4.26.0'
+    testImplementation 'org.seleniumhq.selenium:selenium-support:4.26.0'
 }
 
 // Make annotation processors (e.g., Lombok/MapStruct) available on the compile classpath for IDE indexing
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
+    }
+    // Exclude commons-logging, da Spring Boot spring-jcl verwendet
+    all {
+        exclude group: 'commons-logging', module: 'commons-logging'
     }
 }
 

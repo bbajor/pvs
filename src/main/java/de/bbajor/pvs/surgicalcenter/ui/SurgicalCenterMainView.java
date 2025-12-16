@@ -23,10 +23,15 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.presenter.SurgicalCenterListPresenter;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.annotation.security.RolesAllowed;
@@ -44,12 +49,14 @@ import java.util.stream.Stream;
 public class SurgicalCenterMainView extends Main implements BeforeEnterObserver {
 
     private final SurgicalCenterListPresenter presenter;
+    private final ApplicationContext applicationContext;
     private final Grid<SurgicalCenter> grid = new Grid<>(SurgicalCenter.class, false);
     private final TextField searchField = new TextField();
     private final Button createButton = new Button(VaadinIcon.FILE_ADD.create());
 
-    public SurgicalCenterMainView(SurgicalCenterListPresenter presenter) {
+    public SurgicalCenterMainView(SurgicalCenterListPresenter presenter, ApplicationContext applicationContext) {
         this.presenter = presenter;
+        this.applicationContext = applicationContext;
 
         createButton.setText("Neue Einrichtung");
         createButton.addClickListener(event -> {
@@ -60,14 +67,42 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
 
-        searchField.setPlaceholder("Suche nach Name, Adresse oder Kontakt");
+        searchField.setPlaceholder("Mindestens 3 Zeichen für Suche eingeben");
         searchField.setWidthFull();
         searchField.setClearButtonVisible(true);
-        searchField.addKeyUpListener(event -> {
-            var searchTerm = searchField.getValue();
-            if (searchTerm != null) {
-                filterGrid(searchTerm);
+        
+        // Verwende ValueChangeMode.EAGER für sofortige Reaktion beim Tippen
+        // Dies löst ValueChangeEvents bei jedem Tastendruck aus (nicht nur bei Blur)
+        searchField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.EAGER);
+        searchField.setValueChangeTimeout(300); // 300ms Debouncing
+        
+        // ValueChangeListener reagiert jetzt sofort beim Tippen (dank EAGER mode)
+        searchField.addValueChangeListener(event -> {
+            String searchTerm = event.getValue();
+            
+            if (searchTerm == null || searchTerm.trim().length() < 3) {
+                // Wenn weniger als 3 Zeichen, zeige alle Ergebnisse (keine Suche)
+                scheduleSearch("");
+                return;
             }
+            
+            // Mindestens 3 Zeichen: Suche auslösen
+            scheduleSearch(searchTerm.trim());
+        });
+        
+        // Zusätzlich KeyUpListener für sofortige Reaktion (falls ValueChangeMode nicht ausreicht)
+        searchField.addKeyUpListener(event -> {
+            // Hole aktuellen Wert aus dem Feld
+            String searchTerm = searchField.getValue();
+            
+            if (searchTerm == null || searchTerm.trim().length() < 3) {
+                // Wenn weniger als 3 Zeichen, zeige alle Ergebnisse (keine Suche)
+                scheduleSearch("");
+                return;
+            }
+            
+            // Mindestens 3 Zeichen: Suche auslösen mit Debouncing
+            scheduleSearch(searchTerm.trim());
         });
 
         // Überschrift
@@ -95,6 +130,9 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContext();
+        
         // SUPER_ADMIN without institution context should not access surgical center data
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
@@ -104,6 +142,40 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         if (isSuperAdmin && !hasInstitutionContext) {
             // Redirect SUPER_ADMIN to institution management
             event.forwardTo("admin/institutions");
+        }
+    }
+    
+    /**
+     * Ensures InstitutionContext is set before service calls.
+     * This is necessary because Vaadin button clicks and search don't trigger BeforeEnterEvent,
+     * so the context might not be set.
+     */
+    private void ensureInstitutionContext() {
+        // Only set if not already set
+        if (InstitutionContext.hasInstitution()) {
+            return;
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof InstitutionAuthenticationToken institutionAuth) {
+            if (institutionAuth.getInstitutionId() != null) {
+                InstitutionContext.setInstitutionId(institutionAuth.getInstitutionId());
+            }
+        } else if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            // Authentication was deserialized from session
+            try {
+                String username = adapter.getUsername();
+                UserAccountRepository userAccountRepository = applicationContext.getBean(UserAccountRepository.class);
+                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+                
+                if (userAccount != null && userAccount.getInstitution() != null) {
+                    Long institutionId = userAccount.getInstitution().getId();
+                    InstitutionContext.setInstitutionId(institutionId);
+                }
+            } catch (Exception e) {
+                // Log error but continue
+            }
         }
     }
 
@@ -143,8 +215,43 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         return section;
     }
     
-    private void filterGrid(@SuppressWarnings("unused") String searchTerm) {
-        // TODO filtern über eine FilterRow im Grid
+    /**
+     * Plant eine Suche mit Debouncing ein, um zyklische Abhängigkeiten zu vermeiden.
+     * Bricht vorherige Suchen ab, wenn eine neue gestartet wird.
+     */
+    private void scheduleSearch(String searchString) {
+        // Plane neue Suche mit 300ms Verzögerung (Debouncing) über JavaScript
+        // JavaScript kümmert sich um das Abbrechen vorheriger Timeouts
+        com.vaadin.flow.component.UI currentUI = com.vaadin.flow.component.UI.getCurrent();
+        if (currentUI != null) {
+            final String finalSearchString = searchString != null ? searchString : "";
+            currentUI.getPage().executeJs(
+                "if (window.surgicalCenterSearchTimeout) { clearTimeout(window.surgicalCenterSearchTimeout); } " +
+                "window.surgicalCenterSearchTimeout = setTimeout(function() { $0.$server.executeSurgicalCenterSearch($1); }, 300);",
+                getElement(), finalSearchString
+            );
+        }
+    }
+    
+    /**
+     * Wird von JavaScript aufgerufen, um die Suche tatsächlich auszuführen.
+     * Dies verhindert zyklische Abhängigkeiten, da die Suche asynchron erfolgt.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void executeSurgicalCenterSearch(String searchString) {
+        filterGrid(searchString);
+    }
+    
+    private void filterGrid(String searchTerm) {
+        // Stelle sicher, dass InstitutionContext gesetzt ist
+        ensureInstitutionContext();
+        
+        // Setze den Suchbegriff im Feld (falls nicht bereits gesetzt)
+        // Der DataProvider liest den Wert direkt aus searchField.getValue()
+        if (searchTerm != null && !searchTerm.equals(searchField.getValue())) {
+            searchField.setValue(searchTerm);
+        }
+        // DataProvider wird automatisch neu geladen, da er searchField.getValue() verwendet
         grid.getDataProvider().refreshAll();
     }
 
@@ -234,21 +341,80 @@ public class SurgicalCenterMainView extends Main implements BeforeEnterObserver 
         // Paging aktivieren mit Sortierung nach Name
         grid.setPageSize(20);
         grid.setItems(query -> {
+            // Stelle sicher, dass InstitutionContext gesetzt ist
+            ensureInstitutionContext();
+            
             // Counter beim Start jeder Query zurücksetzen
             rowCounter.set(0);
             Long institutionId = InstitutionContext.getInstitutionId();
             if (institutionId == null) {
                 return Stream.empty();
             }
-            Stream<SurgicalCenter> stream = presenter.getAll(toSpringPageRequest(query)).stream();
+            
+            // Konvertiere zu Spring PageRequest
+            org.springframework.data.domain.Pageable pageable = toSpringPageRequest(query);
+            
+            // Hole Suchbegriff
+            String searchTerm = searchField.getValue();
+            
+            // Lade nur die benötigte Seite (nicht alle Daten)
+            org.springframework.data.domain.Slice<SurgicalCenter> slice;
+            if (searchTerm == null || searchTerm.trim().isEmpty()) {
+                slice = presenter.getAll(pageable);
+            } else {
+                slice = presenter.findAllBy(searchTerm, pageable);
+            }
             
             // Sortiere alphanumerisch nach Name der operativen Einrichtung
-            stream = stream.sorted(Comparator.comparing(center -> {
-                String name = center.getName();
-                return name != null ? name.toLowerCase() : "";
-            }));
+            Stream<SurgicalCenter> stream = slice.getContent().stream()
+                .sorted(Comparator.comparing(center -> {
+                    String name = center.getName();
+                    return name != null ? name.toLowerCase() : "";
+                }));
             
             return stream;
+        });
+        
+        // Count-Callback: Da der Presenter ein Slice (nicht Page) zurückgibt, können wir keine exakte Anzahl bestimmen.
+        // Wir verwenden eine Schätzung: Wenn die aktuelle Seite voll ist (20 Items), schätzen wir, dass es mehr gibt.
+        // Dies verhindert den Fehler "Trying to use exact size with a lazy loading component".
+        grid.getLazyDataView().setItemCountCallback(query -> {
+            // Stelle sicher, dass InstitutionContext gesetzt ist
+            ensureInstitutionContext();
+            
+            Long institutionId = InstitutionContext.getInstitutionId();
+            if (institutionId == null) {
+                return 0;
+            }
+            
+            // Verwende die PageSize des Grids statt query.getLimit(), da getLimit() negativ sein kann
+            int pageSize = Math.max(1, grid.getPageSize());
+            int offset = Math.max(0, query.getOffset());
+            
+            String searchTerm = searchField.getValue();
+            
+            // Lade eine Seite, um zu sehen, ob es mehr Items gibt
+            // Verwende PageSize statt query.getLimit() um negative Werte zu vermeiden
+            org.springframework.data.domain.Pageable testPageable = org.springframework.data.domain.PageRequest.of(0, pageSize);
+            org.springframework.data.domain.Slice<SurgicalCenter> slice;
+            if (searchTerm == null || searchTerm.trim().isEmpty()) {
+                slice = presenter.getAll(testPageable);
+            } else {
+                slice = presenter.findAllBy(searchTerm, testPageable);
+            }
+            
+            // Wenn die Seite voll ist und es eine nächste Seite gibt, schätze eine große Anzahl
+            // Ansonsten verwende die tatsächliche Anzahl der Items
+            int currentPageSize = slice.getContent().size();
+            if (slice.hasNext() && currentPageSize == pageSize) {
+                // Schätze: mindestens (aktuelle Seite + 1) * PageSize
+                // Verwende eine große Zahl, um sicherzustellen, dass Pagination funktioniert
+                int currentPage = offset / pageSize;
+                return (currentPage + 2) * pageSize;
+            } else {
+                // Letzte Seite oder weniger Items: exakte Anzahl
+                return offset + currentPageSize;
+            }
         });
         
         // Zeilenumbruch in Zellen aktivieren

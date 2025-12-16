@@ -8,10 +8,17 @@ import java.time.format.FormatStyle;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -23,6 +30,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -48,6 +56,7 @@ import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanChangeListener;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanListPresenter;
 import de.bbajor.pvs.intravitreal.treatment.controller.TreatmentPlanPresenter;
+import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.security.AppRoles;
@@ -80,6 +89,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private final ApplicationContext applicationContext;
     private final TreatmentPlanPresenter treatmentPlanPresenter;
     private final AppointmentService appointmentService;
+    private final de.bbajor.pvs.base.service.InstitutionPrerequisitesService prerequisitesService;
 
     // Treatment Plans Tab Components
     private final TextField searchField = new TextField();
@@ -92,6 +102,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     private final Div gridContainer = new Div();
     private volatile boolean showFinished = true;
     private volatile boolean isGridInitialized = false;
+    private volatile boolean isRefreshing = false; // Guard gegen zyklische Abhängigkeiten
 
     // Task Review Tab Components
     private final Grid<Task> taskGrid = new Grid<>();
@@ -118,7 +129,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             Clock clock,
             ApplicationContext applicationContext,
             TreatmentPlanPresenter treatmentPlanPresenter,
-            AppointmentService appointmentService) {
+            AppointmentService appointmentService,
+            de.bbajor.pvs.base.service.InstitutionPrerequisitesService prerequisitesService) {
         this.ivomListPresenter = ivomListPresenter;
         this.currentUser = currentUser;
         this.taskService = taskService;
@@ -130,6 +142,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         this.applicationContext = applicationContext;
         this.treatmentPlanPresenter = treatmentPlanPresenter;
         this.appointmentService = appointmentService;
+        this.prerequisitesService = prerequisitesService;
 
         initializeTreatmentPlansTab();
         initializeTaskReviewTab();
@@ -186,12 +199,24 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                             });
                 })
                 .orElse(false);
-        createButton.setEnabled(canBook);
-        if (!canBook) {
+        
+        // Prüfe Voraussetzungen für Behandlungsplan-Erstellung
+        ensureInstitutionContext();
+        boolean canCreate = canBook && prerequisitesService.canCreateTreatmentPlan();
+        List<String> missingPrerequisites = prerequisitesService.getMissingPrerequisitesForTreatmentPlanCreation();
+        
+        createButton.setEnabled(canCreate);
+        
+        if (!canCreate && canBook) {
+            // Nur wenn Rollen-Berechtigung vorhanden, aber Voraussetzungen fehlen
+            String tooltipText = "Folgende Voraussetzungen fehlen:\n" + 
+                String.join("\n", missingPrerequisites);
+            createButton.setTooltipText(tooltipText);
+        } else if (!canBook) {
             createButton.setTooltipText("Sie benötigen die Rolle ADMIN, DOCTOR oder TECH_USER, um Termine zu buchen");
         }
 
-        searchField.setPlaceholder("Suche nach Name, Vorname, Geburtsjahr, Krankenkasse, Diagnose oder zusätzlichen Informationen");
+        searchField.setPlaceholder("Mindestens 3 Zeichen für Suche eingeben");
         searchField.setWidthFull();
         searchField.setClearButtonVisible(true);
         searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
@@ -213,7 +238,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         toggleFinishedButton.addClickListener(e -> {
             showFinished = !showFinished;
             updateToggleFinishedButton();
-            refresh("");
+            scheduleRefresh("");
         });
 
         // Container als Flexbox konfigurieren - WICHTIG: VOR add() aufrufen
@@ -292,7 +317,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         taskGrid.addColumn(new ComponentRenderer<>(task -> {
             String dueDate = Optional.ofNullable(task.getDueDate()).map(dateFormatter::format).orElse("Nie");
             Span dateSpan = new Span(dueDate);
-            if (task.getDueDate() != null && task.getDueDate().isBefore(java.time.LocalDate.now()) && !task.isCompleted()) {
+            if (task.getDueDate() != null && task.getDueDate().isBefore(LocalDate.now()) && !task.isCompleted()) {
                 dateSpan.addClassNames(LumoUtility.TextColor.ERROR);
             } else {
                 dateSpan.addClassNames(LumoUtility.TextColor.SECONDARY);
@@ -309,6 +334,58 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             dateSpan.getStyle().set("word-wrap", "break-word");
             return dateSpan;
         })).setHeader("Erstellt am").setResizable(true).setAutoWidth(true);
+
+        // Spalte: Dokumentiert (pro Task: grün wenn alle dokumentiert, gelb wenn mindestens eine nicht)
+        taskGrid.addColumn(new ComponentRenderer<>(task -> {
+            if (task.getTimeSlot() == null) {
+                return new Span("-");
+            }
+            List<Treatment> taskTreatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
+            boolean allDocumented = taskTreatments.stream()
+                .allMatch(t -> t.getApprovalDate() != null);
+            
+            Icon icon;
+            if (allDocumented) {
+                icon = VaadinIcon.CHECK_CIRCLE.create();
+                icon.setColor("var(--lumo-success-color)");
+            } else {
+                icon = VaadinIcon.CLOSE_CIRCLE.create();
+                icon.setColor("var(--lumo-warning-color)");
+            }
+            icon.setSize("20px");
+            return icon;
+        })).setHeader("Dokumentiert").setResizable(true).setAutoWidth(true);
+
+        // Spalte: Zweitprüfung (pro Task: grün wenn alle zweitgeprüft, gelb wenn mindestens eine nicht)
+        taskGrid.addColumn(new ComponentRenderer<>(task -> {
+            if (task.getTimeSlot() == null) {
+                return new Span("-");
+            }
+            List<Treatment> taskTreatments = treatmentRepository.findByTimeSlotId(task.getTimeSlot().getId());
+            // Nur dokumentierte Treatments können zweitgeprüft werden
+            List<Treatment> documentedTreatments = taskTreatments.stream()
+                .filter(t -> t.getApprovalDate() != null)
+                .collect(Collectors.toList());
+            
+            boolean allSecondApproved = documentedTreatments.isEmpty() || 
+                documentedTreatments.stream()
+                    .allMatch(t -> t.getSecondApprovalDateTime() != null);
+            
+            Icon icon;
+            if (documentedTreatments.isEmpty()) {
+                // Keine dokumentierten Treatments - grau
+                icon = VaadinIcon.CIRCLE_THIN.create();
+                icon.setColor("var(--lumo-contrast-30pct)");
+            } else if (allSecondApproved) {
+                icon = VaadinIcon.CHECK_CIRCLE.create();
+                icon.setColor("var(--lumo-success-color)");
+            } else {
+                icon = VaadinIcon.CLOSE_CIRCLE.create();
+                icon.setColor("var(--lumo-warning-color)");
+            }
+            icon.setSize("20px");
+            return icon;
+        })).setHeader("Zweitprüfung").setResizable(true).setAutoWidth(true);
 
         // Zeilenumbruch in Zellen aktivieren
         taskGrid.getStyle().set("--vaadin-grid-cell-content-overflow", "visible");
@@ -489,7 +566,27 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         toolbarLayout.setWidthFull();
         toolbarLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
 
-        toolbarLayout.add(createButton, generateDailyListButton);
+        // Button-Layout mit Hinweis-Icon
+        HorizontalLayout createButtonLayout = new HorizontalLayout();
+        createButtonLayout.setSpacing(true);
+        createButtonLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
+        createButtonLayout.add(createButton);
+        
+        // Prüfe Voraussetzungen und füge Hinweis-Icon hinzu
+        ensureInstitutionContext();
+        boolean canCreate = prerequisitesService.canCreateTreatmentPlan();
+        List<String> missingPrerequisites = prerequisitesService.getMissingPrerequisitesForTreatmentPlanCreation();
+        
+        if (!canCreate && !missingPrerequisites.isEmpty()) {
+            com.vaadin.flow.component.icon.Icon infoIcon = VaadinIcon.INFO_CIRCLE.create();
+            infoIcon.getStyle().set("color", "var(--lumo-warning-color)");
+            String tooltipText = "Folgende Voraussetzungen fehlen:\n" + 
+                String.join("\n", missingPrerequisites);
+            infoIcon.setTooltipText(tooltipText);
+            createButtonLayout.add(infoIcon);
+        }
+
+        toolbarLayout.add(createButtonLayout, generateDailyListButton);
         toolbarLayout.add(toggleFinishedButton);
         toolbarLayout.add(searchField);
         toolbarLayout.setFlexGrow(1, searchField);
@@ -510,9 +607,17 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
         }
 
         // Button disabled wenn kein Behandlungsplan angezeigt wird
-        // Prüfe Item-Count über DataProvider
-        int itemCount = ivomPlanGrid.getDataProvider().size(new com.vaadin.flow.data.provider.Query<>());
-        toggleFinishedButton.setEnabled(itemCount > 0);
+        // Prüfe Item-Count über DataProvider - nur wenn nicht gerade refresht wird
+        if (!isRefreshing) {
+            try {
+                int itemCount = ivomPlanGrid.getDataProvider().size(new com.vaadin.flow.data.provider.Query<>());
+                toggleFinishedButton.setEnabled(itemCount > 0);
+            } catch (Exception e) {
+                // Bei Fehler (z.B. während Query) Button deaktivieren
+                log.debug("Fehler beim Ermitteln der Item-Count für Toggle-Button: {}", e.getMessage());
+                toggleFinishedButton.setEnabled(false);
+            }
+        }
     }
 
     /**
@@ -553,7 +658,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
     private void configureGrid() {
         // Nr. Spalte als erste Spalte
-        java.util.concurrent.atomic.AtomicInteger rowCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+        AtomicInteger rowCounter = new AtomicInteger(0);
         ivomPlanGrid.addColumn(new ComponentRenderer<>(plan -> {
             // Zeilennummer pro Seite (startet bei 1 auf jeder Seite)
             int rowNumber = rowCounter.incrementAndGet();
@@ -581,7 +686,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 
                 if (patient.getBirth() != null) {
                     Span birthSpan = new Span("geb. " + 
-                        patient.getBirth().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+                        patient.getBirth().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
                     birthSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
                     birthSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
                     patientLayout.add(birthSpan);
@@ -662,7 +767,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 }
                 
                 // Finde nächsten Termin für beide Augen
-                java.time.LocalDate now = java.time.LocalDate.now();
+                LocalDate now = LocalDate.now();
                 List<de.bbajor.pvs.intravitreal.treatment.model.Treatment> leftTreatments = 
                     treatmentPlanPresenter.getTreatmentDtos(de.bbajor.pvs.base.util.SideOfEye.LEFT, plan.getId());
                 List<de.bbajor.pvs.intravitreal.treatment.model.Treatment> rightTreatments = 
@@ -711,7 +816,7 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
                 return new Span();
             }
         });
-        nextAppointmentColumn.setHeader("Nächster Behandlungstermin");
+        nextAppointmentColumn.setHeader("Nächster Slot");
         nextAppointmentColumn.setAutoWidth(false);
         nextAppointmentColumn.setWidth("180px");
         nextAppointmentColumn.setFlexGrow(0);
@@ -756,27 +861,27 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             ensureInstitutionContext();
             Long institutionId = InstitutionContext.getInstitutionId();
             if (institutionId == null) {
-                return java.util.stream.Stream.empty();
+                return Stream.empty();
             }
             String searchTerm = searchField.getValue();
 
             // Konvertiere zu Spring PageRequest
-            org.springframework.data.domain.Pageable pageable = toSpringPageRequest(query);
+            Pageable pageable = toSpringPageRequest(query);
 
             // Wenn keine Sortierung in der Query ist, füge Standard-Sortierung nach patient.lastName und patient.firstName hinzu
             if (query.getSortOrders().isEmpty()) {
-                org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by(
-                        org.springframework.data.domain.Sort.Order.asc("patient.lastName"),
-                        org.springframework.data.domain.Sort.Order.asc("patient.firstName")
+                Sort sort = Sort.by(
+                        Sort.Order.asc("patient.lastName"),
+                        Sort.Order.asc("patient.firstName")
                 );
-                pageable = org.springframework.data.domain.PageRequest.of(
+                pageable = PageRequest.of(
                         pageable.getPageNumber(),
                         pageable.getPageSize(),
                         sort
                 );
             }
 
-            java.util.stream.Stream<TreatmentPlan> stream;
+            Stream<TreatmentPlan> stream;
             if (searchTerm == null || searchTerm.isEmpty()) {
                 stream = ivomListPresenter.findAll(pageable).getContent().stream();
             } else {
@@ -809,8 +914,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
             
             // Lade eine Seite, um zu sehen, ob es mehr Items gibt
             // Verwende PageSize statt query.getLimit() um negative Werte zu vermeiden
-            org.springframework.data.domain.Pageable testPageable = org.springframework.data.domain.PageRequest.of(0, pageSize);
-            org.springframework.data.domain.Slice<TreatmentPlan> slice;
+            Pageable testPageable = PageRequest.of(0, pageSize);
+            Slice<TreatmentPlan> slice;
             if (searchTerm == null || searchTerm.isEmpty()) {
                 slice = ivomListPresenter.findAll(testPageable);
             } else {
@@ -833,36 +938,144 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
     }
 
     private void configureSearch() {
-        // Suche bei jeder Änderung im Suchfeld
-        searchField.addValueChangeListener(e -> refresh(e.getValue()));
-        // Zusätzlich bei KeyUp für sofortige Reaktion während der Eingabe
-        searchField.addKeyUpListener(e -> refresh(searchField.getValue()));
+        // Suche mit KeyUpListener für Live-Suche während des Tippens
+        // Mindestens 3 Zeichen erforderlich, Debouncing mit Abbrechen alter Suchen
+        searchField.addKeyUpListener(event -> {
+            String searchTerm = searchField.getValue();
+            if (searchTerm == null || searchTerm.trim().length() < 3) {
+                // Wenn weniger als 3 Zeichen, zeige alle Ergebnisse (keine Suche)
+                if (!isRefreshing) {
+                    scheduleRefresh("");
+                }
+                return;
+            }
+            
+            // Mindestens 3 Zeichen: Suche auslösen mit Debouncing
+            if (!isRefreshing) {
+                scheduleRefresh(searchTerm.trim());
+            }
+        });
+        
+        // Auch bei ValueChange (z.B. Clear-Button) reagieren
+        searchField.addValueChangeListener(e -> {
+            String searchTerm = e.getValue();
+            if (searchTerm == null || searchTerm.trim().length() < 3) {
+                // Wenn weniger als 3 Zeichen, zeige alle Ergebnisse
+                if (!isRefreshing) {
+                    scheduleRefresh("");
+                }
+                return;
+            }
+            
+            if (!isRefreshing) {
+                scheduleRefresh(searchTerm.trim());
+            }
+        });
+    }
+    
+    /**
+     * Plant einen Refresh mit Debouncing ein, um zyklische Abhängigkeiten zu vermeiden.
+     * Bricht vorherige Suchen ab, wenn eine neue gestartet wird.
+     */
+    private void scheduleRefresh(String searchString) {
+        // Plane neuen Refresh mit 300ms Verzögerung (Debouncing) über JavaScript
+        // JavaScript kümmert sich um das Abbrechen vorheriger Timeouts
+        UI currentUI = UI.getCurrent();
+        if (currentUI != null) {
+            final String finalSearchString = searchString != null ? searchString : "";
+            currentUI.getPage().executeJs(
+                "if (window.refreshTimeout) { clearTimeout(window.refreshTimeout); } " +
+                "window.refreshTimeout = setTimeout(function() { $0.$server.executeRefresh($1); }, 300);",
+                getElement(), finalSearchString
+            );
+        }
+    }
+    
+    /**
+     * Wird von JavaScript aufgerufen, um den Refresh tatsächlich auszuführen.
+     * Dies verhindert zyklische Abhängigkeiten, da der Refresh asynchron erfolgt.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void executeRefresh(String searchString) {
+        if (!isRefreshing) {
+            refresh(searchString);
+        }
     }
 
     public void refresh(String searchString) {
-        // Ensure InstitutionContext is set before service call
-        ensureInstitutionContext();
-
-        // Zeige ProgressBar während des Refreshs (nur wenn Grid bereits initialisiert wurde)
-        if (isGridInitialized) {
-            gridLoadingProgressBar.setVisible(true);
-            ivomPlanGrid.setVisible(false);
+        // Guard: Verhindere zyklische Abhängigkeiten durch wiederholte refresh()-Aufrufe
+        if (isRefreshing) {
+            log.debug("Refresh bereits in Bearbeitung - ignoriere erneuten Aufruf");
+            return;
+        }
+        
+        // Führe Refresh im UI-Thread aus, um Thread-Safety zu gewährleisten
+        UI currentUI = UI.getCurrent();
+        if (currentUI == null) {
+            log.warn("Kein UI-Context verfügbar für Refresh");
+            return;
+        }
+        
+        currentUI.access(() -> {
+            if (isRefreshing) {
+                log.debug("Refresh bereits in Bearbeitung (UI-Thread) - ignoriere erneuten Aufruf");
+                return;
+            }
             
-            // Nach kurzer Verzögerung ProgressBar ausblenden und Grid einblenden
-            // Dies gibt dem Grid Zeit zum Rendern
-            UI.getCurrent().access(() -> {
-                UI.getCurrent().setPollInterval(100);
-                UI.getCurrent().getPage().executeJs(
-                    "setTimeout(function() { $0.$server.hideProgressBarAfterRefresh(); }, 300);",
+            try {
+                isRefreshing = true;
+                
+                // Ensure InstitutionContext is set before service call
+                ensureInstitutionContext();
+
+                // Zeige ProgressBar während des Refreshs (nur wenn Grid bereits initialisiert wurde)
+                if (isGridInitialized) {
+                    gridLoadingProgressBar.setVisible(true);
+                    ivomPlanGrid.setVisible(false);
+                    
+                    // Nach kurzer Verzögerung ProgressBar ausblenden und Grid einblenden
+                    currentUI.getPage().executeJs(
+                        "setTimeout(function() { $0.$server.hideProgressBarAfterRefresh(); }, 300);",
+                        getElement()
+                    );
+                }
+
+                // Verwende refreshAll() - aber nur einmal, da Guard aktiv ist
+                // WICHTIG: refreshAll() wird nur aufgerufen, wenn Guard aktiv ist
+                ivomPlanGrid.getDataProvider().refreshAll();
+
+                // Aktualisiere Toggle-Button Status nach Refresh - asynchron, um keine Query während des Refreshs auszulösen
+                currentUI.getPage().executeJs(
+                    "setTimeout(function() { $0.$server.updateToggleButtonAfterRefresh(); }, 500);",
                     getElement()
                 );
-            });
-        }
-
-        // Verwende refreshAll() statt setItems(), um Paging zu erhalten
-        ivomPlanGrid.getDataProvider().refreshAll();
-
-        // Aktualisiere Toggle-Button Status nach Refresh
+                
+                // Guard zurücksetzen nach Verzögerung, damit Query abgeschlossen ist
+                currentUI.getPage().executeJs(
+                    "setTimeout(function() { $0.$server.resetRefreshGuard(); }, 1500);",
+                    getElement()
+                );
+            } catch (Exception e) {
+                log.error("Fehler beim Refresh des Grids", e);
+                // Bei Fehler Guard sofort zurücksetzen
+                isRefreshing = false;
+            }
+        });
+    }
+    
+    /**
+     * Wird von JavaScript aufgerufen, um den Refresh-Guard zurückzusetzen.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void resetRefreshGuard() {
+        isRefreshing = false;
+    }
+    
+    /**
+     * Wird von JavaScript aufgerufen, um den Toggle-Button nach dem Refresh zu aktualisieren.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void updateToggleButtonAfterRefresh() {
         updateToggleFinishedButton();
     }
 
@@ -889,7 +1102,8 @@ public class TreatmentPlanMainView extends Main implements TreatmentPlanChangeLi
 
     @Override
     public void onTreatmentPlanChanged() {
-        refresh("");
+        // Verwende scheduleRefresh statt refresh, um Debouncing zu nutzen
+        scheduleRefresh("");
     }
 
     /**

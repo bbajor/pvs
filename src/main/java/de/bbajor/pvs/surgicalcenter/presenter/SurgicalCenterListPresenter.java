@@ -38,6 +38,10 @@ public class SurgicalCenterListPresenter {
     public org.springframework.data.domain.Slice<SurgicalCenter> getAll(org.springframework.data.domain.Pageable pageable) {
         return surgicalCenterService.findAll(pageable);
     }
+    
+    public org.springframework.data.domain.Slice<SurgicalCenter> findAllBy(String searchTerm, org.springframework.data.domain.Pageable pageable) {
+        return surgicalCenterService.findAllBy(searchTerm, pageable);
+    }
 
     public SurgicalCenter getById(Integer id) {
         // TODO only use one query here

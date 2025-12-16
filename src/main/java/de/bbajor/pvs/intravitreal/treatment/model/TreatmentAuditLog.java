@@ -19,13 +19,15 @@ public class TreatmentAuditLog extends BasicEntity<Long> {
 
     public enum ActionType {
         CREATE,
+        UPDATE,
         APPROVE,
         APPROVE_SECOND,
         DELETE
     }
 
     @ManyToOne(fetch = FetchType.EAGER)
-    private Treatment treatment;
+    @jakarta.persistence.JoinColumn(name = "treatment_id", nullable = true)
+    private Treatment treatment; // Nullable für gelöschte Treatments
 
     @Enumerated(EnumType.STRING)
     private ActionType actionType;

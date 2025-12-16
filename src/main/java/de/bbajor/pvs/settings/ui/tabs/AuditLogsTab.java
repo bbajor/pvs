@@ -1,10 +1,7 @@
 package de.bbajor.pvs.settings.ui.tabs;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -20,7 +19,8 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.ListDataProvider;
+import com.vaadin.flow.data.provider.DataProvider;
+import static com.vaadin.flow.spring.data.VaadinSpringDataHelpers.toSpringPageRequest;
 
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
@@ -36,6 +36,7 @@ import jakarta.annotation.security.RolesAllowed;
  * Nur OWNER, INSTITUTION_ADMIN und TECH_USER können diese Sicht sehen.
  */
 @Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RolesAllowed({ "ROLE_OWNER", "ROLE_INSTITUTION_ADMIN", "ROLE_TECH_USER" })
 public class AuditLogsTab extends VerticalLayout {
 
@@ -51,7 +52,6 @@ public class AuditLogsTab extends VerticalLayout {
     private Grid<TreatmentAuditLog> auditLogGrid;
     private ComboBox<String> actionTypeFilter;
     private TextField actorFilter;
-    private List<TreatmentAuditLog> allAuditLogs;
 
     public AuditLogsTab() {
         setSizeFull();
@@ -70,15 +70,15 @@ public class AuditLogsTab extends VerticalLayout {
         filterLayout.setWidthFull();
 
         actionTypeFilter = new ComboBox<>("Aktionstyp");
-        actionTypeFilter.setItems("Alle", "Erstellen", "Dokumentieren", "Zweitprüfung", "Löschen");
+        actionTypeFilter.setItems("Alle", "Erstellen", "Ändern", "Dokumentieren", "Zweitprüfung", "Löschen");
         actionTypeFilter.setValue("Alle");
         actionTypeFilter.setWidth("200px");
-        actionTypeFilter.addValueChangeListener(e -> applyFilters());
+        actionTypeFilter.addValueChangeListener(e -> refreshDataProvider());
 
         actorFilter = new TextField("Benutzer");
         actorFilter.setPlaceholder("Benutzer filtern...");
         actorFilter.setWidth("200px");
-        actorFilter.addValueChangeListener(e -> applyFilters());
+        actorFilter.addValueChangeListener(e -> refreshDataProvider());
 
         filterLayout.add(actionTypeFilter, actorFilter);
         filterLayout.setFlexGrow(1, actorFilter);
@@ -110,6 +110,7 @@ public class AuditLogsTab extends VerticalLayout {
             if (log.getActionType() != null) {
                 return switch (log.getActionType()) {
                     case CREATE -> "Erstellen";
+                    case UPDATE -> "Ändern";
                     case APPROVE -> "Dokumentieren";
                     case APPROVE_SECOND -> "Zweitprüfung";
                     case DELETE -> "Löschen";
@@ -142,51 +143,120 @@ public class AuditLogsTab extends VerticalLayout {
         add(auditLogGrid);
         expand(auditLogGrid);
 
-        // Lade Daten
-        loadAuditLogs();
+        // Setup DataProvider mit Paging
+        setupDataProvider();
     }
 
     @PreAuthorize("hasAnyRole('OWNER', 'INSTITUTION_ADMIN', 'TECH_USER')")
-    private void loadAuditLogs() {
+    private void setupDataProvider() {
         // Stelle sicher, dass InstitutionContext gesetzt ist
         ensureInstitutionContext();
         
         if (!InstitutionContext.hasInstitution()) {
             log.warn("InstitutionContext not set - cannot load audit logs");
-            allAuditLogs = new ArrayList<>();
-            auditLogGrid.setItems(allAuditLogs);
+            auditLogGrid.setItems(new ArrayList<>());
             return;
         }
         
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
             log.warn("InstitutionContext has no institution ID - cannot load audit logs");
-            allAuditLogs = new ArrayList<>();
-            auditLogGrid.setItems(allAuditLogs);
+            auditLogGrid.setItems(new ArrayList<>());
             return;
         }
         
-        log.debug("Loading audit logs for institution: {}", institutionId);
+        log.debug("Setting up data provider for audit logs for institution: {}", institutionId);
 
-        // Optimierte Query: Lade alle Audit-Logs direkt über Treatment -> TreatmentPlan -> Institution
-        // Verwende JpaSpecificationExecutor für flexible Filterung
-        allAuditLogs = treatmentAuditLogRepository.findAll(
-                (root, query, cb) -> {
-                    // Join zu Treatment
-                    var treatmentJoin = root.join("treatment");
-                    // Join zu TreatmentPlan
-                    var treatmentPlanJoin = treatmentJoin.join("treatmentPlan");
-                    // Join zu Institution
-                    var institutionJoin = treatmentPlanJoin.join("institution");
-                    // Filter nach Institution ID
-                    return cb.equal(institutionJoin.get("id"), institutionId);
-                },
-                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "actionTimestamp")
+        // DataProvider mit Paging
+        DataProvider<TreatmentAuditLog, Void> dataProvider = DataProvider.fromCallbacks(
+            query -> {
+                try {
+                    // Baue Specification mit Filtern
+                    org.springframework.data.jpa.domain.Specification<TreatmentAuditLog> spec = buildSpecification(institutionId);
+                    
+                    // Konvertiere Vaadin Query zu Spring Pageable
+                    org.springframework.data.domain.Pageable pageable = toSpringPageRequest(query);
+                    
+                    // Sortierung: Standard DESC nach actionTimestamp
+                    org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "actionTimestamp");
+                    pageable = org.springframework.data.domain.PageRequest.of(
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        sort);
+                    
+                    // Lade nur die benötigte Seite
+                    org.springframework.data.domain.Page<TreatmentAuditLog> page = 
+                        treatmentAuditLogRepository.findAll(spec, pageable);
+                    
+                    log.debug("Loaded page {} of {} audit logs (total: {}) for institution {}", 
+                        page.getNumber(), page.getTotalPages(), page.getTotalElements(), institutionId);
+                    
+                    return page.stream();
+                } catch (Exception e) {
+                    log.error("Error loading audit logs for institution {}: {}", institutionId, e.getMessage(), e);
+                    return java.util.stream.Stream.empty();
+                }
+            },
+            query -> {
+                try {
+                    // Baue Specification mit Filtern
+                    org.springframework.data.jpa.domain.Specification<TreatmentAuditLog> spec = buildSpecification(institutionId);
+                    
+                    // Zähle nur die gefilterten Einträge
+                    long count = treatmentAuditLogRepository.count(spec);
+                    log.debug("Total audit logs count: {} for institution {}", count, institutionId);
+                    return (int) count;
+                } catch (Exception e) {
+                    log.error("Error counting audit logs for institution {}: {}", institutionId, e.getMessage(), e);
+                    return 0;
+                }
+            }
         );
-
-        applyFilters();
         
-        log.debug("Loaded {} audit logs for institution {}", allAuditLogs.size(), institutionId);
+        auditLogGrid.setItems(dataProvider);
+    }
+    
+    private org.springframework.data.jpa.domain.Specification<TreatmentAuditLog> buildSpecification(Long institutionId) {
+        return (root, query, cb) -> {
+            // Join zu Treatment
+            var treatmentJoin = root.join("treatment");
+            // Join zu TreatmentPlan
+            var treatmentPlanJoin = treatmentJoin.join("treatmentPlan");
+            // Join zu Institution
+            var institutionJoin = treatmentPlanJoin.join("institution");
+            // Filter nach Institution ID
+            var institutionPredicate = cb.equal(institutionJoin.get("id"), institutionId);
+            
+            // Filter nach Aktionstyp
+            String actionType = actionTypeFilter.getValue();
+            if (actionType != null && !actionType.equals("Alle")) {
+                TreatmentAuditLog.ActionType expectedType = switch (actionType) {
+                    case "Erstellen" -> TreatmentAuditLog.ActionType.CREATE;
+                    case "Ändern" -> TreatmentAuditLog.ActionType.UPDATE;
+                    case "Dokumentieren" -> TreatmentAuditLog.ActionType.APPROVE;
+                    case "Zweitprüfung" -> TreatmentAuditLog.ActionType.APPROVE_SECOND;
+                    case "Löschen" -> TreatmentAuditLog.ActionType.DELETE;
+                    default -> null;
+                };
+                if (expectedType != null) {
+                    var actionTypePredicate = cb.equal(root.get("actionType"), expectedType);
+                    return cb.and(institutionPredicate, actionTypePredicate);
+                }
+            }
+            
+            // Filter nach Benutzer (Actor)
+            String actorFilterValue = actorFilter.getValue();
+            if (actorFilterValue != null && !actorFilterValue.trim().isEmpty()) {
+                String searchTerm = "%" + actorFilterValue.toLowerCase() + "%";
+                var actorNamePredicate = cb.like(cb.lower(root.get("actorUserName")), searchTerm);
+                var actorIdPredicate = cb.like(cb.lower(root.get("actorUserId")), searchTerm);
+                var actorPredicate = cb.or(actorNamePredicate, actorIdPredicate);
+                return cb.and(institutionPredicate, actorPredicate);
+            }
+            
+            return institutionPredicate;
+        };
     }
     
     /**
@@ -233,48 +303,14 @@ public class AuditLogsTab extends VerticalLayout {
         }
     }
 
-    private void applyFilters() {
-        if (allAuditLogs == null) {
-            return;
+    private void refreshDataProvider() {
+        if (auditLogGrid.getDataProvider() != null) {
+            auditLogGrid.getDataProvider().refreshAll();
         }
-
-        List<TreatmentAuditLog> filtered = allAuditLogs.stream()
-                .filter(log -> {
-                    // Filter nach Aktionstyp
-                    String actionType = actionTypeFilter.getValue();
-                    if (actionType != null && !actionType.equals("Alle")) {
-                        TreatmentAuditLog.ActionType expectedType = switch (actionType) {
-                            case "Erstellen" -> TreatmentAuditLog.ActionType.CREATE;
-                            case "Dokumentieren" -> TreatmentAuditLog.ActionType.APPROVE;
-                            case "Zweitprüfung" -> TreatmentAuditLog.ActionType.APPROVE_SECOND;
-                            case "Löschen" -> TreatmentAuditLog.ActionType.DELETE;
-                            default -> null;
-                        };
-                        if (expectedType != null && log.getActionType() != expectedType) {
-                            return false;
-                        }
-                    }
-
-                    // Filter nach Benutzer
-                    String actorFilterValue = actorFilter.getValue();
-                    if (actorFilterValue != null && !actorFilterValue.trim().isEmpty()) {
-                        String searchTerm = actorFilterValue.toLowerCase();
-                        String actorName = log.getActorUserName() != null ? log.getActorUserName().toLowerCase() : "";
-                        String actorId = log.getActorUserId() != null ? log.getActorUserId().toLowerCase() : "";
-                        if (!actorName.contains(searchTerm) && !actorId.contains(searchTerm)) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                })
-                .collect(Collectors.toList());
-
-        auditLogGrid.setItems(filtered);
     }
 
     public void refresh() {
-        loadAuditLogs();
+        setupDataProvider();
     }
 }
 

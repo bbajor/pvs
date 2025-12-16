@@ -16,6 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
@@ -66,6 +69,9 @@ public class TreatmentPlanService {
     private MedicationFavouriteRepository medicationFavouriteRepository;
     @Autowired
     private MedicationFavouriteService medicationFavouriteService;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public TreatmentPlan findByIdWithDetails(Long id) {
@@ -287,6 +293,7 @@ public class TreatmentPlanService {
         // Set institution from patient (data isolation)
         // This will be set when patient is assigned below, but we need to ensure it's set early
         // for validation purposes
+        // WICHTIG: Diagnosis muss immer aktualisiert werden, auch wenn sie null ist (Löschen)
         if (update.getDiagnosis() != null) {
             if (update.getDiagnosis().getId() == null || update.getDiagnosis().getId() <= 0) {
                 update.getDiagnosis().setId(null);
@@ -297,6 +304,9 @@ public class TreatmentPlanService {
                 // Existing diagnosis, ensure it exists
                 current.setDiagnosis(diagnosisService.getByDiagnoseId(update.getDiagnosis().getId()));
             }
+        } else {
+            // Diagnosis wurde auf null gesetzt (gelöscht) - setze sie auch im current auf null
+            current.setDiagnosis(null);
         }
 
         if (update.getPatient() != null) {
@@ -437,35 +447,51 @@ public class TreatmentPlanService {
         // Stelle sicher, dass InstitutionContext gesetzt ist
         ensureInstitutionContextForTreatment(treatmentId);
         
-        Treatment existing = treatmentRepository.findById(treatmentId)
+        // Lade Treatment mit allen Beziehungen in einem Query, um sicherzustellen,
+        // dass alles im Persistence-Kontext ist
+        Treatment existing = treatmentRepository.findByIdWithAllRelationships(treatmentId)
                 .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
         
-        // Validierung: Nur löschen, wenn Termin mindestens 1 Tag in der Zukunft liegt
+        // Validierung: Nur löschen, wenn Termin mindestens 2 Tage in der Zukunft liegt
         LocalDate treatmentDate = existing.getDate();
         LocalDate today = LocalDate.now();
         if (treatmentDate == null || treatmentDate.isBefore(today) || treatmentDate.equals(today)) {
-            throw new IllegalArgumentException("Behandlung kann nur gelöscht werden, wenn der Termin mindestens 1 Tag in der Zukunft liegt");
+            throw new IllegalArgumentException("Behandlung kann nur gelöscht werden, wenn der Termin mindestens 2 Tage in der Zukunft liegt");
         }
         
-        // Prüfe, ob mindestens 24 Stunden bis zum Termin verbleiben
-        java.time.LocalDateTime treatmentDateTime = treatmentDate.atStartOfDay();
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        long hoursUntilTreatment = java.time.temporal.ChronoUnit.HOURS.between(now, treatmentDateTime);
-        if (hoursUntilTreatment < 24) {
-            throw new IllegalArgumentException("Behandlung kann nicht mehr gelöscht werden: Weniger als 24 Stunden bis zum Termin. Bitte verwenden Sie 'Absagen'.");
+        // Prüfe, ob mindestens 2 Tage bis zum Termin verbleiben
+        long daysUntilTreatment = java.time.temporal.ChronoUnit.DAYS.between(today, treatmentDate);
+        if (daysUntilTreatment < 2) {
+            throw new IllegalArgumentException("Behandlung kann nicht mehr gelöscht werden: Weniger als 2 Tage bis zum Termin. Bitte verwenden Sie 'Absagen'.");
         }
+        
+        // WICHTIG: Setze treatment_id in bestehenden Audit-Logs auf null, bevor das Treatment gelöscht wird
+        // Dies verhindert Foreign Key Constraint-Verletzungen
+        List<TreatmentAuditLog> existingLogs = auditLogRepository.findByTreatmentOrderByActionTimestampAsc(existing);
+        for (TreatmentAuditLog existingLog : existingLogs) {
+            existingLog.setTreatment(null);
+            auditLogRepository.save(existingLog);
+        }
+        entityManager.flush(); // Flushe sofort, damit die Änderungen gespeichert sind
         
         // Audit-Log VOR dem Löschen erstellen und speichern
+        // Setze treatment explizit auf null, da das Treatment gleich gelöscht wird
         TreatmentAuditLog log = new TreatmentAuditLog();
-        log.setTreatment(existing);
+        log.setTreatment(null); // Explizit null setzen
         log.setActionType(TreatmentAuditLog.ActionType.DELETE);
         log.setActionTimestamp(java.time.LocalDateTime.now());
         currentUser.get().ifPresent(actor -> {
             log.setActorUserId(actor.getUserId().toString());
             log.setActorUserName(actor.getPreferredUsername());
         });
-        log.setDetails("Behandlung gelöscht");
+        // Speichere wichtige Informationen in den Details, da die Treatment-Referenz null ist
+        String details = String.format("Geplante Behandlung fristgerecht gelöscht (Treatment-ID: %d, Datum: %s)", 
+                treatmentId, 
+                treatmentDate != null ? treatmentDate.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy", java.util.Locale.GERMAN)) : "unbekannt");
+        log.setDetails(details);
+        
         auditLogRepository.save(log);
+        entityManager.flush(); // Flushe sofort, damit das Audit-Log vor dem Löschen gespeichert ist
         
         // Jetzt erst das Treatment löschen
         treatmentRepository.delete(existing);

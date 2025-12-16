@@ -13,6 +13,8 @@ import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Main;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -38,6 +40,8 @@ import de.bbajor.pvs.patient.presenter.PatientListPresenter;
 import de.bbajor.pvs.security.AppRoles;
 import jakarta.annotation.security.PermitAll;
 
+import java.util.List;
+
 @Route("patient-search")
 @PageTitle("Patienten")
 @Menu(order = 2, icon = "vaadin:male", title = "Patienten")
@@ -50,6 +54,7 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
     private final de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository;
     private final FeatureFlagService featureFlagService;
     private final TreatmentPlanRepository treatmentPlanRepository;
+    private final de.bbajor.pvs.base.service.InstitutionPrerequisitesService prerequisitesService;
     private Grid<Patient> patientGrid;
     
     // Cache für TreatmentPlans pro Patient (wird beim Query gefüllt, um N+1 zu vermeiden)
@@ -58,13 +63,15 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
 
     public PatientMainView(PatientListPresenter patientListPresenter, VoiceTranscriptionService transcriptionService, 
             ExtractionOrchestrator extractionOrchestrator, de.bbajor.pvs.security.domain.UserAccountRepository userAccountRepository,
-            FeatureFlagService featureFlagService, TreatmentPlanRepository treatmentPlanRepository) {
+            FeatureFlagService featureFlagService, TreatmentPlanRepository treatmentPlanRepository,
+            de.bbajor.pvs.base.service.InstitutionPrerequisitesService prerequisitesService) {
         this.patientListPresenter = patientListPresenter;
         this.transcriptionService = transcriptionService;
         this.extractionOrchestrator = extractionOrchestrator;
         this.userAccountRepository = userAccountRepository;
         this.featureFlagService = featureFlagService;
         this.treatmentPlanRepository = treatmentPlanRepository;
+        this.prerequisitesService = prerequisitesService;
         
         // Überschrift
         H1 title = new H1("Übersicht Patienten");
@@ -120,14 +127,60 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
         newPatientButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         newPatientButton.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
         
+        // Prüfe Voraussetzungen für Patientenanlage
+        ensureInstitutionContext();
+        boolean canCreate = prerequisitesService.canCreatePatient();
+        List<String> missingPrerequisites = prerequisitesService.getMissingPrerequisitesForPatientCreation();
+        newPatientButton.setEnabled(canCreate);
+        
+        // Button-Layout mit Hinweis-Icon
+        HorizontalLayout newPatientButtonLayout = new HorizontalLayout();
+        newPatientButtonLayout.setSpacing(true);
+        newPatientButtonLayout.setAlignItems(HorizontalLayout.Alignment.CENTER);
+        newPatientButtonLayout.add(newPatientButton);
+        
+        if (!canCreate && !missingPrerequisites.isEmpty()) {
+            com.vaadin.flow.component.icon.Icon infoIcon = VaadinIcon.INFO_CIRCLE.create();
+            infoIcon.getStyle().set("color", "var(--lumo-warning-color)");
+            String tooltipText = "Folgende Voraussetzungen fehlen:\n" + 
+                String.join("\n", missingPrerequisites);
+            infoIcon.setTooltipText(tooltipText);
+            newPatientButtonLayout.add(infoIcon);
+        }
+        
         TextField searchField = new TextField();
-        searchField.setPlaceholder("Suche nach Name, Geburtsdatum oder Krankenkasse...");
+        searchField.setPlaceholder("Mindestens 3 Zeichen für Suche eingeben");
         searchField.setWidthFull();
         searchField.setClearButtonVisible(true);
         searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
-        searchField.addValueChangeListener(e -> refreshGrid(e.getValue()));
         
-        toolbarLayout.add(newPatientButton, searchField);
+        // Suche mit KeyUpListener für Live-Suche während des Tippens
+        // Mindestens 3 Zeichen erforderlich, Debouncing mit Abbrechen alter Suchen
+        searchField.addKeyUpListener(event -> {
+            String searchTerm = searchField.getValue();
+            if (searchTerm == null || searchTerm.trim().length() < 3) {
+                // Wenn weniger als 3 Zeichen, zeige alle Ergebnisse (keine Suche)
+                scheduleSearch("");
+                return;
+            }
+            
+            // Mindestens 3 Zeichen: Suche auslösen mit Debouncing
+            scheduleSearch(searchTerm.trim());
+        });
+        
+        // Auch bei ValueChange (z.B. Clear-Button) reagieren
+        searchField.addValueChangeListener(e -> {
+            String searchTerm = e.getValue();
+            if (searchTerm == null || searchTerm.trim().length() < 3) {
+                // Wenn weniger als 3 Zeichen, zeige alle Ergebnisse
+                scheduleSearch("");
+                return;
+            }
+            
+            scheduleSearch(searchTerm.trim());
+        });
+        
+        toolbarLayout.add(newPatientButtonLayout, searchField);
         toolbarLayout.setFlexGrow(1, searchField);
         
         section.add(toolbarLayout);
@@ -220,8 +273,26 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
                         statusButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
                         statusButton.getStyle().set("background-color", "#ffeb3b");
                         statusButton.getStyle().set("color", "#000000");
-                        statusButton.setEnabled(true);
+                        
+                        // Prüfe Voraussetzungen für Behandlungsplan-Erstellung
+                        ensureInstitutionContext();
+                        boolean canCreate = prerequisitesService.canCreateTreatmentPlan();
+                        List<String> missingPrerequisites = prerequisitesService.getMissingPrerequisitesForTreatmentPlanCreation();
+                        statusButton.setEnabled(canCreate);
+                        
+                        if (!canCreate && !missingPrerequisites.isEmpty()) {
+                            String tooltipText = "Folgende Voraussetzungen fehlen:\n" + 
+                                String.join("\n", missingPrerequisites);
+                            statusButton.setTooltipText(tooltipText);
+                        }
+                        
                         statusButton.addClickListener(e -> {
+                            if (!canCreate) {
+                                Notification.show("Bitte erfüllen Sie zuerst alle notwendigen Voraussetzungen", 
+                                        5000, Notification.Position.MIDDLE)
+                                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                                return;
+                            }
                             // Gleiche Logik wie im IVOM-Planer: Erstelle TreatmentPlan mit id=-1L
                             TreatmentPlan newTreatmentPlan = new TreatmentPlan();
                             newTreatmentPlan.setId(-1L);
@@ -308,6 +379,33 @@ public class PatientMainView extends Main implements PatientChangeListener, Befo
     
     private String getSearchTerm() {
         return searchTerm;
+    }
+    
+    /**
+     * Plant eine Suche mit Debouncing ein, um zyklische Abhängigkeiten zu vermeiden.
+     * Bricht vorherige Suchen ab, wenn eine neue gestartet wird.
+     */
+    private void scheduleSearch(String searchString) {
+        // Plane neue Suche mit 300ms Verzögerung (Debouncing) über JavaScript
+        // JavaScript kümmert sich um das Abbrechen vorheriger Timeouts
+        com.vaadin.flow.component.UI currentUI = com.vaadin.flow.component.UI.getCurrent();
+        if (currentUI != null) {
+            final String finalSearchString = searchString != null ? searchString : "";
+            currentUI.getPage().executeJs(
+                "if (window.patientSearchTimeout) { clearTimeout(window.patientSearchTimeout); } " +
+                "window.patientSearchTimeout = setTimeout(function() { $0.$server.executePatientSearch($1); }, 300);",
+                getElement(), finalSearchString
+            );
+        }
+    }
+    
+    /**
+     * Wird von JavaScript aufgerufen, um die Suche tatsächlich auszuführen.
+     * Dies verhindert zyklische Abhängigkeiten, da die Suche asynchron erfolgt.
+     */
+    @com.vaadin.flow.component.ClientCallable
+    private void executePatientSearch(String searchString) {
+        refreshGrid(searchString);
     }
     
     private void refreshGrid(String searchString) {

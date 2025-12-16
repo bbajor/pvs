@@ -21,6 +21,22 @@ spring:
     fail-on-missing-locations: true
     repair-on-migrate: false
 
+# Server-Konfiguration
+server:
+  port: ${PORT:8080}
+  # Graceful Shutdown für Load Balancer
+  shutdown: graceful
+  # Session-Timeout
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:true}
+        http-only: true
+        same-site: lax
+  # Forward headers from reverse proxy (kritisch für X-Forwarded-* Header)
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:
