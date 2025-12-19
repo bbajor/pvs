@@ -619,7 +619,8 @@ public class NextTreatmentBookingDialog extends Dialog {
         
         for (int i = 0; i < centers.size(); i++) {
             surgicalCenterColors.put(centers.get(i), colors[i % colors.length]);
-            surgicalCenterVisibility.put(centers.get(i), true); // Standard: alle sichtbar
+            // Nur die erste Einrichtung ist vorausgewählt, alle anderen sind abgewählt
+            surgicalCenterVisibility.put(centers.get(i), i == 0);
         }
     }
     
@@ -672,10 +673,19 @@ public class NextTreatmentBookingDialog extends Dialog {
         for (SurgicalCenter center : centers) {
             Checkbox checkbox = new Checkbox();
             checkbox.setLabel(center.getName());
-            checkbox.setValue(surgicalCenterVisibility.getOrDefault(center, true));
+            // Alle Checkboxen sind an- und abwählbar
+            checkbox.setEnabled(true);
+            Boolean currentVisibility = surgicalCenterVisibility.getOrDefault(center, false);
+            checkbox.setValue(currentVisibility);
+            
+            // ValueChangeListener für Checkbox-Änderungen
             checkbox.addValueChangeListener(e -> {
-                surgicalCenterVisibility.put(center, e.getValue());
-                refreshWeekCalendar(); // Aktualisiere Kalender bei Änderung
+                Boolean newValue = e.getValue();
+                if (newValue != null) {
+                    surgicalCenterVisibility.put(center, newValue);
+                    // Aktualisiere nur den Kalender, nicht die gesamte Legende
+                    refreshWeekCalendarContent();
+                }
             });
             
             // Farbe als Indikator hinzufügen
@@ -776,6 +786,16 @@ public class NextTreatmentBookingDialog extends Dialog {
                 legendContainer.add(legend);
             }
         }
+        
+        refreshWeekCalendarContent();
+    }
+    
+    /**
+     * Aktualisiert nur den Kalender-Inhalt (ohne Legende neu zu erstellen).
+     * Wird verwendet, wenn sich die Sichtbarkeit der Einrichtungen ändert.
+     */
+    private void refreshWeekCalendarContent() {
+        weekCalendarContainer.removeAll();
         
         if (availableTimeSlots.isEmpty()) {
             Span noSlotsMessage = new Span("Keine Termine verfügbar im gewählten Zeitraum.");

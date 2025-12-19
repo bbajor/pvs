@@ -71,6 +71,10 @@ public class TimeLineCard extends Card {
                     String medicationName = config.getTreatment().getMedicationFavourite().getMedication().getArzneimittelbezeichnung();
                     add(new Paragraph("Medikament: " + medicationName));
                 }
+                // Visus anzeigen, falls vorhanden
+                if (config.getTreatment().getVisualAcuity() != null && !config.getTreatment().getVisualAcuity().trim().isEmpty()) {
+                    add(new Paragraph("Visus: " + config.getTreatment().getVisualAcuity()));
+                }
                 String additionalInfo = config.getAdditionalInfo();
                 if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
                     add(new Paragraph(additionalInfo));

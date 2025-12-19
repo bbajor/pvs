@@ -91,6 +91,21 @@ public class TreatmentPlanLayout extends VerticalLayout {
     private final TimelineView timeLineViewLeftEye;
     private final TimelineView timeLineViewRightEye;
     private final TextArea additionalInformation = new TextArea("Notizen");
+    
+    // Befund-Felder
+    private final com.vaadin.flow.component.checkbox.Checkbox subretinalFluidCheckbox = 
+        new com.vaadin.flow.component.checkbox.Checkbox("subretinale Flüssigkeit");
+    private final com.vaadin.flow.component.checkbox.Checkbox intraretinalFluidIncreaseCheckbox = 
+        new com.vaadin.flow.component.checkbox.Checkbox("Zunahme intraretinale Flüssigkeit");
+    private final com.vaadin.flow.component.checkbox.Checkbox serousRpeDetachmentIncreaseCheckbox = 
+        new com.vaadin.flow.component.checkbox.Checkbox("Zunahme seröse RPE-Abhebung");
+    private final com.vaadin.flow.component.checkbox.Checkbox newRetinalHemorrhageCheckbox = 
+        new com.vaadin.flow.component.checkbox.Checkbox("neue retinale Blutung");
+    private final com.vaadin.flow.component.textfield.TextField visualAcuityInitialLeftField = 
+        new com.vaadin.flow.component.textfield.TextField("Visus initial LA:");
+    private final com.vaadin.flow.component.textfield.TextField visualAcuityInitialRightField = 
+        new com.vaadin.flow.component.textfield.TextField("Visus initial RA:");
+    
     private final TreatmentPlanPresenter presenter;
     private TreatmentPlan current;
     private final ApplicationContext context;
@@ -241,6 +256,20 @@ public class TreatmentPlanLayout extends VerticalLayout {
         // Patient-Combobox wird dynamisch angezeigt/versteckt
         formLayout.add(patientSelectComboBox);
         formLayout.add(reasonForTreatmentComboBox, 2);
+        
+        // Befund-Checkboxen
+        formLayout.add(subretinalFluidCheckbox);
+        formLayout.add(intraretinalFluidIncreaseCheckbox);
+        formLayout.add(serousRpeDetachmentIncreaseCheckbox);
+        formLayout.add(newRetinalHemorrhageCheckbox);
+        
+        // Visus-Felder (nur bei Neuanlage änderbar)
+        boolean isNewPlan = isNewTreatmentPlan();
+        visualAcuityInitialLeftField.setReadOnly(!isNewPlan);
+        visualAcuityInitialRightField.setReadOnly(!isNewPlan);
+        formLayout.add(visualAcuityInitialLeftField);
+        formLayout.add(visualAcuityInitialRightField);
+        
         formLayout.add(additionalInformation, 2);
         detailsSectionDiv.add(formLayout);
         
@@ -253,6 +282,7 @@ public class TreatmentPlanLayout extends VerticalLayout {
     
     /**
      * Aktualisiert die Details-Section: Patient-Combobox nur bei Neuanlage anzeigen
+     * Visus-Felder nur bei Neuanlage editierbar
      */
     private void updateDetailsSection() {
         if (patientSelectComboBox == null) {
@@ -262,6 +292,15 @@ public class TreatmentPlanLayout extends VerticalLayout {
         // Patient-Combobox nur anzeigen, wenn kein Patient vorhanden (Neuanlage)
         boolean showPatientComboBox = isNewTreatmentPlan() || current.getPatient() == null;
         patientSelectComboBox.setVisible(showPatientComboBox);
+        
+        // Visus-Felder nur bei Neuanlage editierbar
+        boolean isNewPlan = isNewTreatmentPlan();
+        if (visualAcuityInitialLeftField != null) {
+            visualAcuityInitialLeftField.setReadOnly(!isNewPlan);
+        }
+        if (visualAcuityInitialRightField != null) {
+            visualAcuityInitialRightField.setReadOnly(!isNewPlan);
+        }
     }
     
     private void initializeTreatmentHistorySection() {
@@ -801,6 +840,56 @@ public class TreatmentPlanLayout extends VerticalLayout {
             infoLayout.add(createInfoRow("Nächster Termin: Kein Termin geplant"));
         }
         
+        // Visus-Übersicht
+        String initialVisus = side == SideOfEye.LEFT 
+            ? (current.getVisualAcuityInitialLeft() != null ? current.getVisualAcuityInitialLeft() : null)
+            : (current.getVisualAcuityInitialRight() != null ? current.getVisualAcuityInitialRight() : null);
+        
+        // Finde zuletzt gemessenen Visus (letzte Behandlung mit Visus, egal ob Vergangenheit, heute oder Zukunft)
+        // Ein Visus bei einer geplanten Behandlung bedeutet, dass dieser bereits gemessen wurde
+        String lastVisus = null;
+        Treatment lastTreatmentWithVisus = treatments.stream()
+            .filter(t -> t.getDate() != null)
+            .filter(t -> t.getVisualAcuity() != null && !t.getVisualAcuity().trim().isEmpty())
+            .max((a, b) -> a.getDate().compareTo(b.getDate()))
+            .orElse(null);
+        
+        if (lastTreatmentWithVisus != null) {
+            lastVisus = lastTreatmentWithVisus.getVisualAcuity();
+        }
+        
+        // Visus-Information anzeigen
+        if (initialVisus != null && !initialVisus.trim().isEmpty()) {
+            infoLayout.add(createInfoRow("Visus initial: " + initialVisus));
+            
+            if (lastVisus != null && !lastVisus.trim().isEmpty()) {
+                // Vergleich durchführen (vereinfacht: String-Vergleich, könnte später erweitert werden)
+                String comparison;
+                if (initialVisus.equals(lastVisus)) {
+                    comparison = "Gleichbleibend";
+                } else {
+                    // Versuche numerischen Vergleich (z.B. "0.8" vs "0.6")
+                    try {
+                        double initial = Double.parseDouble(initialVisus.replace(",", "."));
+                        double last = Double.parseDouble(lastVisus.replace(",", "."));
+                        if (last > initial) {
+                            comparison = "Verbessert";
+                        } else {
+                            comparison = "Verschlechtert";
+                        }
+                    } catch (NumberFormatException e) {
+                        // Fallback: String-Vergleich
+                        comparison = initialVisus.compareTo(lastVisus) < 0 ? "Verbessert" : "Verschlechtert";
+                    }
+                }
+                infoLayout.add(createInfoRow("Visus aktuell: " + lastVisus + " (" + comparison + ")"));
+            } else {
+                infoLayout.add(createInfoRow("Visus aktuell: Noch keine Kontrolle"));
+            }
+        } else if (lastVisus != null && !lastVisus.trim().isEmpty()) {
+            infoLayout.add(createInfoRow("Visus aktuell: " + lastVisus));
+        }
+        
         card.add(infoLayout);
     }
     
@@ -984,6 +1073,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
         binder.bind(patientSelectComboBox, TreatmentPlan::getPatient, TreatmentPlan::setPatient);
         binder.bind(reasonForTreatmentComboBox, TreatmentPlan::getDiagnosis,
                 TreatmentPlan::setDiagnosis);
+        binder.bind(subretinalFluidCheckbox, tp -> tp.getSubretinalFluid(), (tp, v) -> tp.setSubretinalFluid(v));
+        binder.bind(intraretinalFluidIncreaseCheckbox, tp -> tp.getIntraretinalFluidIncrease(), (tp, v) -> tp.setIntraretinalFluidIncrease(v));
+        binder.bind(serousRpeDetachmentIncreaseCheckbox, tp -> tp.getSerousRpeDetachmentIncrease(), (tp, v) -> tp.setSerousRpeDetachmentIncrease(v));
+        binder.bind(newRetinalHemorrhageCheckbox, tp -> tp.getNewRetinalHemorrhage(), (tp, v) -> tp.setNewRetinalHemorrhage(v));
+        binder.bind(visualAcuityInitialLeftField, tp -> tp.getVisualAcuityInitialLeft(), (tp, v) -> tp.setVisualAcuityInitialLeft(v));
+        binder.bind(visualAcuityInitialRightField, tp -> tp.getVisualAcuityInitialRight(), (tp, v) -> tp.setVisualAcuityInitialRight(v));
         
         // Binder-Änderungen überwachen für Button-Status
         binder.addValueChangeListener(e -> {
@@ -1155,8 +1250,9 @@ public class TreatmentPlanLayout extends VerticalLayout {
         
         // Krankenkasse
         if (patient.getHealthInsurance() != null) {
-            String insuranceName = patient.getHealthInsurance().getBillingCarrierName();
-            if (insuranceName != null && !insuranceName.trim().isEmpty()) {
+            // Verwende toString() um costCarrierName zu priorisieren, falls vorhanden
+            String insuranceName = patient.getHealthInsurance().toString();
+            if (insuranceName != null && !insuranceName.trim().isEmpty() && !insuranceName.startsWith("Unbekannte")) {
                 infoLayout.add(createInfoRow("Krankenkasse", insuranceName));
             }
         }
@@ -1289,6 +1385,12 @@ public class TreatmentPlanLayout extends VerticalLayout {
                 if (bean != null) {
                     bean.setDiagnosis(reasonForTreatmentComboBox.getValue());
                     bean.setAdditionalInformation(additionalInformation.getValue());
+                    bean.setSubretinalFluid(subretinalFluidCheckbox.getValue());
+                    bean.setIntraretinalFluidIncrease(intraretinalFluidIncreaseCheckbox.getValue());
+                    bean.setSerousRpeDetachmentIncrease(serousRpeDetachmentIncreaseCheckbox.getValue());
+                    bean.setNewRetinalHemorrhage(newRetinalHemorrhageCheckbox.getValue());
+                    bean.setVisualAcuityInitialLeft(visualAcuityInitialLeftField.getValue());
+                    bean.setVisualAcuityInitialRight(visualAcuityInitialRightField.getValue());
                 }
             } catch (Exception e) {
                 // Fehler beim Schreiben - ignorieren, da Validierung beim Speichern erfolgt

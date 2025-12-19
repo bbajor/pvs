@@ -116,4 +116,9 @@ public interface AppointmentSchedulerRepository extends InstitutionAwareReposito
     @Query("SELECT s FROM AppointmentScheduler s WHERE s.active = true AND " +
            "s.location IS NOT NULL AND s.location.institution.id = :institutionId")
     List<AppointmentScheduler> findActivByInstitutionId(@Param("institutionId") Long institutionId);
+
+    /**
+     * Count schedulers for a specific location.
+     */
+    long countByLocation(Location location);
 }

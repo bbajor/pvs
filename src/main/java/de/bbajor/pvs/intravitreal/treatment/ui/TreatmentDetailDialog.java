@@ -33,8 +33,8 @@ public class TreatmentDetailDialog extends Dialog {
         this.treatment = treatment;
         this.treatmentPlanService = treatmentPlanService;
 
-        setWidth("1000px");
-        setHeight("600px");
+        setWidth("1200px");
+        setHeight("700px");
         setHeaderTitle("Behandlungsdetails für " + treatment.getPatientInfo());
         setCloseOnOutsideClick(false);
         
@@ -50,7 +50,7 @@ public class TreatmentDetailDialog extends Dialog {
             treatmentPlanService,
             userAccountService
         );
-        layout.setSizeFull();
+        layout.setWidthFull();
         add(layout);
         
         // Footer-Buttons: Löschen oder Absagen
@@ -87,6 +87,11 @@ public class TreatmentDetailDialog extends Dialog {
                 getFooter().add(cancelButton);
             }
         }
+        
+        // Schließen-Button immer anzeigen (rechts)
+        Button closeButton = new Button("Schließen", e -> close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        getFooter().add(closeButton);
     }
     
     private void confirmDelete() {

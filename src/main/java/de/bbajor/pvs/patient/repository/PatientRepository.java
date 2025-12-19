@@ -174,4 +174,9 @@ public interface PatientRepository extends InstitutionAwareRepository<Patient, I
     @Query("DELETE FROM Patient p WHERE " +
            "p.location IS NOT NULL AND p.location.institution.id = :institutionId")
     void deleteByInstitutionId(@Param("institutionId") Long institutionId);
+
+    /**
+     * Count patients for a specific location.
+     */
+    long countByLocation(de.bbajor.pvs.location.model.Location location);
 }

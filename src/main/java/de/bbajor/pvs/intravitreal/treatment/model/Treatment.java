@@ -97,6 +97,31 @@ public class Treatment extends BasicEntity<Long> {
      */
     @OneToMany(mappedBy = "treatment", cascade = { CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE }, orphanRemoval = true)
     private List<de.bbajor.pvs.taskmanagement.domain.TreatmentRemark> remarks = new ArrayList<>();
+    
+    /**
+     * Befund vor der Behandlung: subretinale Flüssigkeit vorhanden.
+     */
+    private Boolean subretinalFluid;
+    
+    /**
+     * Befund vor der Behandlung: Zunahme intraretinale Flüssigkeit.
+     */
+    private Boolean intraretinalFluidIncrease;
+    
+    /**
+     * Befund vor der Behandlung: Zunahme seröse RPE-Abhebung.
+     */
+    private Boolean serousRpeDetachmentIncrease;
+    
+    /**
+     * Befund vor der Behandlung: neue retinale Blutung.
+     */
+    private Boolean newRetinalHemorrhage;
+    
+    /**
+     * Visus vor der Behandlung.
+     */
+    private String visualAcuity;
 
     public String getSurgicalCenterString() {
         if (surgicalCenterTimeSlot != null && surgicalCenterTimeSlot.getSurgicalCenter() != null) {

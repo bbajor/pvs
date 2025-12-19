@@ -40,6 +40,11 @@ public class HealthInsurance extends BasicEntity<Integer> {
     private String costCarrierId; // Kostenträgernummer
     private String costCarrierName; // Kostenträger
 
+    /**
+     * Soft-Delete-Flag: nur aktive Versicherungen werden im UI und bei Dublettenprüfung berücksichtigt.
+     */
+    private boolean active = true;
+
     @Override
     public String toString() {
         return costCarrierName != null ? costCarrierName

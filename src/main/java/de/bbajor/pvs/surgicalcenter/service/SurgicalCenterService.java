@@ -370,6 +370,94 @@ public class SurgicalCenterService {
         return timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(surgicalCenterId, institutionId);
     }
 
+    /**
+     * Liefert alle Zeitslots aller Behandlungsorte der aktuellen Institution in einem Zeitraum,
+     * inklusive Patientenzahl pro Slot.
+     */
+    @Transactional(readOnly = true)
+    public List<SurgicalCenterTimeSlot> getAllTimeSlotsForCurrentInstitutionWithTreatmentCount(LocalDate start,
+            TimePeriod period) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            throw new IllegalStateException("Cannot access time slots without institution context");
+        }
+
+        LocalDate effectiveStart = start != null && start.isAfter(LocalDate.now()) ? start : LocalDate.now();
+        LocalDate end = period != null ? period.calculateEndDate(effectiveStart) : effectiveStart.plusMonths(6);
+
+        List<SurgicalCenter> centers = surgicalCenterRepository.findByInstitutionId(institutionId);
+        List<SurgicalCenterTimeSlot> result = new ArrayList<>();
+
+        for (SurgicalCenter center : centers) {
+            if (center == null || center.getId() == null) {
+                continue;
+            }
+            List<SurgicalCenterTimeSlot> slotsForCenter =
+                    timeSlotRepository.findBySurgicalCenterIdWithTreatmentCount(center.getId().intValue(),
+                            institutionId);
+
+            slotsForCenter.stream()
+                    .filter(slot -> slot.getDate() != null
+                            && !slot.getDate().isBefore(effectiveStart)
+                            && !slot.getDate().isAfter(end)
+                            && slot.isAvailable())
+                    .forEach(result::add);
+        }
+
+        result.sort(
+                java.util.Comparator
+                        .comparing((SurgicalCenterTimeSlot slot) -> slot.getDate() != null ? slot.getDate()
+                                : LocalDate.MAX)
+                        .thenComparing(slot -> slot.getStartTime() != null ? slot.getStartTime() : java.time.LocalTime.MAX));
+
+        return result;
+    }
+
+    /**
+     * Deaktiviert einen Zeitslot (isAvailable = false), falls er zur aktuellen Institution gehört.
+     */
+    @Transactional
+    public void deactivateTimeSlot(Long timeSlotId) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            throw new IllegalStateException("Cannot modify time slot without institution context");
+        }
+
+        SurgicalCenterTimeSlot slot = timeSlotRepository.findById(timeSlotId)
+                .orElseThrow(() -> new IllegalArgumentException("Time slot not found: " + timeSlotId));
+
+        SurgicalCenter center = slot.getSurgicalCenter();
+        if (center == null || center.getInstitution() == null
+                || !center.getInstitution().getId().equals(institutionId)) {
+            throw new IllegalStateException("Time slot does not belong to current institution");
+        }
+
+        slot.setAvailable(false);
+        timeSlotRepository.save(slot);
+    }
+
+    /**
+     * Löscht einen Zeitslot, falls er zur aktuellen Institution gehört.
+     */
+    @Transactional
+    public void deleteTimeSlot(Long timeSlotId) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
+            throw new IllegalStateException("Cannot delete time slot without institution context");
+        }
+
+        SurgicalCenterTimeSlot slot = timeSlotRepository.findById(timeSlotId)
+                .orElseThrow(() -> new IllegalArgumentException("Time slot not found: " + timeSlotId));
+
+        SurgicalCenter center = slot.getSurgicalCenter();
+        if (center == null || center.getInstitution() == null
+                || !center.getInstitution().getId().equals(institutionId)) {
+            throw new IllegalStateException("Time slot does not belong to current institution");
+        }
+
+        timeSlotRepository.delete(slot);
+    }
+
     public List<SurgicalCenterTimeSlot> getNewTimeSlotsContainingNotApprovedTreatments(List<Long> timeSlotIds) {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {

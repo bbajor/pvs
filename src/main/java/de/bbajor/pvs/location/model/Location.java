@@ -92,6 +92,12 @@ public class Location extends BasicEntity<Long> {
     private String additionalInfo;
     
     /**
+     * Whether this is the main (primary) location of the institution.
+     * There must always be exactly one main location per institution.
+     */
+    private boolean mainLocation = false;
+    
+    /**
      * Whether this location is active.
      * Inactive locations cannot be selected for new patients or appointments.
      */

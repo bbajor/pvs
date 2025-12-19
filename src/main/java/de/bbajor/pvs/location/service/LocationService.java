@@ -6,11 +6,14 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.bbajor.pvs.appointment.repository.AppointmentSchedulerRepository;
 import de.bbajor.pvs.institution.context.InstitutionContext;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.repository.LocationRepository;
+import de.bbajor.pvs.patient.repository.PatientRepository;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -26,6 +29,9 @@ public class LocationService {
 
     private final LocationRepository locationRepository;
     private final InstitutionRepository institutionRepository;
+    private final PatientRepository patientRepository;
+    private final AppointmentSchedulerRepository appointmentSchedulerRepository;
+    private final UserAccountRepository userAccountRepository;
 
     /**
      * Gets the first/default location for the current institution.
@@ -104,7 +110,8 @@ public class LocationService {
 
     /**
      * Saves or updates a location.
-     * Sets institution if not already set (using InstitutionContext).
+     * Sets institution if not already set (using InstitutionContext) and ensures
+     * main-location invariant per institution (there is always exactly one).
      */
     @Transactional
     public Location saveLocation(Location location) {
@@ -112,21 +119,43 @@ public class LocationService {
         if (location.getInstitution() == null) {
             Long institutionId = InstitutionContext.getInstitutionId();
             if (institutionId != null) {
-                // For now, map institutionId to institutionId
                 institutionRepository.findById(institutionId)
                         .ifPresent(location::setInstitution);
-                
-                // Fallback: Try to find institution by institution code
-                if (location.getInstitution() == null) {
-                    // This will be handled in multi-DB implementation
-                }
             }
         }
-        
-        // Validate that institution is set
+
         if (location.getInstitution() == null) {
             throw new IllegalStateException(
                     "Cannot save location without institution. Ensure at least one institution exists.");
+        }
+
+        // Ensure there is exactly one main location per institution
+        Long institutionId = location.getInstitution().getId();
+        List<Location> existingMainLocations =
+                locationRepository.findMainLocationsByInstitutionId(institutionId);
+
+        boolean isNew = location.getId() == null;
+        boolean wantsToBeMain = location.isMainLocation();
+
+        if (isNew && existingMainLocations.isEmpty()) {
+            // First location for this institution becomes main location automatically
+            location.setMainLocation(true);
+        } else if (wantsToBeMain) {
+            // Demote all other main locations
+            for (Location other : existingMainLocations) {
+                if (location.getId() == null || !other.getId().equals(location.getId())) {
+                    other.setMainLocation(false);
+                    locationRepository.save(other);
+                }
+            }
+        } else if (!wantsToBeMain && !existingMainLocations.isEmpty()) {
+            // Prevent removing main flag if it would leave institution without main location
+            boolean isCurrentlyMain = existingMainLocations.stream()
+                    .anyMatch(l -> l.getId().equals(location.getId()));
+            if (isCurrentlyMain && existingMainLocations.size() == 1) {
+                // Keep flag on; caller must assign another main location first
+                location.setMainLocation(true);
+            }
         }
 
         return locationRepository.save(location);
@@ -134,11 +163,22 @@ public class LocationService {
 
     /**
      * Deletes a location.
-     * Note: Consider using deactivateLocation() instead to preserve data integrity.
+     * Deletes only if there are no relational dependencies (patients, schedulers, users).
      */
     @Transactional
     public void deleteLocation(Long id) {
-        locationRepository.findById(id).ifPresent(locationRepository::delete);
+        Location location = locationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Location not found: " + id));
+
+        long patientCount = patientRepository.countByLocation(location);
+        long schedulerCount = appointmentSchedulerRepository.countByLocation(location);
+        long userCount = userAccountRepository.countByPreferredLocation(location);
+
+        if (patientCount > 0 || schedulerCount > 0 || userCount > 0) {
+            throw new IllegalStateException("Standort kann nicht gelöscht werden, da noch abhängige Daten existieren.");
+        }
+
+        locationRepository.delete(location);
     }
     
     /**

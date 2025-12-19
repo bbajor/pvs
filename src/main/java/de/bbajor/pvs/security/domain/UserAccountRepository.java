@@ -3,6 +3,7 @@ package de.bbajor.pvs.security.domain;
 import java.util.List;
 import java.util.Optional;
 
+import de.bbajor.pvs.location.model.Location;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +33,9 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
      */
     @Query("SELECT DISTINCT ua FROM UserAccount ua LEFT JOIN FETCH ua.preferredLocation WHERE ua.institution.id = :institutionId")
     List<UserAccount> findAllByInstitutionIdWithPreferredLocation(@Param("institutionId") Long institutionId);
+
+    /**
+     * Count users that reference a location as preferredLocation.
+     */
+    long countByPreferredLocation(Location preferredLocation);
 }

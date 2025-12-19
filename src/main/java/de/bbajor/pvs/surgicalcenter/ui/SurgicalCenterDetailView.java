@@ -51,12 +51,6 @@ public class SurgicalCenterDetailView extends VerticalLayout implements BeforeEn
         
         // Binder-Änderungen überwachen für Auto-Save
         surgicalCenterLayout.setBinderChangeListener(() -> autoSaveIfNeeded());
-        
-        // Tab-Wechsel überwachen: Speichere beim Verlassen des Stammdaten-Tabs
-        surgicalCenterLayout.setTabChangeListener(() -> saveOnTabChange());
-        
-        // Save-Listener für explizites Speichern (z.B. beim Hinzufügen von OP-Slots)
-        surgicalCenterLayout.setSaveListener(() -> saveOnTabChange());
 
         HorizontalLayout buttonBar = new HorizontalLayout();
         buttonBar.setWidthFull();

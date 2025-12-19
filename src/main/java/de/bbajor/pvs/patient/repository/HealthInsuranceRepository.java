@@ -19,6 +19,33 @@ public interface HealthInsuranceRepository
     /**
      * Findet alle Versicherungen für eine Institution.
      */
-    @Query("SELECT h FROM HealthInsurance h WHERE h.institution.id = :institutionId")
+    @Query("SELECT h FROM HealthInsurance h WHERE h.institution.id = :institutionId AND h.active = true")
     List<HealthInsurance> findByInstitutionId(@Param("institutionId") Long institutionId);
+
+    /**
+     * Prüft, ob es innerhalb einer Institution bereits eine Versicherung gibt,
+     * die anhand Kostenträgername, Kostenträger-ID oder Abrechnungsstellen-ID
+     * als Dublette gewertet werden muss.
+     *
+     * - Beim Bearbeiten wird der aktuelle Datensatz (currentId) ausgeschlossen.
+     * - Nur übergebene Kriterien werden berücksichtigt.
+     */
+    @Query("""
+            SELECT (COUNT(h) > 0)
+            FROM HealthInsurance h
+            WHERE h.institution.id = :institutionId
+              AND h.active = true
+              AND (:currentId IS NULL OR h.id <> :currentId)
+              AND (
+                   (:costCarrierName IS NOT NULL AND LOWER(h.costCarrierName) = LOWER(:costCarrierName))
+                OR (:costCarrierId IS NOT NULL AND h.costCarrierId = :costCarrierId)
+                OR (:billingCarrierId IS NOT NULL AND h.billingCarrierId = :billingCarrierId)
+              )
+            """)
+    boolean existsDuplicateForInstitution(
+            @Param("institutionId") Long institutionId,
+            @Param("currentId") Integer currentId,
+            @Param("costCarrierName") String costCarrierName,
+            @Param("costCarrierId") String costCarrierId,
+            @Param("billingCarrierId") String billingCarrierId);
 }

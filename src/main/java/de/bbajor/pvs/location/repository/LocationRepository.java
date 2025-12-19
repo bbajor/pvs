@@ -1,14 +1,15 @@
 package de.bbajor.pvs.location.repository;
 
-import de.bbajor.pvs.location.model.Location;
-import de.bbajor.pvs.institution.repository.InstitutionAwareRepository;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import de.bbajor.pvs.institution.repository.InstitutionAwareRepository;
+import de.bbajor.pvs.location.model.Location;
 
 /**
  * Repository for Location entities.
@@ -83,5 +84,11 @@ public interface LocationRepository extends InstitutionAwareRepository<Location,
     @Modifying
     @Query("DELETE FROM Location l WHERE l.institution.id = :institutionId")
     void deleteByInstitutionId(@Param("institutionId") Long institutionId);
+
+    /**
+     * Find the main location for an institution.
+     */
+    @Query("SELECT l FROM Location l WHERE l.institution.id = :institutionId AND l.mainLocation = true")
+    List<Location> findMainLocationsByInstitutionId(@Param("institutionId") Long institutionId);
 }
 

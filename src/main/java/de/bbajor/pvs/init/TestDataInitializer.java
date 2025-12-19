@@ -486,8 +486,9 @@ public class TestDataInitializer {
                             + random.nextInt(10000000, 99999999);
                 })
                 .supply(field(Address::getStreet),
-                        () -> STREET_NAMES[random.nextInt(STREET_NAMES.length)] + " "
-                        + (1 + random.nextInt(100)))
+                        () -> STREET_NAMES[random.nextInt(STREET_NAMES.length)])
+                .supply(field(Address::getHouseNo),
+                        () -> String.valueOf(1 + random.nextInt(200)))
                 .supply(field(Address::getCity), () -> CITIES[random.nextInt(CITIES.length)])
                 .supply(field(Address::getPostalCode),
                         () -> 10000 + random.nextInt(90000))
@@ -496,6 +497,10 @@ public class TestDataInitializer {
                     String[] insurances = {"TK", "AOK", "Barmer", "DAK", "BKK", "IKK", "KKH",
                         "Debeka"};
                     return insurances[random.nextInt(insurances.length)];
+                })
+                .supply(field(HealthInsurance::getInsuranceType), () -> {
+                    String[] insuranceTypes = {"Gesetzlich", "Privat"};
+                    return insuranceTypes[random.nextInt(insuranceTypes.length)];
                 })
                 .ignore(field(HealthInsurance::getId))
                 .ignore(field(HealthInsurance::getVersion))
@@ -622,12 +627,24 @@ public class TestDataInitializer {
                     .setDescription("Testplan für unapproved Treatments")
                     .setDiagnosis(diagnosis)
                     .setCreationDate(LocalDate.now());
+            
+            // Initiale Visus-Werte setzen
+            Random random = new Random();
+            double initialVisusLeft = 0.1 + random.nextDouble() * 0.7;
+            double initialVisusRight = 0.1 + random.nextDouble() * 0.7;
+            plan.setVisualAcuityInitialLeft(String.format("%.2f", initialVisusLeft).replace(".", ","));
+            plan.setVisualAcuityInitialRight(String.format("%.2f", initialVisusRight).replace(".", ","));
 
             Treatment treatment = new Treatment()
                     .setSurgicalCenterTimeSlot(pastTimeSlot)
                     .setMedicationFavourite(medication)
                     .setSideOfEye(SideOfEye.LEFT);  // Oder random zwischen LEFT/RIGHT
             // Kein ApprovalDate setzen, damit es als unapproved gilt
+            
+            // Visus-Wert setzen
+            double currentVisus = initialVisusLeft + (random.nextDouble() - 0.5) * 0.1;
+            currentVisus = Math.max(0.05, Math.min(1.0, currentVisus));
+            treatment.setVisualAcuity(String.format("%.2f", currentVisus).replace(".", ","));
 
             treatment.setTreatmentPlan(plan);  // Bidirektionale Beziehung setzen
             plan.getTreatments().add(treatment);  // Behandlung zur Liste hinzufügen
@@ -655,8 +672,8 @@ public class TestDataInitializer {
             center.setInstitution(managedLocation.getInstitution());
 
             Address address = new Address();
-            address.setStreet(STREET_NAMES[random.nextInt(STREET_NAMES.length)] + " "
-                    + (1 + random.nextInt(100)));
+            address.setStreet(STREET_NAMES[random.nextInt(STREET_NAMES.length)]);
+            address.setHouseNo(String.valueOf(1 + random.nextInt(200)));
             address.setCity(CITIES[random.nextInt(CITIES.length)]);
             address.setPostalCode(10000 + random.nextInt(90000));
             address.setCountry(Locale.GERMANY);
@@ -902,6 +919,18 @@ public class TestDataInitializer {
                 "Besonders vorsichtige Injektion aufgrund enger Kammerwinkelverhältnisse"
             };
             plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
+            
+            // Initiale Visus-Werte setzen (realistische Werte zwischen 0.1 und 0.8)
+            double initialVisusLeft = 0.1 + random.nextDouble() * 0.7;
+            double initialVisusRight = 0.1 + random.nextDouble() * 0.7;
+            plan.setVisualAcuityInitialLeft(String.format("%.2f", initialVisusLeft).replace(".", ","));
+            plan.setVisualAcuityInitialRight(String.format("%.2f", initialVisusRight).replace(".", ","));
+            
+            // Befund-Checkboxen setzen (realistisch)
+            plan.setSubretinalFluid(random.nextDouble() < 0.5);
+            plan.setIntraretinalFluidIncrease(random.nextDouble() < 0.4);
+            plan.setSerousRpeDetachmentIncrease(random.nextDouble() < 0.3);
+            plan.setNewRetinalHemorrhage(random.nextDouble() < 0.2);
 
             TreatmentPlan savedPlan;
             try {
@@ -1015,6 +1044,12 @@ public class TestDataInitializer {
             "Besonders vorsichtige Injektion aufgrund enger Kammerwinkelverhältnisse"
         };
         plan.setAdditionalInformation(additionalInfos[random.nextInt(additionalInfos.length)]);
+        
+        // Initiale Visus-Werte setzen (realistische Werte zwischen 0.1 und 0.8)
+        double initialVisusLeft = 0.1 + random.nextDouble() * 0.7;
+        double initialVisusRight = 0.1 + random.nextDouble() * 0.7;
+        plan.setVisualAcuityInitialLeft(String.format("%.2f", initialVisusLeft).replace(".", ","));
+        plan.setVisualAcuityInitialRight(String.format("%.2f", initialVisusRight).replace(".", ","));
 
         TreatmentPlan savedPlan;
         try {
@@ -1082,6 +1117,46 @@ public class TestDataInitializer {
         };
         treatment.setAdditionalInfo(infoRemarks[random.nextInt(infoRemarks.length)]);
 
+        // Visus-Wert setzen (realistische Werte, die sich im Laufe der Zeit ändern können)
+        // Hole initialen Visus für das betroffene Auge
+        String initialVisus = treatment.getSideOfEye() == SideOfEye.LEFT 
+            ? plan.getVisualAcuityInitialLeft() 
+            : plan.getVisualAcuityInitialRight();
+        
+        if (initialVisus != null && !initialVisus.trim().isEmpty()) {
+            try {
+                double initial = Double.parseDouble(initialVisus.replace(",", "."));
+                // Visus kann sich verbessern (60%), verschlechtern (20%) oder gleich bleiben (20%)
+                double change = random.nextDouble();
+                double currentVisus;
+                if (change < 0.6) {
+                    // Verbesserung: +0.05 bis +0.3
+                    currentVisus = Math.min(1.0, initial + 0.05 + random.nextDouble() * 0.25);
+                } else if (change < 0.8) {
+                    // Gleichbleibend: ±0.02
+                    currentVisus = initial + (random.nextDouble() - 0.5) * 0.04;
+                } else {
+                    // Verschlechterung: -0.05 bis -0.2
+                    currentVisus = Math.max(0.05, initial - 0.05 - random.nextDouble() * 0.15);
+                }
+                treatment.setVisualAcuity(String.format("%.2f", currentVisus).replace(".", ","));
+            } catch (NumberFormatException e) {
+                // Fallback: zufälliger Visus
+                double visus = 0.1 + random.nextDouble() * 0.7;
+                treatment.setVisualAcuity(String.format("%.2f", visus).replace(".", ","));
+            }
+        } else {
+            // Fallback: zufälliger Visus
+            double visus = 0.1 + random.nextDouble() * 0.7;
+            treatment.setVisualAcuity(String.format("%.2f", visus).replace(".", ","));
+        }
+        
+        // Befund-Checkboxen (zufällig, aber realistisch)
+        treatment.setSubretinalFluid(random.nextDouble() < 0.4);
+        treatment.setIntraretinalFluidIncrease(random.nextDouble() < 0.3);
+        treatment.setSerousRpeDetachmentIncrease(random.nextDouble() < 0.2);
+        treatment.setNewRetinalHemorrhage(random.nextDouble() < 0.15);
+
         // Für Vergangenheitstermine: 70% approved, 30% unapproved (für TaskView)
         if (isPast) {
             if (random.nextDouble() < 0.7) {
@@ -1095,8 +1170,8 @@ public class TestDataInitializer {
             }
             // Unapproved: ApprovalDate bleibt null
         } else {
-            // Zukunftstermine sind noch nicht approved
-            // ApprovalDate bleibt null
+            // Zukunftstermine: Visus-Kontrolle bereits durchgeführt (für Testdaten)
+            // Visus wurde bereits oben gesetzt
         }
 
         return treatment;

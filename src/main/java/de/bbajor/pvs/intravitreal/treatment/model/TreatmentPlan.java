@@ -61,6 +61,36 @@ public class TreatmentPlan extends BasicEntity<Long> {
     private String additionalInformation;
     @OneToMany(mappedBy = "treatmentPlan", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, orphanRemoval = false)
     private List<Treatment> treatments = new ArrayList<>();
+    
+    /**
+     * Befund: subretinale Flüssigkeit vorhanden.
+     */
+    private Boolean subretinalFluid;
+    
+    /**
+     * Befund: Zunahme intraretinale Flüssigkeit.
+     */
+    private Boolean intraretinalFluidIncrease;
+    
+    /**
+     * Befund: Zunahme seröse RPE-Abhebung.
+     */
+    private Boolean serousRpeDetachmentIncrease;
+    
+    /**
+     * Befund: neue retinale Blutung.
+     */
+    private Boolean newRetinalHemorrhage;
+    
+    /**
+     * Visus initial linkes Auge.
+     */
+    private String visualAcuityInitialLeft;
+    
+    /**
+     * Visus initial rechtes Auge.
+     */
+    private String visualAcuityInitialRight;
 
     public String getFirstName() {
         return patient.getFirstName();

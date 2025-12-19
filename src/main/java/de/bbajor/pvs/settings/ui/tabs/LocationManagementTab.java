@@ -2,21 +2,18 @@ package de.bbajor.pvs.settings.ui.tabs;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import de.bbajor.pvs.institution.context.InstitutionContext;
-import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.location.model.Location;
 import de.bbajor.pvs.location.service.LocationService;
@@ -27,9 +24,11 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * Tab for managing locations (Standorte) of the current institution.
- * Allows adding, editing, activating, and deactivating locations.
+ * Aligned with the user management tab: grid + dialog, no side form.
  */
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -40,18 +39,10 @@ public class LocationManagementTab extends VerticalLayout {
     private final LocationService locationService;
     private final InstitutionRepository institutionRepository;
 
-    private Grid<Location> grid;
-    private TextField locationNameField;
-    private TextField streetField;
-    private TextField houseNumberField;
-    private TextField postalCodeField;
-    private TextField cityField;
-    private TextField countryField;
-    private TextField phoneField;
-    private TextField emailField;
-    private TextArea additionalInfoField;
-    private Button saveButton;
-    private Location selectedLocation;
+    private Grid<Location> locationGrid;
+    private Button createButton;
+
+    private List<Location> allLocations;
 
     @PostConstruct
     private void init() {
@@ -59,7 +50,8 @@ public class LocationManagementTab extends VerticalLayout {
         setPadding(true);
 
         // Check if InstitutionContext is set
-        if (InstitutionContext.getInstitutionId() == null) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId == null) {
             H3 errorTitle = new H3("Standort-Verwaltung");
             add(errorTitle);
             Notification.show("Keine Institution ausgewählt. Bitte melden Sie sich mit einer Institution an.",
@@ -70,254 +62,176 @@ public class LocationManagementTab extends VerticalLayout {
 
         H3 title = new H3("Standort-Verwaltung");
 
-        // Initialize all fields
-        grid = new Grid<>(Location.class, false);
-        locationNameField = new TextField("Standort-Name");
-        streetField = new TextField("Straße");
-        houseNumberField = new TextField("Hausnummer");
-        postalCodeField = new TextField("Postleitzahl");
-        cityField = new TextField("Stadt");
-        countryField = new TextField("Land");
-        phoneField = new TextField("Telefon");
-        emailField = new TextField("E-Mail");
-        additionalInfoField = new TextArea("Zusätzliche Informationen");
-
-        // Configure form fields
-        locationNameField.setRequired(true);
-        locationNameField.setPlaceholder("z.B. Hauptsitz, Zweigstelle Nord");
-        locationNameField.setWidthFull();
-
-        streetField.setWidthFull();
-        houseNumberField.setWidthFull();
-        postalCodeField.setWidthFull();
-        cityField.setWidthFull();
-        countryField.setWidthFull();
-        phoneField.setWidthFull();
-        emailField.setWidthFull();
-        additionalInfoField.setWidthFull();
-        additionalInfoField.setHeight("100px");
-
-        Button createButton = new Button("Neuen Standort anlegen", e -> createLocation());
+        // Button section above grid (analog Benutzerverwaltung)
+        createButton = new Button("Erstellen", e -> openLocationDialog(null));
         createButton.setIcon(VaadinIcon.PLUS.create());
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
 
-        saveButton = new Button("Änderungen speichern", e -> saveLocation());
-        saveButton.setIcon(VaadinIcon.CHECK.create());
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        saveButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
-        saveButton.setEnabled(false);
+        HorizontalLayout buttonSection = new HorizontalLayout(createButton);
+        buttonSection.setSpacing(true);
+        buttonSection.setPadding(true);
 
-        Button cancelButton = new Button("Abbrechen", e -> clearForm());
-        cancelButton.addClassNames(com.vaadin.flow.theme.lumo.LumoUtility.FontWeight.SEMIBOLD);
+        // Initialize grid
+        locationGrid = new Grid<>(Location.class, false);
+        locationGrid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
 
-        // Configure grid with combined renderer
-        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_ROW_STRIPES);
-        
-        grid.addColumn(new ComponentRenderer<>(location -> {
+        // Combined renderer for name, address, phone, email (+ Hauptstandort-Badge)
+        locationGrid.addColumn(new ComponentRenderer<>(location -> {
             VerticalLayout layout = new VerticalLayout();
             layout.setSpacing(false);
             layout.setPadding(false);
-            
-            // Name
+
             String name = location.getLocationName() != null ? location.getLocationName() : "-";
             Span nameSpan = new Span(name);
             nameSpan.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
             layout.add(nameSpan);
-            
+
+            if (location.isMainLocation()) {
+                Span mainBadge = new Span("Hauptstandort");
+                mainBadge.addClassNames(
+                        LumoUtility.Background.PRIMARY,
+                        LumoUtility.TextColor.PRIMARY_CONTRAST,
+                        LumoUtility.Padding.XSMALL,
+                        LumoUtility.BorderRadius.SMALL,
+                        LumoUtility.FontSize.XSMALL,
+                        LumoUtility.FontWeight.SEMIBOLD
+                );
+                layout.add(mainBadge);
+            }
+
             // Adresse
             String address = location.getFullAddress() != null ? location.getFullAddress() : "-";
             Span addressSpan = new Span(address);
             addressSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
             layout.add(addressSpan);
-            
+
             // Telefon
             String phone = location.getPhone() != null ? location.getPhone() : "-";
             Span phoneSpan = new Span("Tel: " + phone);
             phoneSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
             layout.add(phoneSpan);
-            
+
             // E-Mail
             String email = location.getEmail() != null ? location.getEmail() : "-";
             Span emailSpan = new Span("E-Mail: " + email);
             emailSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
             layout.add(emailSpan);
-            
+
             return layout;
         })).setHeader("Standort").setSortable(true).setAutoWidth(true);
 
-        grid.asSingleSelect().addValueChangeListener(e -> {
-            if (e.getValue() != null) {
-                editLocation(e.getValue());
-            } else {
-                clearForm();
-            }
-        });
+        // Status column
+        locationGrid.addColumn(location -> location.isActive() ? "Aktiv" : "Inaktiv")
+                .setHeader("Status")
+                .setAutoWidth(true);
 
-        grid.setSizeFull();
+        // Actions column (Bearbeiten / Hauptstandort setzen / Aktivieren/Deaktivieren / Löschen)
+        locationGrid.addComponentColumn(location -> {
+            HorizontalLayout buttonLayout = new HorizontalLayout();
+            buttonLayout.setSpacing(true);
 
-        // Form layout
-        FormLayout formLayout = new FormLayout();
-        formLayout.add(locationNameField, 2);
-        formLayout.add(streetField, houseNumberField);
-        formLayout.add(postalCodeField, cityField, countryField);
-        formLayout.add(phoneField, emailField);
-        formLayout.add(additionalInfoField, 2);
-        formLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2),
-                new FormLayout.ResponsiveStep("1000px", 3)
-        );
+            Button editButton = new Button("Bearbeiten", e -> openLocationDialog(location));
+            editButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
 
-        // Button layout
-        HorizontalLayout buttonLayout = new HorizontalLayout(createButton, saveButton, cancelButton);
-        buttonLayout.setSpacing(true);
+            Button mainButton = new Button("Als Hauptstandort", e -> setAsMainLocation(location));
+            mainButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+            mainButton.setEnabled(!location.isMainLocation());
 
-        // Form section
-        VerticalLayout formSection = new VerticalLayout(formLayout, buttonLayout);
-        formSection.setSpacing(true);
-        formSection.setPadding(true);
-        formSection.setWidth("500px");
+            Button toggleButton = new Button(
+                    location.isActive() ? "Deaktivieren" : "Aktivieren",
+                    e -> toggleLocationStatusWithConfirm(location)
+            );
+            toggleButton.addThemeVariants(
+                    location.isActive() ? ButtonVariant.LUMO_ERROR : ButtonVariant.LUMO_SUCCESS,
+                    ButtonVariant.LUMO_SMALL
+            );
 
-        // Main layout: Grid left, Form right
-        HorizontalLayout mainLayout = new HorizontalLayout(grid, formSection);
-        mainLayout.setSizeFull();
-        mainLayout.setFlexGrow(1, grid);
-        mainLayout.setFlexGrow(0, formSection);
+            Button deleteButton = new Button("Löschen", e -> confirmAndDelete(location));
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
+
+            buttonLayout.add(editButton, mainButton, toggleButton, deleteButton);
+            return buttonLayout;
+        }).setHeader("Aktionen").setAutoWidth(true);
+
+        locationGrid.setSizeFull();
 
         setSizeFull();
         setPadding(false);
         setSpacing(false);
-        add(title, mainLayout);
-        expand(mainLayout);
-        refreshGrid();
+        add(title, buttonSection, locationGrid);
+        expand(locationGrid);
+
+        refreshLocations();
     }
 
-    private void createLocation() {
-        String name = locationNameField.getValue();
-        if (name == null || name.trim().isEmpty()) {
-            Notification.show("Bitte geben Sie einen Standort-Namen ein", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    private void setAsMainLocation(Location location) {
+        if (location == null || location.getId() == null) {
             return;
         }
-
         try {
-            // Stelle sicher, dass InstitutionContext gesetzt ist
-            Long institutionId = InstitutionContext.getInstitutionId();
-            if (institutionId == null) {
-                Notification.show("Keine Institution ausgewählt. Bitte melden Sie sich mit einer Institution an.",
-                        5000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
-            }
-
-            Location location = new Location();
-            location.setLocationName(name);
-            location.setStreet(streetField.getValue());
-            location.setHouseNumber(houseNumberField.getValue());
-            location.setPostalCode(postalCodeField.getValue());
-            location.setCity(cityField.getValue());
-            location.setCountry(countryField.getValue());
-            location.setPhone(phoneField.getValue());
-            location.setEmail(emailField.getValue());
-            location.setAdditionalInfo(additionalInfoField.getValue());
-            location.setActive(true);
-
-            // Set institution from current context
-            Institution institution = institutionRepository.findById(institutionId)
-                    .orElseThrow(() -> new IllegalStateException("Institution not found: " + institutionId));
-            location.setInstitution(institution);
-
+            location.setMainLocation(true);
             locationService.saveLocation(location);
-
             Notification.show(
-                    String.format("Standort '%s' wurde erfolgreich angelegt!", location.getLocationName()),
+                    String.format("Standort '%s' ist jetzt Hauptstandort", location.getLocationName()),
                     3000,
                     Notification.Position.MIDDLE
             ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-            clearForm();
-            refreshGrid();
+            refreshLocations();
         } catch (Exception e) {
-            log.error("Error creating location: {}", e.getMessage(), e);
-            Notification.show("Fehler beim Anlegen des Standorts: " + e.getMessage(),
-                    5000, Notification.Position.MIDDLE)
+            log.error("Error setting main location: {}", e.getMessage(), e);
+            Notification.show("Fehler beim Setzen des Hauptstandorts: " + e.getMessage(),
+                    3000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
-    private void editLocation(Location location) {
-        selectedLocation = location;
-        locationNameField.setValue(location.getLocationName() != null ? location.getLocationName() : "");
-        streetField.setValue(location.getStreet() != null ? location.getStreet() : "");
-        houseNumberField.setValue(location.getHouseNumber() != null ? location.getHouseNumber() : "");
-        postalCodeField.setValue(location.getPostalCode() != null ? location.getPostalCode() : "");
-        cityField.setValue(location.getCity() != null ? location.getCity() : "");
-        countryField.setValue(location.getCountry() != null ? location.getCountry() : "");
-        phoneField.setValue(location.getPhone() != null ? location.getPhone() : "");
-        emailField.setValue(location.getEmail() != null ? location.getEmail() : "");
-        additionalInfoField.setValue(location.getAdditionalInfo() != null ? location.getAdditionalInfo() : "");
-        saveButton.setEnabled(true);
+    private void openLocationDialog(Location location) {
+        LocationDialog dialog = new LocationDialog(locationService, institutionRepository, location);
+        dialog.setOnSaveCallback(this::refreshLocations);
+        dialog.open();
     }
 
-    private void saveLocation() {
-        if (selectedLocation == null) {
+    private void toggleLocationStatusWithConfirm(Location location) {
+        if (location == null || location.getId() == null) {
             return;
         }
 
-        String name = locationNameField.getValue();
-        if (name == null || name.trim().isEmpty()) {
-            Notification.show("Bitte geben Sie einen Standort-Namen ein", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
-        }
-
-        try {
-            selectedLocation.setLocationName(name);
-            selectedLocation.setStreet(streetField.getValue());
-            selectedLocation.setHouseNumber(houseNumberField.getValue());
-            selectedLocation.setPostalCode(postalCodeField.getValue());
-            selectedLocation.setCity(cityField.getValue());
-            selectedLocation.setCountry(countryField.getValue());
-            selectedLocation.setPhone(phoneField.getValue());
-            selectedLocation.setEmail(emailField.getValue());
-            selectedLocation.setAdditionalInfo(additionalInfoField.getValue());
-
-            locationService.saveLocation(selectedLocation);
-
-            Notification.show(
-                    String.format("Standort '%s' wurde erfolgreich aktualisiert!", selectedLocation.getLocationName()),
-                    3000,
-                    Notification.Position.MIDDLE
-            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-            clearForm();
-            refreshGrid();
-        } catch (Exception e) {
-            log.error("Error saving location: {}", e.getMessage(), e);
-            Notification.show("Fehler beim Speichern: " + e.getMessage(),
-                    5000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        if (location.isActive()) {
+            ConfirmDialog confirmDialog = new ConfirmDialog();
+            confirmDialog.setHeader("Standort deaktivieren");
+            confirmDialog.setText(
+                    "Möchten Sie diesen Standort wirklich deaktivieren? " +
+                            "Er steht dann nicht mehr für neue Patienten oder Termine zur Verfügung."
+            );
+            confirmDialog.setConfirmText("Deaktivieren");
+            confirmDialog.setCancelText("Abbrechen");
+            confirmDialog.setConfirmButtonTheme("error primary");
+            confirmDialog.addConfirmListener(e -> performToggle(location));
+            confirmDialog.open();
+        } else {
+            performToggle(location);
         }
     }
 
-    private void toggleLocationStatus(Location location) {
+    private void performToggle(Location location) {
         try {
             if (location.isActive()) {
                 locationService.deactivateLocation(location.getId());
+                Notification.show(
+                        String.format("Standort '%s' wurde deaktiviert", location.getLocationName()),
+                        3000,
+                        Notification.Position.MIDDLE
+                ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
                 locationService.activateLocation(location.getId());
+                Notification.show(
+                        String.format("Standort '%s' wurde aktiviert", location.getLocationName()),
+                        3000,
+                        Notification.Position.MIDDLE
+                ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             }
 
-            Notification.show(
-                    String.format("Standort '%s' wurde %s",
-                            location.getLocationName(),
-                            location.isActive() ? "deaktiviert" : "aktiviert"),
-                    3000,
-                    Notification.Position.MIDDLE
-            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-            refreshGrid();
+            refreshLocations();
         } catch (Exception e) {
             log.error("Error toggling location status: {}", e.getMessage(), e);
             Notification.show("Fehler beim Ändern des Status: " + e.getMessage(),
@@ -326,24 +240,45 @@ public class LocationManagementTab extends VerticalLayout {
         }
     }
 
-    private void clearForm() {
-        selectedLocation = null;
-        locationNameField.clear();
-        streetField.clear();
-        houseNumberField.clear();
-        postalCodeField.clear();
-        cityField.clear();
-        countryField.clear();
-        phoneField.clear();
-        emailField.clear();
-        additionalInfoField.clear();
-        saveButton.setEnabled(false);
-        grid.deselectAll();
+    private void refreshLocations() {
+        allLocations = locationService.getAllLocations(false);
+        locationGrid.setItems(allLocations);
     }
 
-    private void refreshGrid() {
-        // Show all locations (active and inactive) for management
-        grid.setItems(locationService.getAllLocations(false));
+    private void confirmAndDelete(Location location) {
+        if (location == null || location.getId() == null) {
+            return;
+        }
+
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Standort löschen");
+        dialog.setText("Möchten Sie diesen Standort wirklich löschen? " +
+                "Dies ist nur möglich, wenn keine Patienten, Terminplaner oder Benutzer diesen Standort verwenden.");
+        dialog.setConfirmText("Löschen");
+        dialog.setCancelText("Abbrechen");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> performDelete(location));
+        dialog.open();
+    }
+
+    private void performDelete(Location location) {
+        try {
+            locationService.deleteLocation(location.getId());
+            Notification.show(
+                    String.format("Standort '%s' wurde gelöscht", location.getLocationName()),
+                    3000,
+                    Notification.Position.MIDDLE
+            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            refreshLocations();
+        } catch (IllegalStateException ex) {
+            Notification.show(ex.getMessage(), 5000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } catch (Exception ex) {
+            log.error("Error deleting location: {}", ex.getMessage(), ex);
+            Notification.show("Fehler beim Löschen des Standorts: " + ex.getMessage(),
+                    5000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 }
 

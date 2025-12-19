@@ -42,6 +42,9 @@ public class HealthInsuranceService {
     
     /**
      * Speichert eine Versicherung und setzt die Institution aus dem Context.
+     * Zusätzlich wird ein Dubletten-Check durchgeführt, damit nicht mehrere
+     * identische Einträge (Kostenträger / Kostenträger-ID / Abrechnungsstellen-ID)
+     * für dieselbe Institution angelegt werden.
      */
     @Transactional
     public HealthInsurance save(HealthInsurance healthInsurance) {
@@ -49,6 +52,24 @@ public class HealthInsuranceService {
         if (institutionId == null) {
             throw new IllegalStateException("Keine Institution im Context gesetzt");
         }
+
+        String costCarrierName = trimToNull(healthInsurance.getCostCarrierName());
+        String costCarrierId = trimToNull(healthInsurance.getCostCarrierId());
+        String billingCarrierId = trimToNull(healthInsurance.getBillingCarrierId());
+
+        boolean hasPotentialDuplicate = healthInsuranceRepository.existsDuplicateForInstitution(
+                institutionId,
+                healthInsurance.getId(),
+                costCarrierName,
+                costCarrierId,
+                billingCarrierId
+        );
+
+        if (hasPotentialDuplicate) {
+            throw new IllegalArgumentException(
+                    "Es existiert bereits eine Versicherung mit gleichem Kostenträger, Kostenträger-ID oder Abrechnungsstellen-ID");
+        }
+
         Institution institution = institutionRepository.findById(institutionId)
                 .orElseThrow(() -> new IllegalStateException("Institution nicht gefunden: " + institutionId));
         healthInsurance.setInstitution(institution);
@@ -60,8 +81,19 @@ public class HealthInsuranceService {
      */
     @Transactional
     public void deactivate(HealthInsurance healthInsurance) {
-        // Für jetzt: einfach löschen, später könnte man ein "active" Flag hinzufügen
-        healthInsuranceRepository.delete(healthInsurance);
+        if (healthInsurance == null || healthInsurance.getId() == null) {
+            return;
+        }
+
+        healthInsurance.setActive(false);
+        healthInsuranceRepository.save(healthInsurance);
     }
 
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
 }
