@@ -6,3 +6,4 @@ ALTER TABLE health_insurance
 
 CREATE INDEX IF NOT EXISTS idx_health_insurance_active
     ON health_insurance(active);
+
