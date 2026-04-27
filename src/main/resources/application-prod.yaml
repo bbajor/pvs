@@ -20,6 +20,20 @@ spring:
     locations: classpath:db/migration
     fail-on-missing-locations: true
     repair-on-migrate: false
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 # Server-Konfiguration
 server:
@@ -71,23 +85,6 @@ ai:
 smtp:
   encryption:
     key: ${SMTP_ENCRYPTION_KEY}
-
-# SMTP configuration for email sending
-spring:
-  mail:
-    host: ${SMTP_HOST:}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
 
 # MFA configuration
 app:

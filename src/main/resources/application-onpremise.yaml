@@ -1,10 +1,12 @@
 spring:
+  profiles:
+    active: onpremise
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: false
   datasource:
-    url: ${DB_URL:jdbc:postgresql://postgres:5432/pvs}
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/pvs}
     username: ${DB_USER:pvs}
     password: ${DB_PASSWORD:}
     hikari:
@@ -44,9 +46,28 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
   health:
     db:
       enabled: true
+
+kbv:
+  service:
+    health:
+      enabled: false
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:false}
+        http-only: true
+        same-site: lax
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:framework}
 
 logging:
   level:
@@ -62,8 +83,10 @@ ai:
   whisper:
     local:
       enabled: ${AI_WHISPER_LOCAL_ENABLED:false}
-      host: ${AI_WHISPER_LOCAL_HOST:whisper}
+      host: ${AI_WHISPER_LOCAL_HOST:127.0.0.1}
       port: ${AI_WHISPER_LOCAL_PORT:9000}
+      auto-install: false
+      use-podman: false
 
 # SMTP-Konfiguration (optional für OnPremise)
 # Falls SMTP_ENCRYPTION_KEY gesetzt ist, werden SMTP-Passwörter verschlüsselt gespeichert

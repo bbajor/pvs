@@ -56,14 +56,14 @@ import jakarta.servlet.http.HttpServletRequest;
 @EnableWebSecurity
 @Configuration
 @Import({ VaadinAwareSecurityContextHolderStrategyConfiguration.class })
-@Profile({"test", "prod"})
+@Profile({"test", "prod", "onpremise"})
 @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(de.bbajor.pvs.security.controlcenter.ControlCenterSecurityConfig.class)
 public class ProdSecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(ProdSecurityConfig.class);
 
     public ProdSecurityConfig() {
-        log.info("Using PRODUCTION security configuration for test/prod environments");
+        log.info("Using production-style security configuration for test/prod/onpremise environments");
     }
 
     @Bean

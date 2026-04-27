@@ -1,0 +1,45 @@
+name: Release On-Premise Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example 1.0.0'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'onpremise-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-package:
+    name: Build native on-premise package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: gradle
+
+      - name: Grant execute permissions
+        run: chmod +x gradlew onpremise/build-native-package.sh
+
+      - name: Build package
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+        run: onpremise/build-native-package.sh "$RELEASE_VERSION"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ivomplaner-onpremise
+          path: build/distributions/ivomplaner-onpremise-*.tar.gz
+          if-no-files-found: error

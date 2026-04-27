@@ -1,31 +1,29 @@
 [Unit]
-Description=PVS OnPremise Application
+Description=IVOMPlaner On-Premise Application
 Documentation=https://github.com/bbajor/pvs
-After=network-online.target podman.service
+After=network-online.target postgresql.service
 Wants=network-online.target
-Requires=podman.service
+Requires=postgresql.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
+Type=simple
 User=pvs
 Group=pvs
 WorkingDirectory=/opt/pvs
-ExecStart=/usr/bin/podman-compose -f /opt/pvs/podman-compose.onpremise.yml --env-file /opt/pvs/.env up -d
-ExecStop=/usr/bin/podman-compose -f /opt/pvs/podman-compose.onpremise.yml down
-ExecReload=/usr/bin/podman-compose -f /opt/pvs/podman-compose.onpremise.yml restart
+EnvironmentFile=/opt/pvs/.env
+ExecStart=/bin/sh -c 'exec /usr/bin/java $JAVA_OPTS -jar /opt/pvs/app/pvs-app.jar'
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+TimeoutStopSec=30
 
-# Restart-Policy für Container (nicht für Service)
-# Die Container haben restart: always in podman-compose.yml
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/pvs /var/log/pvs
 
-# Timeouts
-TimeoutStartSec=300
-TimeoutStopSec=60
-
-# Umgebungsvariablen
-Environment="COMPOSE_PROJECT_NAME=pvs-onpremise"
-
-# Logging
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=pvs-onpremise

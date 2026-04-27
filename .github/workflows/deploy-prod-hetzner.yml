@@ -1,4 +1,4 @@
-name: Deploy Production to Hetzner
+name: Build Production Artifact
 
 on:
   workflow_dispatch:
@@ -10,11 +10,10 @@ on:
         type: boolean
 
 jobs:
-  build-and-deploy-prod:
+  build-prod-artifact:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     
     steps:
       - name: Checkout code
@@ -44,76 +43,12 @@ jobs:
           flyway info -url=jdbc:postgresql://${{ secrets.PROD_DB_HOST }}/${{ secrets.PROD_DB_NAME }} -user=${{ secrets.PROD_DB_USER }} -password=${{ secrets.PROD_DB_PASSWORD }} -locations=filesystem:src/main/resources/db/migration
         continue-on-error: false
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build native package
+        run: bash onpremise/build-native-package.sh "${{ github.sha }}"
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Upload native package
+        uses: actions/upload-artifact@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push production image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/pvs:prod-latest
-            ghcr.io/${{ github.repository_owner }}/pvs:prod-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Deploy to Hetzner Production
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: ${{ secrets.HETZNER_USER }}
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          script: |
-            cd /opt/pvs
-            
-            # Backup current production
-            podman tag ghcr.io/${{ github.repository_owner }}/pvs:prod-latest ghcr.io/${{ github.repository_owner }}/pvs:prod-backup-$(date +%Y%m%d-%H%M%S) || true
-            
-            # Pull and deploy
-            podman pull ghcr.io/${{ github.repository_owner }}/pvs:prod-latest
-            
-            # Deploy using podman-compose with fallback
-            if command -v podman-compose &> /dev/null; then
-              COMPOSE_CMD="podman-compose"
-            elif podman compose version &> /dev/null; then
-              COMPOSE_CMD="podman compose"
-            else
-              echo "❌ Error: Neither podman-compose nor podman compose available"
-              exit 1
-            fi
-            
-            $COMPOSE_CMD -f podman-compose.production.yml pull pvs-prod
-            $COMPOSE_CMD -f podman-compose.production.yml up -d pvs-prod
-            
-            # Wait for health check
-            echo "⏳ Waiting for application to start..."
-            sleep 60
-            
-            # Health check via container
-            if ! podman exec pvs-prod curl -f http://localhost:8080/actuator/health 2>/dev/null; then
-              echo "❌ Health check failed - rolling back..."
-              $COMPOSE_CMD -f podman-compose.production.yml restart pvs-prod
-              sleep 30
-              exit 1
-            fi
-            
-            echo "✅ Health check passed!"
-            
-            # Clean up old images
-            podman image prune -f
-            
-            echo "Production deployment successful"
-            echo ""
-            echo "⚠️  IMPORTANT: Check application logs for Super-Admin initial password"
-            echo "   The password is only shown on first startup if no Super-Admin exists."
-            echo "   Command: podman logs pvs-prod | grep -A 10 'SUPER-ADMIN INITIAL PASSWORD'"
+          name: ivomplaner-onpremise-${{ github.sha }}
+          path: build/onpremise/ivomplaner-onpremise-${{ github.sha }}.tar.gz
 

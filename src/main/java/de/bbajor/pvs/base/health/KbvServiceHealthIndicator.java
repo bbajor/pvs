@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.net.HttpURLConnection;
@@ -14,6 +15,7 @@ import java.net.URL;
  * Checks if the KBV service is available at the configured URL.
  */
 @Component
+@ConditionalOnProperty(name = "kbv.service.health.enabled", havingValue = "true", matchIfMissing = true)
 @Slf4j
 public class KbvServiceHealthIndicator implements HealthIndicator {
 

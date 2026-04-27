@@ -24,7 +24,7 @@ import de.bbajor.pvs.security.domain.UserAccountRepository;
  * <ul>
  * <li>Checks if a Super-Admin user already exists</li>
  * <li>If not, creates a Super-Admin with a randomly generated password</li>
- * <li>Outputs the password to the console (only on first startup)</li>
+ * <li>Outputs the generated password to the console (only on first startup)</li>
  * <li>Sets passwordChangeRequired=true and initialPasswordSet=false</li>
  * </ul>
  * </p>
@@ -35,7 +35,7 @@ import de.bbajor.pvs.security.domain.UserAccountRepository;
  * </p>
  */
 @Component
-@Profile("prod")
+@Profile({"prod", "onpremise"})
 public class ProductionSuperAdminInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(ProductionSuperAdminInitializer.class);
@@ -94,26 +94,7 @@ public class ProductionSuperAdminInitializer {
         userAccountRepository.save(superAdmin);
 
         // Output password to console
-        log.warn("========================================");
-        log.warn("SUPER-ADMIN INITIAL PASSWORD");
-        log.warn("========================================");
-        log.warn("Username: {}", SUPER_ADMIN_USERNAME);
-        log.warn("Password: {}", initialPassword);
-        log.warn("========================================");
-        log.warn("IMPORTANT: Change this password after first login!");
-        log.warn("This password is only shown once. Save it securely.");
-        log.warn("========================================");
-
-        // Also print to System.out for better visibility in logs
-        System.out.println("========================================");
-        System.out.println("SUPER-ADMIN INITIAL PASSWORD");
-        System.out.println("========================================");
-        System.out.println("Username: " + SUPER_ADMIN_USERNAME);
-        System.out.println("Password: " + initialPassword);
-        System.out.println("========================================");
-        System.out.println("IMPORTANT: Change this password after first login!");
-        System.out.println("This password is only shown once. Save it securely.");
-        System.out.println("========================================");
+        printInitialCredentialNotice(initialPassword);
     }
 
     /**
@@ -122,7 +103,7 @@ public class ProductionSuperAdminInitializer {
     private String getInitialPassword() {
         String envPassword = environment.getProperty("SUPER_ADMIN_INITIAL_PASSWORD");
         if (envPassword != null && !envPassword.isEmpty()) {
-            log.info("Using password from SUPER_ADMIN_INITIAL_PASSWORD environment variable");
+            log.info("Using initial Super-Admin password from environment variable");
             return envPassword;
         }
 
@@ -155,5 +136,34 @@ public class ProductionSuperAdminInitializer {
 
     private char getRandomChar(String chars, SecureRandom random) {
         return chars.charAt(random.nextInt(chars.length()));
+    }
+
+    private void printInitialCredentialNotice(String initialPassword) {
+        boolean configuredByEnvironment = environment.getProperty("SUPER_ADMIN_INITIAL_PASSWORD") != null
+                && !environment.getProperty("SUPER_ADMIN_INITIAL_PASSWORD").isEmpty();
+
+        log.warn("========================================");
+        log.warn("SUPER-ADMIN INITIAL CREDENTIALS CREATED");
+        log.warn("========================================");
+        log.warn("Username: {}", SUPER_ADMIN_USERNAME);
+        if (configuredByEnvironment) {
+            log.warn("Password: configured via SUPER_ADMIN_INITIAL_PASSWORD");
+        } else {
+            log.warn("Password: {}", initialPassword);
+            log.warn("This generated password is only shown once. Save it securely.");
+        }
+        log.warn("IMPORTANT: Change this password after first login.");
+        log.warn("========================================");
+
+        if (!configuredByEnvironment) {
+            System.out.println("========================================");
+            System.out.println("SUPER-ADMIN INITIAL CREDENTIALS CREATED");
+            System.out.println("========================================");
+            System.out.println("Username: " + SUPER_ADMIN_USERNAME);
+            System.out.println("Password: " + initialPassword);
+            System.out.println("IMPORTANT: Change this password after first login.");
+            System.out.println("This generated password is only shown once. Save it securely.");
+            System.out.println("========================================");
+        }
     }
 }
