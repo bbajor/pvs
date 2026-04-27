@@ -198,7 +198,12 @@ install -m 0755 "$target_release/scripts/ivomplaner-update" "$BIN_DIR/ivomplaner
 install -m 0755 "$target_release/scripts/ivomplaner-backup" "$BIN_DIR/ivomplaner-backup"
 install -m 0755 "$target_release/scripts/ivomplaner-restore" "$BIN_DIR/ivomplaner-restore"
 install -m 0755 "$target_release/scripts/ivomplaner-uninstall" "$BIN_DIR/ivomplaner-uninstall"
+install -m 0755 "$target_release/scripts/ivomplaner-update-wrapper" "$BIN_DIR/ivomplaner-update-wrapper"
 install -m 0644 "$target_release/systemd/ivomplaner.service" "/etc/systemd/system/$SERVICE_NAME.service"
+cat > "/etc/sudoers.d/ivomplaner-update" <<EOF
+$SERVICE_USER ALL=(root) NOPASSWD: $BIN_DIR/ivomplaner-update-wrapper
+EOF
+chmod 0440 "/etc/sudoers.d/ivomplaner-update"
 
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME.service"

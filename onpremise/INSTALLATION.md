@@ -81,6 +81,7 @@ Wichtige Einstellungen:
 2. SMTP-Konfiguration: falls E-Mail-Versand benötigt wird.
 3. Ports: Standard ist 8080, kann angepasst werden.
 4. Whisper: lokaler Whisper-Service muss separat bereitgestellt werden.
+5. App-Updates: `APP_UPDATE_ENABLED=true` aktiviert den Update-Hinweis in der App.
 
 ### Anwendung testen
 
@@ -90,6 +91,21 @@ curl http://localhost:8080/actuator/health
 
 # Im Browser öffnen
 # http://localhost:8080
+```
+
+### App-Update aus der Anwendung
+
+Super-Admins sehen im Menü `System-Update`, ob ein neues Release verfügbar ist.
+Beim Klick auf `Update installieren` zeigt die App zuerst einen Hinweis, dass offene Änderungen gespeichert werden sollen.
+Danach startet die App den Wrapper `sudo -n /usr/local/bin/ivomplaner-update-wrapper latest`.
+
+Der Wrapper startet das eigentliche Update in einer separaten systemd-Unit. Dadurch kann die Web-Anwendung sich selbst neu starten, ohne dem eigenen Kindprozess den Stuhl wegzutreten.
+
+Update-Logs liegen unter:
+
+```bash
+sudo ls -lh /opt/ivomplaner/logs/
+sudo journalctl -u 'ivomplaner-update-*'
 ```
 
 ## Post-Installation

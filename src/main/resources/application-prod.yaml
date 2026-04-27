@@ -90,3 +90,8 @@ smtp:
 app:
   mfa:
     issuer: ${MFA_ISSUER:PVS}
+  update:
+    enabled: ${APP_UPDATE_ENABLED:false}
+    current-version-file: ${APP_UPDATE_CURRENT_VERSION_FILE:/opt/ivomplaner/current/VERSION}
+    latest-version-url: ${APP_UPDATE_LATEST_VERSION_URL:}
+    command: ${APP_UPDATE_COMMAND:sudo -n /usr/local/bin/ivomplaner-update-wrapper latest}

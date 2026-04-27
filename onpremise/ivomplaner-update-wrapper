@@ -1,0 +1,18 @@
+#!/bin/bash
+# Starts an IVOMPlaner update outside the application service cgroup.
+
+set -euo pipefail
+
+LOG_DIR="${LOG_DIR:-/var/log/ivomplaner}"
+mkdir -p "$LOG_DIR"
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+log_file="$LOG_DIR/update-$timestamp.log"
+
+exec systemd-run \
+    --unit="ivomplaner-update-$timestamp" \
+    --description="IVOMPlaner application update $timestamp" \
+    --property=Type=oneshot \
+    --property=TimeoutStartSec=900 \
+    --collect \
+    /bin/bash -lc "exec /usr/local/bin/ivomplaner-update latest >> '$log_file' 2>&1"

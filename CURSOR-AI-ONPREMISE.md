@@ -22,7 +22,7 @@ Der produktive On-Premise-Pfad nutzt keine Container-Runtime:
    ```
 2. Das Paket `build/distributions/ivomplaner-onpremise-<version>.tar.gz` wird als Release-Artefakt bereitgestellt.
 3. Auf der Praxis-VM installiert `install.sh` Java 21, PostgreSQL, systemd-Service und Betriebsverzeichnis.
-4. Updates laufen ueber `ivomplaner-update latest` oder `ivomplaner-update <tarball>`.
+4. Updates laufen ueber `ivomplaner-update latest`, `ivomplaner-update <tarball>` oder fuer Super-Admins direkt aus der App.
 5. Backups laufen ueber `ivomplaner-backup`; Restore ueber `ivomplaner-restore <dump>`.
 
 ## Betriebsprinzip
@@ -33,5 +33,7 @@ Der produktive On-Premise-Pfad nutzt keine Container-Runtime:
 - Backups: `/opt/ivomplaner/backups`
 - Service: `ivomplaner.service`
 - Healthcheck: `http://127.0.0.1:8080/actuator/health`
+- App-Update-View: `admin/system-update`, nur fuer `SUPER_ADMIN`.
+- App-Update-Wrapper: `/usr/local/bin/ivomplaner-update-wrapper` startet das Update per `systemd-run`.
 
 Der Server braucht damit Java 21, PostgreSQL, curl und systemd. Mehr Magie ist nicht vorgesehen; Magie debuggt sich schlecht.

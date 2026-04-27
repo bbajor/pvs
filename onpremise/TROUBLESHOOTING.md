@@ -87,6 +87,25 @@ sudo journalctl -u ivomplaner -n 100 --no-pager
 
 Wenn der Healthcheck fehlschlaegt, setzt das Skript den Symlink automatisch auf das vorherige Release zurueck. Falls eine Datenbankmigration bereits gelaufen ist und ein echter Datenbank-Rollback noetig wird: Backup wiederherstellen.
 
+## Update aus der App startet nicht
+
+Die App startet Updates ueber `sudo -n /usr/local/bin/ivomplaner-update-wrapper latest`. Der Installer legt dafuer eine eng begrenzte sudoers-Regel an.
+
+Pruefung:
+
+```bash
+sudo -u ivomplaner sudo -n /usr/local/bin/ivomplaner-update-wrapper latest
+sudo ls -l /var/log/ivomplaner/
+sudo journalctl -u 'ivomplaner-update-*' -n 100 --no-pager
+```
+
+Wenn die App "Update konnte nicht gestartet werden" meldet, pruefe:
+
+- `/etc/sudoers.d/ivomplaner-update` existiert und enthaelt nur den Wrapper.
+- `APP_UPDATE_ENABLED=true` in `/etc/ivomplaner/ivomplaner.env`.
+- `APP_UPDATE_LATEST_VERSION_URL` ist erreichbar.
+- Der Server hat ausgehenden HTTPS-Zugriff auf GitHub Releases.
+
 ## Manuelles Release-Rollback
 
 ```bash

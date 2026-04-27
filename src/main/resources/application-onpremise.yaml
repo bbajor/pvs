@@ -96,6 +96,11 @@ smtp:
 
 # MFA configuration
 app:
+  update:
+    enabled: ${APP_UPDATE_ENABLED:true}
+    current-version-file: ${APP_UPDATE_CURRENT_VERSION_FILE:${IVOMPLANER_HOME:/opt/ivomplaner}/current/VERSION}
+    latest-version-url: ${APP_UPDATE_LATEST_VERSION_URL:${APP_UPDATE_CHECK_URL:https://github.com/bbajor/pvs/releases/latest/download/VERSION}}
+    command: ${APP_UPDATE_COMMAND:sudo -n /usr/local/bin/ivomplaner-update-wrapper latest}
   mfa:
     issuer: ${MFA_ISSUER:PVS}
   # OnPremise: Automatischer Institutionscode (optional)

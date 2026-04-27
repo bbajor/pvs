@@ -26,7 +26,6 @@ import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.menu.MenuConfiguration;
 import com.vaadin.flow.server.menu.MenuEntry;
 import com.vaadin.flow.spring.security.AuthenticationContext;
-import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.mfa.MfaAuthenticationFilter;
 import jakarta.annotation.security.PermitAll;
@@ -130,6 +129,8 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             // SUPER_ADMIN sees system settings and medication database
             nav.addItem(new SideNavItem("System-Einstellungen", "admin/super-settings", 
                     new Icon("vaadin:cog")));
+            nav.addItem(new SideNavItem("System-Update", "admin/system-update",
+                    new Icon("vaadin:refresh")));
             nav.addItem(new SideNavItem("Medikamentendatenbank", "ivom-drugs", 
                     new Icon("vaadin:pill")));
         } else {

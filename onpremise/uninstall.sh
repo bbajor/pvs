@@ -45,7 +45,7 @@ if systemctl list-unit-files "$SERVICE_NAME.service" >/dev/null 2>&1; then
     fi
 fi
 
-for command_path in /usr/local/bin/ivomplaner-update /usr/local/bin/ivomplaner-backup /usr/local/bin/ivomplaner-restore /usr/local/bin/ivomplaner-uninstall; do
+for command_path in /usr/local/bin/ivomplaner-update /usr/local/bin/ivomplaner-update-wrapper /usr/local/bin/ivomplaner-backup /usr/local/bin/ivomplaner-restore /usr/local/bin/ivomplaner-uninstall; do
     rm -f "$command_path"
 done
 

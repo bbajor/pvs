@@ -126,6 +126,20 @@ sudo ivomplaner-update /path/to/ivomplaner-onpremise-1.2.4.tar.gz
 
 Updates erstellen vorher automatisch ein PostgreSQL-Backup unter `/opt/ivomplaner/backups`. Danach wird der `current`-Symlink auf das neue Release gesetzt. Schlaegt der Healthcheck fehl, wird auf das vorherige Release zurueckgeschaltet.
 
+### Update aus der App
+
+Super-Admins sehen in der Navigation den Punkt **System-Update**. Die App prueft dort die installierte Version gegen die `VERSION`-Datei des neuesten GitHub-Releases.
+
+Beim Klick auf **Update installieren**:
+
+1. bestaetigt der Anwender, dass offene Aenderungen gespeichert wurden,
+2. startet die App `sudo -n /usr/local/bin/ivomplaner-update-wrapper latest`,
+3. der Wrapper startet das eigentliche Update per `systemd-run`,
+4. `ivomplaner-update` erstellt ein Datenbank-Backup,
+5. das neue Release wird installiert und der Service neu gestartet.
+
+Update-Logs liegen unter `/var/log/ivomplaner/update-*.log`.
+
 ## Troubleshooting
 
 Siehe [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) für häufige Probleme und Lösungen.
