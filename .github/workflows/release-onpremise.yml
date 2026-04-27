@@ -12,7 +12,7 @@ on:
       - 'onpremise-v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-package:
@@ -37,9 +37,33 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
         run: onpremise/build-native-package.sh "$RELEASE_VERSION"
 
+      - name: Add generic latest artifact names
+        run: |
+          set -euo pipefail
+          cd build/distributions
+          package="$(ls ivomplaner-onpremise-*.tar.gz | head -n 1)"
+          cp "$package" ivomplaner-onpremise-latest.tar.gz
+          sha256sum ivomplaner-onpremise-latest.tar.gz > ivomplaner-onpremise-latest.tar.gz.sha256
+          cp ../../onpremise/install.sh install.sh
+          chmod +x install.sh
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
           name: ivomplaner-onpremise
-          path: build/distributions/ivomplaner-onpremise-*.tar.gz
+          path: |
+            build/distributions/ivomplaner-onpremise-*.tar.gz
+            build/distributions/*.sha256
+            build/distributions/SHA256SUMS
+            build/distributions/install.sh
           if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/onpremise-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/distributions/ivomplaner-onpremise-*.tar.gz
+            build/distributions/*.sha256
+            build/distributions/SHA256SUMS
+            build/distributions/install.sh

@@ -3,9 +3,9 @@
 
 set -euo pipefail
 
-INSTALL_DIR="${INSTALL_DIR:-/opt/pvs}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/ivomplaner}"
 BACKUP_DIR="${BACKUP_DIR:-$INSTALL_DIR/backups}"
-ENV_FILE="${ENV_FILE:-$INSTALL_DIR/.env}"
+ENV_FILE="${ENV_FILE:-/etc/ivomplaner/ivomplaner.env}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 
 TARGET_FILE="${1:-}"

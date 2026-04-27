@@ -3,9 +3,10 @@
 
 set -euo pipefail
 
-INSTALL_DIR="${INSTALL_DIR:-/opt/pvs}"
-SERVICE_NAME="${SERVICE_NAME:-pvs-onpremise}"
-SERVICE_USER="${SERVICE_USER:-pvs}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/ivomplaner}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/ivomplaner}"
+SERVICE_NAME="${SERVICE_NAME:-ivomplaner}"
+SERVICE_USER="${SERVICE_USER:-ivomplaner}"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Error: run this script as root."
@@ -44,6 +45,10 @@ if systemctl list-unit-files "$SERVICE_NAME.service" >/dev/null 2>&1; then
     fi
 fi
 
+for command_path in /usr/local/bin/ivomplaner-update /usr/local/bin/ivomplaner-backup /usr/local/bin/ivomplaner-restore /usr/local/bin/ivomplaner-uninstall; do
+    rm -f "$command_path"
+done
+
 if [ -d "$INSTALL_DIR/backups" ] && [ "$(ls -A "$INSTALL_DIR/backups" 2>/dev/null)" ]; then
     echo "Backups exist in $INSTALL_DIR/backups."
     if ask_yes_no "Keep backups?" "y"; then
@@ -57,6 +62,13 @@ if [ -d "$INSTALL_DIR" ]; then
     if ask_yes_no "Remove installation directory '$INSTALL_DIR'?" "y"; then
         rm -rf "$INSTALL_DIR"
         echo "Installation directory removed."
+    fi
+fi
+
+if [ -d "$CONFIG_DIR" ]; then
+    if ask_yes_no "Remove configuration directory '$CONFIG_DIR'?" "n"; then
+        rm -rf "$CONFIG_DIR"
+        echo "Configuration directory removed."
     fi
 fi
 

@@ -43,74 +43,46 @@ sudo pacman -S jre21-openjdk postgresql curl openssl
 
 ## Installation
 
-### Linux-Installation
-
-#### Schritt 1: Repository klonen oder Dateien kopieren
+### Variante A: direkt aus GitHub Releases
 
 ```bash
-# Option 1: Git-Repository klonen
-cd /tmp
-git clone <repository-url> pvs
-cd pvs/onpremise
-
-# Option 2: Dateien manuell kopieren
-# Kopiere das gesamte 'onpremise'-Verzeichnis auf den Server
+export IVOMPLANER_RELEASE_BASE_URL="https://github.com/<org>/<repo>/releases/latest/download"
+curl -fsSL "$IVOMPLANER_RELEASE_BASE_URL/install.sh" | sudo IVOMPLANER_RELEASE_BASE_URL="$IVOMPLANER_RELEASE_BASE_URL" bash
 ```
 
-#### Schritt 2: Installer ausführen
+### Variante B: lokales Release-Paket
 
 ```bash
-# Als root ausführen
-sudo bash install.sh
+tar -xzf ivomplaner-onpremise-1.2.3.tar.gz
+sudo bash ivomplaner-onpremise-1.2.3/install.sh /path/to/ivomplaner-onpremise-1.2.3.tar.gz
 ```
 
-- Prüft und installiert Java 21/PostgreSQL falls möglich
-- Erstellt Service-User `pvs`
-- Erstellt Installations-Verzeichnis `/opt/pvs`
-- Kopiert Konfigurationsdateien
-- Generiert sichere Passwörter
-- Erstellt Datenbank und DB-User lokal in PostgreSQL
-- Installiert Systemd-Service für Auto-Start
+Der Installer:
 
-#### Schritt 3: Konfiguration anpassen
+- prüft und installiert Java 21/PostgreSQL falls möglich,
+- erstellt Service-User `ivomplaner`,
+- erstellt `/opt/ivomplaner/releases/<version>` und `/opt/ivomplaner/current`,
+- erstellt `/etc/ivomplaner/ivomplaner.env`,
+- generiert sichere Passwörter,
+- erstellt Datenbank und DB-User lokal in PostgreSQL,
+- installiert `ivomplaner-update`, `ivomplaner-backup`, `ivomplaner-restore`,
+- installiert und startet den systemd-Service `ivomplaner`.
+
+### Konfiguration anpassen
 
 ```bash
-# .env-Datei bearbeiten
-sudo nano /opt/pvs/.env
+sudo nano /etc/ivomplaner/ivomplaner.env
+sudo systemctl restart ivomplaner
 ```
 
-**Wichtige Einstellungen:**
+Wichtige Einstellungen:
 
-1. **Datenbank-Passwörter**: Sollten bereits generiert sein, können aber geändert werden
-2. **SMTP-Konfiguration**: Falls E-Mail-Versand benötigt wird
-3. **Ports**: Standard ist 8080, kann angepasst werden
-4. **Whisper**: Lokaler Whisper-Service (benötigt mehr Ressourcen)
+1. Datenbank-Passwörter: werden beim Erstinstallieren generiert.
+2. SMTP-Konfiguration: falls E-Mail-Versand benötigt wird.
+3. Ports: Standard ist 8080, kann angepasst werden.
+4. Whisper: lokaler Whisper-Service muss separat bereitgestellt werden.
 
-#### Schritt 4: Release-Artefakt installieren
-
-```bash
-# Variante A: vorhandene JAR-Datei
-sudo install -o pvs -g pvs -m 0644 pvs-app.jar /opt/pvs/app/pvs-app.jar
-
-# Variante B: Release-Tarball
-sudo tar -xzf ivomplaner-onpremise-<version>.tar.gz -C /tmp
-sudo install -o pvs -g pvs -m 0644 /tmp/ivomplaner-onpremise-<version>/pvs-app.jar /opt/pvs/app/pvs-app.jar
-```
-
-#### Schritt 5: Service starten
-
-```bash
-# Service starten
-sudo systemctl start pvs-onpremise
-
-# Status prüfen
-sudo systemctl status pvs-onpremise
-
-# Logs anzeigen
-sudo journalctl -u pvs-onpremise -f
-```
-
-#### Schritt 6: Anwendung testen
+### Anwendung testen
 
 ```bash
 # Health-Check
@@ -128,7 +100,7 @@ curl http://localhost:8080/actuator/health
 2. Melde Dich als `superadmin` an.
 3. Das initiale Passwort steht beim ersten Start im Journal, sofern `SUPER_ADMIN_INITIAL_PASSWORD` leer war:
    ```bash
-   sudo journalctl -u pvs-onpremise -b | grep -A 5 "SUPER-ADMIN INITIAL CREDENTIALS"
+   sudo journalctl -u ivomplaner -b | grep -A 5 "SUPER-ADMIN INITIAL CREDENTIALS"
    ```
 4. Ändere das Passwort direkt nach dem ersten Login.
 
@@ -136,7 +108,7 @@ curl http://localhost:8080/actuator/health
 
 Falls E-Mail-Versand benötigt wird:
 
-1. Bearbeite `/opt/pvs/.env`
+1. Bearbeite `/etc/ivomplaner/ivomplaner.env`
 2. Setze die SMTP-Variablen:
    ```
    SMTP_HOST=smtp.example.com
@@ -148,7 +120,7 @@ Falls E-Mail-Versand benötigt wird:
 3. **WICHTIG**: Setze `SMTP_ENCRYPTION_KEY` (wird beim Installer generiert)
 4. Starte die Anwendung neu:
    ```bash
-   sudo systemctl restart pvs-onpremise
+   sudo systemctl restart ivomplaner
    ```
 
 ### 3. Whisper aktivieren (optional)
@@ -160,7 +132,7 @@ Für lokale Spracherkennung:
    AI_WHISPER_LOCAL_ENABLED=true
    ```
 2. Stelle einen Whisper-kompatiblen lokalen Service auf `AI_WHISPER_LOCAL_HOST:AI_WHISPER_LOCAL_PORT` bereit.
-3. Starte IVOMPlaner neu: `sudo systemctl restart pvs-onpremise`.
+3. Starte IVOMPlaner neu: `sudo systemctl restart ivomplaner`.
 
 **Hinweis**: Whisper benötigt deutlich mehr Ressourcen (RAM, CPU).
 
@@ -203,7 +175,7 @@ server {
 ### Service-Status prüfen
 
 ```bash
-sudo systemctl status pvs-onpremise
+sudo systemctl status ivomplaner
 sudo systemctl status postgresql
 ```
 
@@ -223,7 +195,7 @@ pg_isready -h 127.0.0.1 -U pvs -d pvs
 
 ```bash
 # Linux - Systemd-Logs
-sudo journalctl -u pvs-onpremise -f
+sudo journalctl -u ivomplaner -f
 ```
 
 ## Deinstallation
@@ -234,7 +206,7 @@ Falls PVS OnPremise entfernt werden soll, verwende das Deinstallationsskript:
 
 ```bash
 # Als root ausführen
-sudo bash onpremise/uninstall.sh
+sudo ivomplaner-uninstall
 ```
 
 **WICHTIG**: Das Deinstallationsskript fragt explizit nach:

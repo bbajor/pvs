@@ -25,29 +25,19 @@ Die On-Premise-Lösung läuft nativ ohne Container-Runtime:
 
 ## Schnellstart
 
-### Linux
+### Linux-VM
 
 ```bash
-# 1. Repository klonen oder Release entpacken
-cd /tmp
-git clone <repository-url> pvs
-cd pvs/onpremise
+export IVOMPLANER_RELEASE_BASE_URL="https://github.com/<org>/<repo>/releases/latest/download"
+curl -fsSL "$IVOMPLANER_RELEASE_BASE_URL/install.sh" | sudo IVOMPLANER_RELEASE_BASE_URL="$IVOMPLANER_RELEASE_BASE_URL" bash
+```
 
-# 2. Anwendung bauen und natives Paket erstellen
-./build-native-package.sh
+Der Installer lädt `ivomplaner-onpremise-latest.tar.gz`, prüft die SHA256-Datei, richtet Java/PostgreSQL/systemd ein und startet die Anwendung.
 
-# 3. Installer ausführen
-sudo bash install.sh
+Alternativ mit lokalem Release-Paket:
 
-# 4. Konfiguration prüfen
-sudo nano /opt/pvs/.env
-
-# 5. Service starten
-sudo systemctl start pvs-onpremise
-
-# 6. Status prüfen
-sudo systemctl status pvs-onpremise
-curl http://127.0.0.1:8080/actuator/health
+```bash
+sudo bash install.sh /path/to/ivomplaner-onpremise-1.2.3.tar.gz
 ```
 
 Windows wird für den produktiven On-Premise-Pfad nicht automatisiert. Empfohlen ist ein kleiner Linux-Server oder eine Linux-VM mit systemd.
@@ -60,12 +50,13 @@ Siehe [INSTALLATION.md](./INSTALLATION.md) für eine ausführliche Installations
 
 ### Environment-Variablen
 
-Die wichtigsten Konfigurationsoptionen befinden sich in der `.env`-Datei:
+Die wichtigsten Konfigurationsoptionen befinden sich in `/etc/ivomplaner/ivomplaner.env`:
 
 - **Datenbank**: PostgreSQL-Zugangsdaten
 - **SMTP**: E-Mail-Versand (optional)
 - **Ports**: Anpassung der Ports
 - **AI/Whisper**: Aktivierung des lokalen Whisper-Services
+- **Updates**: `IVOMPLANER_RELEASE_BASE_URL` fuer `ivomplaner-update latest`
 
 Siehe [env.example](./env.example) für alle verfügbaren Optionen.
 
@@ -76,17 +67,17 @@ Der Systemd-Service wird automatisch installiert und aktiviert. Die Anwendung st
 
 ```bash
 # Service aktivieren (bereits bei Installation geschehen)
-sudo systemctl enable pvs-onpremise
+sudo systemctl enable ivomplaner
 
 # Service manuell starten/stoppen
-sudo systemctl start pvs-onpremise
-sudo systemctl stop pvs-onpremise
+sudo systemctl start ivomplaner
+sudo systemctl stop ivomplaner
 
 # Status prüfen
-sudo systemctl status pvs-onpremise
+sudo systemctl status ivomplaner
 
 # Logs anzeigen
-sudo journalctl -u pvs-onpremise -f
+sudo journalctl -u ivomplaner -f
 ```
 
 ## Betrieb
@@ -96,30 +87,44 @@ sudo journalctl -u pvs-onpremise -f
 #### Linux
 ```bash
 # Start/Stop/Restart
-sudo systemctl start pvs-onpremise
-sudo systemctl stop pvs-onpremise
-sudo systemctl restart pvs-onpremise
+sudo systemctl start ivomplaner
+sudo systemctl stop ivomplaner
+sudo systemctl restart ivomplaner
 
 # Logs
-sudo journalctl -u pvs-onpremise -f
+sudo journalctl -u ivomplaner -f
 ```
 
 ### Backup
 
 #### Datenbank-Backup
 ```bash
-sudo /opt/pvs/backup.sh
+sudo ivomplaner-backup
 ```
+
+### Release-Layout
+
+```text
+/opt/ivomplaner/
+  current -> /opt/ivomplaner/releases/<version>
+  releases/<version>/
+  backups/
+/etc/ivomplaner/ivomplaner.env
+```
+
+Die Releases sind austauschbar. PostgreSQL-Daten liegen getrennt in der lokalen Datenbank und bleiben bei App-Updates erhalten.
 
 ### Updates
 
 ```bash
-# Aus lokalem Release-Paket
-sudo /opt/pvs/update.sh /path/to/ivomplaner-onpremise.tar.gz
+# Latest Release aus IVOMPLANER_RELEASE_BASE_URL
+sudo ivomplaner-update latest
 
-# Oder per URL aus RELEASE_ARTIFACT_URL in /opt/pvs/.env
-sudo /opt/pvs/update.sh
+# Oder aus lokalem Release-Paket
+sudo ivomplaner-update /path/to/ivomplaner-onpremise-1.2.4.tar.gz
 ```
+
+Updates erstellen vorher automatisch ein PostgreSQL-Backup unter `/opt/ivomplaner/backups`. Danach wird der `current`-Symlink auf das neue Release gesetzt. Schlaegt der Healthcheck fehl, wird auf das vorherige Release zurueckgeschaltet.
 
 ## Troubleshooting
 
@@ -149,7 +154,7 @@ Die Anwendung lauscht standardmäßig auf Port `8080`. Für produktive externe Z
 
 ```bash
 # Als root ausführen
-sudo bash onpremise/uninstall.sh
+sudo ivomplaner-uninstall
 ```
 
 Das Skript führt interaktiv durch die Deinstallation:
@@ -164,7 +169,7 @@ Das Skript führt interaktiv durch die Deinstallation:
 Bei Problemen oder Fragen:
 
 1. Prüfe die [Troubleshooting-Dokumentation](./TROUBLESHOOTING.md)
-2. Prüfe die Logs: `journalctl -u pvs-onpremise -f`
+2. Prüfe die Logs: `journalctl -u ivomplaner -f`
 3. Erstelle ein Issue im Repository
 
 ## Lizenz

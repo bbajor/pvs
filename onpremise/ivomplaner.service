@@ -7,11 +7,11 @@ Requires=postgresql.service
 
 [Service]
 Type=simple
-User=pvs
-Group=pvs
-WorkingDirectory=/opt/pvs
-EnvironmentFile=/opt/pvs/.env
-ExecStart=/bin/sh -c 'exec /usr/bin/java $JAVA_OPTS -jar /opt/pvs/app/pvs-app.jar'
+User=ivomplaner
+Group=ivomplaner
+WorkingDirectory=/opt/ivomplaner/current
+EnvironmentFile=/etc/ivomplaner/ivomplaner.env
+ExecStart=/bin/sh -c 'exec /usr/bin/java $JAVA_OPTS -jar /opt/ivomplaner/current/app/pvs-app.jar'
 SuccessExitStatus=143
 Restart=on-failure
 RestartSec=10
@@ -22,11 +22,11 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/opt/pvs /var/log/pvs
+ReadWritePaths=/opt/ivomplaner /var/log/ivomplaner
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=pvs-onpremise
+SyslogIdentifier=ivomplaner
 
 [Install]
 WantedBy=multi-user.target

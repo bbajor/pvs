@@ -20,17 +20,18 @@ Der produktive On-Premise-Pfad nutzt keine Container-Runtime:
    ```bash
    bash onpremise/build-native-package.sh
    ```
-2. Das Paket `build/onpremise/ivomplaner-onpremise.tar.gz` wird auf den Server kopiert.
-3. Auf dem Server installiert `onpremise/install.sh` Java 21, PostgreSQL, systemd-Service und Betriebsverzeichnis.
-4. Updates laufen ueber `/opt/pvs/update.sh <jar-or-url>`.
-5. Backups laufen ueber `/opt/pvs/backup.sh`; Restore ueber `/opt/pvs/restore.sh <dump>`.
+2. Das Paket `build/distributions/ivomplaner-onpremise-<version>.tar.gz` wird als Release-Artefakt bereitgestellt.
+3. Auf der Praxis-VM installiert `install.sh` Java 21, PostgreSQL, systemd-Service und Betriebsverzeichnis.
+4. Updates laufen ueber `ivomplaner-update latest` oder `ivomplaner-update <tarball>`.
+5. Backups laufen ueber `ivomplaner-backup`; Restore ueber `ivomplaner-restore <dump>`.
 
 ## Betriebsprinzip
 
-- Anwendung: `/opt/pvs/app/pvs-app.jar`
-- Konfiguration: `/opt/pvs/.env`
-- Backups: `/opt/pvs/backups`
-- Service: `pvs-onpremise.service`
+- Releases: `/opt/ivomplaner/releases/<version>`
+- Aktive Version: `/opt/ivomplaner/current`
+- Konfiguration: `/etc/ivomplaner/ivomplaner.env`
+- Backups: `/opt/ivomplaner/backups`
+- Service: `ivomplaner.service`
 - Healthcheck: `http://127.0.0.1:8080/actuator/health`
 
 Der Server braucht damit Java 21, PostgreSQL, curl und systemd. Mehr Magie ist nicht vorgesehen; Magie debuggt sich schlecht.

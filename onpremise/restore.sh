@@ -3,8 +3,10 @@
 
 set -euo pipefail
 
-INSTALL_DIR="${INSTALL_DIR:-/opt/pvs}"
-ENV_FILE="$INSTALL_DIR/.env"
+INSTALL_DIR="${INSTALL_DIR:-/opt/ivomplaner}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/ivomplaner}"
+ENV_FILE="${ENV_FILE:-$CONFIG_DIR/ivomplaner.env}"
+SERVICE_NAME="${SERVICE_NAME:-ivomplaner}"
 
 if [ "$EUID" -ne 0 ]; then
     echo "Error: restore.sh must be run as root."
@@ -42,7 +44,7 @@ if [ "$CONFIRMATION" != "RESTORE" ]; then
     exit 0
 fi
 
-systemctl stop pvs-onpremise.service || true
+systemctl stop "$SERVICE_NAME.service" || true
 
 if ! PGPASSWORD="${POSTGRES_PASSWORD:-${DB_PASSWORD:-}}" pg_restore \
     --clean \
@@ -54,7 +56,7 @@ if ! PGPASSWORD="${POSTGRES_PASSWORD:-${DB_PASSWORD:-}}" pg_restore \
     --dbname="$DB_NAME" \
     "$BACKUP_FILE"; then
     echo "Restore failed."
-    systemctl start pvs-onpremise.service || true
+    systemctl start "$SERVICE_NAME.service" || true
     exit 1
 fi
 
@@ -62,5 +64,5 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
 ALTER DATABASE "$DB_NAME" OWNER TO "$DB_USER";
 SQL
 
-systemctl start pvs-onpremise.service
+systemctl start "$SERVICE_NAME.service"
 echo "Restore completed."
