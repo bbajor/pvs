@@ -63,8 +63,9 @@ management:
     # Custom health indicators
     whisper:
       enabled: true
-    kbvService:
-      enabled: true
+    kbv-service:
+      health:
+        enabled: true
   metrics:
     export:
       prometheus:

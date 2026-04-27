@@ -1,6 +1,6 @@
 # Detaillierte Installationsanleitung
 
-Diese Anleitung führt Schritt für Schritt durch die Installation von PVS OnPremise.
+Diese Anleitung führt Schritt für Schritt durch die native Installation von IVOMPlaner On-Premise.
 
 ## Vorbereitung
 
@@ -17,129 +17,73 @@ df -h
 # Verfügbarer RAM
 free -h
 
-# Podman prüfen (falls bereits installiert)
-podman --version
+# Java prüfen (falls bereits installiert)
+java -version
 ```
 
-#### Windows
-```powershell
-# System-Informationen
-systeminfo | Select-String "OS Name", "Total Physical Memory"
-
-# Verfügbarer Speicher
-Get-PSDrive C | Select-Object Used,Free
-
-# Podman prüfen (falls bereits installiert)
-podman --version
-```
-
-### 2. Podman installieren
+### 2. Java und PostgreSQL installieren
 
 #### Linux
 
 **Ubuntu/Debian:**
 ```bash
 sudo apt-get update
-sudo apt-get install -y podman podman-compose
+sudo apt-get install -y openjdk-21-jre-headless postgresql postgresql-client curl openssl
 ```
 
 **Fedora/RHEL/CentOS:**
 ```bash
-sudo dnf install -y podman podman-compose
+sudo dnf install -y java-21-openjdk-headless postgresql-server postgresql curl openssl
 ```
 
 **Arch/Manjaro:**
 ```bash
-sudo pacman -S podman podman-compose
-```
-
-**podman-compose (falls nicht verfügbar):**
-```bash
-pip3 install podman-compose
-```
-
-#### Windows
-
-1. Lade Podman Desktop herunter: https://podman-desktop.io/
-2. Installiere Podman Desktop
-3. Starte Podman Desktop und warte, bis es vollständig gestartet ist
-4. Prüfe die Installation:
-   ```powershell
-   podman --version
-   ```
-
-**podman-compose für Windows:**
-```powershell
-pip install podman-compose
+sudo pacman -S jre21-openjdk postgresql curl openssl
 ```
 
 ## Installation
 
-### Linux-Installation
-
-#### Schritt 1: Repository klonen oder Dateien kopieren
+### Variante A: direkt aus GitHub Releases
 
 ```bash
-# Option 1: Git-Repository klonen
-cd /tmp
-git clone <repository-url> pvs
-cd pvs/onpremise
-
-# Option 2: Dateien manuell kopieren
-# Kopiere das gesamte 'onpremise'-Verzeichnis auf den Server
+export IVOMPLANER_RELEASE_BASE_URL="https://github.com/<org>/<repo>/releases/latest/download"
+curl -fsSL "$IVOMPLANER_RELEASE_BASE_URL/install.sh" | sudo IVOMPLANER_RELEASE_BASE_URL="$IVOMPLANER_RELEASE_BASE_URL" bash
 ```
 
-#### Schritt 2: Installer ausführen
+### Variante B: lokales Release-Paket
 
 ```bash
-# Als root ausführen
-sudo bash install.sh
+tar -xzf ivomplaner-onpremise-1.2.3.tar.gz
+sudo bash ivomplaner-onpremise-1.2.3/install.sh /path/to/ivomplaner-onpremise-1.2.3.tar.gz
 ```
 
 Der Installer:
-- Prüft und installiert Podman/podman-compose falls nötig
-- Erstellt Service-User `pvs`
-- Erstellt Installations-Verzeichnis `/opt/pvs`
-- Kopiert Konfigurationsdateien
-- Generiert sichere Passwörter
-- Installiert Systemd-Service für Auto-Start
 
-#### Schritt 3: Konfiguration anpassen
+- prüft und installiert Java 21/PostgreSQL falls möglich,
+- erstellt Service-User `ivomplaner`,
+- erstellt `/opt/ivomplaner/releases/<version>` und `/opt/ivomplaner/current`,
+- erstellt `/etc/ivomplaner/ivomplaner.env`,
+- generiert sichere Passwörter,
+- erstellt Datenbank und DB-User lokal in PostgreSQL,
+- installiert `ivomplaner-update`, `ivomplaner-backup`, `ivomplaner-restore`,
+- installiert und startet den systemd-Service `ivomplaner`.
 
-```bash
-# .env-Datei bearbeiten
-sudo nano /opt/pvs/.env
-```
-
-**Wichtige Einstellungen:**
-
-1. **Datenbank-Passwörter**: Sollten bereits generiert sein, können aber geändert werden
-2. **SMTP-Konfiguration**: Falls E-Mail-Versand benötigt wird
-3. **Ports**: Standard ist 8080, kann angepasst werden
-4. **Whisper**: Lokaler Whisper-Service (benötigt mehr Ressourcen)
-
-#### Schritt 4: KBV-Daten initialisieren (optional)
+### Konfiguration anpassen
 
 ```bash
-sudo su - pvs
-cd /opt/pvs
-podman-compose -f podman-compose.onpremise.yml --profile kbv-init up kbv-distrib-job
+sudo nano /etc/ivomplaner/ivomplaner.env
+sudo systemctl restart ivomplaner
 ```
 
-#### Schritt 5: Service starten
+Wichtige Einstellungen:
 
-```bash
-# Service starten
-sudo systemctl start pvs-onpremise
+1. Datenbank-Passwörter: werden beim Erstinstallieren generiert.
+2. SMTP-Konfiguration: falls E-Mail-Versand benötigt wird.
+3. Ports: Standard ist 8080, kann angepasst werden.
+4. Whisper: lokaler Whisper-Service muss separat bereitgestellt werden.
+5. App-Updates: `APP_UPDATE_ENABLED=true` aktiviert den Update-Hinweis in der App.
 
-# Status prüfen
-sudo systemctl status pvs-onpremise
-
-# Logs anzeigen
-sudo journalctl -u pvs-onpremise -f
-```
-
-#### Schritt 6: Anwendung testen
+### Anwendung testen
 
 ```bash
 # Health-Check
@@ -149,59 +93,19 @@ curl http://localhost:8080/actuator/health
 # http://localhost:8080
 ```
 
-### Windows-Installation
+### App-Update aus der Anwendung
 
-#### Schritt 1: Dateien vorbereiten
+Super-Admins sehen im Menü `System-Update`, ob ein neues Release verfügbar ist.
+Beim Klick auf `Update installieren` zeigt die App zuerst einen Hinweis, dass offene Änderungen gespeichert werden sollen.
+Danach startet die App den Wrapper `sudo -n /usr/local/bin/ivomplaner-update-wrapper latest`.
 
-```powershell
-# PowerShell als Administrator öffnen
-# Ins Installationsverzeichnis wechseln
-cd C:\path\to\pvs\onpremise
-```
+Der Wrapper startet das eigentliche Update in einer separaten systemd-Unit. Dadurch kann die Web-Anwendung sich selbst neu starten, ohne dem eigenen Kindprozess den Stuhl wegzutreten.
 
-#### Schritt 2: Installer ausführen
+Update-Logs liegen unter:
 
-```powershell
-.\install.ps1
-```
-
-Der Installer:
-- Prüft Podman-Installation
-- Erstellt Installations-Verzeichnis `C:\Program Files\PVS`
-- Kopiert Konfigurationsdateien
-- Generiert sichere Passwörter
-- Erstellt Start/Stop/Status-Skripte
-- Erstellt Windows Task für Auto-Start
-
-#### Schritt 3: Konfiguration anpassen
-
-```powershell
-notepad "C:\Program Files\PVS\.env"
-```
-
-**Wichtige Einstellungen:** (siehe Linux-Installation)
-
-#### Schritt 4: KBV-Daten initialisieren (optional)
-
-```powershell
-cd "C:\Program Files\PVS"
-podman-compose -f podman-compose.onpremise.yml --profile kbv-init up kbv-distrib-job
-```
-
-#### Schritt 5: PVS starten
-
-```powershell
-cd "C:\Program Files\PVS"
-.\start-pvs.bat
-```
-
-#### Schritt 6: Status prüfen
-
-```powershell
-.\status-pvs.bat
-
-# Oder im Browser
-# http://localhost:8080
+```bash
+sudo ls -lh /opt/ivomplaner/logs/
+sudo journalctl -u 'ivomplaner-update-*'
 ```
 
 ## Post-Installation
@@ -209,14 +113,18 @@ cd "C:\Program Files\PVS"
 ### 1. Erste Anmeldung
 
 1. Öffne die Anwendung im Browser: `http://localhost:8080`
-2. Erstelle einen Admin-Account (falls noch nicht vorhanden)
-3. Konfiguriere die Anwendung
+2. Melde Dich als `superadmin` an.
+3. Das initiale Passwort steht beim ersten Start im Journal, sofern `SUPER_ADMIN_INITIAL_PASSWORD` leer war:
+   ```bash
+   sudo journalctl -u ivomplaner -b | grep -A 5 "SUPER-ADMIN INITIAL CREDENTIALS"
+   ```
+4. Ändere das Passwort direkt nach dem ersten Login.
 
 ### 2. SMTP konfigurieren (optional)
 
 Falls E-Mail-Versand benötigt wird:
 
-1. Bearbeite `/opt/pvs/.env` (Linux) oder `C:\Program Files\PVS\.env` (Windows)
+1. Bearbeite `/etc/ivomplaner/ivomplaner.env`
 2. Setze die SMTP-Variablen:
    ```
    SMTP_HOST=smtp.example.com
@@ -226,14 +134,9 @@ Falls E-Mail-Versand benötigt wird:
    SMTP_FROM_ADDRESS=noreply@example.com
    ```
 3. **WICHTIG**: Setze `SMTP_ENCRYPTION_KEY` (wird beim Installer generiert)
-4. Starte die Container neu:
+4. Starte die Anwendung neu:
    ```bash
-   # Linux
-   sudo systemctl restart pvs-onpremise
-   
-   # Windows
-   .\stop-pvs.bat
-   .\start-pvs.bat
+   sudo systemctl restart ivomplaner
    ```
 
 ### 3. Whisper aktivieren (optional)
@@ -244,17 +147,8 @@ Für lokale Spracherkennung:
    ```
    AI_WHISPER_LOCAL_ENABLED=true
    ```
-2. Starte Container mit Whisper-Profil:
-   ```bash
-   # Linux
-   sudo su - pvs
-   cd /opt/pvs
-   podman-compose -f podman-compose.onpremise.yml --profile whisper up -d
-   
-   # Windows
-   cd "C:\Program Files\PVS"
-   podman-compose -f podman-compose.onpremise.yml --profile whisper up -d
-   ```
+2. Stelle einen Whisper-kompatiblen lokalen Service auf `AI_WHISPER_LOCAL_HOST:AI_WHISPER_LOCAL_PORT` bereit.
+3. Starte IVOMPlaner neu: `sudo systemctl restart ivomplaner`.
 
 **Hinweis**: Whisper benötigt deutlich mehr Ressourcen (RAM, CPU).
 
@@ -270,11 +164,6 @@ sudo ufw reload
 ```bash
 sudo firewall-cmd --permanent --add-port=8080/tcp
 sudo firewall-cmd --reload
-```
-
-#### Windows
-```powershell
-New-NetFirewallRule -DisplayName "PVS OnPremise" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
 ```
 
 ### 5. Reverse Proxy einrichten (optional)
@@ -299,20 +188,14 @@ server {
 
 ## Verifikation
 
-### Container-Status prüfen
+### Service-Status prüfen
 
 ```bash
-# Linux
-sudo su - pvs
-cd /opt/pvs
-podman-compose -f podman-compose.onpremise.yml ps
-
-# Windows
-cd "C:\Program Files\PVS"
-podman-compose -f podman-compose.onpremise.yml ps
+sudo systemctl status ivomplaner
+sudo systemctl status postgresql
 ```
 
-Alle Container sollten den Status "Up" haben.
+Beide Services sollten aktiv sein.
 
 ### Health-Checks
 
@@ -321,20 +204,14 @@ Alle Container sollten den Status "Up" haben.
 curl http://localhost:8080/actuator/health
 
 # PostgreSQL
-podman exec pvs-onpremise-postgres pg_isready -U pvs
-
-# KBV Service (falls aktiv)
-curl http://localhost:8080/api/kbv/health
+pg_isready -h 127.0.0.1 -U pvs -d pvs
 ```
 
 ### Logs prüfen
 
 ```bash
 # Linux - Systemd-Logs
-sudo journalctl -u pvs-onpremise -f
-
-# Linux/Windows - Container-Logs
-podman-compose -f podman-compose.onpremise.yml logs -f
+sudo journalctl -u ivomplaner -f
 ```
 
 ## Deinstallation
@@ -345,20 +222,12 @@ Falls PVS OnPremise entfernt werden soll, verwende das Deinstallationsskript:
 
 ```bash
 # Als root ausführen
-sudo bash onpremise/uninstall.sh
-```
-
-### Windows
-
-```powershell
-# PowerShell als Administrator öffnen
-cd C:\path\to\pvs\onpremise
-.\uninstall.ps1
+sudo ivomplaner-uninstall
 ```
 
 **WICHTIG**: Das Deinstallationsskript fragt explizit nach:
-- **Datenbank-Volumes**: Enthalten IVOM-Behandlungsdaten, Patientendaten, etc.
-  - Standardmäßig werden diese **NICHT** gelöscht
+- **PostgreSQL-Datenbank und DB-User**: Enthalten IVOM-Behandlungsdaten, Patientendaten, etc.
+  - Standardmäßig werden diese nicht automatisch gelöscht
   - Du kannst sie explizit behalten oder löschen
 - **Backup-Verzeichnis**: Kann separat behalten werden
 - **Installations-Verzeichnis**: Kann komplett oder teilweise entfernt werden

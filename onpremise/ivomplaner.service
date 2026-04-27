@@ -1,0 +1,33 @@
+[Unit]
+Description=IVOMPlaner On-Premise Application
+Documentation=https://github.com/bbajor/pvs
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=ivomplaner
+Group=ivomplaner
+WorkingDirectory=/opt/ivomplaner/current
+EnvironmentFile=/etc/ivomplaner/ivomplaner.env
+ExecStart=/bin/sh -c 'exec /usr/bin/java $JAVA_OPTS -jar /opt/ivomplaner/current/app/pvs-app.jar'
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/ivomplaner /var/log/ivomplaner
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ivomplaner
+
+[Install]
+WantedBy=multi-user.target
+

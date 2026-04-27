@@ -2,6 +2,7 @@ package de.bbajor.pvs.analytics.ui;
 
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dependency.NpmPackage;
 import com.vaadin.flow.component.html.Div;
 
 import elemental.json.Json;
@@ -12,6 +13,7 @@ import elemental.json.JsonObject;
  * Wrapper um die ECharts-Bibliothek für die Integration in Vaadin.
  */
 @JsModule("./analytics/echarts-connector.js")
+@NpmPackage(value = "echarts", version = "6.0.0")
 public class EChartsComponent extends Div {
 
     private final String elementId;

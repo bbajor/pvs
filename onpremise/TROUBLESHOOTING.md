@@ -1,361 +1,152 @@
-# Troubleshooting - PVS OnPremise
+# Troubleshooting - IVOMPlaner On-Premise
 
-Häufige Probleme und Lösungen bei der Installation und dem Betrieb von PVS OnPremise.
+Diese Hinweise beziehen sich auf die native Installation unter Linux mit systemd.
 
-## Container starten nicht
+## Service startet nicht
 
-### Problem: Container bleiben im Status "Restarting"
-
-**Lösung:**
 ```bash
-# Logs prüfen
-podman-compose -f podman-compose.onpremise.yml logs
-
-# Spezifischen Container-Log prüfen
-podman logs pvs-onpremise-app
-podman logs pvs-onpremise-postgres
-
-# Container-Status prüfen
-podman ps -a
+sudo systemctl status ivomplaner --no-pager
+sudo journalctl -u ivomplaner -n 100 --no-pager
 ```
 
-**Häufige Ursachen:**
-- Falsche Datenbank-Passwörter in `.env`
-- Port bereits belegt
-- Unzureichende Ressourcen (RAM, Disk)
+Haeufige Ursachen:
 
-### Problem: Container starten nicht nach Neustart
+- `/opt/ivomplaner/current/app/pvs-app.jar` fehlt.
+- Java 21 ist nicht installiert.
+- PostgreSQL laeuft nicht.
+- `/etc/ivomplaner/ivomplaner.env` enthaelt falsche Datenbank-Zugangsdaten.
+- Port `8080` ist bereits belegt.
 
-**Linux:**
+## Datenbank-Verbindung pruefen
+
 ```bash
-# Prüfe Systemd-Service
-sudo systemctl status pvs-onpremise
-sudo journalctl -u pvs-onpremise -n 50
-
-# Service neu aktivieren
-sudo systemctl enable pvs-onpremise
-sudo systemctl daemon-reload
+sudo set -a
+. /etc/ivomplaner/ivomplaner.env
+sudo set +a
+PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -U "$DB_USER" -d "$POSTGRES_DB" -c "select 1;"
 ```
 
-**Windows:**
-```powershell
-# Prüfe Scheduled Task
-Get-ScheduledTask -TaskName "PVS-OnPremise-Start" | Get-ScheduledTaskInfo
+Passwort neu setzen:
 
-# Task neu erstellen
-.\install.ps1
-```
-
-## Datenbank-Probleme
-
-### Problem: "Connection refused" oder "Authentication failed"
-
-**Lösung:**
-1. Prüfe `.env`-Datei:
-   ```bash
-   # Linux
-   sudo cat /opt/pvs/.env | grep POSTGRES
-   
-   # Windows
-   type "C:\Program Files\PVS\.env" | findstr POSTGRES
-   ```
-
-2. Prüfe Container-Logs:
-   ```bash
-   podman logs pvs-onpremise-postgres
-   ```
-
-3. Prüfe Datenbank-Verbindung:
-   ```bash
-   podman exec -it pvs-onpremise-postgres psql -U pvs -d pvs
-   ```
-
-4. Container neu starten:
-   ```bash
-   podman-compose -f podman-compose.onpremise.yml restart postgres
-   ```
-
-### Problem: Datenbank-Volumes sind korrupt
-
-**Lösung (ACHTUNG: Datenverlust!):**
 ```bash
-# Container stoppen
-podman-compose -f podman-compose.onpremise.yml down
-
-# Volume löschen (nur wenn Backup vorhanden!)
-podman volume rm pvs-onpremise_postgres-data
-
-# Container neu starten
-podman-compose -f podman-compose.onpremise.yml up -d postgres
-
-# Datenbank wiederherstellen (falls Backup vorhanden)
-podman exec -i pvs-onpremise-postgres psql -U pvs pvs < backup.sql
+. /etc/ivomplaner/ivomplaner.env
+sudo -u postgres psql -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+sudo systemctl restart ivomplaner
 ```
 
-## Port-Probleme
+## Migrationen schlagen fehl
 
-### Problem: "Port already in use"
-
-**Lösung:**
 ```bash
-# Prüfe, welcher Prozess den Port belegt
-# Linux
-sudo lsof -i :8080
-sudo netstat -tulpn | grep 8080
-
-# Windows
-netstat -ano | findstr :8080
-
-# Port in .env ändern
-# APP_PORT=8081
+sudo journalctl -u ivomplaner -n 200 --no-pager | grep -i flyway
 ```
 
-### Problem: Anwendung nicht erreichbar
+Vor Reparaturen immer Backup erstellen:
 
-**Lösung:**
-1. Prüfe Container-Status:
-   ```bash
-   podman-compose -f podman-compose.onpremise.yml ps
-   ```
+```bash
+sudo ivomplaner-backup
+```
 
-2. Prüfe Firewall:
-   ```bash
-   # Linux
-   sudo ufw status
-   sudo firewall-cmd --list-all
-   
-   # Windows
-   Get-NetFirewallRule | Where-Object {$_.DisplayName -like "*PVS*"}
-   ```
+Bei fehlgeschlagenen Flyway-Migrationen nicht blind `repair` ausfuehren. Erst Ursache klaeren, Backup pruefen, dann gezielt handeln. Datenbank-Migrationen haben Humor, aber selten Rueckwaertsgang.
 
-3. Prüfe Health-Check:
-   ```bash
-   curl http://localhost:8080/actuator/health
-   ```
+## Port belegt
 
-## Performance-Probleme
+```bash
+sudo ss -ltnp | grep ':8080'
+```
 
-### Problem: Anwendung ist langsam
+Wenn der Port belegt ist, `PORT` in `/etc/ivomplaner/ivomplaner.env` aendern und neu starten:
 
-**Lösung:**
-1. Prüfe Ressourcen:
-   ```bash
-   # Linux
-   free -h
-   df -h
-   top
-   
-   # Windows
-   Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize,FreePhysicalMemory
-   Get-PSDrive C
-   ```
+```bash
+sudo systemctl restart ivomplaner
+```
 
-2. Prüfe Container-Ressourcen:
-   ```bash
-   podman stats
-   ```
+## Backup und Restore
 
-3. Erhöhe Container-Limits in `podman-compose.onpremise.yml`:
-   ```yaml
-   deploy:
-     resources:
-       limits:
-         cpus: '2'
-         memory: 4G
-   ```
+Backup:
 
-### Problem: Out of Memory
+```bash
+sudo ivomplaner-backup
+```
 
-**Lösung:**
-1. Prüfe verfügbaren RAM
-2. Reduziere Container-Anzahl (z.B. Whisper deaktivieren)
-3. Erhöhe System-RAM oder füge Swap hinzu
+Restore:
+
+```bash
+sudo ivomplaner-restore /opt/ivomplaner/backups/pvs_<timestamp>.dump
+```
+
+Restore stoppt den Service, spielt den Dump ein und startet den Service danach wieder.
+
+## Update fehlgeschlagen
+
+`ivomplaner-update` erstellt vor jedem Update ein Datenbank-Backup und schaltet Releases ueber `/opt/ivomplaner/current` um.
+
+```bash
+sudo ivomplaner-update latest
+sudo journalctl -u ivomplaner -n 100 --no-pager
+```
+
+Wenn der Healthcheck fehlschlaegt, setzt das Skript den Symlink automatisch auf das vorherige Release zurueck. Falls eine Datenbankmigration bereits gelaufen ist und ein echter Datenbank-Rollback noetig wird: Backup wiederherstellen.
+
+## Update aus der App startet nicht
+
+Die App startet Updates ueber `sudo -n /usr/local/bin/ivomplaner-update-wrapper latest`. Der Installer legt dafuer eine eng begrenzte sudoers-Regel an.
+
+Pruefung:
+
+```bash
+sudo -u ivomplaner sudo -n /usr/local/bin/ivomplaner-update-wrapper latest
+sudo ls -l /var/log/ivomplaner/
+sudo journalctl -u 'ivomplaner-update-*' -n 100 --no-pager
+```
+
+Wenn die App "Update konnte nicht gestartet werden" meldet, pruefe:
+
+- `/etc/sudoers.d/ivomplaner-update` existiert und enthaelt nur den Wrapper.
+- `APP_UPDATE_ENABLED=true` in `/etc/ivomplaner/ivomplaner.env`.
+- `APP_UPDATE_LATEST_VERSION_URL` ist erreichbar.
+- Der Server hat ausgehenden HTTPS-Zugriff auf GitHub Releases.
+
+## Manuelles Release-Rollback
+
+```bash
+sudo ls -1 /opt/ivomplaner/releases
+sudo ln -sfn /opt/ivomplaner/releases/<previous-version> /opt/ivomplaner/current
+sudo chown -h ivomplaner:ivomplaner /opt/ivomplaner/current
+sudo systemctl restart ivomplaner
+```
 
 ## SMTP-Probleme
 
-### Problem: E-Mails werden nicht versendet
-
-**Lösung:**
-1. Prüfe SMTP-Konfiguration in `.env`:
-   ```
-   SMTP_HOST=smtp.example.com
-   SMTP_PORT=587
-   SMTP_USERNAME=...
-   SMTP_PASSWORD=...
-   ```
-
-2. Prüfe `SMTP_ENCRYPTION_KEY` (muss gesetzt sein!)
-
-3. Teste SMTP-Verbindung:
+1. Konfiguration pruefen:
    ```bash
-   # Im Container
-   podman exec -it pvs-onpremise-app bash
-   # Teste SMTP-Verbindung (falls Tools verfügbar)
+   sudo sed -n '/^SMTP_/p' /etc/ivomplaner/ivomplaner.env
    ```
-
-4. Prüfe Application-Logs:
+2. Logs pruefen:
    ```bash
-   podman logs pvs-onpremise-app | grep -i smtp
+   sudo journalctl -u ivomplaner -n 200 --no-pager | grep -i smtp
    ```
+3. `SMTP_ENCRYPTION_KEY` muss gesetzt bleiben. Bei Verlust koennen gespeicherte SMTP-Passwoerter nicht mehr entschluesselt werden.
 
-## KBV-Service-Probleme
-
-### Problem: KBV-Daten fehlen
-
-**Lösung:**
-```bash
-# KBV-Daten initialisieren
-podman-compose -f podman-compose.onpremise.yml --profile kbv-init up kbv-distrib-job
-
-# Prüfe KBV-Volume
-podman volume inspect pvs-onpremise_kbv-data
-```
-
-### Problem: KBV-Service startet nicht
-
-**Lösung:**
-1. Prüfe KBV-Datenbank:
-   ```bash
-   podman logs pvs-onpremise-kbv-db
-   podman exec -it pvs-onpremise-kbv-db psql -U kbv -d kbv
-   ```
-
-2. Prüfe KBV-Service-Logs:
-   ```bash
-   podman logs pvs-onpremise-kbv-service
-   ```
-
-## Update-Probleme
-
-### Problem: Container-Images werden nicht aktualisiert
-
-**Lösung:**
-```bash
-# Images manuell aktualisieren
-podman-compose -f podman-compose.onpremise.yml pull
-
-# Container neu bauen (bei Code-Änderungen)
-podman-compose -f podman-compose.onpremise.yml build
-
-# Container neu starten
-podman-compose -f podman-compose.onpremise.yml up -d
-```
-
-### Problem: Migration-Fehler nach Update
-
-**Lösung:**
-1. Prüfe Flyway-Logs:
-   ```bash
-   podman logs pvs-onpremise-app | grep -i flyway
-   ```
-
-2. Prüfe Datenbank-Schema:
-   ```bash
-   podman exec -it pvs-onpremise-postgres psql -U pvs -d pvs -c "\dt"
-   ```
-
-3. Manuelle Migration (falls nötig):
-   ```bash
-   # Backup erstellen!
-   podman exec pvs-onpremise-postgres pg_dump -U pvs pvs > backup.sql
-   
-   # Migration manuell ausführen (siehe Flyway-Dokumentation)
-   ```
-
-## Logs und Debugging
-
-### Logs anzeigen
+## Speicherplatz voll
 
 ```bash
-# Alle Container-Logs
-podman-compose -f podman-compose.onpremise.yml logs -f
-
-# Spezifischer Container
-podman logs -f pvs-onpremise-app
-
-# Systemd-Logs (Linux)
-sudo journalctl -u pvs-onpremise -f
-
-# Letzte 100 Zeilen
-podman logs --tail 100 pvs-onpremise-app
-```
-
-### Debug-Modus aktivieren
-
-1. Bearbeite `.env`:
-   ```
-   SPRING_PROFILES_ACTIVE=onpremise,debug
-   ```
-
-2. Container neu starten:
-   ```bash
-   podman-compose -f podman-compose.onpremise.yml restart pvs-app
-   ```
-
-## Häufige Fehlermeldungen
-
-### "Cannot connect to the Docker daemon"
-
-**Ursache:** Podman-Service läuft nicht oder Berechtigungen fehlen.
-
-**Lösung:**
-```bash
-# Linux
-sudo systemctl start podman
-sudo systemctl enable podman
-
-# Prüfe Podman-Socket
-podman info
-```
-
-### "Permission denied" bei Volume-Zugriff
-
-**Ursache:** Falsche Dateiberechtigungen.
-
-**Lösung:**
-```bash
-# Linux
-sudo chown -R pvs:pvs /opt/pvs
-sudo chmod 755 /opt/pvs
-```
-
-### "No space left on device"
-
-**Ursache:** Festplatte voll.
-
-**Lösung:**
-```bash
-# Prüfe Speicher
 df -h
-
-# Alte Container/Images löschen
-podman system prune -a
-
-# Logs löschen
-podman-compose -f podman-compose.onpremise.yml logs --no-log-prefix > /dev/null
+sudo du -sh /opt/ivomplaner/*
 ```
 
-## Support erhalten
+Alte Backups oder sehr alte Releases erst nach geprueftem Backup entfernen:
 
-Wenn das Problem weiterhin besteht:
+```bash
+sudo ls -lh /opt/ivomplaner/backups
+sudo ls -lh /opt/ivomplaner/releases
+```
 
-1. Sammle Informationen:
-   ```bash
-   # System-Informationen
-   uname -a
-   podman --version
-   podman-compose --version
-   
-   # Container-Status
-   podman-compose -f podman-compose.onpremise.yml ps
-   
-   # Logs
-   podman-compose -f podman-compose.onpremise.yml logs > logs.txt
-   ```
+## Informationen fuer Support
 
-2. Erstelle ein Issue im Repository mit:
-   - Beschreibung des Problems
-   - Schritte zur Reproduktion
-   - System-Informationen
-   - Logs (ohne sensible Daten!)
-
+```bash
+uname -a
+java -version
+systemctl status ivomplaner --no-pager
+systemctl status postgresql --no-pager
+journalctl -u ivomplaner -n 200 --no-pager > ivomplaner-service.log
+```
