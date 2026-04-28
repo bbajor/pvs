@@ -1,0 +1,58 @@
+# Serverless Profile Configuration
+# Used when deploying functions to OpenFaaS, AWS Lambda, etc.
+
+spring:
+  application:
+    name: pvs-serverless-function
+  
+  # Database configuration for serverless
+  datasource:
+    # Connection pool is optimized in DatabaseConfig for serverless
+    hikari:
+      minimum-idle: 1
+      maximum-pool-size: 5
+      connection-timeout: 5000
+      idle-timeout: 30000
+      max-lifetime: 300000
+  
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        # Disable second-level cache for serverless (stateless)
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+  
+  # Spring Cloud Function configuration
+  cloud:
+    function:
+      # Function definition is set via environment variable SPRING_CLOUD_FUNCTION_DEFINITION
+      # Example: SPRING_CLOUD_FUNCTION_DEFINITION=createPatient
+      definition: ${SPRING_CLOUD_FUNCTION_DEFINITION:}
+    
+    gateway:
+      # Gateway routes are configured in GatewayConfig
+      enabled: false  # Disable gateway in function deployments (gateway runs separately)
+
+# Actuator for health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Logging
+logging:
+  level:
+    root: INFO
+    de.bbajor.pvs: DEBUG
+    org.springframework.cloud.function: DEBUG
+

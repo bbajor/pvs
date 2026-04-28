@@ -1,0 +1,101 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database für OnPremise
+  postgres:
+    image: postgres:15-alpine
+    container_name: pvs-onpremise-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pvs}
+      POSTGRES_USER: ${POSTGRES_USER:-pvs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - pvs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pvs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Whisper AI Service (optional)
+  whisper:
+    build:
+      context: ..
+      dockerfile: docker/whisper/Dockerfile
+    image: pvs-whisper:latest
+    container_name: pvs-onpremise-whisper
+    restart: always
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      - PORT=9000
+    networks:
+      - pvs-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - whisper
+
+  # PVS Application
+  pvs-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: pvs-app:onpremise
+    container_name: pvs-onpremise-app
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-onpremise}
+      PORT: ${PORT:-8080}
+      # Database
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pvs}
+      DB_USER: ${POSTGRES_USER:-pvs}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # Vaadin Production Mode
+      VAADIN_PRODUCTION_MODE: "true"
+      # Whisper (optional)
+      AI_WHISPER_LOCAL_ENABLED: ${AI_WHISPER_LOCAL_ENABLED:-false}
+      AI_WHISPER_LOCAL_HOST: whisper
+      AI_WHISPER_LOCAL_PORT: 9000
+      # SMTP (optional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+      # MFA
+      MFA_ISSUER: ${MFA_ISSUER:-PVS}
+      ONPREMISE_INSTITUTION_CODE: ${ONPREMISE_INSTITUTION_CODE:-}
+      SMTP_ENCRYPTION_KEY: ${SMTP_ENCRYPTION_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - pvs-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  pvs-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local

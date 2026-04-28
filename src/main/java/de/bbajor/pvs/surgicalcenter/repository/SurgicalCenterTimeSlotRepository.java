@@ -10,6 +10,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
@@ -30,23 +31,67 @@ public interface SurgicalCenterTimeSlotRepository
                         SurgicalCenter surgicalCenter, Sort sort);
 
         @Query("""
+                SELECT ts FROM SurgicalCenterTimeSlot ts
+                WHERE ts.date BETWEEN :start AND :end
+                AND ts.surgicalCenter = :surgicalCenter
+                AND ts.isAvailable = true
+                ORDER BY ts.date ASC, ts.startTime ASC
+                """)
+        List<SurgicalCenterTimeSlot> findAvailableByDateRangeAndSurgicalCenter(
+                @Param("start") LocalDate start,
+                @Param("end") LocalDate end,
+                @Param("surgicalCenter") SurgicalCenter surgicalCenter);
+        
+        /**
+         * Findet verfügbare Termine für einen Behandlungsort im Zeitraum.
+         * Filtert direkt nach Institution für bessere Datenisolation.
+         * Lädt auch die Patientenzahl pro Timeslot.
+         */
+        @Query("""
+                select new de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot(
+                    ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
+                    ts.surgicalCenter, ts.isAvailable, ts.isApproved, count(t) as patientCount
+                )
+                from SurgicalCenterTimeSlot ts
+                left join Treatment t on t.surgicalCenterTimeSlot = ts
+                where ts.surgicalCenter.id = :surgicalCenterId
+                and ts.surgicalCenter.institution.id = :institutionId
+                and ts.date between :start and :end
+                and ts.isAvailable = true
+                group by ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
+                         ts.surgicalCenter, ts.isAvailable, ts.isApproved
+                order by ts.date asc, ts.startTime asc
+                """)
+        List<SurgicalCenterTimeSlot> findAvailableTimeSlotsBySurgicalCenterAndInstitution(
+                @Param("surgicalCenterId") Integer surgicalCenterId,
+                @Param("institutionId") Long institutionId,
+                @Param("start") LocalDate start,
+                @Param("end") LocalDate end);
+
+        @Query("""
                                         select new de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot(
                                             ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
                                             ts.surgicalCenter, ts.isAvailable, ts.isApproved, count(t) as patientCount
                                         )
                                         from SurgicalCenterTimeSlot ts
                                         left join Treatment t on t.surgicalCenterTimeSlot = ts
+                                        left join t.treatmentPlan tp
+                                        left join tp.patient p
+                                        left join p.location loc
                                         where ts.surgicalCenter.id = :id
+                                        and (t.id is null or loc.institution.id = :institutionId)
                                         group by ts.id, ts.version, ts.description, ts.date, ts.startTime, ts.endTime,
                                                  ts.surgicalCenter, ts.isAvailable, ts.isApproved
                                         order by ts.date asc, ts.startTime asc
                         """)
-        List<SurgicalCenterTimeSlot> findBySurgicalCenterIdWithTreatmentCount(Integer id);
+        List<SurgicalCenterTimeSlot> findBySurgicalCenterIdWithTreatmentCount(@Param("id") Integer id, @Param("institutionId") Long institutionId);
 
         @Query("""
                         SELECT ts FROM SurgicalCenterTimeSlot ts
                         LEFT JOIN FETCH ts.surgicalCenter sc
                         WHERE ts.id NOT IN :timeSlotIds
+                        AND sc.institution.id = :institutionId
+                        AND ts.date <= :today
                         AND EXISTS (
                             SELECT t FROM Treatment t
                             WHERE t.surgicalCenterTimeSlot = ts
@@ -54,18 +99,24 @@ public interface SurgicalCenterTimeSlotRepository
                         )
                 """)
         List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatmentsAndNotInTimeSlotIdList(
+                @Param("institutionId") Long institutionId,
+                @Param("today") LocalDate today,
                 List<Long> timeSlotIds);
 
         @Query("""
                         SELECT ts FROM SurgicalCenterTimeSlot ts
                         LEFT JOIN FETCH ts.surgicalCenter sc
-                        WHERE EXISTS (
+                        WHERE sc.institution.id = :institutionId
+                        AND ts.date <= :today
+                        AND EXISTS (
                             SELECT t FROM Treatment t
                             WHERE t.surgicalCenterTimeSlot = ts
                             AND t.approvalDate is NULL
                         )
                 """)
-        List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatments();
+        List<SurgicalCenterTimeSlot> findAllContainingNotApprovedTreatments(
+                @Param("institutionId") Long institutionId,
+                @Param("today") LocalDate today);
 
         boolean existsBySurgicalCenterAndDateAndStartTimeAndEndTime(
                 SurgicalCenter surgicalCenter,

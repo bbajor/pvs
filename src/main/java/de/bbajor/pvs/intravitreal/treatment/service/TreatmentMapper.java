@@ -14,7 +14,7 @@ public interface TreatmentMapper {
 
     @Mapping(target = "surgicalCenterTimeSlot", ignore = true)
     @Mapping(target = "treatmentPlan", ignore = true)
-    @Mapping(target = "medication", ignore = true)
+    @Mapping(target = "medicationFavourite", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
     void updateTreatmentEntity(Treatment source, @MappingTarget Treatment target);

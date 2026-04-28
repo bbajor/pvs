@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
@@ -32,6 +34,14 @@ public class TreatmentPlanListPresenter {
 
     public List<TreatmentPlan> findAll() {
         return treatmentPlanService.findAll();
+    }
+    
+    public Slice<TreatmentPlan> findAll(Pageable pageable) {
+        return treatmentPlanService.findAll(pageable);
+    }
+    
+    public Slice<TreatmentPlan> findAllBy(String searchString, Pageable pageable) {
+        return treatmentPlanService.findTreatmentPlans(searchString, pageable);
     }
 
 }

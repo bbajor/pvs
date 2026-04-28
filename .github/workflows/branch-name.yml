@@ -1,0 +1,34 @@
+name: Branch Naming
+
+# DEPRECATED: Branch-Naming-Validierung ist zu spät beim PR und zu strikt
+# Besser: GitHub Branch Protection Rules nutzen (Settings → Branches → Add rule)
+# Oder: Nur lockere Prüfung dass cursor/* Branches existieren (optional)
+# 
+# Dieser Workflow wurde gelockert: Nur noch Warnung, kein Fail mehr
+# Der pr-base-branch-guard.yml prüft bereits, dass cursor/* Branches gegen dev gehen
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warn if cursor branch doesn't follow pattern (optional)
+        run: |
+          BR="${{ github.head_ref }}"
+          echo "head=$BR"
+          if [[ "$BR" == cursor/* ]]; then
+            # Lockere Prüfung: Nur warnen, nicht fehlschlagen
+            # Empfohlenes Pattern: cursor/<agent>/<topic>, aber nicht zwingend
+            if [[ ! "$BR" =~ ^cursor\/[a-z0-9._-]+\/[a-z0-9._-]+$ ]]; then
+              echo "⚠️  Warnung: Cursor-Branch '$BR' folgt nicht dem empfohlenen Pattern 'cursor/<agent>/<topic>'"
+              echo "   Empfohlen, aber nicht zwingend. PR kann trotzdem gemerged werden."
+            else
+              echo "Branch name folgt empfohlenem Pattern ✅"
+            fi
+          else
+            echo "Kein cursor/* Branch - keine Prüfung nötig"
+          fi
+

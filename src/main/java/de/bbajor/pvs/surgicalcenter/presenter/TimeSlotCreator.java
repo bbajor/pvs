@@ -49,7 +49,10 @@ public class TimeSlotCreator {
                         .setDate(currentDate)
                         .setStartTime(startTime)
                         .setEndTime(endTime)
-                        .setSurgicalCenter(timeSlotConfig.getSurgicalCenter());
+                        .setSurgicalCenter(timeSlotConfig.getSurgicalCenter())
+                        // Explizit true: Java-Default false würde beim Persistieren sonst die DB-Default TRUE überschreiben
+                        .setAvailable(true)
+                        .setApproved(false);
                 resultList.add(timeSlotDto);
             }
 

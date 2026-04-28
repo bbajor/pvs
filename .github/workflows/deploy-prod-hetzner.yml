@@ -76,21 +76,32 @@ jobs:
             cd /opt/pvs
             
             # Backup current production
-            docker tag ghcr.io/${{ github.repository_owner }}/pvs:prod-latest ghcr.io/${{ github.repository_owner }}/pvs:prod-backup-$(date +%Y%m%d-%H%M%S) || true
+            podman tag ghcr.io/${{ github.repository_owner }}/pvs:prod-latest ghcr.io/${{ github.repository_owner }}/pvs:prod-backup-$(date +%Y%m%d-%H%M%S) || true
             
             # Pull and deploy
-            docker pull ghcr.io/${{ github.repository_owner }}/pvs:prod-latest
-            docker-compose -f docker-compose.production.yml pull pvs-prod
-            docker-compose -f docker-compose.production.yml up -d pvs-prod
+            podman pull ghcr.io/${{ github.repository_owner }}/pvs:prod-latest
+            
+            # Deploy using podman-compose with fallback
+            if command -v podman-compose &> /dev/null; then
+              COMPOSE_CMD="podman-compose"
+            elif podman compose version &> /dev/null; then
+              COMPOSE_CMD="podman compose"
+            else
+              echo "❌ Error: Neither podman-compose nor podman compose available"
+              exit 1
+            fi
+            
+            $COMPOSE_CMD -f podman-compose.production.yml pull pvs-prod
+            $COMPOSE_CMD -f podman-compose.production.yml up -d pvs-prod
             
             # Wait for health check
             echo "⏳ Waiting for application to start..."
             sleep 60
             
             # Health check via container
-            if ! docker exec pvs-prod curl -f http://localhost:8080/actuator/health 2>/dev/null; then
+            if ! podman exec pvs-prod curl -f http://localhost:8080/actuator/health 2>/dev/null; then
               echo "❌ Health check failed - rolling back..."
-              docker-compose -f docker-compose.production.yml restart pvs-prod
+              $COMPOSE_CMD -f podman-compose.production.yml restart pvs-prod
               sleep 30
               exit 1
             fi
@@ -98,7 +109,11 @@ jobs:
             echo "✅ Health check passed!"
             
             # Clean up old images
-            docker image prune -f
+            podman image prune -f
             
             echo "Production deployment successful"
+            echo ""
+            echo "⚠️  IMPORTANT: Check application logs for Super-Admin initial password"
+            echo "   The password is only shown on first startup if no Super-Admin exists."
+            echo "   Command: podman logs pvs-prod | grep -A 10 'SUPER-ADMIN INITIAL PASSWORD'"
 

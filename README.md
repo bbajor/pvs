@@ -8,80 +8,226 @@
 ## Prerequisites
 
 - Java 17 or higher
-- Maven 3.8+
-- OpenSC for eGK card reading functionality
-- eGK-Tool (available from your KV/gematik)
+- Maven 3.8+ oder Gradle
+- Podman oder Docker für Container-basierte Entwicklung
+- OpenSC for eGK card reading functionality (optional)
+- eGK-Tool (available from your KV/gematik, optional)
 
-## Getting Started
+## 🚀 Schnellstart - Lokale Entwicklung
 
-1. Clone the repository:
+### Voraussetzungen
+
+1. **Podman installieren:**
+   - Windows: [Podman Desktop](https://podman-desktop.io/downloads/windows)
+   - Linux: `sudo apt-get install -y podman podman-compose`
+   - macOS: `brew install podman`
+
+2. **Podman Compose:**
+   - `podman compose` (ab Podman 4.0+) oder
+   - `podman-compose` (Python-Tool): `pip install podman-compose`
+
+### Setup
+
+1. **Environment-Datei erstellen:**
+   ```bash
+   # Linux/macOS
+   cp podman-compose.dev.env.example podman-compose.dev.env
+   
+   # Windows PowerShell
+   Copy-Item podman-compose.dev.env.example podman-compose.dev.env
+   ```
+
+2. **Container starten:**
+   ```powershell
+   # Windows PowerShell
+   .\scripts\local\start-dev.ps1
+   
+   # Linux/macOS
+   ./scripts/local/start-dev.sh
+   ```
+
+3. **App öffnen:**
+   - **URL**: http://localhost:8130
+   - **PostgreSQL**: localhost:5434
+   - **Whisper**: localhost:9000
+
+### Wichtige Befehle
+
 ```bash
-git clone https://github.com/bbajor/pvs.git
-cd pvs
+# Container stoppen
+podman compose -f podman-compose.dev.yml down
+
+# Logs anzeigen
+podman compose -f podman-compose.dev.yml logs -f
+
+# Container neu starten
+podman compose -f podman-compose.dev.yml restart
+
+# Datenbank zurücksetzen
+podman compose -f podman-compose.dev.yml down
+podman volume rm pvs_postgres-dev-data
+podman compose -f podman-compose.dev.yml up -d
 ```
 
-2. Install OpenSC:
-   - Download from [OpenSC Project](https://github.com/OpenSC/OpenSC/releases)
-   - Install with default settings
-   - Ensure the card reader is connected and recognized
+### Troubleshooting
 
-3. Configure application.properties:
-   Create or modify `src/main/resources/application.properties`:
-```properties
-# Database Configuration
-spring.datasource.url=jdbc:postgresql://localhost:5432/pvs
-spring.datasource.username=your_username
-spring.datasource.password=your_password
+**Podman verwendet `docker-compose.exe` auf Windows:**
+```powershell
+# Prüfe ob docker-compose.exe im PATH ist
+Get-Command docker-compose.exe -ErrorAction SilentlyContinue
 
-# eGK Tool Configuration
-egk.tool-path=C:/Path/To/Your/egk-tool.exe
-
-# Server Configuration
-server.port=8080
+# Falls gefunden, entferne es aus dem PATH oder deinstalliere es
 ```
 
-## Development
+**Gradle Build-Fehler im Container:**
+```powershell
+# Baue lokal vor dem Container-Build
+./gradlew clean build -x test
 
-To start the application in development mode:
+# Dann starte Container
+.\scripts\local\start-dev.ps1
+```
 
+## 🏗️ Deployment - Hetzner Server
+
+### Schnellstart (10 Minuten)
+
+1. **Hetzner VPS erstellen:**
+   - Gehe zu [hetzner.com/cloud](https://www.hetzner.com/cloud)
+   - **Type**: CX21 (2 vCPU, 4GB RAM) - **5€/Monat**
+   - **Location**: Nürnberg oder Falkenstein (DSGVO-konform)
+   - **Image**: Ubuntu 22.04 LTS
+   - **IP-Adresse notieren!**
+
+2. **Server-Setup ausführen:**
+   ```bash
+   # Auf dem Hetzner Server (als root)
+   cd /root
+   curl -fsSL https://raw.githubusercontent.com/bbajor/pvs/master/scripts/deployment/setup-server.sh | bash
+   ```
+
+3. **Environment-Datei erstellen:**
+   ```bash
+   cd /opt/pvs
+   nano .env
+   ```
+   
+   **Minimale .env Datei:**
+   ```bash
+   POSTGRES_DB_DEV=pvs_dev
+   POSTGRES_USER_DEV=pvs_user
+   POSTGRES_PASSWORD_DEV=$(openssl rand -base64 32)
+   
+   POSTGRES_DB_TEST=pvs_test
+   POSTGRES_USER_TEST=pvs_user
+   POSTGRES_PASSWORD_TEST=$(openssl rand -base64 32)
+   
+   POSTGRES_DB_PROD=pvs_prod
+   POSTGRES_USER_PROD=pvs_user
+   POSTGRES_PASSWORD_PROD=$(openssl rand -base64 32)
+   ```
+
+4. **Datenbanken initialisieren:**
+   ```bash
+   cd /opt/pvs
+   curl -fsSL https://raw.githubusercontent.com/bbajor/pvs/master/scripts/deployment/init-databases.sh | bash
+   ```
+
+5. **SSH Key für GitHub Actions einrichten:**
+   ```bash
+   # Auf lokalem Rechner
+   ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/hetzner_deploy -N ""
+   
+   # Public Key auf Server kopieren
+   cat ~/.ssh/hetzner_deploy.pub | ssh root@<HETZNER_IP> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+   
+   # Private Key für GitHub Secret kopieren
+   cat ~/.ssh/hetzner_deploy
+   ```
+
+6. **GitHub Secrets konfigurieren:**
+   - GitHub → Settings → Secrets → Actions → New Secret:
+   ```
+   HETZNER_HOST=<HETZNER_IP>
+   HETZNER_USER=root
+   HETZNER_SSH_KEY=<Private Key Inhalt>
+   PROD_DB_HOST=localhost
+   PROD_DB_NAME=pvs_prod
+   PROD_DB_USER=pvs_user
+   PROD_DB_PASSWORD=<aus .env kopieren>
+   ```
+
+7. **Deployment testen:**
+   - GitHub → Actions → "Build and Push Docker Images (Hetzner)" → Run workflow → Stage: dev
+
+## Firebase + Cloud Run
+
+For managed frontend hosting on Firebase (and backend on Cloud Run), see:
+
+- `docs/FIREBASE_DEPLOYMENT.md`
+- `docs/CLOUD_RUN_IAP_ARCHITECTURE.md`
+- `docs/IAM_ROLLENMATRIX_GCP.md`
+- `docs/BACKUP_RESTORE_RUNBOOK.md`
+- `docs/GO_LIVE_CHECKLIST_HEALTHCARE.md`
+
+## 🔒 Security
+
+### SSH Key Setup
+
+1. **SSH Key generieren:**
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/hetzner_deploy -N ""
+   ```
+
+2. **Public Key auf Server kopieren:**
+   ```bash
+   cat ~/.ssh/hetzner_deploy.pub | ssh root@<HETZNER_IP> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+   ```
+
+3. **SSH-Zugriff testen:**
+   ```bash
+   ssh -i ~/.ssh/hetzner_deploy root@<HETZNER_IP>
+   ```
+
+4. **GitHub Secret konfigurieren:**
+   - Private Key kopieren: `cat ~/.ssh/hetzner_deploy`
+   - GitHub → Settings → Secrets → Actions → New Secret: `HETZNER_SSH_KEY`
+
+### Passwort-Änderungen
+
+**Datenbank-Passwort ändern:**
+1. Neues Passwort in `.env` Datei setzen
+2. Container neu starten: `docker-compose restart postgres`
+3. GitHub Secret `PROD_DB_PASSWORD` aktualisieren
+
+**Server Root-Passwort ändern:**
 ```bash
-mvn spring-boot:run
+# Auf Server
+passwd root
 ```
 
-Or run the `Application` class from your IDE.
-
-## Production Build
-
-To build for production:
-
-```bash
-mvn clean package -Pproduction
-```
-
-## Branching-Strategie
+## 📋 Branch-Strategie
 
 Das Projekt nutzt eine Drei-Branch-Strategie für Development, Testing und Production:
 
 ### Branches
 
 - **`dev`**: Entwicklungs-Branch für lokale Entwicklung
-  - **Schnelles Testing**: `./gradlew bootRun` mit H2 In-Memory (keine Docker benötigt)
-  - **Realistisches Testing**: `docker-compose.dev.yml` mit PostgreSQL Container
-  - Läuft nur lokal auf Entwickler-Maschinen
-  - Auto-Build & Push Docker Image bei Push zu GitHub (für lokales Docker-Setup)
-  - Keine Server-Deployment (Ressourcen & Sicherheit)
+  - Schnelles Testing: `./gradlew bootRun` mit H2 In-Memory
+  - Realistisches Testing: Podman-Container mit PostgreSQL
+  - CI: Vollständiger Build + Tests bei Push/PR nach `dev`
+  - Keine Server-Deployments
 
 - **`test`**: Staging-Branch für realistisches Testing auf Server
   - Verwendet PostgreSQL mit persistenter Datenbank auf Hetzner
   - Daten bleiben über Deployments hinweg erhalten
-  - Auto-CI & Build bei Push (Docker Image wird gebaut)
-  - **Manuelles Deployment** über GitHub Actions (nur nach erfolgreichen Tests)
-  - **Nur über VPN erreichbar** auf Hetzner Server
+  - CI: Build + Push Image → automatisches Deployment auf Test-Hetzner
+  - Nur über VPN erreichbar
 
 - **`master`**: Production-ready Code
   - Nur stabile Releases nach ausgiebigem Testing
   - Verwendet PostgreSQL Production-Datenbank
-  - Manuelles Deployment über GitHub Actions
+  - CI: Build + Push Image → automatisches Deployment auf Prod-Hetzner
   - Öffentlich erreichbar über Traefik/HTTPS
 
 ### Workflow
@@ -91,6 +237,7 @@ feature/* → dev → test → master
 ```
 
 1. **Feature-Entwicklung**: Neue Features werden als Feature-Branches von `dev` abgezweigt
+   - Agenten: `cursor/<agent>/<topic>`, PRs ausschließlich nach `dev`
 2. **Pull Request zu `dev`**: Feature-Branch wird in `dev` gemergt nach Review
 3. **Testing in `test`**: Nach erfolgreicher Validierung wird `dev` in `test` gemergt
 4. **Production Release**: Nach finaler Validierung wird `test` in `master` gemergt
@@ -102,19 +249,25 @@ feature/* → dev → test → master
 - ✅ **Version Tags**: Bei jedem Merge zu `master` ein neues Version-Tag erstellen (v0.1.1, v0.2.0, etc.)
 - ✅ **Branch Protection**: `master` erfordert Pull Request Reviews und erfolgreiche CI-Tests
 
-### Aktuelle Versionen
+## 🗄️ Datenbank-Architektur
 
-- **Production**: `v0.1.0` (getaggt am master Branch)
+### Separate Container pro Environment (Empfohlen)
 
-## Troubleshooting
+**Vorteile:**
+- ✅ Isolation: Dev/Test/Prod komplett getrennt
+- ✅ Einfaches Backup/Restore: Volume-Snapshots
+- ✅ Portabel: Gleiche Config überall
+- ✅ Einfaches Upgrade: Container-Image wechseln
 
-### eGK Card Reading Issues
-- Verify OpenSC installation: `opensc-tool --version`
-- Check if card reader is recognized: `opensc-tool --list-readers`
-- Ensure egk-tool.exe path is correctly set in application.properties
-- Check system PATH includes OpenSC binary directory
+**Konfiguration:**
+```yaml
+postgres-dev:    Port 5433, Volume: postgres-data-dev
+postgres-test:   Port 5434, Volume: postgres-data-test  
+postgres-prod:   Port 5435, Volume: postgres-data-prod
+```
 
-### Project Structure
+## 🛠️ Projektstruktur
+
 ```
 pvs/
 ├── src/
@@ -126,38 +279,92 @@ pvs/
 │   │   └── resources/
 │   │       └── application.properties
 │   └── test/
+├── scripts/
+│   ├── deployment/         # Deployment-Scripts
+│   │   ├── setup-server.sh
+│   │   └── init-databases.sh
+│   ├── security/          # Security-Scripts
+│   │   └── cleanup-ssh-key.sh
+│   └── local/             # Lokale Entwicklung
+│       └── start-dev.ps1
+├── podman-compose.dev.yml  # Development Compose
+├── podman-compose.production.yml  # Production Compose
 └── pom.xml
 ```
 
-## 📚 Dokumentation
+## 🔧 Troubleshooting
 
-### 🚀 Deployment & Setup
+### eGK Card Reading Issues
+- Verify OpenSC installation: `opensc-tool --version`
+- Check if card reader is recognized: `opensc-tool --list-readers`
+- Ensure egk-tool.exe path is correctly set in application.properties
 
-- **[Hetzner Server Setup](docs/deployment/HETZNER_COMPLETE_SETUP.md)** ⭐ - Komplette Anleitung für Hetzner-VPS (empfohlen zum Einstieg)
-- [Deployment Übersicht](docs/deployment/README.md)
-- [Quick Start Guide](docs/deployment/QUICKSTART.md)
-- [Database Architecture](docs/deployment/DATABASE_ARCHITECTURE.md)
+### Container-Probleme
 
-### 🔒 Security & Administration
+**Container startet nicht:**
+```bash
+# Logs prüfen
+podman compose -f podman-compose.dev.yml logs
 
-- [SSH-Key Setup](docs/security/SSH_KEY_SETUP.md) - SSH-Key für GitHub Actions einrichten
-- [SSH-Key Cleanup](docs/security/SSH_KEY_CLEANUP.md) - SSH-Key aus Git-Historie entfernen
-- [Repository Struktur](docs/REPOSITORY_STRUCTURE.md) - Organisations-Struktur
+# Podman-Status prüfen
+podman info
+
+# Container-Status prüfen
+podman ps -a
+```
+
+### 🔐 Multi-Faktor-Authentifizierung (MFA)
+
+Das System unterstützt TOTP-basierte Multi-Faktor-Authentifizierung für Super-Admin-Benutzer:
+
+- **MFA-Einrichtung**: Super-Admin-Benutzer können MFA über `/mfa-setup` einrichten
+- **Authenticator-Apps**: Kompatibel mit Google Authenticator, Microsoft Authenticator, Authy
+- **Super-Admin Initialisierung**: Beim ersten Prod-Start wird automatisch ein Super-Admin-Benutzer erstellt
+  - Username: `superadmin`
+  - Passwort: Wird zufällig generiert und in den Logs ausgegeben (nur beim ersten Start)
+  - Das Passwort muss beim ersten Login geändert werden
+  - Optional: Passwort kann via `SUPER_ADMIN_INITIAL_PASSWORD` Environment-Variable gesetzt werden
+
+### 📧 SMTP-Konfiguration
+
+Für E-Mail-Versand (z.B. MFA-Benachrichtigungen) müssen folgende Environment-Variablen gesetzt werden:
+
+- `SMTP_HOST` - SMTP-Server-Hostname
+- `SMTP_PORT` - SMTP-Port (Standard: 587)
+- `SMTP_USERNAME` - SMTP-Benutzername
+- `SMTP_PASSWORD` - SMTP-Passwort
+
+Die Konfiguration erfolgt automatisch über Spring Mail, wenn die Variablen gesetzt sind.
 
 ### 🛠️ Scripts
 
-- **Deployment**: `scripts/deployment/`
-  - `setup-server.sh` - Server-Grundsetup (Docker, Docker Compose)
-  - `init-databases.sh` - Datenbank-Initialisierung
-- **Security**: `scripts/security/`
-  - `cleanup-ssh-key.sh` - SSH-Key aus Git entfernen
-  - `generate-new-ssh-key.sh` - Neuen SSH-Key erstellen
-- **Utilities**: `scripts/utilities/`
-  - `check-ip.sh` - IP-Adressen prüfen
+**Port bereits belegt:**
+```bash
+# Prüfe belegte Ports
+podman ps -a
 
-## Links
+# Ändere Port in podman-compose.dev.yml oder stoppe anderen Container
+```
+
+**Datenbank-Verbindungsfehler:**
+```bash
+# Prüfe ob PostgreSQL läuft
+podman ps | grep postgres
+
+# Prüfe Logs
+podman compose -f podman-compose.dev.yml logs postgres
+```
+
+## 📚 Weitere Ressourcen
+
 - [GitHub Repository](https://github.com/bbajor/pvs)
 - [Hosting-Lizenz (DE)](./HOSTING-LIZENZ-DE.md)
 - [BUSL 1.1 Text](https://mariadb.com/bsl11/)
 - [Vaadin Documentation](https://vaadin.com/docs)
 - [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)
+
+## 📝 Notizen
+
+- **Entwicklungsumgebung**: Test-Credentials und Sample-Users sind in dev/test-Profilen erlaubt
+- **Production**: NULL-Toleranz für hardcodierte Credentials
+- **Security-First**: Alle neuen Features müssen Security-Review durchlaufen

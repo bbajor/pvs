@@ -1,0 +1,11 @@
+{
+  "projects": {
+    "default": "<firebase-project-id>"
+  }
+}
+{
+  "projects": {
+    "default": "your-firebase-project-id"
+  }
+}
+

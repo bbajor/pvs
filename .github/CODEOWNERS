@@ -1,4 +1,12 @@
+# Sensitive production config requires maintainer review
+src/main/resources/application-prod.yaml @org/maintainers
+bin/application-prod.yaml @org/maintainers
+
+# Backend and deployment scripts
+scripts/** @org/maintainers
+docker/** @org/maintainers
+.github/** @org/maintainers
+
 # CODEOWNERS - Automatische Code Review Requests
 # Alle Änderungen benötigen eine Review von @bbajor
-
 * @bbajor

@@ -1,0 +1,170 @@
+name: Deploy GCP (Cloud Run + Firebase)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+      deploy_backend:
+        description: "Deploy Cloud Run backend"
+        required: false
+        default: true
+        type: boolean
+      deploy_frontend:
+        description: "Deploy Firebase Hosting frontend"
+        required: false
+        default: true
+        type: boolean
+      dry_run:
+        description: "Build and validate only (no deploy)"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Setup gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_ARTIFACT_REGISTRY_HOST }} --quiet
+
+      - name: Set deploy variables
+        id: vars
+        shell: bash
+        run: |
+          echo "REGION=${{ secrets.GCP_REGION }}" >> "$GITHUB_OUTPUT"
+          echo "SERVICE_NAME=${{ secrets.GCP_CLOUD_RUN_SERVICE }}" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_URI=${{ secrets.GCP_ARTIFACT_REGISTRY_HOST }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/pvs-api:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Preflight - validate required secrets
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION }}
+          GCP_CLOUD_RUN_SERVICE: ${{ secrets.GCP_CLOUD_RUN_SERVICE }}
+          GCP_ARTIFACT_REGISTRY_HOST: ${{ secrets.GCP_ARTIFACT_REGISTRY_HOST }}
+          GCP_ARTIFACT_REGISTRY_REPO: ${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}
+          OIDC_ISSUER_URI: ${{ secrets.OIDC_ISSUER_URI }}
+          OIDC_ROLES_CLAIM: ${{ secrets.OIDC_ROLES_CLAIM }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          VITE_OIDC_AUTHORITY: ${{ secrets.VITE_OIDC_AUTHORITY }}
+          VITE_OIDC_CLIENT_ID: ${{ secrets.VITE_OIDC_CLIENT_ID }}
+          VITE_OIDC_REDIRECT_URI: ${{ secrets.VITE_OIDC_REDIRECT_URI }}
+          VITE_OIDC_SCOPE: ${{ secrets.VITE_OIDC_SCOPE }}
+          VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${{ secrets.VITE_OIDC_POST_LOGOUT_REDIRECT_URI }}
+        run: |
+          set -euo pipefail
+          missing=0
+          required_common=(GCP_PROJECT_ID GCP_REGION GCP_CLOUD_RUN_SERVICE GCP_ARTIFACT_REGISTRY_HOST GCP_ARTIFACT_REGISTRY_REPO)
+          required_backend=(OIDC_ISSUER_URI OIDC_ROLES_CLAIM)
+          required_frontend=(FIREBASE_PROJECT_ID VITE_OIDC_AUTHORITY VITE_OIDC_CLIENT_ID VITE_OIDC_REDIRECT_URI VITE_OIDC_SCOPE VITE_OIDC_POST_LOGOUT_REDIRECT_URI)
+
+          for key in "${required_common[@]}"; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "::error::Missing required secret: ${key}"
+              missing=1
+            fi
+          done
+
+          if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
+            for key in "${required_backend[@]}"; do
+              if [[ -z "${!key:-}" ]]; then
+                echo "::error::Missing backend secret: ${key}"
+                missing=1
+              fi
+            done
+          fi
+
+          if [[ "${{ inputs.deploy_frontend }}" == "true" ]]; then
+            for key in "${required_frontend[@]}"; do
+              if [[ -z "${!key:-}" ]]; then
+                echo "::error::Missing frontend secret: ${key}"
+                missing=1
+              fi
+            done
+          fi
+
+          [[ "$missing" -eq 0 ]]
+
+      - name: Build and push backend image
+        if: ${{ inputs.deploy_backend }}
+        run: |
+          gcloud builds submit \
+            --tag "${{ steps.vars.outputs.IMAGE_URI }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Dry run - backend deploy command
+        if: ${{ inputs.deploy_backend && inputs.dry_run }}
+        run: |
+          echo "Dry run active. Cloud Run deploy command preview:"
+          echo "gcloud run deploy \"${{ steps.vars.outputs.SERVICE_NAME }}\" --image \"${{ steps.vars.outputs.IMAGE_URI }}\" --region \"${{ steps.vars.outputs.REGION }}\" --project \"${{ secrets.GCP_PROJECT_ID }}\" --ingress internal-and-cloud-load-balancing --no-allow-unauthenticated --set-env-vars \"SPRING_PROFILES_ACTIVE=cloud,OIDC_ISSUER_URI=<redacted>,OIDC_ROLES_CLAIM=${{ secrets.OIDC_ROLES_CLAIM }},SINGLE_PRACTICE_ENABLED=true,SINGLE_PRACTICE_AUTO_PROVISION=true\""
+
+      - name: Deploy backend to Cloud Run
+        if: ${{ inputs.deploy_backend && !inputs.dry_run }}
+        run: |
+          gcloud run deploy "${{ steps.vars.outputs.SERVICE_NAME }}" \
+            --image "${{ steps.vars.outputs.IMAGE_URI }}" \
+            --region "${{ steps.vars.outputs.REGION }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --ingress internal-and-cloud-load-balancing \
+            --no-allow-unauthenticated \
+            --set-env-vars "SPRING_PROFILES_ACTIVE=cloud,OIDC_ISSUER_URI=${{ secrets.OIDC_ISSUER_URI }},OIDC_ROLES_CLAIM=${{ secrets.OIDC_ROLES_CLAIM }},SINGLE_PRACTICE_ENABLED=true,SINGLE_PRACTICE_AUTO_PROVISION=true"
+
+      - name: Setup Node.js for frontend
+        if: ${{ inputs.deploy_frontend }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend
+        if: ${{ inputs.deploy_frontend }}
+        shell: bash
+        run: |
+          cd frontend
+          npm install --no-audit --no-fund
+          cp .env.example .env.production
+          {
+            echo "VITE_OIDC_AUTHORITY=${{ secrets.VITE_OIDC_AUTHORITY }}"
+            echo "VITE_OIDC_CLIENT_ID=${{ secrets.VITE_OIDC_CLIENT_ID }}"
+            echo "VITE_OIDC_REDIRECT_URI=${{ secrets.VITE_OIDC_REDIRECT_URI }}"
+            echo "VITE_OIDC_SCOPE=${{ secrets.VITE_OIDC_SCOPE }}"
+            echo "VITE_OIDC_POST_LOGOUT_REDIRECT_URI=${{ secrets.VITE_OIDC_POST_LOGOUT_REDIRECT_URI }}"
+            echo "VITE_API_BASE_URL="
+          } >> .env.production
+          npm run build:firebase
+
+      - name: Dry run - skip Firebase deploy
+        if: ${{ inputs.deploy_frontend && inputs.dry_run }}
+        run: echo "Dry run active. Firebase deploy intentionally skipped."
+
+      - name: Deploy Firebase Hosting
+        if: ${{ inputs.deploy_frontend && !inputs.dry_run }}
+        run: |
+          cp .firebaserc.example .firebaserc
+          node -e "const fs=require('fs');const f=JSON.parse(fs.readFileSync('.firebaserc'));f.projects.default='${{ secrets.FIREBASE_PROJECT_ID }}';fs.writeFileSync('.firebaserc',JSON.stringify(f,null,2));"
+          npx firebase-tools@13.31.2 deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only hosting --non-interactive
+

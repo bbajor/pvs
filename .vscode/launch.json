@@ -3,6 +3,14 @@
   "configurations": [
     {
       "type": "java",
+      "name": "Debug using Hotswap Agent",
+      "request": "launch",
+      "javaExec": "C:\\Users\\bjoer\\.vaadin\\jdk\\jbrsdk-25-windows-x64-b176.4\\bin\\java.exe",
+      "mainClass": "de.bbajor.pvs.kbv.Application",
+      "vmArgs": "--add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/sun.security.action=ALL-UNNAMED --add-opens java.desktop/java.beans=ALL-UNNAMED --add-opens java.desktop/com.sun.beans=ALL-UNNAMED --add-opens java.desktop/com.sun.beans.introspect=ALL-UNNAMED --add-opens java.desktop/com.sun.beans.util=ALL-UNNAMED --add-opens java.base/jdk.internal.loader=ALL-UNNAMED -XX:+AllowEnhancedClassRedefinition -XX:+ClassUnloading -javaagent:C:\\Users\\bjoer\\.vaadin\\vscode-plugin\\hotswap-agent.jar"
+    },
+    {
+      "type": "java",
       "name": "Debug Spring Boot (Gradle)",
       "request": "launch",
       "mainClass": "de.bbajor.pvs.Application",
@@ -22,6 +30,16 @@
       "modulePaths": [],
       "vmArgs": "-Dspring.profiles.active=dev",
       "console": "integratedTerminal"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot-Application<pvs-app-pvs>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "de.bbajor.pvs.Application",
+      "projectName": "pvs-app-pvs",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
     }
   ]
 }

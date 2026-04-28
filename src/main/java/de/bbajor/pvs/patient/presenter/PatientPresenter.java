@@ -8,12 +8,15 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import de.bbajor.pvs.egk.reader.EgkReader;
+import de.bbajor.pvs.egk.config.EgkToolProperties;
 import de.bbajor.pvs.intravitreal.treatment.model.Diagnosis;
 import de.bbajor.pvs.intravitreal.treatment.model.TreatmentPlan;
 import de.bbajor.pvs.intravitreal.treatment.service.IvomDiagnosisService;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
-import de.bbajor.pvs.medication.model.Medication;
-import de.bbajor.pvs.medication.service.IntravitrealMedicationService;
+import de.bbajor.pvs.medication.model.MedicationFavourite;
+import de.bbajor.pvs.medication.service.MedicationFavouriteService;
+import de.bbajor.pvs.location.model.Location;
+import de.bbajor.pvs.location.service.LocationService;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.HealthInsuranceService;
@@ -28,7 +31,7 @@ import jakarta.transaction.Transactional;
 public class PatientPresenter {
 
     @Autowired
-    private IntravitrealMedicationService ivomDrugService;
+    private MedicationFavouriteService medicationFavouriteService;
     @Autowired
     private TreatmentPlanService treatmentPlanService;
     @Autowired
@@ -42,7 +45,11 @@ public class PatientPresenter {
     @Autowired
     private EgkReader egkReader;
     @Autowired
+    private EgkToolProperties egkToolProperties;
+    @Autowired
     private PatientMapper patientMapper;
+    @Autowired
+    private LocationService locationService;
 
     @Transactional
     public Patient savePatient(Patient update) {
@@ -59,6 +66,15 @@ public class PatientPresenter {
     }
 
     public Patient readDataFromEgk() throws Exception {
+        // In Cloud-Umgebung ist eGK-Tool deaktiviert - Daten kommen über API vom Agent
+        if (!egkToolProperties.isEnabled()) {
+            throw new UnsupportedOperationException(
+                    "eGK-Tool ist in Cloud-Umgebung deaktiviert. " +
+                    "Bitte verwenden Sie den eGK-Agent für die Kartenlesung. " +
+                    "Die Daten werden automatisch über die API übertragen.");
+        }
+        
+        // Lokale Umgebung: eGK-Tool verwenden
         Patient patientDto = egkReader.readPatientFromCard();
         HealthInsurance healthInsurance = egkReader.readHealthInsuranceFromCard();
         patientDto.setHealthInsurance(healthInsurance);
@@ -73,8 +89,8 @@ public class PatientPresenter {
         return healthInsuranceService.findAll();
     }
 
-    public List<Medication> getDrugs() {
-        return ivomDrugService.getMedicationListFavourites();
+    public List<MedicationFavourite> getDrugs() {
+        return medicationFavouriteService.getActiveFavouritesForCurrentInstitution();
     }
 
     public TreatmentPlan findById(Long id) {
@@ -95,5 +111,13 @@ public class PatientPresenter {
 
     public Collection<Diagnosis> getDiagnoses() {
         return ivomDiagnosisService.getDiagnoses();
+    }
+
+    public List<Location> getLocations() {
+        return locationService.getAllLocations();
+    }
+
+    public HealthInsuranceService getHealthInsuranceService() {
+        return healthInsuranceService;
     }
 }

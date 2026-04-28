@@ -21,6 +21,22 @@ spring:
     fail-on-missing-locations: true
     repair-on-migrate: false
 
+# Server-Konfiguration
+server:
+  port: ${PORT:8080}
+  # Graceful Shutdown für Load Balancer
+  shutdown: graceful
+  # Session-Timeout
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:true}
+        http-only: true
+        same-site: lax
+  # Forward headers from reverse proxy (kritisch für X-Forwarded-* Header)
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:
@@ -41,11 +57,36 @@ logging:
     org.flywaydb: WARN
     org.springframework.web: WARN
 
-vaadin:
-  production-mode: true
-
 ai:
   whisper:
     local:
       enabled: ${WHISPER_ENABLED:false}
 
+# SMTP-Konfiguration für Production
+# KRITISCH: SMTP_ENCRYPTION_KEY MUSS als Environment-Variable gesetzt sein!
+# Keine Default-Werte in Production erlaubt!
+smtp:
+  encryption:
+    key: ${SMTP_ENCRYPTION_KEY}
+
+# SMTP configuration for email sending
+spring:
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+# MFA configuration
+app:
+  mfa:
+    issuer: ${MFA_ISSUER:PVS}

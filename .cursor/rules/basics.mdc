@@ -1,0 +1,68 @@
+---
+description: beim coden neuer features oder beim refactoring, bzw. bei der optimierung der it-sicherheit
+alwaysApply: false
+---
+Allgemein: 12-Factor, cloud-ready, Stabilität vor Features, Fehlertoleranz
+Tech: Java 21, Spring Boot 3.x, Vaadin 24+, Postgres, Docker
+Config/Profiles: ausschließlich Env/application-*.yaml; dev|test|prod; keine Secrets im Repo
+Security:
+OIDC/OAuth2, Least Privilege; kein @PermitAll in sensiblen Bereichen
+CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+CSRF an (Form/Session), CORS eng pro Umgebung
+Logs ohne PII; strukturierte Logs mit Korrelation-ID
+DB-Rollen getrennt (read/write/migrate), Backups verschlüsselt
+Datenminimierung:
+Nur notwendige Daten erfassen; Retention/TTL pro Datentyp
+Maskierte/synthetische Daten in Test/Staging
+Code:
+Constructor-Injection; @Transactional granular
+DTO ≠ Entity; MapStruct; Bean Validation end-to-end
+JPA: Pagination Pflicht, N+1 vermeiden (EntityGraph/fetch join), Indizes bewusst
+Fehler: globale Handler (@ControllerAdvice); keine Interna/Stacktraces an Clients
+Vaadin: dünne Views, Logik in Services; Binder-Validierung; Grid lazy; Push sparsam; kleine Sessions
+InstitutionContext: IMMER prüfen vor Service-Aufrufen in Dialogen/Button-Handlern (ensureInstitutionContext() aufrufen)
+  - Button-Clicks triggern kein BeforeEnterEvent, daher fehlt der Context oft
+  - Pattern: ensureInstitutionContext() vor jedem Service-Aufruf in Event-Handlern
+  - Siehe bestehende Implementierungen in TreatmentPlanMainView, TaskReviewDialog, etc.
+API/Hilla: Versionierung /v1; stabile Schemas; konsistente Fehler-Responses
+Resilience/Performance:
+Timeouts, Retries (Exponential Backoff + Jitter), Circuit Breaker, Bulkhead, Idempotenz
+Caching (Caffeine/Redis) mit TTL; nur wo messbar
+Startziel <30s; G1/ZGC passend; feste Xms/Xmx
+Observability:
+Micrometer → Prometheus, OpenTelemetry Tracing, Health/Ready/Live-Probes
+P95/P99-Latenzen; Alerting auf Symptom-Metriken; Fehlerbudget (z.B. 99.9% API)
+Tests:
+Unit > Integration > E2E; Testcontainers (Postgres/Redis)
+REST Docs oder OpenAPI Diff in CI
+Vaadin: Binder/Validierung + Grid-Lazy; UI-E2E sparsam, kritisch
+CI/CD & PR:
+Branches: feature/<topic>; Agenten: cursor/<agent>/<topic> von dev
+PRs nur gegen dev; Conventional Commits; kleine atomare Edits
+Änderungen an Cursor Rules/Commands: feature/cursor-rules-<yyyy-MM-dd> von origin/dev; PR → dev; kein direkter Commit auf dev/master
+Pflichtchecks: Build, Tests, Lint, SCA/CVE-Scan, Format, OpenAPI/Docs
+Flyway: vorwärts-kompatibel, idempotent; Rollback-Plan dokumentiert
+Dependency Documentation:
+Vor jedem PR gegen dev: THIRD-PARTY-LICENSES.md muss aktuell sein
+Aktualisierung via: ./gradlew generateThirdPartyLicenses cyclonedxBom
+Bei Dependency-Änderungen: THIRD-PARTY-LICENSES.md committen (SBOM wird bei jedem Build neu generiert)
+GitHub Workflow aktualisiert automatisch bei Änderungen an build.gradle/gradle.properties
+SBOM (build/reports/sbom.json) wird bei jedem Build generiert, aber nicht ins Repo committed
+Container/Cloud:
+Slim JRE, non-root, read-only FS; SBOM
+Ingress mit WAF/Rate-Limits; HTTP/2; Compression
+Autoscaling auf CPU/RAM/RPS/P95; DB-Pool begrenzen
+Blue-Green/Canary, Restore-Drills regelmäßig
+Verzeichnisse (Richtlinien):
+src/main/java/**/ui/**: @RolesAllowed, Binder-Validatoren, Lazy Grid, keine großen Objekte in Session
+src/main/java/**/(service|domain)/**: Resilience4j an Service-Rändern; transaktionsarm; Domain-getriebene Tests
+src/main/java/**/api/**: /v1, Fehler-Schema, kein PII; Rate Limiting wo nötig
+src/main/resources/db/migration/**: idempotent, Indizes benannt, keine Destructive Changes ohne Guard
+Shell Scripts (PowerShell/Bash):
+All shell scripts (.ps1, .sh, .bash) MUST be in English only
+No German text, no emojis/icons, no special Unicode characters
+Use ASCII characters only for maximum compatibility
+Comments, error messages, user prompts, and output must be in English
+Imports:
+When importing a class, use the import keyword at the beginning of the class file instead of fully qualified class names
+Exception: Only use fully qualified names when there are naming conflicts (e.g., two classes with the same name from different packages)
