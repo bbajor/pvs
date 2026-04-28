@@ -45,12 +45,8 @@ public final class AppRoles {
     }
 
     /**
-     * Role for administrative users with elevated privileges.
-     * <p>
-     * Users with this role typically have access to administrative functions such as user management, system
-     * configuration, and sensitive operations. Use this role sparingly and only for users who require administrative
-     * access.
-     * </p>
+     * Administrator for the local installation: initial configuration (Einstellungen, Benutzer, ggf. Institution),
+     * Mail, MFA-Recovery, Feature-Flags. Genau eine solche Rolle pro Mandant; nicht mit OWNER (Praxisinhaber) verwechseln.
      */
     public static final String ADMIN = "ADMIN";
 
@@ -86,17 +82,6 @@ public final class AppRoles {
      * Role for the practice owner.
      */
     public static final String OWNER = "OWNER";
-
-    /**
-     * Role for institution administrators who can create and manage institutions.
-     * <p>
-     * Users with this role can create institutions and initial admins for those institutions,
-     * but cannot access the data of the institutions themselves (data isolation).
-     * This role is typically used by system administrators who manage the multi-tenant setup.
-     * MFA is optional but recommended for users with this role.
-     * </p>
-     */
-    public static final String INSTITUTION_ADMIN = "INSTITUTION_ADMIN";
 
     /**
      * Role for super administrators with full system access.

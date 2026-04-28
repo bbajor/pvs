@@ -101,17 +101,14 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
     # Generiere sichere Passwörter
     echo "Generiere sichere Passwörter..."
     POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-    KBV_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
     SMTP_KEY=$(openssl rand -base64 32 | head -c 32)
     
-    sed -i "s/CHANGE_ME_SECURE_PASSWORD/$POSTGRES_PASSWORD/g" "$INSTALL_DIR/.env"
-    sed -i "s/KBV_DB_PASSWORD=CHANGE_ME_SECURE_PASSWORD/KBV_DB_PASSWORD=$KBV_PASSWORD/g" "$INSTALL_DIR/.env"
+    sed -i "s/POSTGRES_PASSWORD=CHANGE_ME_SECURE_PASSWORD/POSTGRES_PASSWORD=$POSTGRES_PASSWORD/g" "$INSTALL_DIR/.env"
     sed -i "s/SMTP_ENCRYPTION_KEY=$/SMTP_ENCRYPTION_KEY=$SMTP_KEY/g" "$INSTALL_DIR/.env"
     
     echo -e "${GREEN}✓ .env-Datei erstellt mit generierten Passwörtern${NC}"
     echo -e "${YELLOW}⚠️  WICHTIG: Speichere die Passwörter sicher!${NC}"
     echo "   POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
-    echo "   KBV_DB_PASSWORD: $KBV_PASSWORD"
     echo "   SMTP_ENCRYPTION_KEY: $SMTP_KEY"
 else
     echo -e "${GREEN}✓ .env-Datei existiert bereits${NC}"

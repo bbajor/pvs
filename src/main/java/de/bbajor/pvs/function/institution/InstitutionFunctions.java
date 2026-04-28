@@ -1,6 +1,7 @@
 package de.bbajor.pvs.function.institution;
 
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.service.InstitutionService;
 import lombok.Data;
@@ -21,10 +22,11 @@ import java.util.function.Function;
 public class InstitutionFunctions {
     
     private final InstitutionService institutionService;
+    private final CurrentInstitutionService currentInstitutionService;
     
     @Bean
     public Function<InstitutionCreateRequest, InstitutionResponse> createInstitution() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Institution institution = institutionService.createInstitution(request.getInstitutionName());
                 InstitutionResponse response = new InstitutionResponse();
@@ -37,7 +39,7 @@ public class InstitutionFunctions {
     
     @Bean
     public Function<InstitutionFindRequest, InstitutionResponse> getInstitution() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Optional<Institution> institution = institutionService.findByCode(request.getInstitutionCode());
                 InstitutionResponse response = new InstitutionResponse();
@@ -54,7 +56,7 @@ public class InstitutionFunctions {
     
     @Bean
     public Function<InstitutionListRequest, InstitutionListResponse> listInstitutions() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 List<Institution> institutions = institutionService.findAll();
                 InstitutionListResponse response = new InstitutionListResponse();

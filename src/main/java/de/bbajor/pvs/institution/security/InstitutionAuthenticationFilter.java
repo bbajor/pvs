@@ -41,7 +41,7 @@ public class InstitutionAuthenticationFilter extends AbstractAuthenticationProce
         String username = request.getParameter(USERNAME_PARAM);
         String password = request.getParameter(PASSWORD_PARAM);
 
-        log.debug("Attempting authentication - institutionCode: {}, username: {}", institutionCode, username);
+        log.debug("Attempting authentication");
 
         if (institutionCode == null || institutionCode.isEmpty()) {
             log.warn("Login attempt without institutionCode");

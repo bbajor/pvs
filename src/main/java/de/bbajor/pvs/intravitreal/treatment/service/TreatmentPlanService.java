@@ -118,36 +118,19 @@ public class TreatmentPlanService {
      * with data protection regulations (DSGVO).
      */
     public List<TreatmentPlan> findAll() {
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Return only treatment plans for current institution
-            return treatmentPlanRepository.findByInstitutionId(institutionId);
-        }
-        // Fallback: If no institution context, return empty list (for super admin or during initialization)
-        // In production, this should throw an exception or require explicit institution context
-        return List.of(); // TODO: throw exception or require explicit institution context
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
+        return treatmentPlanRepository.findByInstitutionId(institutionId);
     }
     
     public org.springframework.data.domain.Slice<TreatmentPlan> findAll(org.springframework.data.domain.Pageable pageable) {
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Return only treatment plans for current institution with paging
-            return treatmentPlanRepository.findAllByInstitutionId(institutionId, pageable);
-        }
-        // Fallback: If no institution context, return empty slice
-        return org.springframework.data.domain.Page.empty(pageable);
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
+        return treatmentPlanRepository.findAllByInstitutionId(institutionId, pageable);
     }
 
     @Transactional
     private Collection<TreatmentPlan> findByPatient(Integer patientId) {
-        // Get current institution ID for secure access
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-
-        return institutionId != null
-                ? treatmentPlanRepository.findByInstitutionAndPatientId(institutionId, patientId)
-                : treatmentPlanRepository.findAll().stream()
-                        .filter(tp -> tp.getPatient() != null && tp.getPatient().getId().equals(patientId))
-                        .toList();
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
+        return treatmentPlanRepository.findByInstitutionAndPatientId(institutionId, patientId);
     }
 
     /**
@@ -160,12 +143,7 @@ public class TreatmentPlanService {
      * (billing and cost carrier), diagnosis name, additional information, and birth year.
      */
     public List<TreatmentPlan> findTreatmentPlans(String filter) {
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-
-        if (institutionId == null) {
-            // No institution context - return empty list (for super admin or during initialization)
-            return List.of(); // TODO: throw exception or require explicit institution context
-        }
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
 
         if (filter == null || filter.trim().isEmpty()) {
             return treatmentPlanRepository.findByInstitutionId(institutionId);
@@ -193,12 +171,7 @@ public class TreatmentPlanService {
     }
     
     public org.springframework.data.domain.Slice<TreatmentPlan> findTreatmentPlans(String filter, org.springframework.data.domain.Pageable pageable) {
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-
-        if (institutionId == null) {
-            // No institution context - return empty slice
-            return org.springframework.data.domain.Page.empty(pageable);
-        }
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
 
         if (filter == null || filter.trim().isEmpty()) {
             return findAll(pageable);
@@ -216,12 +189,7 @@ public class TreatmentPlanService {
      */
     @Transactional(readOnly = true)
     public List<Treatment> generateWeekList(LocalDate startDate) {
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-
-        if (institutionId == null) {
-            // No institution context - return empty list
-            return List.of(); // TODO: throw exception or require explicit institution context
-        }
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
 
         LocalDate monday = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate endOfWeek = monday.plusDays(6);
@@ -242,15 +210,10 @@ public class TreatmentPlanService {
     @Transactional
     public List<Treatment> getTreatmentSlots(Long treatmentPlanId) {
         // First, verify that the treatment plan belongs to current institution
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-
-        if (institutionId != null) {
-            // Check if treatment plan belongs to current institution
-            Optional<TreatmentPlan> treatmentPlan = treatmentPlanRepository.findByIdAndInstitutionId(treatmentPlanId, institutionId);
-            if (treatmentPlan.isEmpty()) {
-                // Treatment plan doesn't belong to current institution - return empty list
-                return List.of(); // TODO: throw exception or require explicit institution context
-            }
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
+        Optional<TreatmentPlan> treatmentPlan = treatmentPlanRepository.findByIdAndInstitutionId(treatmentPlanId, institutionId);
+        if (treatmentPlan.isEmpty()) {
+            throw new IllegalStateException("Treatment plan not accessible for current institution");
         }
 
         List<Treatment> treatments = treatmentRepository
@@ -442,7 +405,7 @@ public class TreatmentPlanService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'INSTITUTION_ADMIN', 'MEDICAL_STAFF', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'MEDICAL_STAFF', 'OWNER')")
     public void deleteTreatment(Long treatmentId) {
         // Stelle sicher, dass InstitutionContext gesetzt ist
         ensureInstitutionContextForTreatment(treatmentId);
@@ -505,7 +468,7 @@ public class TreatmentPlanService {
      * @param cancellationReason Der Grund für die Absage (muss angegeben werden)
      */
     @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'INSTITUTION_ADMIN', 'MEDICAL_STAFF', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'MEDICAL_STAFF', 'OWNER')")
     public void cancelTreatment(Long treatmentId, String cancellationReason) {
         Objects.requireNonNull(cancellationReason, "Absagegrund muss angegeben werden");
         if (cancellationReason.trim().isEmpty()) {

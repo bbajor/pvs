@@ -5,6 +5,7 @@ import de.bbajor.pvs.common.function.FunctionResponse;
 import de.bbajor.pvs.egk.api.dto.EgkDataDto;
 import de.bbajor.pvs.egk.service.EgkDataService;
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.patient.model.HealthInsurance;
 import de.bbajor.pvs.patient.model.Patient;
 import lombok.Data;
@@ -23,10 +24,11 @@ import java.util.function.Function;
 public class EgkFunctions {
     
     private final EgkDataService egkDataService;
+    private final CurrentInstitutionService currentInstitutionService;
     
     @Bean
     public Function<ProcessEgkDataRequest, ProcessEgkDataResponse> processEgkData() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Patient patient = egkDataService.processPatientData(request.getEgkData());
                 HealthInsurance healthInsurance = egkDataService.processHealthInsuranceData(request.getEgkData());

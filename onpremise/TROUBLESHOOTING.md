@@ -198,33 +198,6 @@ netstat -ano | findstr :8080
    podman logs pvs-onpremise-app | grep -i smtp
    ```
 
-## KBV-Service-Probleme
-
-### Problem: KBV-Daten fehlen
-
-**Lösung:**
-```bash
-# KBV-Daten initialisieren
-podman-compose -f podman-compose.onpremise.yml --profile kbv-init up kbv-distrib-job
-
-# Prüfe KBV-Volume
-podman volume inspect pvs-onpremise_kbv-data
-```
-
-### Problem: KBV-Service startet nicht
-
-**Lösung:**
-1. Prüfe KBV-Datenbank:
-   ```bash
-   podman logs pvs-onpremise-kbv-db
-   podman exec -it pvs-onpremise-kbv-db psql -U kbv -d kbv
-   ```
-
-2. Prüfe KBV-Service-Logs:
-   ```bash
-   podman logs pvs-onpremise-kbv-service
-   ```
-
 ## Update-Probleme
 
 ### Problem: Container-Images werden nicht aktualisiert

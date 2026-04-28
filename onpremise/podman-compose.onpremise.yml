@@ -24,62 +24,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # KBV Master Data Database
-  kbv-db:
-    image: postgres:15-alpine
-    container_name: pvs-onpremise-kbv-db
-    restart: always
-    environment:
-      POSTGRES_DB: ${KBV_DB_NAME:-kbv}
-      POSTGRES_USER: ${KBV_DB_USER:-kbv}
-      POSTGRES_PASSWORD: ${KBV_DB_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
-    volumes:
-      - kbv-db-data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5433:5432"
-    networks:
-      - pvs-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${KBV_DB_USER:-kbv}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # KBV Master Data Service
-  kbv-service:
-    build:
-      context: ../kbv-masterdata-service
-      dockerfile: Dockerfile
-    image: kbv-masterdata-service:latest
-    container_name: pvs-onpremise-kbv-service
-    restart: always
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://kbv-db:5432/${KBV_DB_NAME:-kbv}
-      SPRING_DATASOURCE_USERNAME: ${KBV_DB_USER:-kbv}
-      SPRING_DATASOURCE_PASSWORD: ${KBV_DB_PASSWORD}
-    volumes:
-      - kbv-data:/data/kbv
-    depends_on:
-      kbv-db:
-        condition: service_healthy
-    networks:
-      - pvs-network
-
-  # KBV Distribution Job (einmalig ausführen)
-  kbv-distrib-job:
-    image: eclipse-temurin:21-jre
-    container_name: pvs-onpremise-kbv-distrib-job
-    command: ["bash", "-lc", "set -euo pipefail && cd /work && wget -q -O kbv-distrib.jar https://update.kbv.de/ita-update/Stammdateien/KBV_Stammdateien/KBV_Stammdateien.jar && java -jar kbv-distrib.jar && find . -maxdepth 2 -type f -name '*.xml' -o -name '*.xsd' -print0 | xargs -0 -I{} cp --parents '{}' /data/kbv/"]
-    working_dir: /work
-    volumes:
-      - kbv-data:/data/kbv
-    networks:
-      - pvs-network
-    profiles:
-      - kbv-init
-
   # Whisper AI Service (optional)
   whisper:
     build:
@@ -132,16 +76,11 @@ services:
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
       # MFA
       MFA_ISSUER: ${MFA_ISSUER:-PVS}
-      # OnPremise: Automatischer Institutionscode (optional)
-      # Falls gesetzt, wird dieser Institutionscode automatisch beim Login verwendet
       ONPREMISE_INSTITUTION_CODE: ${ONPREMISE_INSTITUTION_CODE:-}
-      # Secrets (ERFORDERLICH für verschlüsselte SMTP-Passwörter)
       SMTP_ENCRYPTION_KEY: ${SMTP_ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
-      kbv-service:
-        condition: service_started
     ports:
       - "${APP_PORT:-8080}:8080"
     networks:
@@ -160,8 +99,3 @@ networks:
 volumes:
   postgres-data:
     driver: local
-  kbv-db-data:
-    driver: local
-  kbv-data:
-    driver: local
-

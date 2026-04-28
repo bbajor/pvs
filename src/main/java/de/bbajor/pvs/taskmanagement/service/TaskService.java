@@ -105,7 +105,7 @@ public class TaskService {
      * Internal method for creating daily tasks without security checks.
      * Used by scheduled tasks and startup listeners.
      * Creates tasks for all institutions separately.
-     * If institutionId is null, uses InstitutionContext.
+     * If institutionId is null, uses current user's institution.
      */
     @Transactional
     public void createDailyTaskIfAnyInternal() {
@@ -127,15 +127,9 @@ public class TaskService {
             return;
         }
         
-        // Temporarily set InstitutionContext for this operation
-        Long previousInstitutionId = InstitutionContext.getInstitutionId();
-        try {
-            InstitutionContext.setInstitutionId(institutionId);
-            
-            // 1. Find all timeslots containing not approved treatments until today for this institution
+        InstitutionContext.runWithInstitutionId(institutionId, () -> {
             List<Long> timeSlotIds = new ArrayList<>();
             List<Task> tasks = taskRepository.getTasksWhereExistsNotApprovedTreatment(institutionId, LocalDate.now(clock));
-            // Collect the time slot IDs from the tasks, not the task IDs
             tasks.stream()
                     .map(Task::getTimeSlot)
                     .filter(ts -> ts != null && ts.getId() != null)
@@ -147,22 +141,14 @@ public class TaskService {
                 String description = "Behandlungen vom "
                         + DateAndTimeUtils.getGermanDateTimeFormatter().format(ts.getDate()) + " um " + ts.getStartTime()
                         + " im " + ts.getSurgicalCenter().getName() + " wurden noch nicht dokumentiert.";
-                // Setze das Datum eine Woche in die Zukunft
                 LocalDate dueDate = ts.getDate().plusDays(7);
                 createTaskInternal(description, dueDate, ts);
             });
-        } finally {
-            // Restore previous InstitutionContext
-            if (previousInstitutionId != null) {
-                InstitutionContext.setInstitutionId(previousInstitutionId);
-            } else {
-                InstitutionContext.clear();
-            }
-        }
+        });
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('DOCTOR', 'OWNER', 'INSTITUTION_ADMIN', 'TECH_USER', 'USER', 'MEDICAL_STAFF')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'OWNER', 'ADMIN', 'TECH_USER', 'USER', 'MEDICAL_STAFF')")
     public void approveTreatment(Long treatmentId, String actorUserId, String actorUserName, boolean secondApproval) {
         Objects.requireNonNull(treatmentId);
         Treatment treatment = treatmentRepository.findById(treatmentId)
@@ -185,16 +171,16 @@ public class TaskService {
                 .orElseThrow(() -> new IllegalStateException("Benutzer nicht gefunden: " + auth.getName()));
         
         if (!secondApproval) {
-            // First approval: Can be done by OWNER, INSTITUTION_ADMIN, TECH_USER, USER, MEDICAL_STAFF, or treating doctor
+            // First approval: Can be done by OWNER, ADMIN, TECH_USER, USER, MEDICAL_STAFF, or treating doctor
             boolean isOwner = userRoles.contains("OWNER");
-            boolean isInstitutionAdmin = userRoles.contains("INSTITUTION_ADMIN");
+            boolean isAdmin = userRoles.contains("ADMIN");
             boolean isTechUser = userRoles.contains("TECH_USER");
             boolean isUser = userRoles.contains("USER");
             boolean isMedicalStaff = userRoles.contains("MEDICAL_STAFF");
             boolean isDoctor = userRoles.contains("DOCTOR");
             
-            // OWNER, INSTITUTION_ADMIN, TECH_USER, USER, MEDICAL_STAFF können immer dokumentieren
-            if (!isOwner && !isInstitutionAdmin && !isTechUser && !isUser && !isMedicalStaff) {
+            // OWNER, ADMIN, TECH_USER, USER, MEDICAL_STAFF können immer dokumentieren
+            if (!isOwner && !isAdmin && !isTechUser && !isUser && !isMedicalStaff) {
                 // DOCTOR muss behandelnder Arzt sein
                 if (!isDoctor) {
                     throw new org.springframework.security.access.AccessDeniedException(
@@ -218,7 +204,7 @@ public class TaskService {
                 }
             }
         } else {
-            // Second approval: Can be done by OWNER, INSTITUTION_ADMIN, or another doctor (not the first approver)
+            // Second approval: Can be done by OWNER, ADMIN, or another doctor (not the first approver)
             if (treatment.getApprovedByUserId() == null) {
                 throw new IllegalStateException(
                     "Die Behandlung wurde noch nicht erstmalig genehmigt. " +
@@ -227,18 +213,18 @@ public class TaskService {
             
             // Check if user has valid role for second approval
             boolean isOwner = userRoles.contains("OWNER");
-            boolean isInstitutionAdmin = userRoles.contains("INSTITUTION_ADMIN");
+            boolean isAdmin = userRoles.contains("ADMIN");
             boolean isDoctor = userRoles.contains("DOCTOR");
             
-            if (!isOwner && !isInstitutionAdmin && !isDoctor) {
+            if (!isOwner && !isAdmin && !isDoctor) {
                 throw new org.springframework.security.access.AccessDeniedException(
-                    "Die Zweitprüfung kann nur von Inhaber, Institutionsadministrator oder einem Arzt durchgeführt werden. " +
+                    "Die Zweitprüfung kann nur von Inhaber, Administrator oder einem Arzt durchgeführt werden. " +
                     "Ihre Rolle: " + String.join(", ", userRoles));
             }
             
-            // OWNER und INSTITUTION_ADMIN können immer zweitprüfen (auch wenn sie bereits dokumentiert haben)
+            // OWNER und ADMIN können immer zweitprüfen (auch wenn sie bereits dokumentiert haben)
             // DOCTOR kann nur zweitprüfen, wenn er nicht der Erstprüfer ist
-            if (isDoctor && !isOwner && !isInstitutionAdmin) {
+            if (isDoctor && !isOwner && !isAdmin) {
                 if (actorUserId != null && actorUserId.equals(treatment.getApprovedByUserId())) {
                     throw new IllegalStateException(
                         "Die Zweitprüfung darf nicht vom selben Arzt durchgeführt werden, " +
@@ -285,7 +271,6 @@ public class TaskService {
                 // Find task by time slot ID with institution filtering
                 Long institutionId = InstitutionContext.getInstitutionId();
                 if (institutionId != null) {
-                    // Use institution-aware query
                     Task task = taskRepository.findAllByInstitutionId(institutionId, 
                             org.springframework.data.domain.Pageable.unpaged())
                             .getContent().stream()
@@ -307,7 +292,6 @@ public class TaskService {
     public List<Task> list(Pageable pageable) {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
-            // No institution context - return empty list to enforce data isolation
             org.slf4j.LoggerFactory.getLogger(TaskService.class)
                     .warn("TaskService.list() called without institution context - returning empty list");
             return List.of();
@@ -322,7 +306,6 @@ public class TaskService {
     public List<Task> listByCompleted(Boolean completed, Pageable pageable) {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
-            // No institution context - return empty list to enforce data isolation
             org.slf4j.LoggerFactory.getLogger(TaskService.class)
                     .warn("TaskService.listByCompleted() called without institution context - returning empty list");
             return List.of();
@@ -405,7 +388,7 @@ public class TaskService {
     }
     
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public void updateTreatmentStatus(Long treatmentId, de.bbajor.pvs.intravitreal.treatment.model.TreatmentStatus treatmentStatus) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(treatmentStatus);
@@ -438,7 +421,7 @@ public class TaskService {
     }
     
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public void updateTreatmentDosage(Long treatmentId, String dosage) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(dosage);
@@ -467,7 +450,7 @@ public class TaskService {
     }
     
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public void updateTreatmentMedication(Long treatmentId, Long medicationFavouriteId) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(medicationFavouriteId);
@@ -500,7 +483,7 @@ public class TaskService {
     }
     
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN', 'INSTITUTION_ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public void updateTreatmentTreatingDoctors(Long treatmentId, java.util.Set<Long> doctorIds) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(doctorIds);

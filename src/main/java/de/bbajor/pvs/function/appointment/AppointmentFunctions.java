@@ -6,6 +6,7 @@ import de.bbajor.pvs.appointment.service.AppointmentService;
 import de.bbajor.pvs.common.function.FunctionRequest;
 import de.bbajor.pvs.common.function.FunctionResponse;
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.patient.model.Patient;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -26,10 +27,11 @@ import java.util.function.Function;
 public class AppointmentFunctions {
     
     private final AppointmentService appointmentService;
+    private final CurrentInstitutionService currentInstitutionService;
     
     @Bean
     public Function<ScheduleAppointmentRequest, AppointmentResponse> scheduleAppointment() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Appointment appointment = request.getAppointment();
                 Appointment saved = appointmentService.save(appointment);
@@ -44,7 +46,7 @@ public class AppointmentFunctions {
     
     @Bean
     public Function<CancelAppointmentRequest, AppointmentResponse> cancelAppointment() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Optional<Appointment> appointmentOpt = appointmentService.findById(request.getAppointmentId());
                 if (appointmentOpt.isEmpty()) {
@@ -67,7 +69,7 @@ public class AppointmentFunctions {
     
     @Bean
     public Function<GetAppointmentsRequest, AppointmentListResponse> getAppointments() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 List<Appointment> appointments;
                 
@@ -93,7 +95,7 @@ public class AppointmentFunctions {
     
     @Bean
     public Function<FindNextAvailableSlotRequest, FindNextAvailableSlotResponse> findNextAvailableSlot() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 AppointmentScheduler scheduler = new AppointmentScheduler();
                 scheduler.setId(request.getSchedulerId());

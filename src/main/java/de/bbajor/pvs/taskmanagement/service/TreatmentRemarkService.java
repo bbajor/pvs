@@ -41,7 +41,7 @@ public class TreatmentRemarkService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'INSTITUTION_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public TreatmentRemark addStandardRemark(Long treatmentId, Long standardRemarkId) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(standardRemarkId);
@@ -86,7 +86,7 @@ public class TreatmentRemarkService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'INSTITUTION_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public TreatmentRemark addCustomRemark(Long treatmentId, String text) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(text);
@@ -157,7 +157,7 @@ public class TreatmentRemarkService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'INSTITUTION_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MEDICAL_STAFF', 'DOCTOR', 'OWNER', 'ADMIN')")
     public void removeRemark(Long treatmentId, Long remarkId) {
         Objects.requireNonNull(treatmentId);
         Objects.requireNonNull(remarkId);

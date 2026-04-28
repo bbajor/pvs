@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service für Analytics-Datenaggregation.
- * Alle Methoden filtern automatisch nach Institution über InstitutionContext.
+ * Alle Methoden filtern automatisch nach Institution (aktueller Login).
  */
 @Service
 @RequiredArgsConstructor

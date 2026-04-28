@@ -63,8 +63,6 @@ management:
     # Custom health indicators
     whisper:
       enabled: true
-    kbvService:
-      enabled: true
   metrics:
     export:
       prometheus:
@@ -82,11 +80,6 @@ logging:
     org.flywaydb: WARN
     org.springframework.web: WARN
     org.springframework.security: WARN
-
-# Vaadin Production Mode
-vaadin:
-  production-mode: true
-  allow-production-mode-in-dev: false
 
 # SMTP-Konfiguration (aus ENV-Variablen)
 spring:
@@ -175,10 +168,6 @@ resilience4j:
         baseConfig: default
         maxAttempts: 3
         waitDuration: 2000
-      kbv-api:
-        baseConfig: default
-        maxAttempts: 2
-        waitDuration: 1000
   circuitbreaker:
     configs:
       default:
@@ -195,9 +184,6 @@ resilience4j:
       whisper-api:
         baseConfig: default
         waitDurationInOpenState: 60s
-      kbv-api:
-        baseConfig: default
-        waitDurationInOpenState: 30s
 
 # Redis Session Storage
 spring:

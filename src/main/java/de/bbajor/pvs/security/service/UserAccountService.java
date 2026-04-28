@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Service for managing user accounts.
- * All methods filter by InstitutionContext to ensure data isolation.
+ * All methods filter by current institution to ensure data isolation.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,10 +33,9 @@ public class UserAccountService {
     public List<UserAccount> findUsersByRole(String role) {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
-            // No institution context - return empty list to enforce data isolation
             return Collections.emptyList();
         }
-        
+
         return userAccountRepository.findAll().stream()
             .filter(user -> user.getRoles().contains(role))
             .filter(user -> user.getInstitution() != null && user.getInstitution().getId().equals(institutionId))
@@ -52,10 +51,9 @@ public class UserAccountService {
     public List<UserAccount> findAll() {
         Long institutionId = InstitutionContext.getInstitutionId();
         if (institutionId == null) {
-            // No institution context - return empty list to enforce data isolation
             return Collections.emptyList();
         }
-        
+
         return userAccountRepository.findAll().stream()
             .filter(user -> user.getInstitution() != null && user.getInstitution().getId().equals(institutionId))
             .collect(Collectors.toList());

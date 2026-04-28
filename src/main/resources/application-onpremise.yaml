@@ -55,9 +55,6 @@ logging:
     org.flywaydb: INFO
     org.springframework.web: WARN
 
-vaadin:
-  production-mode: true
-
 ai:
   whisper:
     local:

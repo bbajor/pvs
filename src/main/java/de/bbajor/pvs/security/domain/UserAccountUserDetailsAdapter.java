@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.ZoneId;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -55,7 +56,13 @@ public class UserAccountUserDetailsAdapter implements AppUserPrincipal, UserDeta
     }
 
     private Collection<GrantedAuthority> createAuthorities(Set<String> roles) {
-        return roles.stream()
+        Set<String> normalizedRoles = new LinkedHashSet<>(roles);
+        // Backward compatibility: old role should behave like ADMIN.
+        if (normalizedRoles.contains("INSTITUTION_ADMIN")) {
+            normalizedRoles.add("ADMIN");
+        }
+
+        return normalizedRoles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .collect(Collectors.toList());
     }

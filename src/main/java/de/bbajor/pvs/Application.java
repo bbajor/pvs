@@ -8,8 +8,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-import com.vaadin.flow.component.page.AppShellConfigurator;
-
 @SpringBootApplication(exclude = {
     // Exclude ALL Gateway auto-configurations (incompatible with Vaadin Flow/Spring MVC)
     // Gateway will be enabled when UI is migrated to Hilla (React) or runs as separate service
@@ -47,7 +45,7 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
         "de.bbajor.pvs.taskmanagement.domain",
         "de.bbajor.pvs.ai.domain"
 })
-public class Application implements AppShellConfigurator {
+public class Application {
 
     @Bean
     public Clock clock() {

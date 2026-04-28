@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * Authentication provider for passwordless login using PIN + MFA code.
  * <p>
- * This provider allows normal users (non-SUPER_ADMIN, non-INSTITUTION_ADMIN) 
+ * This provider allows normal users (non-SUPER_ADMIN, non-ADMIN)
  * to login without password if they have MFA enabled and a PIN set.
  * </p>
  */
@@ -68,10 +68,10 @@ public class PinAuthenticationProvider implements AuthenticationProvider {
         log.debug("User found: {} (Institution: {})", username, 
                 user.getInstitution() != null ? user.getInstitution().getInstitutionCode() : "null");
 
-        // PIN login is only for normal users (not SUPER_ADMIN or INSTITUTION_ADMIN)
-        boolean hasAdminRole = user.getRoles() != null 
-                && (user.getRoles().contains(AppRoles.SUPER_ADMIN) 
-                    || user.getRoles().contains(AppRoles.INSTITUTION_ADMIN));
+        // PIN login is only for normal users (not SUPER_ADMIN or ADMIN)
+        boolean hasAdminRole = user.getRoles() != null
+                && (user.getRoles().contains(AppRoles.SUPER_ADMIN)
+                    || user.getRoles().contains(AppRoles.ADMIN));
         if (hasAdminRole) {
             log.debug("PIN login not allowed for admin users: {}", username);
             throw new BadCredentialsException("PIN login is not available for admin users");

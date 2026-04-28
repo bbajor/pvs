@@ -136,6 +136,13 @@ public class MedicationViewPresenter {
         return medicationService.findAll();
     }
 
+    /**
+     * Manuelles Anlegen (Praxis-On-Premise); siehe {@link IntravitrealMedicationService#createManualMedication}.
+     */
+    public Medication createManualMedication(Medication draft) {
+        return medicationService.createManualMedication(draft);
+    }
+
     public Medication save(Medication medication) {
         return medicationService.save(medication);
     }

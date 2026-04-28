@@ -1,6 +1,7 @@
 package de.bbajor.pvs.function.patient;
 
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.patient.model.Patient;
 import de.bbajor.pvs.patient.service.PatientService;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +21,14 @@ import java.util.function.Function;
 public class PatientFunctions {
     
     private final PatientService patientService;
+    private final CurrentInstitutionService currentInstitutionService;
     
     /**
      * Create a new patient.
      */
     @Bean
     public Function<PatientCreateRequest, PatientResponse> createPatient() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Patient patient = request.getPatient();
                 Patient saved = patientService.save(patient);
@@ -44,7 +46,7 @@ public class PatientFunctions {
      */
     @Bean
     public Function<PatientUpdateRequest, PatientResponse> updatePatient() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Patient existing = patientService.findById(request.getPatientId());
                 // Update fields from request
@@ -66,7 +68,7 @@ public class PatientFunctions {
      */
     @Bean
     public Function<PatientFindRequest, PatientResponse> findPatient() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Patient patient = patientService.findById(request.getPatientId());
                 
@@ -83,7 +85,7 @@ public class PatientFunctions {
      */
     @Bean
     public Function<PatientSearchRequest, PatientResponse> searchPatients() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 List<Patient> patients = patientService.findPatients(request.getSearchTerm());
                 
@@ -100,7 +102,7 @@ public class PatientFunctions {
      */
     @Bean
     public Function<PatientFunctionRequest, PatientResponse> getAllPatients() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 List<Patient> patients = patientService.getAll();
                 

@@ -2,60 +2,55 @@ package de.bbajor.pvs.institution.context;
 
 import org.springframework.stereotype.Component;
 
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
+
 /**
- * Thread-local storage for the current institution/tenant ID.
+ * Backward-compatible static access to the active institution id.
  * <p>
- * Used to enforce data isolation across the application.
- * All data filtering is done via institution.
- * </p>
- * <p>
- * Note: Despite the name "InstitutionContext", this actually stores the Institution ID.
- * The name is kept for backward compatibility during migration.
- * </p>
- * <p>
- * Data isolation hierarchy:
- * - Patient → Location → Institution (primary path)
- * - All queries filter by institution ID to ensure institutions cannot see each other's data
+ * Delegates to {@link CurrentInstitutionService}; prefer injecting that service in new code.
  * </p>
  */
 @Component
 public class InstitutionContext {
 
-    private static final ThreadLocal<Long> currentInstitutionId = new ThreadLocal<>();
+    private static volatile CurrentInstitutionService delegate;
 
-    /**
-     * Set the current institution ID for this thread.
-     * <p>
-     * Note: Despite the parameter name "institutionId", this is actually the Institution ID.
-     * </p>
-     */
+    public InstitutionContext(CurrentInstitutionService currentInstitutionService) {
+        InstitutionContext.delegate = currentInstitutionService;
+    }
+
     public static void setInstitutionId(Long institutionId) {
-        currentInstitutionId.set(institutionId);
+        if (delegate == null) {
+            return;
+        }
+        delegate.setThreadLocalInstitutionId(institutionId);
     }
 
-    /**
-     * Get the current institution ID for this thread.
-     * <p>
-     * Note: Despite the return name "institutionId", this is actually the Institution ID.
-     * </p>
-     * @return the institution ID, or null if no institution is set
-     */
     public static Long getInstitutionId() {
-        return currentInstitutionId.get();
+        return delegate == null ? null : delegate.getCurrentInstitutionId().orElse(null);
     }
 
-    /**
-     * Clear the institution ID from the current thread.
-     */
     public static void clear() {
-        currentInstitutionId.remove();
+        if (delegate != null) {
+            delegate.clearExecutionOverride();
+        }
     }
 
-    /**
-     * Check if a institution is currently set.
-     */
     public static boolean hasInstitution() {
-        return currentInstitutionId.get() != null;
+        return delegate != null && delegate.hasInstitution();
+    }
+
+    public static Long getRequiredInstitutionId() {
+        if (delegate == null) {
+            throw new IllegalStateException("CurrentInstitutionService not initialized");
+        }
+        return delegate.getRequiredInstitutionId();
+    }
+
+    public static void runWithInstitutionId(Long institutionId, Runnable action) {
+        if (delegate == null) {
+            throw new IllegalStateException("CurrentInstitutionService not initialized");
+        }
+        delegate.runWithInstitutionId(institutionId, action);
     }
 }
-

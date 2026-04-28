@@ -30,9 +30,6 @@ resilience4j:
       whisper-api:
         maxAttempts: 3
         waitDuration: 2000
-      kbv-api:
-        maxAttempts: 2
-        waitDuration: 1000
   circuitbreaker:
     configs:
       default:
@@ -43,8 +40,6 @@ resilience4j:
     instances:
       whisper-api:
         waitDurationInOpenState: 60s
-      kbv-api:
-        waitDurationInOpenState: 30s
 ```
 
 ## Retry-Logik
@@ -110,14 +105,6 @@ public String callApi() {
 // 1. Versuch: Lokaler Whisper Container
 // 2. Fallback: Remote Whisper API (mit Retry)
 // 3. Fallback: Fehlermeldung an Benutzer
-```
-
-### KBV Master Data Service
-
-```java
-// 1. Versuch: KBV API (mit Retry)
-// 2. Fallback: Cache (wenn verfügbar)
-// 3. Fallback: Fehlermeldung
 ```
 
 ## Monitoring

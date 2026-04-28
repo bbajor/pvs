@@ -9,7 +9,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,33 +37,19 @@ public class SurgicalCenterService {
 
     @Transactional(readOnly = true)
     public List<SurgicalCenter> findAll() {
-        Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Return only surgical centers for current institution
-            return surgicalCenterRepository.findByInstitutionId(institutionId);
-        }
-        // No institution context - return empty list to enforce data isolation
-        return List.of();
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
+        return surgicalCenterRepository.findByInstitutionId(institutionId);
     }
     
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Slice<SurgicalCenter> findAll(org.springframework.data.domain.Pageable pageable) {
-        Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Return only surgical centers for current institution with paging
-            return surgicalCenterRepository.findByInstitutionId(institutionId, pageable);
-        }
-        // No institution context - return empty slice
-        return org.springframework.data.domain.Page.empty(pageable);
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
+        return surgicalCenterRepository.findByInstitutionId(institutionId, pageable);
     }
     
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Slice<SurgicalCenter> findAllBy(String searchTerm, org.springframework.data.domain.Pageable pageable) {
-        Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId == null) {
-            // No institution context - return empty slice
-            return org.springframework.data.domain.Page.empty(pageable);
-        }
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
         
         // Wenn kein Suchbegriff, verwende findAll
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
@@ -196,7 +181,12 @@ public class SurgicalCenterService {
         List<SurgicalCenterTimeSlot> uniqueTimeSlots = newTimeSlots.stream()
             .filter(slot -> !timeSlotRepository.existsBySurgicalCenterAndDateAndStartTimeAndEndTime(
                 savedSurgicalCenter, slot.getDate(), slot.getStartTime(), slot.getEndTime()))
-            .peek(e -> e.setSurgicalCenter(savedSurgicalCenter))
+            .peek(e -> {
+                e.setSurgicalCenter(savedSurgicalCenter);
+                if (!e.isAvailable()) {
+                    e.setAvailable(true);
+                }
+            })
             .toList();
             
         return timeSlotRepository.saveAll(uniqueTimeSlots);
@@ -231,72 +221,36 @@ public class SurgicalCenterService {
             Integer surgicalCenterId) {
 
         Long institutionId = InstitutionContext.getInstitutionId();
-        System.out.println("=== DEBUG: SurgicalCenterService.findAvailableTimeSlotsFilteredBy ===");
-        System.out.println("InstitutionContext ID: " + institutionId);
-        System.out.println("PeriodStart: " + periodStart);
-        System.out.println("TimePeriod: " + timePeriod);
-        System.out.println("SurgicalCenterId: " + surgicalCenterId);
-        
+
         if (institutionId == null) {
-            // No institution context - return empty list to enforce data isolation
-            System.out.println("FEHLER: Kein InstitutionContext gesetzt!");
             return Collections.emptyList();
         }
 
         if (periodStart == null || timePeriod == null) {
-            System.out.println("FEHLER: periodStart oder timePeriod ist null!");
             return Collections.emptyList();
         }
 
         LocalDate start = periodStart.isAfter(LocalDate.now()) ? periodStart : LocalDate.now();
         LocalDate end = timePeriod.calculateEndDate(start);
-        System.out.println("Query-Zeitraum: " + start + " bis " + end);
 
-        Sort sort = Sort.by("date").ascending().and(Sort.by("startTime").ascending());
         List<SurgicalCenterTimeSlot> timeSlots = new ArrayList<>();
         if (surgicalCenterId == null) {
-            // If no specific surgical center, return time slots only from centers of current institution
             List<SurgicalCenter> institutionCenters = surgicalCenterRepository.findByInstitutionId(institutionId);
-            System.out.println("Anzahl Behandlungsorte für Institution " + institutionId + ": " + institutionCenters.size());
             for (SurgicalCenter center : institutionCenters) {
-                System.out.println("  - Behandlungsort: " + center.getId() + " (" + center.getName() + ")");
-                List<SurgicalCenterTimeSlot> centerTimeSlots = timeSlotRepository
-                        .findByDateBetweenAndSurgicalCenter(start, end, center, sort);
-                System.out.println("    Gefundene Termine: " + centerTimeSlots.size());
-                timeSlots.addAll(centerTimeSlots);
+                timeSlots.addAll(timeSlotRepository.findAvailableByDateRangeAndSurgicalCenter(start, end, center));
             }
         } else {
-            SurgicalCenter surgicalCenter = surgicalCenterRepository.getReferenceById(surgicalCenterId);
-            if (surgicalCenter != null) {
-                System.out.println("Behandlungsort: " + surgicalCenter.getId() + " (" + surgicalCenter.getName() + ")");
-                System.out.println("Behandlungsort Institution ID: " + (surgicalCenter.getInstitution() != null ? surgicalCenter.getInstitution().getId() : "NULL"));
-                
-                // Verify institution match for data isolation
-                if (surgicalCenter.getInstitution() == null || 
-                        !surgicalCenter.getInstitution().getId().equals(institutionId)) {
-                    System.out.println("FEHLER: Behandlungsort gehört nicht zur aktuellen Institution!");
-                    System.out.println("  Erwartet: " + institutionId);
-                    System.out.println("  Gefunden: " + (surgicalCenter.getInstitution() != null ? surgicalCenter.getInstitution().getId() : "NULL"));
-                    throw new IllegalStateException("Surgical center does not belong to current institution");
-                }
-                
-                // Verwende neue Query mit direktem Institution-Filter und isAvailable-Filter
-                System.out.println("Query: findAvailableTimeSlotsBySurgicalCenterAndInstitution(" + 
-                        surgicalCenter.getId() + ", " + institutionId + ", " + start + ", " + end + ")");
-                timeSlots = timeSlotRepository
-                        .findAvailableTimeSlotsBySurgicalCenterAndInstitution(
-                                surgicalCenter.getId(), institutionId, start, end);
-                System.out.println("Gefundene verfügbare Termine: " + timeSlots.size());
-                if (!timeSlots.isEmpty()) {
-                    System.out.println("Erster Termin: " + timeSlots.get(0).getDate() + " " + timeSlots.get(0).getStartTime() + 
-                            " (isAvailable: " + timeSlots.get(0).isAvailable() + ")");
-                }
-            } else {
-                System.out.println("FEHLER: Behandlungsort mit ID " + surgicalCenterId + " nicht gefunden!");
+            SurgicalCenter surgicalCenter = surgicalCenterRepository.findById(surgicalCenterId).orElse(null);
+            if (surgicalCenter == null) {
+                return Collections.emptyList();
             }
+            if (surgicalCenter.getInstitution() == null
+                    || !surgicalCenter.getInstitution().getId().equals(institutionId)) {
+                throw new IllegalStateException("Surgical center does not belong to current institution");
+            }
+            timeSlots = timeSlotRepository.findAvailableTimeSlotsBySurgicalCenterAndInstitution(
+                    surgicalCenter.getId(), institutionId, start, end);
         }
-        System.out.println("Gesamt gefundene Termine: " + timeSlots.size());
-        System.out.println("=== ENDE DEBUG: SurgicalCenterService ===");
         return timeSlots;
     }
 

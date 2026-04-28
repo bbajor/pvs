@@ -118,15 +118,7 @@ sudo nano /opt/pvs/.env
 3. **Ports**: Standard ist 8080, kann angepasst werden
 4. **Whisper**: Lokaler Whisper-Service (benötigt mehr Ressourcen)
 
-#### Schritt 4: KBV-Daten initialisieren (optional)
-
-```bash
-sudo su - pvs
-cd /opt/pvs
-podman-compose -f podman-compose.onpremise.yml --profile kbv-init up kbv-distrib-job
-```
-
-#### Schritt 5: Service starten
+#### Schritt 4: Service starten
 
 ```bash
 # Service starten
@@ -139,7 +131,7 @@ sudo systemctl status pvs-onpremise
 sudo journalctl -u pvs-onpremise -f
 ```
 
-#### Schritt 6: Anwendung testen
+#### Schritt 5: Anwendung testen
 
 ```bash
 # Health-Check
@@ -181,21 +173,14 @@ notepad "C:\Program Files\PVS\.env"
 
 **Wichtige Einstellungen:** (siehe Linux-Installation)
 
-#### Schritt 4: KBV-Daten initialisieren (optional)
-
-```powershell
-cd "C:\Program Files\PVS"
-podman-compose -f podman-compose.onpremise.yml --profile kbv-init up kbv-distrib-job
-```
-
-#### Schritt 5: PVS starten
+#### Schritt 4: PVS starten
 
 ```powershell
 cd "C:\Program Files\PVS"
 .\start-pvs.bat
 ```
 
-#### Schritt 6: Status prüfen
+#### Schritt 5: Status prüfen
 
 ```powershell
 .\status-pvs.bat
@@ -322,9 +307,6 @@ curl http://localhost:8080/actuator/health
 
 # PostgreSQL
 podman exec pvs-onpremise-postgres pg_isready -U pvs
-
-# KBV Service (falls aktiv)
-curl http://localhost:8080/api/kbv/health
 ```
 
 ### Logs prüfen

@@ -4,6 +4,7 @@ import de.bbajor.pvs.common.function.FunctionRequest;
 import de.bbajor.pvs.common.function.FunctionResponse;
 import de.bbajor.pvs.common.security.SecurityContext;
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.institution.model.Institution;
 import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
@@ -32,6 +33,7 @@ public class DailyTaskFunction {
     
     private final TaskService taskService;
     private final InstitutionRepository institutionRepository;
+    private final CurrentInstitutionService currentInstitutionService;
     
     /**
      * Daily task creation function.
@@ -39,7 +41,7 @@ public class DailyTaskFunction {
      */
     @Bean
     public Function<DailyTaskRequest, DailyTaskResponse> scheduledDailyTask() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 LOG.info("Daily task function started");
                 

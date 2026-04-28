@@ -173,55 +173,39 @@ public class TestDataInitializer {
         entityManager.flush();
         entityManager.clear(); // Clear session, um alle Objekte zu detachen
 
-        // Erstelle Superadmin
+        // Ein Mandant, ein Admin (ADMIN + USER)
         createInstitutionUserIfNotExists(
-                null,
-                "superadmin",
+                testInstitutions.primary,
+                "admin",
                 "admin@pvs.local",
-                "Super Administrator",
-                Set.of(AppRoles.SUPER_ADMIN, AppRoles.ADMIN, AppRoles.USER)
+                "Administrator",
+                Set.of(AppRoles.ADMIN, AppRoles.USER)
         );
 
-        // Institution 1: Leer lassen (nur Institutionsadmin)
-        createInstitutionUserIfNotExists(
-                testInstitutions.institution1,
-                "inst1-admin",
-                "inst1-admin@pvs.local",
-                "Institution 1 Admin",
-                Set.of(AppRoles.INSTITUTION_ADMIN, AppRoles.ADMIN, AppRoles.USER)
-        );
+        createUsersForInstitution(testInstitutions.primary);
 
-        // Institution 2: Vollständige Testdaten mit allen Rollen
-        createUsersForInstitution(testInstitutions.institution2);
+        InstitutionContext.setInstitutionId(testInstitutions.primary.getId());
+        log.debug("InstitutionContext set to: {} for test data initialization", testInstitutions.primary.getId());
 
-        // CRITICAL: Set InstitutionContext for test data initialization (Institution 2)
-        InstitutionContext.setInstitutionId(testInstitutions.institution2.getId());
-        log.debug("InstitutionContext set to: {} for test data initialization", testInstitutions.institution2.getId());
-
-        // Erstelle Testdaten für Institution 2
         List<Medication> savedMedications = medicationService
                 .saveAll(createRealisticMedications(MEDICATION_NAMES.length));
         List<MedicationFavourite> savedFavourites = createMedicationFavouritesForInstitution(
-                testInstitutions.institution2, savedMedications);
+                testInstitutions.primary, savedMedications);
         List<Diagnosis> diagnosisDtos = diagnosisService.saveAll(createDiagnoses());
 
-        // Erstelle 50 Patienten für Institution 2 (jeweils auf einem der beiden Standorte)
         List<Patient> savedPatients = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
-            Location patientLocation = (i % 2 == 0) ? testInstitutions.institution2Location1 : testInstitutions.institution2Location2;
-            List<Patient> patients = createRealisticPatients(1, testInstitutions.institution2, patientLocation);
+            Location patientLocation = (i % 2 == 0) ? testInstitutions.primaryLocation1 : testInstitutions.primaryLocation2;
+            List<Patient> patients = createRealisticPatients(1, testInstitutions.primary, patientLocation);
             savedPatients.addAll(patientService.saveAll(patients));
         }
 
-        // Erzeuge OP-Zentren mit Zeitslots (2 Jahre Vergangenheit, 1 Jahr Zukunft)
         List<SurgicalCenter> surgicalCenters = createSurgicalCentersWithTimeSlots(
-                SURGICAL_CENTER_NAMES.length, testInstitutions.institution2Location1);
+                SURGICAL_CENTER_NAMES.length, testInstitutions.primaryLocation1);
 
-        // Erzeuge Behandlungspläne für alle Patienten (mindestens 5 Termine in Vergangenheit, max 1 in Zukunft)
         createTreatmentPlansWithTreatments(savedPatients, savedFavourites, diagnosisDtos, surgicalCenters);
 
-        // Erstelle Standardbemerkungen für Institution 2
-        createStandardRemarks(testInstitutions.institution2);
+        createStandardRemarks(testInstitutions.primary);
 
         // Clear InstitutionContext after initialization to avoid side effects
         InstitutionContext.clear();
@@ -232,39 +216,24 @@ public class TestDataInitializer {
      * Datenklasse für Test-Institutionen
      */
     private static class TestInstitutions {
-        Institution institution1;
-        Location institution1Location1;
-        Location institution1Location2;
-        Institution institution2;
-        Location institution2Location1;
-        Location institution2Location2;
+        Institution primary;
+        Location primaryLocation1;
+        Location primaryLocation2;
     }
 
     /**
-     * Initialisiert 2 Test-Institutionen mit je 2 Standorten
-     *
-     * @return TestInstitutions mit allen Institutionen und Standorten
+     * Eine Test-Institution mit zwei Standorten (Single-Tenant).
      */
     private TestInstitutions initTestInstitutions() {
         TestInstitutions result = new TestInstitutions();
 
-        // Institution 1: Leer (nur Institutionsadmin)
-        result.institution1 = createInstitutionIfNotExists(
+        result.primary = createInstitutionIfNotExists(
                 "PRAX-001",
-                "Augenarztpraxis Dr. Müller",
-                "Leere Test-Institution für Neuaufbau"
-        );
-        result.institution1Location1 = createLocationForInstitution(result.institution1, "Standort 1 - Hauptpraxis");
-        result.institution1Location2 = createLocationForInstitution(result.institution1, "Standort 2 - Filiale");
-
-        // Institution 2: Vollständige Testdaten
-        result.institution2 = createInstitutionIfNotExists(
-                "PRAX-002",
                 "MVZ Augenheilkunde Hamburg",
-                "Vollständige Test-Institution mit Patienten und Behandlungen"
+                "Test-Institution mit Patienten und Behandlungen"
         );
-        result.institution2Location1 = createLocationForInstitution(result.institution2, "Standort 1 - Hauptpraxis");
-        result.institution2Location2 = createLocationForInstitution(result.institution2, "Standort 2 - Filiale");
+        result.primaryLocation1 = createLocationForInstitution(result.primary, "Standort 1 - Hauptpraxis");
+        result.primaryLocation2 = createLocationForInstitution(result.primary, "Standort 2 - Filiale");
 
         return result;
     }
@@ -273,13 +242,6 @@ public class TestDataInitializer {
      * Erstellt User für eine Institution mit allen Rollen
      */
     private void createUsersForInstitution(Institution institution) {
-        createInstitutionUserIfNotExists(
-                institution,
-                "inst2-admin",
-                "inst2-admin@pvs.local",
-                "Institution 2 Admin",
-                Set.of(AppRoles.ADMIN, AppRoles.USER)
-        );
         createInstitutionUserIfNotExists(
                 institution,
                 "inst2-owner",
@@ -381,7 +343,7 @@ public class TestDataInitializer {
      */
     private void createInstitutionUserIfNotExists(Institution institution, String username, String email,
             String fullName, Set<String> roles) {
-        userAccountRepository.findByUsername(username)
+        userAccountRepository.findByUsernameAndInstitution_Id(username, institution.getId())
                 .orElseGet(() -> {
                     UserAccount user = new UserAccount()
                             .setUsername(username)
@@ -391,8 +353,7 @@ public class TestDataInitializer {
                             .setEnabled(true)
                             .setInstitution(institution)
                             .setRoles(roles);
-                    UserAccount saved = userAccountRepository.save(user);
-                    return saved;
+                    return userAccountRepository.save(user);
                 });
     }
 
@@ -402,10 +363,8 @@ public class TestDataInitializer {
     private void createTestUsers() {
         String testPassword = "123";
 
-        // Test-Admin User (umbenannt, da SampleUsers.ADMIN_USERNAME bereits existiert)
-        createUserIfNotExists("test-admin", testPassword, "Test Administrator", "test-admin@example.com",
-                UUID.randomUUID().toString(), AppRoles.ADMIN, AppRoles.OWNER, AppRoles.USER,
-                AppRoles.DOCTOR);
+        createUserIfNotExists("test-admin", testPassword, "Test Admin", "test-admin@example.com",
+                UUID.randomUUID().toString(), AppRoles.ADMIN, AppRoles.USER);
 
         // Test-User (umbenannt, da SampleUsers.USER_USERNAME bereits existiert)
         createUserIfNotExists("test-user", testPassword, "Test Benutzer", "test-user@example.com",

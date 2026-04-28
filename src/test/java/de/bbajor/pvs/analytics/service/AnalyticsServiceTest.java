@@ -7,6 +7,7 @@ import de.bbajor.pvs.analytics.dto.MedicationStatistics;
 import de.bbajor.pvs.analytics.dto.TreatmentStatistics;
 import de.bbajor.pvs.analytics.repository.AnalyticsRepository;
 import de.bbajor.pvs.institution.context.InstitutionContext;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 import de.bbajor.pvs.patient.model.Patient;
 import org.junit.jupiter.api.AfterEach;
@@ -18,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,15 +41,31 @@ class AnalyticsServiceTest {
     private AnalyticsService analyticsService;
 
     private static final Long TEST_INSTITUTION_ID = 1L;
+    private CurrentInstitutionService currentInstitutionService;
 
     @BeforeEach
     void setUp() {
-        InstitutionContext.setInstitutionId(TEST_INSTITUTION_ID);
+        currentInstitutionService = org.mockito.Mockito.mock(CurrentInstitutionService.class);
+        org.mockito.Mockito.lenient()
+                .when(currentInstitutionService.getCurrentInstitutionId())
+                .thenReturn(Optional.of(TEST_INSTITUTION_ID));
+        new InstitutionContext(currentInstitutionService);
     }
 
     @AfterEach
     void tearDown() {
         InstitutionContext.clear();
+        clearInstitutionContextDelegate();
+    }
+
+    private static void clearInstitutionContextDelegate() {
+        try {
+            var f = InstitutionContext.class.getDeclaredField("delegate");
+            f.setAccessible(true);
+            f.set(null, null);
+        } catch (Exception ignored) {
+            // best-effort cleanup; tests should not depend on a global static delegate
+        }
     }
 
     @Test
@@ -74,7 +92,9 @@ class AnalyticsServiceTest {
     @Test
     void getAllAnalyticsData_withoutInstitutionContext_shouldThrowException() {
         // Given
-        InstitutionContext.clear();
+        org.mockito.Mockito.lenient()
+                .when(currentInstitutionService.getCurrentInstitutionId())
+                .thenReturn(Optional.empty());
 
         // When/Then
         assertThatThrownBy(() -> analyticsService.getAllAnalyticsData())

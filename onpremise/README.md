@@ -10,8 +10,8 @@ Die OnPremise-Lösung nutzt **Podman** als Container-Runtime und bietet:
 - ✅ Einfache Installation via Installer-Skript
 - ✅ Isolierte Container-Umgebung
 - ✅ PostgreSQL-Datenbank inklusive
-- ✅ KBV Master Data Service
 - ✅ Optional: Whisper AI Service (lokal)
+- ✅ Medikamente lokal in der App pflegen (kein separater Stammdaten-Service)
 
 ## Systemanforderungen
 

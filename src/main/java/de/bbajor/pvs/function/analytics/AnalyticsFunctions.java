@@ -5,6 +5,7 @@ import de.bbajor.pvs.analytics.service.AnalyticsService;
 import de.bbajor.pvs.common.function.FunctionRequest;
 import de.bbajor.pvs.common.function.FunctionResponse;
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +22,11 @@ import java.util.function.Function;
 public class AnalyticsFunctions {
     
     private final AnalyticsService analyticsService;
+    private final CurrentInstitutionService currentInstitutionService;
     
     @Bean
     public Function<GetStatisticsRequest, GetStatisticsResponse> getStatistics() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Long institutionId = request.getInstitutionId();
                 if (institutionId == null) {

@@ -34,32 +34,19 @@ public class PatientService {
     private LocationService locationService;
     @Autowired
     private UserAccountRepository userAccountRepository;
-    
+
     public List<Patient> findPatients(String filter) {
-        Long institutionId = InstitutionContext.getInstitutionId();
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
         
         if (StringUtils.isEmpty(filter)) {
             return getAll();
         }
 
-        // Institution-aware search using institution-specific query
-        if (institutionId != null) {
-            // Use institution-aware search method
-            return patientRepository.searchByNameInInstitution(institutionId, filter);
-        }
-        
-        // No institution context - SUPER_ADMIN should not see patient data
-        // Return empty list to enforce data isolation
-        return List.of();
+        return patientRepository.searchByNameInInstitution(institutionId, filter);
     }
     
     public org.springframework.data.domain.Slice<Patient> findPatients(String filter, org.springframework.data.domain.Pageable pageable) {
-        Long institutionId = InstitutionContext.getInstitutionId();
-        
-        if (institutionId == null) {
-            // No institution context - return empty slice
-            return org.springframework.data.domain.Page.empty(pageable);
-        }
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
         
         if (StringUtils.isEmpty(filter)) {
             return getAll(pageable);
@@ -99,8 +86,7 @@ public class PatientService {
                 (patient.getLastName() != null ? patient.getLastName() : "?"));
         }
         
-        // Validate InstitutionContext
-        Long institutionId = InstitutionContext.getInstitutionId();
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
         if (institutionId == null) {
             throw new IllegalStateException(
                 "Cannot save patient without institution context. " +
@@ -177,26 +163,13 @@ public class PatientService {
     }
 
     public List<Patient> getAll() {
-        Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Use institution-aware findAll method
-            return patientRepository.findByInstitutionId(institutionId);
-        }
-        
-        // No institution context - SUPER_ADMIN should not see patient data
-        // Return empty list to enforce data isolation
-        return List.of();
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
+        return patientRepository.findByInstitutionId(institutionId);
     }
     
     public org.springframework.data.domain.Slice<Patient> getAll(org.springframework.data.domain.Pageable pageable) {
-        Long institutionId = InstitutionContext.getInstitutionId();
-        if (institutionId != null) {
-            // Use institution-aware findAll method with paging
-            return patientRepository.findByInstitutionId(institutionId, pageable);
-        }
-        
-        // No institution context - return empty slice
-        return org.springframework.data.domain.Page.empty(pageable);
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
+        return patientRepository.findByInstitutionId(institutionId, pageable);
     }
 
     public Patient findEntityById(Integer id) {

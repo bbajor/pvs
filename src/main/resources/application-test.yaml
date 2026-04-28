@@ -55,3 +55,7 @@ logging:
   level:
     root: INFO
     de.bbajor.pvs: DEBUG
+
+app:
+  single-practice:
+    enabled: false

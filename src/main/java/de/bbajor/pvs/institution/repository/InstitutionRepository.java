@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 
 /**
  * Repository for Institution entities.
@@ -48,5 +49,9 @@ public interface InstitutionRepository extends JpaRepository<Institution, Long> 
      * @return true if institution with this code exists
      */
     boolean existsByInstitutionCode(String institutionCode);
+
+    long countByActiveTrue();
+
+    List<Institution> findByActiveTrueOrderByIdAsc();
 }
 

@@ -29,6 +29,18 @@ public interface SurgicalCenterTimeSlotRepository
 
         List<SurgicalCenterTimeSlot> findByDateBetweenAndSurgicalCenter(LocalDate start, LocalDate end,
                         SurgicalCenter surgicalCenter, Sort sort);
+
+        @Query("""
+                SELECT ts FROM SurgicalCenterTimeSlot ts
+                WHERE ts.date BETWEEN :start AND :end
+                AND ts.surgicalCenter = :surgicalCenter
+                AND ts.isAvailable = true
+                ORDER BY ts.date ASC, ts.startTime ASC
+                """)
+        List<SurgicalCenterTimeSlot> findAvailableByDateRangeAndSurgicalCenter(
+                @Param("start") LocalDate start,
+                @Param("end") LocalDate end,
+                @Param("surgicalCenter") SurgicalCenter surgicalCenter);
         
         /**
          * Findet verfügbare Termine für einen Behandlungsort im Zeitraum.

@@ -3,6 +3,7 @@ package de.bbajor.pvs.function.task;
 import de.bbajor.pvs.common.function.FunctionRequest;
 import de.bbajor.pvs.common.function.FunctionResponse;
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.taskmanagement.domain.Task;
 import de.bbajor.pvs.taskmanagement.domain.TaskRepository;
 import de.bbajor.pvs.taskmanagement.service.TaskService;
@@ -26,10 +27,11 @@ public class TaskFunctions {
     private final TaskService taskService;
     private final TaskRepository taskRepository;
     private final Clock clock;
+    private final CurrentInstitutionService currentInstitutionService;
     
     @Bean
     public Function<CompleteTaskRequest, TaskResponse> completeTask() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 Task task = taskRepository.findById(request.getTaskId())
                     .orElseThrow(() -> new IllegalArgumentException("Task not found: " + request.getTaskId()));

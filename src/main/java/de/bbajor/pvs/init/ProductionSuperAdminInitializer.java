@@ -1,6 +1,7 @@
 package de.bbajor.pvs.init;
 
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -12,136 +13,116 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import de.bbajor.pvs.institution.model.Institution;
+import de.bbajor.pvs.institution.repository.InstitutionRepository;
 import de.bbajor.pvs.security.AppRoles;
 import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
 
 /**
- * Initializes the Super-Admin user for production environments.
- * 
- * <p>
- * This initializer runs after the application starts and:
- * <ul>
- * <li>Checks if a Super-Admin user already exists</li>
- * <li>If not, creates a Super-Admin with a randomly generated password</li>
- * <li>Outputs the password to the console (only on first startup)</li>
- * <li>Sets passwordChangeRequired=true and initialPasswordSet=false</li>
- * </ul>
- * </p>
- * 
- * <p>
- * The initial password can be overridden by setting the environment variable
- * {@code SUPER_ADMIN_INITIAL_PASSWORD}. If set, this password will be used instead of generating one.
- * </p>
+ * Legt den ersten {@link AppRoles#ADMIN} an, wenn eine Institution existiert, aber noch kein Admin-Benutzer.
  */
 @Component
 @Profile("prod")
 public class ProductionSuperAdminInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(ProductionSuperAdminInitializer.class);
-    private static final String SUPER_ADMIN_USERNAME = "superadmin";
+    private static final String BOOTSTRAP_USERNAME = "admin";
     private static final int PASSWORD_LENGTH = 24;
     private static final String PASSWORD_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
 
     private final UserAccountRepository userAccountRepository;
+    private final InstitutionRepository institutionRepository;
     private final PasswordEncoder passwordEncoder;
     private final Environment environment;
 
     public ProductionSuperAdminInitializer(
             UserAccountRepository userAccountRepository,
+            InstitutionRepository institutionRepository,
             PasswordEncoder passwordEncoder,
             Environment environment) {
         this.userAccountRepository = userAccountRepository;
+        this.institutionRepository = institutionRepository;
         this.passwordEncoder = passwordEncoder;
         this.environment = environment;
     }
 
     @EventListener(ApplicationReadyEvent.class)
-    public void initializeSuperAdmin() {
-        log.info("Checking for Super-Admin user...");
+    public void initializeBootstrapAdmin() {
+        log.info("Checking for initial admin user...");
 
-        // Check if Super-Admin already exists
-        boolean superAdminExists = userAccountRepository.findAll().stream()
-                .anyMatch(account -> account.getRoles().contains(AppRoles.SUPER_ADMIN));
+        boolean adminExists = userAccountRepository.findAll().stream()
+                .anyMatch(account -> account.getRoles().contains(AppRoles.ADMIN));
 
-        if (superAdminExists) {
-            log.info("Super-Admin user already exists. Skipping initialization.");
+        if (adminExists) {
+            log.info("An owner/admin user already exists. Skipping bootstrap.");
             return;
         }
 
-        log.info("Super-Admin user not found. Creating initial Super-Admin...");
-
-        // Generate or get initial password
-        String initialPassword = getInitialPassword();
-
-        // Create Super-Admin user
-        UserAccount superAdmin = new UserAccount();
-        superAdmin.setUsername(SUPER_ADMIN_USERNAME);
-        superAdmin.setFullName("Super Administrator");
-        superAdmin.setEmail(environment.getProperty("app.super-admin.email", "admin@example.com"));
-        superAdmin.setEnabled(true);
-        superAdmin.setRoles(Set.of(AppRoles.SUPER_ADMIN));
-        superAdmin.setPasswordHash(passwordEncoder.encode(initialPassword));
-        superAdmin.setPasswordChangeRequired(true);
-        superAdmin.setInitialPasswordSet(false);
-        superAdmin.setMfaEnabled(false);
-
-        // Generate userId if not set
-        if (superAdmin.getUserId() == null || superAdmin.getUserId().isEmpty()) {
-            superAdmin.setUserId(java.util.UUID.randomUUID().toString());
+        List<Institution> institutions = institutionRepository.findAll();
+        if (institutions.isEmpty()) {
+            log.warn("No institution in database — cannot create bootstrap admin.");
+            return;
         }
 
-        userAccountRepository.save(superAdmin);
+        Institution institution = institutions.get(0);
+        log.info("Creating initial admin for institution {}...", institution.getInstitutionCode());
 
-        // Output password to console
+        String initialPassword = getInitialPassword();
+
+        UserAccount admin = new UserAccount();
+        admin.setUsername(BOOTSTRAP_USERNAME);
+        admin.setFullName("Administrator");
+        admin.setEmail(environment.getProperty("app.bootstrap-admin.email", "admin@example.com"));
+        admin.setEnabled(true);
+        admin.setInstitution(institution);
+        admin.setRoles(Set.of(AppRoles.ADMIN, AppRoles.USER));
+        admin.setPasswordHash(passwordEncoder.encode(initialPassword));
+        admin.setPasswordChangeRequired(true);
+        admin.setInitialPasswordSet(false);
+        admin.setMfaEnabled(false);
+
+        if (admin.getUserId() == null || admin.getUserId().isEmpty()) {
+            admin.setUserId(java.util.UUID.randomUUID().toString());
+        }
+
+        userAccountRepository.save(admin);
+
         log.warn("========================================");
-        log.warn("SUPER-ADMIN INITIAL PASSWORD");
+        log.warn("INITIAL PRACTICE ADMIN PASSWORD");
         log.warn("========================================");
-        log.warn("Username: {}", SUPER_ADMIN_USERNAME);
+        log.warn("Username: {}", BOOTSTRAP_USERNAME);
         log.warn("Password: {}", initialPassword);
         log.warn("========================================");
-        log.warn("IMPORTANT: Change this password after first login!");
-        log.warn("This password is only shown once. Save it securely.");
-        log.warn("========================================");
-
-        // Also print to System.out for better visibility in logs
         System.out.println("========================================");
-        System.out.println("SUPER-ADMIN INITIAL PASSWORD");
+        System.out.println("INITIAL ADMIN PASSWORD");
         System.out.println("========================================");
-        System.out.println("Username: " + SUPER_ADMIN_USERNAME);
+        System.out.println("Username: " + BOOTSTRAP_USERNAME);
         System.out.println("Password: " + initialPassword);
-        System.out.println("========================================");
-        System.out.println("IMPORTANT: Change this password after first login!");
-        System.out.println("This password is only shown once. Save it securely.");
         System.out.println("========================================");
     }
 
-    /**
-     * Gets the initial password from environment variable or generates a random one.
-     */
     private String getInitialPassword() {
-        String envPassword = environment.getProperty("SUPER_ADMIN_INITIAL_PASSWORD");
+        String envPassword = environment.getProperty("BOOTSTRAP_ADMIN_INITIAL_PASSWORD");
         if (envPassword != null && !envPassword.isEmpty()) {
-            log.info("Using password from SUPER_ADMIN_INITIAL_PASSWORD environment variable");
+            log.info("Using password from BOOTSTRAP_ADMIN_INITIAL_PASSWORD");
             return envPassword;
         }
+        String legacy = environment.getProperty("SUPER_ADMIN_INITIAL_PASSWORD");
+        if (legacy != null && !legacy.isEmpty()) {
+            log.info("Using password from SUPER_ADMIN_INITIAL_PASSWORD (deprecated alias)");
+            return legacy;
+        }
 
-        // Generate random password
         SecureRandom random = new SecureRandom();
         StringBuilder password = new StringBuilder(PASSWORD_LENGTH);
-        
-        // Ensure at least one character from each required category
-        password.append(getRandomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ", random)); // Uppercase
-        password.append(getRandomChar("abcdefghijklmnopqrstuvwxyz", random)); // Lowercase
-        password.append(getRandomChar("0123456789", random)); // Digit
-        password.append(getRandomChar("!@#$%^&*", random)); // Special char
-        
-        // Fill the rest randomly
+        password.append(getRandomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ", random));
+        password.append(getRandomChar("abcdefghijklmnopqrstuvwxyz", random));
+        password.append(getRandomChar("0123456789", random));
+        password.append(getRandomChar("!@#$%^&*", random));
         for (int i = 4; i < PASSWORD_LENGTH; i++) {
             password.append(PASSWORD_CHARS.charAt(random.nextInt(PASSWORD_CHARS.length())));
         }
-        
-        // Shuffle the password
         char[] passwordArray = password.toString().toCharArray();
         for (int i = passwordArray.length - 1; i > 0; i--) {
             int j = random.nextInt(i + 1);
@@ -149,7 +130,6 @@ public class ProductionSuperAdminInitializer {
             passwordArray[i] = passwordArray[j];
             passwordArray[j] = temp;
         }
-        
         return new String(passwordArray);
     }
 

@@ -66,8 +66,8 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "testuser", "password123");
 
+        when(userAccountRepository.findByUsernameOrEmail("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
-        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("password123", "$2a$10$hashedpassword")).thenReturn(true);
 
         // When
@@ -89,7 +89,7 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "INVALID", "testuser", "password123");
 
-        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+        when(userAccountRepository.findByUsernameOrEmail("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("INVALID")).thenReturn(Optional.empty());
 
         // When & Then
@@ -105,7 +105,7 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "testuser", "password123");
 
-        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+        when(userAccountRepository.findByUsernameOrEmail("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
 
         // When & Then
@@ -121,7 +121,7 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "nonexistent", "password123");
 
-        when(userAccountRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
+        when(userAccountRepository.findByUsernameOrEmail("nonexistent")).thenReturn(Optional.empty());
 
         // When & Then
         assertThrows(BadCredentialsException.class, () -> {
@@ -135,8 +135,8 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "testuser", "wrongpassword");
 
+        when(userAccountRepository.findByUsernameOrEmail("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
-        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("wrongpassword", "$2a$10$hashedpassword")).thenReturn(false);
 
         // When & Then
@@ -161,8 +161,8 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "testuser", "password123");
 
+        when(userAccountRepository.findByUsernameOrEmail("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
-        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
         // When & Then
         BadCredentialsException exception = assertThrows(BadCredentialsException.class, () -> {
@@ -185,8 +185,8 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "superadmin", "password123");
 
+        when(userAccountRepository.findByUsernameOrEmail("superadmin")).thenReturn(Optional.of(superAdmin));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
-        when(userAccountRepository.findByUsername("superadmin")).thenReturn(Optional.of(superAdmin));
         when(passwordEncoder.matches("password123", "$2a$10$hashedpassword")).thenReturn(true);
 
         // When
@@ -205,8 +205,8 @@ class InstitutionAuthenticationProviderTest {
         InstitutionAuthenticationToken token = new InstitutionAuthenticationToken(
                 "TEST-1234", "testuser", "password123");
 
+        when(userAccountRepository.findByUsernameOrEmail("testuser")).thenReturn(Optional.of(testUser));
         when(institutionRepository.findByInstitutionCode("TEST-1234")).thenReturn(Optional.of(testInstitution));
-        when(userAccountRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("password123", "$2a$10$hashedpassword")).thenReturn(true);
 
         // When & Then

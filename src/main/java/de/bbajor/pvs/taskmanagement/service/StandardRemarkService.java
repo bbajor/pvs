@@ -35,7 +35,7 @@ public class StandardRemarkService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public StandardRemark save(StandardRemark remark) {
         Objects.requireNonNull(remark);
         
@@ -54,7 +54,7 @@ public class StandardRemarkService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(Long id) {
         Objects.requireNonNull(id);
         

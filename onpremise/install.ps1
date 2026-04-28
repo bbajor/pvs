@@ -81,17 +81,14 @@ if (-not (Test-Path $envFile)) {
     # Generiere sichere Passwörter
     Write-Output "Generiere sichere Passwörter..."
     $postgresPassword = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 25 | ForEach-Object {[char]$_})
-    $kbvPassword = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 25 | ForEach-Object {[char]$_})
     $smtpKey = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})
     
-    (Get-Content $envFile) -replace 'CHANGE_ME_SECURE_PASSWORD', $postgresPassword | Set-Content $envFile
-    (Get-Content $envFile) -replace 'KBV_DB_PASSWORD=CHANGE_ME_SECURE_PASSWORD', "KBV_DB_PASSWORD=$kbvPassword" | Set-Content $envFile
+    (Get-Content $envFile) -replace 'POSTGRES_PASSWORD=CHANGE_ME_SECURE_PASSWORD', "POSTGRES_PASSWORD=$postgresPassword" | Set-Content $envFile
     (Get-Content $envFile) -replace 'SMTP_ENCRYPTION_KEY=$', "SMTP_ENCRYPTION_KEY=$smtpKey" | Set-Content $envFile
     
     Write-ColorOutput Green "✓ .env-Datei erstellt mit generierten Passwörtern"
     Write-ColorOutput Yellow "⚠️  WICHTIG: Speichere die Passwörter sicher!"
     Write-Output "   POSTGRES_PASSWORD: $postgresPassword"
-    Write-Output "   KBV_DB_PASSWORD: $kbvPassword"
     Write-Output "   SMTP_ENCRYPTION_KEY: $smtpKey"
 } else {
     Write-ColorOutput Green "✓ .env-Datei existiert bereits"

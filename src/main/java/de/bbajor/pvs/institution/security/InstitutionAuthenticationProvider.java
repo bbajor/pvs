@@ -1,5 +1,6 @@
 package de.bbajor.pvs.institution.security;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -46,30 +47,48 @@ public class InstitutionAuthenticationProvider implements AuthenticationProvider
 
         InstitutionAuthenticationToken token = (InstitutionAuthenticationToken) authentication;
         String institutionCode = token.getInstitutionCode();
+        if (institutionCode != null && institutionCode.isBlank()) {
+            institutionCode = null;
+        }
         String identifier = token.getName(); // Can be username or email
         String password = token.getCredentials().toString();
 
-        log.debug("Attempting authentication for institution: {}, identifier: {}", institutionCode, identifier);
+        log.debug("Attempting authentication");
 
         // Find user by username or email
         Optional<UserAccount> userOpt = userAccountRepository.findByUsernameOrEmail(identifier);
         if (userOpt.isEmpty()) {
-            log.warn("Login failed: User not found: {}", identifier);
+            log.warn("Login failed: user not found");
             throw new BadCredentialsException("Invalid username/email or password");
         }
 
         UserAccount user = userOpt.get();
         String username = user.getUsername(); // Use actual username from database
-        log.debug("User found: {} (Institution: {})", username, user.getInstitution() != null ? user.getInstitution().getInstitutionCode() : "null");
+        log.debug("User found (institution assignment present: {})", user.getInstitution() != null);
 
-        // Check if user has SUPER_ADMIN or INSTITUTION_ADMIN role (can login without institution)
-        boolean hasSuperAdminRole = user.getRoles() != null && (user.getRoles().contains(AppRoles.SUPER_ADMIN) || user.getRoles().contains(AppRoles.INSTITUTION_ADMIN));
-        boolean isEmptyInstitutionCode = institutionCode == null || institutionCode.trim().isEmpty();
+        boolean hasSuperAdminRole = user.getRoles() != null && user.getRoles().contains(AppRoles.SUPER_ADMIN);
+        if (!hasSuperAdminRole && user.getInstitution() == null) {
+            log.warn("Login failed: user not assigned to an institution");
+            throw new BadCredentialsException("Invalid username/email or password");
+        }
 
-        // SUPER_ADMIN and INSTITUTION_ADMIN can login without institution code
+        boolean isEmptyInstitutionCode = institutionCode == null;
+
+        // Single-Tenant: genau eine Institution → Code optional
+        if (isEmptyInstitutionCode && !hasSuperAdminRole) {
+            List<Institution> institutions = institutionRepository.findAll();
+            if (institutions.size() == 1) {
+                Institution only = institutions.get(0);
+                if (only.isActive()) {
+                    institutionCode = only.getInstitutionCode();
+                    isEmptyInstitutionCode = false;
+                    log.debug("Single-tenant: resolved institution code to {}", institutionCode);
+                }
+            }
+        }
+
         if (isEmptyInstitutionCode && hasSuperAdminRole) {
-            log.debug("User {} has {} role, allowing login without institution", username, 
-                    user.getRoles().contains(AppRoles.SUPER_ADMIN) ? AppRoles.SUPER_ADMIN : AppRoles.INSTITUTION_ADMIN);
+            log.debug("User {} has SUPER_ADMIN role, allowing login without institution", username);
             
             // Validate password
             if (!passwordEncoder.matches(password, user.getPasswordHash())) {
@@ -82,21 +101,19 @@ public class InstitutionAuthenticationProvider implements AuthenticationProvider
                 throw new BadCredentialsException("User is not enabled");
             }
 
-            log.info("Authentication successful for {} user: {} (no institution)", 
-                    user.getRoles().contains(AppRoles.SUPER_ADMIN) ? AppRoles.SUPER_ADMIN : AppRoles.INSTITUTION_ADMIN, username);
+            log.info("Authentication successful for SUPER_ADMIN user (no institution)");
             UserAccountUserDetailsAdapter principal = new UserAccountUserDetailsAdapter(user);
 
             return new InstitutionAuthenticationToken(
-                    "", // Empty institution code for SUPER_ADMIN/INSTITUTION_ADMIN
+                    "", // Empty institution code for SUPER_ADMIN
                     null, // No institution ID
                     principal,
                     password,
                     principal.getAuthorities());
         }
 
-        // For regular users, require institution code
         if (isEmptyInstitutionCode) {
-            log.warn("Login failed: Institution code required for user: {}", username);
+            log.warn("Login failed: institution code required");
             throw new BadCredentialsException("Institution code is required");
         }
 
@@ -107,41 +124,40 @@ public class InstitutionAuthenticationProvider implements AuthenticationProvider
         if (institutionOpt.isPresent()) {
             Institution institution = institutionOpt.get();
             if (!institution.isActive()) {
-                log.warn("Login failed: Institution not active: {}", institutionCode);
+            log.warn("Login failed: institution not active");
                 throw new BadCredentialsException("Institution is not active");
             }
             institutionId = institution.getId();
-            log.debug("Institution found: {} (ID: {})", institutionCode, institutionId);
+            log.debug("Institution resolved (ID present: {})", institutionId != null);
         } else {
-            log.warn("Institution not found: {}", institutionCode);
+            log.warn("Institution not found");
             throw new BadCredentialsException("Institution not found");
         }
         
         // Check if user belongs to this institution
         // SUPER_ADMIN can access any institution
-        if (user.getInstitution() != null && !institutionId.equals(user.getInstitution().getId())) {
+        if (institutionId != null && user.getInstitution() != null && !institutionId.equals(user.getInstitution().getId())) {
             // Allow SUPER_ADMIN to login with any institution
             if (user.getRoles() != null && user.getRoles().contains(AppRoles.SUPER_ADMIN)) {
                 log.debug("User {} has SUPER_ADMIN role, allowing login with institution {}", username, institutionCode);
             } else {
-                log.warn("Login failed: User {} belongs to institution {} but login attempted with institution {}",
-                        username, user.getInstitution().getInstitutionCode(), institutionCode);
+                log.warn("Login failed: user does not belong to institution");
                 throw new BadCredentialsException("User does not belong to this institution");
             }
         }
 
         // Validate password
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            log.warn("Login failed: Invalid password for user: {}", username);
+            log.warn("Login failed: invalid password");
             throw new BadCredentialsException("Invalid username or password");
         }
 
         if (!user.isEnabled()) {
-            log.warn("Login failed: User not enabled: {}", username);
+            log.warn("Login failed: user not enabled");
             throw new BadCredentialsException("User is not enabled");
         }
 
-        log.info("Authentication successful for user: {} (institution: {})", username, institutionCode);
+        log.info("Authentication successful for user (institution set)");
 
         UserAccountUserDetailsAdapter principal = new UserAccountUserDetailsAdapter(user);
 

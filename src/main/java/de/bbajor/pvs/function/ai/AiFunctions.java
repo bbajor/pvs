@@ -6,6 +6,7 @@ import de.bbajor.pvs.ai.service.VoiceTranscriptionService;
 import de.bbajor.pvs.common.function.FunctionRequest;
 import de.bbajor.pvs.common.function.FunctionResponse;
 import de.bbajor.pvs.function.core.FunctionWrapper;
+import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.patient.model.Patient;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -24,10 +25,11 @@ public class AiFunctions {
     
     private final VoiceTranscriptionService transcriptionService;
     private final ExtractionOrchestrator extractionOrchestrator;
+    private final CurrentInstitutionService currentInstitutionService;
     
     @Bean
     public Function<TranscribeVoiceRequest, TranscribeVoiceResponse> transcribeVoice() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 VoiceTranscriptionService.TranscriptionResult result = 
                         transcriptionService.transcribe(request.getAudioData(), request.getContentType());
@@ -43,7 +45,7 @@ public class AiFunctions {
     
     @Bean
     public Function<ExtractPatientDataRequest, ExtractPatientDataResponse> extractPatientData() {
-        return FunctionWrapper.wrap(
+        return FunctionWrapper.wrap(currentInstitutionService,
             request -> {
                 ExtractionResult<Patient> result = extractionOrchestrator.extract(
                         request.getText(), Patient.class);

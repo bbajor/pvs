@@ -8,19 +8,9 @@ logging:
     # Functions are not exported via HTTP (web.export.enabled=false)
     org.springframework.cloud.function.context.config.BeanFactoryAwareFunctionRegistry: ERROR
 
-vaadin:
-  launch-browser: true
-  # Note: com.flowingcode is required for YearMonthCalendarAddon (https://github.com/FlowingCode/YearMonthCalendarAddon)
-  allowed-packages: "com.vaadin,org.vaadin,com.flowingcode,de.bbajor.pvs"
-  # Production Mode für Docker-Container (überschreibbar via Environment-Variable)
-  production-mode: ${VAADIN_PRODUCTION_MODE:false}
-  # Erlaube Production Mode mit Dev-Profil für Docker-Umgebung (überschreibbar via Environment-Variable)
-  allow-production-mode-in-dev: ${VAADIN_ALLOW_PRODUCTION_MODE_IN_DEV:false}
-  frontend:
-    # Erzwinge npm install bei jedem Start im Dev-Mode
-    force-install: ${VAADIN_FRONTEND_FORCE_INSTALL:true}
-    # Nutze npm statt pnpm (vermeidet zusätzliche Downloads)
-    package-manager: ${VAADIN_FRONTEND_PACKAGE_MANAGER:npm}
+# UI selection: "vaadin" enables legacy Vaadin security/config; default is API-only.
+pvs:
+  ui: ${PVS_UI:api}
 
 spring:
   cloud:
@@ -52,6 +42,22 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:}
+
+app:
+  single-practice:
+    enabled: ${SINGLE_PRACTICE_ENABLED:true}
+    auto-provision-institution: ${SINGLE_PRACTICE_AUTO_PROVISION:true}
+    default-institution-code: ${SINGLE_PRACTICE_DEFAULT_CODE:PRAX-001}
+    default-institution-name: ${SINGLE_PRACTICE_DEFAULT_NAME:Praxis}
+    default-institution-description: ${SINGLE_PRACTICE_DEFAULT_DESCRIPTION:Single-practice default institution}
+  security:
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+    roles-claim: ${OIDC_ROLES_CLAIM:roles}
 
 egk:
   tool-path: "C:/Program Files/OpenSC Project/OpenSC/tools/egk-tool.exe"

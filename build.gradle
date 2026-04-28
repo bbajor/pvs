@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.7'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.vaadin' version '24.8.3'
     id 'org.cyclonedx.bom' version '1.8.2'
 }
 
@@ -19,7 +18,6 @@ java {
 }
 
 ext {
-    vaadinVersion = '24.8.3'
     archunitVersion = '1.4.1'
     mapstructVersion = '1.5.5.Final'
     instancioVersion = '5.5.1'
@@ -29,13 +27,11 @@ ext {
 
 repositories {
     mavenCentral()
-    maven { url 'https://maven.vaadin.com/vaadin-addons' }
     maven { url 'https://repo1.maven.org/maven2' }
 }
 
 dependencyManagement {
     imports {
-        mavenBom "com.vaadin:vaadin-bom:${vaadinVersion}"
         mavenBom "io.github.resilience4j:resilience4j-bom:2.2.0"
         mavenBom "org.springframework.cloud:spring-cloud-function-dependencies:${springCloudFunctionVersion}"
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
@@ -43,14 +39,8 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation 'com.vaadin:vaadin'
-    implementation 'com.vaadin:vaadin-spring-boot-starter'
-    implementation 'com.vaadin:control-center-starter'
-    
-    // YearMonthCalendarAddon for Vaadin Flow
-    implementation 'org.vaadin.addons.flowingcode:year-month-calendar:4.5.2'
-
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework:spring-context'
     runtimeOnly 'org.postgresql:postgresql'
@@ -67,7 +57,14 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // OpenAPI for the new REST API surface
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+    // Nullness annotations used across the codebase (previously transitively present)
+    compileOnly 'org.jspecify:jspecify:1.0.0'
     
     // Resilience4j for circuit breaker and retry
     implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.2.0'
@@ -184,6 +181,11 @@ tasks.withType(Jar).configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+// Resource processing: avoid failures on duplicate generated resources (e.g., SBOM)
+tasks.withType(ProcessResources).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 // BootJar optimieren (für Spring Boot)
 tasks.named('bootJar') {
     enabled = true
@@ -211,29 +213,6 @@ configurations.all {
         preferProjectModules()
     }
 }
-
-vaadin {
-    // default configuration; prepare/build frontend tasks available
-    // Ensure the plugin uses the correct classpath for annotation scanning
-    // The plugin needs access to runtime dependencies to scan Spring annotations
-}
-
-// Sicherstellen, dass vaadinPrepareFrontend nach der Kompilierung läuft
-// damit alle Klassen und Annotationen verfügbar sind
-// 
-// IMPORTANT: The Vaadin plugin needs runtime dependencies in the classpath to scan
-// annotations that reference Spring classes (e.g., @Theme annotation).
-// The Vaadin plugin uses its own classloader, so we need to ensure dependencies are resolved.
-// 
-// NOTE: Only depend on compileJava, NOT classes, to avoid circular dependency
-// (processResources depends on vaadinPrepareFrontend, which would create a cycle)
-// 
-// Solution:
-// 1. Depend on compileJava (not classes) to avoid circular dependency
-// 2. Disable configuration cache for this task to allow doFirst usage
-// 3. Resolve runtimeClasspath in doFirst to ensure dependencies are available
-// Configure bootRun to skip vaadinPrepareFrontend if it fails
-// This allows the application to start even if frontend preparation fails
 tasks.named('bootRun') {
     // Vaadin will prepare frontend on first run if needed
     // This allows bootRun to work even if vaadinPrepareFrontend has issues
@@ -264,36 +243,6 @@ tasks.named('bootRun') {
             }
         }
     }
-}
-
-tasks.named('vaadinPrepareFrontend') {
-    // compileJava only, not classes, to avoid circular dependency with processResources
-    dependsOn compileJava
-    
-    // Disable configuration cache for this task to allow doFirst usage
-    // This is necessary because we need to resolve dependencies at runtime
-    notCompatibleWithConfigurationCache("Vaadin plugin needs runtime dependencies resolved at execution time")
-    
-    // Ensure frontend is prepared before bootRun (removed onlyIf condition that was skipping it)
-    // Vaadin requires frontend preparation before the application starts
-    
-    // Ensure runtime dependencies are available for annotation scanning
-    // This is needed because Vaadin needs to read annotations that reference Spring classes
-    doFirst {
-        // Ensure all dependencies are resolved before Vaadin tries to scan annotations
-        // This ensures Spring Context classes are available when Vaadin scans @Theme annotation
-        // Both compileClasspath and runtimeClasspath are needed because Vaadin uses both
-        configurations.compileClasspath.resolve()
-        configurations.runtimeClasspath.resolve()
-        // Also ensure annotation processor path is available
-        configurations.annotationProcessor.resolve()
-    }
-    
-    // Explicitly define inputs to ensure dependencies are resolved
-    // This ensures Gradle resolves the dependencies before the task runs
-    inputs.files(configurations.compileClasspath, configurations.runtimeClasspath)
-        .withPropertyName("classpath")
-        .optional()
 }
 
 // ============================================

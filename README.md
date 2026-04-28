@@ -160,6 +160,16 @@ Get-Command docker-compose.exe -ErrorAction SilentlyContinue
 7. **Deployment testen:**
    - GitHub → Actions → "Build and Push Docker Images (Hetzner)" → Run workflow → Stage: dev
 
+## Firebase + Cloud Run
+
+For managed frontend hosting on Firebase (and backend on Cloud Run), see:
+
+- `docs/FIREBASE_DEPLOYMENT.md`
+- `docs/CLOUD_RUN_IAP_ARCHITECTURE.md`
+- `docs/IAM_ROLLENMATRIX_GCP.md`
+- `docs/BACKUP_RESTORE_RUNBOOK.md`
+- `docs/GO_LIVE_CHECKLIST_HEALTHCARE.md`
+
 ## 🔒 Security
 
 ### SSH Key Setup

@@ -5,6 +5,7 @@
   "java.debug.settings.onBuildFailureProceed": true,
   "java.import.gradle.enabled": true,
   "java.import.gradle.wrapper.enabled": true,
+  "java.import.gradle.arguments": "--no-configuration-cache",
   "java.import.gradle.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8.9-hotspot",
   "java.import.gradle.version": "",
   "java.configuration.maven.userSettings": null,
