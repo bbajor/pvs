@@ -40,6 +40,35 @@ spring:
     locations: classpath:db/migration
     fail-on-missing-locations: true
     repair-on-migrate: false
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  session:
+    store-type: redis
+    redis:
+      namespace: spring:session:pvs
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
 
 # Actuator für Monitoring
 management:
@@ -80,23 +109,6 @@ logging:
     org.flywaydb: WARN
     org.springframework.web: WARN
     org.springframework.security: WARN
-
-# SMTP-Konfiguration (aus ENV-Variablen)
-spring:
-  mail:
-    host: ${SMTP_HOST:}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
 
 # MFA-Konfiguration
 app:
@@ -184,24 +196,6 @@ resilience4j:
       whisper-api:
         baseConfig: default
         waitDurationInOpenState: 60s
-
-# Redis Session Storage
-spring:
-  session:
-    store-type: redis
-    redis:
-      namespace: spring:session:pvs
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      timeout: ${REDIS_TIMEOUT:2000ms}
-      lettuce:
-        pool:
-          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
-          max-idle: ${REDIS_POOL_MAX_IDLE:8}
-          min-idle: ${REDIS_POOL_MIN_IDLE:0}
 
 # Security: HTTPS erzwingen (wird über Load Balancer/Reverse Proxy gehandhabt)
 # Security-Headers werden über Spring Security konfiguriert
