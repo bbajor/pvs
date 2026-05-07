@@ -2,10 +2,12 @@ package de.bbajor.pvs.intravitreal.treatment.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import de.bbajor.pvs.intravitreal.treatment.model.Treatment;
 
@@ -93,5 +95,24 @@ public interface TreatmentRepository
                         where t.id = :id
                         """)
         java.util.Optional<Treatment> findByIdWithAllRelationships(Long id);
+
+        @Query("""
+                        select distinct t from Treatment t
+                        inner join fetch t.treatmentPlan tp
+                        inner join fetch tp.patient p
+                        left join fetch p.location loc
+                        left join fetch t.medicationFavourite mf
+                        left join fetch mf.medication
+                        left join fetch t.surgicalCenterTimeSlot ts
+                        left join fetch ts.surgicalCenter sc
+                        left join fetch t.treatingDoctors td
+                        left join fetch td.institution
+                        where t.id = :id
+                        and loc is not null
+                        and loc.institution.id = :institutionId
+                        """)
+        Optional<Treatment> findByIdAndInstitutionIdWithAllRelationships(
+                        @Param("id") Long id,
+                        @Param("institutionId") Long institutionId);
 
 }

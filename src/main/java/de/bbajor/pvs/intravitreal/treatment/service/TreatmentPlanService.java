@@ -75,32 +75,10 @@ public class TreatmentPlanService {
 
     @Transactional(readOnly = true)
     public TreatmentPlan findByIdWithDetails(Long id) {
-        // Fetch the treatment plan with patient and diagnosis in a single query
-        // Get current institution ID for secure access
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
-
-        TreatmentPlan treatmentPlan = null;
-        if (institutionId != null) {
-            treatmentPlan = treatmentPlanRepository.findTreatmentPlanByIdAndInstitutionWithPatientDiagnosis(id, institutionId)
-                    .orElse(null);
-
-            // If not found via institution-aware query, check if it exists at all (for better error message)
-            if (treatmentPlan == null) {
-                Optional<TreatmentPlan> existsCheck = treatmentPlanRepository.findById(id);
-                if (existsCheck.isPresent()) {
-                    // TreatmentPlan exists but doesn't belong to current institution
-                    throw new NoSuchElementException(
-                            String.format("TreatmentPlan with id %d exists but does not belong to current institution (institutionId: %d)",
-                                    id, institutionId));
-                }
-            }
-        }
-
-        // Fallback: if no institution context or not found via institution-aware query, try direct lookup
-        if (treatmentPlan == null) {
-            treatmentPlan = treatmentPlanRepository.findById(id)
-                    .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
-        }
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
+        TreatmentPlan treatmentPlan = treatmentPlanRepository
+                .findTreatmentPlanByIdAndInstitutionWithPatientDiagnosis(id, institutionId)
+                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
 
         // Fetch treatments separately to avoid lazy loading issues
         List<Treatment> treatments = treatmentRepository
@@ -244,8 +222,7 @@ public class TreatmentPlanService {
         TreatmentPlan current;
         if (update.getId() != null) {
             // Load the current treatment plan with all its treatments
-            current = treatmentPlanRepository.findById(update.getId())
-                    .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found: " + update.getId()));
+            current = findExistingTreatmentPlanForWrite(update.getId());
 
             // WICHTIG: Existierende Treatments NICHT trennen, da sie bereits in der DB sind
             // (z.B. über NextTreatmentBookingDialog gebucht). Sie bleiben erhalten.
@@ -367,8 +344,7 @@ public class TreatmentPlanService {
             Long treatmentPlanId) {
 
         // Get the treatment plan by ID, ensuring it exists
-        TreatmentPlan treatmentPlan = treatmentPlanRepository.findById(treatmentPlanId)
-                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + treatmentPlanId));
+        TreatmentPlan treatmentPlan = findExistingTreatmentPlanForWrite(treatmentPlanId);
 
         treatmentsToCreate.forEach(e -> e.setTreatmentPlan(treatmentPlan));
 
@@ -407,13 +383,9 @@ public class TreatmentPlanService {
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'TECH_USER', 'MEDICAL_STAFF', 'OWNER')")
     public void deleteTreatment(Long treatmentId) {
-        // Stelle sicher, dass InstitutionContext gesetzt ist
-        ensureInstitutionContextForTreatment(treatmentId);
-        
         // Lade Treatment mit allen Beziehungen in einem Query, um sicherzustellen,
         // dass alles im Persistence-Kontext ist
-        Treatment existing = treatmentRepository.findByIdWithAllRelationships(treatmentId)
-                .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
+        Treatment existing = findExistingTreatmentForWrite(treatmentId);
         
         // Validierung: Nur löschen, wenn Termin mindestens 2 Tage in der Zukunft liegt
         LocalDate treatmentDate = existing.getDate();
@@ -475,11 +447,7 @@ public class TreatmentPlanService {
             throw new IllegalArgumentException("Absagegrund darf nicht leer sein");
         }
         
-        // Stelle sicher, dass InstitutionContext gesetzt ist
-        ensureInstitutionContextForTreatment(treatmentId);
-        
-        Treatment existing = treatmentRepository.findById(treatmentId)
-                .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
+        Treatment existing = findExistingTreatmentForWrite(treatmentId);
         
         // Validierung: Nur absagen, wenn Termin in der Zukunft liegt
         LocalDate treatmentDate = existing.getDate();
@@ -559,23 +527,6 @@ public class TreatmentPlanService {
     }
 
     /**
-     * Ensures InstitutionContext is set before accessing treatment data.
-     * Tries to get institution from Treatment if available.
-     */
-    private void ensureInstitutionContextForTreatment(Long treatmentId) {
-        if (InstitutionContext.hasInstitution()) {
-            return;
-        }
-        
-        Treatment treatment = treatmentRepository.findById(treatmentId).orElse(null);
-        if (treatment != null && treatment.getTreatmentPlan() != null 
-                && treatment.getTreatmentPlan().getInstitution() != null
-                && treatment.getTreatmentPlan().getInstitution().getId() != null) {
-            InstitutionContext.setInstitutionId(treatment.getTreatmentPlan().getInstitution().getId());
-        }
-    }
-    
-    /**
      * Ensures InstitutionContext is set before accessing patient data.
      * Tries to get institution from TreatmentPlan if available.
      * Note: Does not access patient data to avoid circular dependency.
@@ -608,6 +559,23 @@ public class TreatmentPlanService {
         
         // If we still don't have a context, it will be set later when patient is loaded
         // and the error will be thrown with a clear message
+    }
+
+    private TreatmentPlan findExistingTreatmentPlanForWrite(Long treatmentPlanId) {
+        Long institutionId = InstitutionContext.getInstitutionId();
+        if (institutionId != null) {
+            return treatmentPlanRepository.findByIdAndInstitutionId(treatmentPlanId, institutionId)
+                    .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found: " + treatmentPlanId));
+        }
+
+        return treatmentPlanRepository.findById(treatmentPlanId)
+                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found: " + treatmentPlanId));
+    }
+
+    private Treatment findExistingTreatmentForWrite(Long treatmentId) {
+        Long institutionId = InstitutionContext.getRequiredInstitutionId();
+        return treatmentRepository.findByIdAndInstitutionIdWithAllRelationships(treatmentId, institutionId)
+                .orElseThrow(() -> new NoSuchElementException("Treatment not found: " + treatmentId));
     }
 
     public List<MedicationFavourite> getFavouriteMedications() {

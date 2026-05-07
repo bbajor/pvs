@@ -228,13 +228,20 @@ services:
     image: redis:7-alpine
     container_name: pvs-redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
+        exec redis-server --requirepass "$$REDIS_PASSWORD";
+      else
+        exec redis-server;
+      fi'
     volumes:
       - redis-data:/data
     networks:
       - pvs-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -277,7 +284,7 @@ networks:
   pvs-network:
     driver: bridge
 
-  volumes:
+volumes:
   postgres-data-dev:
     driver: local
   postgres-data-test:
