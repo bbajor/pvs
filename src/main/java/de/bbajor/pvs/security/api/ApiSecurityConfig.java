@@ -46,8 +46,8 @@ public class ApiSecurityConfig {
                         .requestMatchers("/actuator/**").authenticated()
                         // OpenAPI docs (optional)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        // Existing public AI endpoints (currently used without auth)
-                        .requestMatchers("/api/ai/**").permitAll()
+                        // AI endpoints process clinical input and must stay behind the tenant gate.
+                        .requestMatchers("/api/ai/**").access(institutionRequired)
                         // New API surface
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/me").authenticated()
