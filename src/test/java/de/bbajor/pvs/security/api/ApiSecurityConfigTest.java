@@ -18,6 +18,11 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cloud.gateway.config.GatewayAutoConfiguration;
+import org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration;
+import org.springframework.cloud.gateway.config.GatewayMetricsAutoConfiguration;
+import org.springframework.cloud.gateway.config.GatewayNoLoadBalancerClientAutoConfiguration;
+import org.springframework.cloud.gateway.config.GatewayReactiveLoadBalancerClientAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -76,7 +81,12 @@ class ApiSecurityConfigTest {
     @EnableAutoConfiguration(exclude = {
             DataSourceAutoConfiguration.class,
             HibernateJpaAutoConfiguration.class,
-            FlywayAutoConfiguration.class
+            FlywayAutoConfiguration.class,
+            GatewayAutoConfiguration.class,
+            GatewayClassPathWarningAutoConfiguration.class,
+            GatewayMetricsAutoConfiguration.class,
+            GatewayReactiveLoadBalancerClientAutoConfiguration.class,
+            GatewayNoLoadBalancerClientAutoConfiguration.class
     })
     @EnableWebSecurity
     static class TestApplication {
