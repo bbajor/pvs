@@ -10,12 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -26,13 +29,15 @@ import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.patient.model.Patient;
 
-@WebMvcTest
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+        classes = {
+                ApiSecurityConfigTest.TestApplication.class,
+                ExtractionController.class,
+                ApiSecurityConfig.class,
+                ApiSecurityConfigTest.SecurityTestConfig.class
+        })
 @AutoConfigureMockMvc(addFilters = true)
-@Import({
-        ExtractionController.class,
-        ApiSecurityConfig.class,
-        ApiSecurityConfigTest.SecurityTestConfig.class
-})
 class ApiSecurityConfigTest {
 
     @Autowired
@@ -68,6 +73,11 @@ class ApiSecurityConfigTest {
     }
 
     @SpringBootConfiguration
+    @EnableAutoConfiguration(exclude = {
+            DataSourceAutoConfiguration.class,
+            HibernateJpaAutoConfiguration.class,
+            FlywayAutoConfiguration.class
+    })
     @EnableWebSecurity
     static class TestApplication {
     }
