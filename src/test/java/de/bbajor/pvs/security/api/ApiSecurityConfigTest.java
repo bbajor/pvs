@@ -14,9 +14,9 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
 import de.bbajor.pvs.ai.controller.ExtractionController;
@@ -24,8 +24,13 @@ import de.bbajor.pvs.ai.extraction.ExtractionOrchestrator;
 import de.bbajor.pvs.institution.service.CurrentInstitutionService;
 import de.bbajor.pvs.patient.model.Patient;
 
-@WebMvcTest(controllers = ExtractionController.class)
-@Import({ ApiSecurityConfig.class, ApiSecurityConfigTest.SecurityTestConfig.class })
+@WebMvcTest
+@ContextConfiguration(classes = {
+        ApiSecurityConfigTest.TestApplication.class,
+        ExtractionController.class,
+        ApiSecurityConfig.class,
+        ApiSecurityConfigTest.SecurityTestConfig.class
+})
 class ApiSecurityConfigTest {
 
     @Autowired
