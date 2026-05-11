@@ -5,6 +5,8 @@ import java.util.function.Supplier;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.AuthenticationTrustResolver;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
 import de.bbajor.pvs.institution.service.CurrentInstitutionService;
@@ -12,6 +14,8 @@ import de.bbajor.pvs.security.AppRoles;
 
 public final class InstitutionRequiredAuthorizationManager
         implements AuthorizationManager<RequestAuthorizationContext> {
+
+    private static final AuthenticationTrustResolver TRUST_RESOLVER = new AuthenticationTrustResolverImpl();
 
     private final CurrentInstitutionService currentInstitutionService;
 
@@ -22,7 +26,7 @@ public final class InstitutionRequiredAuthorizationManager
     @Override
     public AuthorizationDecision check(Supplier<Authentication> authentication, RequestAuthorizationContext context) {
         Authentication auth = authentication.get();
-        if (auth == null || !auth.isAuthenticated()) {
+        if (auth == null || !auth.isAuthenticated() || TRUST_RESOLVER.isAnonymous(auth)) {
             return new AuthorizationDecision(false);
         }
 

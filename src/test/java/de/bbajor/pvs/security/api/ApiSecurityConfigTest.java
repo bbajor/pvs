@@ -1,6 +1,7 @@
 package de.bbajor.pvs.security.api;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -8,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -54,8 +56,15 @@ class ApiSecurityConfigTest {
     @Autowired
     private CurrentInstitutionService currentInstitutionService;
 
+    @BeforeEach
+    void resetMocks() {
+        reset(extractionOrchestrator, currentInstitutionService);
+    }
+
     @Test
     void aiEndpointsRejectUnauthenticatedRequests() throws Exception {
+        when(currentInstitutionService.hasInstitution()).thenReturn(true);
+
         mockMvc.perform(post("/api/ai/extraction/patient")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"patient notes\"}"))
