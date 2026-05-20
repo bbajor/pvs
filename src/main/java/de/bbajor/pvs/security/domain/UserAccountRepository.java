@@ -24,6 +24,18 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
+    @Query("""
+            SELECT ua FROM UserAccount ua
+            WHERE ua.userId = :userId
+            ORDER BY CASE WHEN ua.institution IS NULL THEN 1 ELSE 0 END, ua.id
+            """)
+    List<UserAccount> findAllByUserIdOrderByInstitutionFirst(@Param("userId") String userId);
+
+    default Optional<UserAccount> findByUserId(String userId) {
+        List<UserAccount> list = findAllByUserIdOrderByInstitutionFirst(userId);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
     Optional<UserAccount> findByEmail(String email);
 
     /**

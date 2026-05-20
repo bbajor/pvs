@@ -65,20 +65,33 @@ public class CurrentInstitutionService {
             }
             return Optional.empty();
         }
+        if (authentication != null && authentication.getPrincipal() instanceof AppUserPrincipal appUserPrincipal) {
+            Optional<Long> institutionId = resolveInstitutionFromUserAccount(appUserPrincipal);
+            if (institutionId.isPresent()) {
+                return institutionId;
+            }
+            if (authentication.getPrincipal() instanceof InstitutionAwarePrincipal institutionAware) {
+                return institutionAware.getInstitutionId();
+            }
+            return Optional.empty();
+        }
         if (authentication != null && authentication.getPrincipal() instanceof InstitutionAwarePrincipal institutionAware) {
             return institutionAware.getInstitutionId();
         }
-        if (authentication != null && authentication.getPrincipal() instanceof AppUserPrincipal appUserPrincipal) {
-            String username = appUserPrincipal.getAppUser().getPreferredUsername();
-            try {
-                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
-                if (userAccount != null && userAccount.getInstitution() != null) {
-                    return Optional.of(userAccount.getInstitution().getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not resolve institution from AppUserPrincipal");
+        return Optional.empty();
+    }
+
+    private Optional<Long> resolveInstitutionFromUserAccount(AppUserPrincipal appUserPrincipal) {
+        String userId = appUserPrincipal.getAppUser().getUserId().toString();
+        try {
+            UserAccount userAccount = userAccountRepository.findByUserId(userId)
+                    .or(() -> userAccountRepository.findByUsernameOrEmail(appUserPrincipal.getAppUser().getPreferredUsername()))
+                    .orElse(null);
+            if (userAccount != null && userAccount.getInstitution() != null) {
+                return Optional.of(userAccount.getInstitution().getId());
             }
-            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("Could not resolve institution from AppUserPrincipal");
         }
         return Optional.empty();
     }
