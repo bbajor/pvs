@@ -70,6 +70,10 @@ tsconfig.json
 package-lock.json
 package.json
 vite.config.ts
+!frontend/tsconfig.json
+!frontend/package-lock.json
+!frontend/package.json
+!frontend/vite.config.ts
 
 ### IDE generated files ###
 .copilot-plugin

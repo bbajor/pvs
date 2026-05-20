@@ -1,20 +1,25 @@
 package de.bbajor.pvs.security.api;
 
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.SecurityFilterChain;
@@ -23,6 +28,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import de.bbajor.pvs.institution.service.CurrentInstitutionService;
+import de.bbajor.pvs.security.AppRoles;
+import de.bbajor.pvs.security.domain.UserAccount;
+import de.bbajor.pvs.security.domain.UserAccountRepository;
 import de.bbajor.pvs.security.domain.UserId;
 
 @Configuration
@@ -34,7 +42,8 @@ public class ApiSecurityConfig {
     SecurityFilterChain apiSecurityFilterChain(
             HttpSecurity http,
             ApiSecurityProperties props,
-            CurrentInstitutionService currentInstitutionService) throws Exception {
+            CurrentInstitutionService currentInstitutionService,
+            UserAccountRepository userAccountRepository) throws Exception {
         var institutionRequired = new InstitutionRequiredAuthorizationManager(currentInstitutionService);
         return http
                 .cors(Customizer.withDefaults())
@@ -54,7 +63,8 @@ public class ApiSecurityConfig {
                         .requestMatchers("/api/v1/**").access(institutionRequired)
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter(props))))
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(
+                        jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter(userAccountRepository))))
                 .build();
     }
 
@@ -72,11 +82,20 @@ public class ApiSecurityConfig {
         return source;
     }
 
-    private org.springframework.core.convert.converter.Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter(
-            ApiSecurityProperties props) {
+    Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter(
+            UserAccountRepository userAccountRepository) {
         return jwt -> {
-            var authorities = extractAuthorities(jwt, props.rolesClaim());
-            var principal = new JwtAppUserPrincipal(toAppUser(jwt), authorities);
+            JwtAppUserInfo tokenUser = toAppUser(jwt);
+            Optional<UserAccount> userAccount = findUserAccount(tokenUser, userAccountRepository);
+            userAccount.filter(account -> !account.isEnabled())
+                    .ifPresent(account -> {
+                        throw new DisabledException("User is disabled");
+                    });
+
+            var authorities = userAccount
+                    .<Collection<? extends GrantedAuthority>>map(account -> authoritiesFromRoles(account.getRoles()))
+                    .orElseGet(List::of);
+            var principal = new JwtAppUserPrincipal(toAppUser(tokenUser, userAccount.orElse(null)), authorities);
             return new JwtAppAuthenticationToken(jwt, principal, authorities);
         };
     }
@@ -93,6 +112,53 @@ public class ApiSecurityConfig {
             locale = Locale.forLanguageTag(localeClaim);
         }
         return new JwtAppUserInfo(UserId.of(subject), preferredUsername, fullName, email, locale, institutionId);
+    }
+
+    private static JwtAppUserInfo toAppUser(JwtAppUserInfo tokenUser, UserAccount userAccount) {
+        if (userAccount == null) {
+            return new JwtAppUserInfo(
+                    tokenUser.userId(),
+                    tokenUser.preferredUsername(),
+                    tokenUser.fullName(),
+                    tokenUser.email(),
+                    tokenUser.locale(),
+                    null);
+        }
+
+        String userId = userAccount.getUserId();
+        if (userId == null || userId.isBlank()) {
+            userId = userAccount.getUsername();
+        }
+        String fullName = userAccount.getFullName();
+        if (fullName == null || fullName.isBlank()) {
+            fullName = userAccount.getUsername();
+        }
+        Long institutionId = userAccount.getInstitution() == null ? null : userAccount.getInstitution().getId();
+
+        return new JwtAppUserInfo(
+                UserId.of(userId),
+                userAccount.getUsername(),
+                fullName,
+                userAccount.getEmail(),
+                tokenUser.locale(),
+                institutionId);
+    }
+
+    private static Optional<UserAccount> findUserAccount(
+            JwtAppUserInfo tokenUser,
+            UserAccountRepository userAccountRepository) {
+        Optional<UserAccount> byUserId = userAccountRepository.findByUserId(tokenUser.userId().toString());
+        if (byUserId.isPresent()) {
+            return byUserId;
+        }
+
+        return Stream.of(tokenUser.preferredUsername(), tokenUser.email())
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .map(userAccountRepository::findByUsernameOrEmail)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .findFirst();
     }
 
     private static String firstNonBlank(Jwt jwt, String... claimNames) {
@@ -122,18 +188,16 @@ public class ApiSecurityConfig {
         return null;
     }
 
-    private Collection<? extends GrantedAuthority> extractAuthorities(Jwt jwt, String rolesClaim) {
-        Object raw = jwt.getClaims().get(rolesClaim);
-        Stream<String> roles = switch (raw) {
-            case null -> Stream.empty();
-            case String s -> Stream.of(s);
-            case Collection<?> c -> c.stream().filter(String.class::isInstance).map(String.class::cast);
-            default -> Stream.empty();
-        };
-        return roles
+    private static Collection<? extends GrantedAuthority> authoritiesFromRoles(Set<String> roles) {
+        Set<String> normalizedRoles = new LinkedHashSet<>(roles == null ? Set.of() : roles);
+        if (normalizedRoles.contains("INSTITUTION_ADMIN")) {
+            normalizedRoles.add(AppRoles.ADMIN);
+        }
+
+        return normalizedRoles.stream()
                 .map(String::trim)
-                .filter(r -> !r.isEmpty())
-                .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
+                .filter(role -> !role.isEmpty())
+                .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
                 .distinct()
                 .map(SimpleGrantedAuthority::new)
                 .toList();
