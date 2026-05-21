@@ -53,7 +53,8 @@ class TreatmentPlanServiceTest {
 
     @Test
     void findByIdWithDetails_withoutInstitutionContextDoesNotUseUnscopedLookup() {
-        when(currentInstitutionService.getCurrentInstitutionId()).thenReturn(Optional.empty());
+        when(currentInstitutionService.getRequiredInstitutionId())
+                .thenThrow(new IllegalStateException("No institution in current security context"));
 
         assertThatThrownBy(() -> treatmentPlanService.findByIdWithDetails(123L))
                 .isInstanceOf(IllegalStateException.class)
@@ -64,7 +65,7 @@ class TreatmentPlanServiceTest {
 
     @Test
     void findByIdWithDetails_whenScopedQueryMissesDoesNotFallbackToFindById() {
-        when(currentInstitutionService.getCurrentInstitutionId()).thenReturn(Optional.of(7L));
+        when(currentInstitutionService.getRequiredInstitutionId()).thenReturn(7L);
         when(treatmentPlanRepository.findTreatmentPlanByIdAndInstitutionWithPatientDiagnosis(123L, 7L))
                 .thenReturn(Optional.empty());
 
