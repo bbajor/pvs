@@ -55,32 +55,29 @@ public class CurrentInstitutionService {
             return Optional.empty();
         }
         if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
-            try {
-                UserAccount userAccount = userAccountRepository.findByUsername(adapter.getUsername()).orElse(null);
-                if (userAccount != null && userAccount.getInstitution() != null) {
-                    return Optional.of(userAccount.getInstitution().getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not resolve institution from UserAccount: {}", e.getMessage());
-            }
-            return Optional.empty();
+            return resolveInstitutionIdForUsername(adapter.getUsername(), "UserAccount");
+        }
+        if (authentication != null && authentication.getPrincipal() instanceof AppUserPrincipal appUserPrincipal) {
+            return resolveInstitutionIdForUsername(appUserPrincipal.getAppUser().getPreferredUsername(), "AppUserPrincipal");
         }
         if (authentication != null && authentication.getPrincipal() instanceof InstitutionAwarePrincipal institutionAware) {
             return institutionAware.getInstitutionId();
         }
-        if (authentication != null && authentication.getPrincipal() instanceof AppUserPrincipal appUserPrincipal) {
-            String username = appUserPrincipal.getAppUser().getPreferredUsername();
-            try {
-                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
-                if (userAccount != null && userAccount.getInstitution() != null) {
-                    return Optional.of(userAccount.getInstitution().getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not resolve institution from AppUserPrincipal");
+        return Optional.empty();
+    }
+
+    private Optional<Long> resolveInstitutionIdForUsername(String username, String source) {
+        try {
+            UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
+            if (userAccount == null || !userAccount.isEnabled() || userAccount.getInstitution() == null) {
+                return Optional.empty();
             }
+            return Optional.of(userAccount.getInstitution().getId());
+        } catch (Exception e) {
+            log.warn("Could not resolve institution from {}", source);
+            log.debug("Institution resolution failure", e);
             return Optional.empty();
         }
-        return Optional.empty();
     }
 
     public Long getRequiredInstitutionId() {
