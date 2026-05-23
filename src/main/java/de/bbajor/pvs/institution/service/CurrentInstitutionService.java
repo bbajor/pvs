@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import de.bbajor.pvs.institution.security.InstitutionAuthenticationToken;
+import de.bbajor.pvs.security.AppUserInfo;
 import de.bbajor.pvs.security.AppUserPrincipal;
 import de.bbajor.pvs.security.InstitutionAwarePrincipal;
 import de.bbajor.pvs.security.domain.UserAccount;
@@ -54,33 +55,47 @@ public class CurrentInstitutionService {
             log.debug("InstitutionAuthenticationToken has no institutionId");
             return Optional.empty();
         }
-        if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
-            try {
-                UserAccount userAccount = userAccountRepository.findByUsername(adapter.getUsername()).orElse(null);
-                if (userAccount != null && userAccount.getInstitution() != null) {
-                    return Optional.of(userAccount.getInstitution().getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not resolve institution from UserAccount: {}", e.getMessage());
+        if (authentication != null) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof UserAccountUserDetailsAdapter adapter) {
+                return resolveUserAccountInstitution(adapter.getUsername());
             }
-            return Optional.empty();
-        }
-        if (authentication != null && authentication.getPrincipal() instanceof InstitutionAwarePrincipal institutionAware) {
-            return institutionAware.getInstitutionId();
-        }
-        if (authentication != null && authentication.getPrincipal() instanceof AppUserPrincipal appUserPrincipal) {
-            String username = appUserPrincipal.getAppUser().getPreferredUsername();
-            try {
-                UserAccount userAccount = userAccountRepository.findByUsername(username).orElse(null);
-                if (userAccount != null && userAccount.getInstitution() != null) {
-                    return Optional.of(userAccount.getInstitution().getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not resolve institution from AppUserPrincipal");
+            if (principal instanceof AppUserPrincipal appUserPrincipal) {
+                return resolveUserAccountInstitution(appUserPrincipal.getAppUser());
             }
-            return Optional.empty();
+            if (principal instanceof InstitutionAwarePrincipal institutionAware) {
+                return institutionAware.getInstitutionId();
+            }
         }
         return Optional.empty();
+    }
+
+    private Optional<Long> resolveUserAccountInstitution(AppUserInfo appUser) {
+        Optional<Long> institutionId = resolveUserAccountInstitution(appUser.getPreferredUsername());
+        if (institutionId.isPresent()) {
+            return institutionId;
+        }
+
+        String email = appUser.getEmail();
+        if (email != null && !email.isBlank() && !email.equals(appUser.getPreferredUsername())) {
+            return resolveUserAccountInstitution(email);
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Long> resolveUserAccountInstitution(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return userAccountRepository.findByUsernameOrEmail(identifier)
+                    .filter(UserAccount::isEnabled)
+                    .map(UserAccount::getInstitution)
+                    .map(institution -> institution.getId());
+        } catch (Exception e) {
+            log.warn("Could not resolve institution from UserAccount");
+            return Optional.empty();
+        }
     }
 
     public Long getRequiredInstitutionId() {
