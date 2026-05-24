@@ -14,6 +14,13 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     @Query("""
             SELECT ua FROM UserAccount ua
+            WHERE ua.userId = :userId
+            ORDER BY CASE WHEN ua.institution IS NULL THEN 1 ELSE 0 END, ua.id
+            """)
+    List<UserAccount> findAllByUserIdOrderByInstitutionFirst(@Param("userId") String userId);
+
+    @Query("""
+            SELECT ua FROM UserAccount ua
             WHERE ua.username = :username
             ORDER BY CASE WHEN ua.institution IS NULL THEN 1 ELSE 0 END, ua.id
             """)

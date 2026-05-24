@@ -77,30 +77,11 @@ public class TreatmentPlanService {
     public TreatmentPlan findByIdWithDetails(Long id) {
         // Fetch the treatment plan with patient and diagnosis in a single query
         // Get current institution ID for secure access
-        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getInstitutionId();
+        Long institutionId = de.bbajor.pvs.institution.context.InstitutionContext.getRequiredInstitutionId();
 
-        TreatmentPlan treatmentPlan = null;
-        if (institutionId != null) {
-            treatmentPlan = treatmentPlanRepository.findTreatmentPlanByIdAndInstitutionWithPatientDiagnosis(id, institutionId)
-                    .orElse(null);
-
-            // If not found via institution-aware query, check if it exists at all (for better error message)
-            if (treatmentPlan == null) {
-                Optional<TreatmentPlan> existsCheck = treatmentPlanRepository.findById(id);
-                if (existsCheck.isPresent()) {
-                    // TreatmentPlan exists but doesn't belong to current institution
-                    throw new NoSuchElementException(
-                            String.format("TreatmentPlan with id %d exists but does not belong to current institution (institutionId: %d)",
-                                    id, institutionId));
-                }
-            }
-        }
-
-        // Fallback: if no institution context or not found via institution-aware query, try direct lookup
-        if (treatmentPlan == null) {
-            treatmentPlan = treatmentPlanRepository.findById(id)
-                    .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
-        }
+        TreatmentPlan treatmentPlan = treatmentPlanRepository
+                .findTreatmentPlanByIdAndInstitutionWithPatientDiagnosis(id, institutionId)
+                .orElseThrow(() -> new NoSuchElementException("TreatmentPlan not found with id: " + id));
 
         // Fetch treatments separately to avoid lazy loading issues
         List<Treatment> treatments = treatmentRepository
