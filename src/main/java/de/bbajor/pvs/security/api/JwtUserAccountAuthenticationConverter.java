@@ -50,11 +50,13 @@ final class JwtUserAccountAuthenticationConverter implements Converter<Jwt, Abst
             }
         }
 
-        for (String identifier : List.of(
+        String[] fallbackIdentifiers = {
                 claim(jwt, "preferred_username"),
                 claim(jwt, "username"),
                 claim(jwt, "email"),
-                subject)) {
+                subject
+        };
+        for (String identifier : fallbackIdentifiers) {
             if (hasText(identifier)) {
                 Optional<UserAccount> byIdentifier = requireUnique(
                         userAccountRepository.findAllByUsernameOrEmailOrderByInstitutionFirst(identifier));
