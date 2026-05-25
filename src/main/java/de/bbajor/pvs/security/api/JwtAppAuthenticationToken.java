@@ -6,12 +6,14 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import de.bbajor.pvs.security.AppUserPrincipal;
+
 public final class JwtAppAuthenticationToken extends AbstractAuthenticationToken {
 
     private final Jwt jwt;
-    private final JwtAppUserPrincipal principal;
+    private final AppUserPrincipal principal;
 
-    public JwtAppAuthenticationToken(Jwt jwt, JwtAppUserPrincipal principal,
+    public JwtAppAuthenticationToken(Jwt jwt, AppUserPrincipal principal,
             Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
         this.jwt = jwt;

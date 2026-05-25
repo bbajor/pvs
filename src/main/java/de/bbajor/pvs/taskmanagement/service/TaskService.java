@@ -9,7 +9,10 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +26,10 @@ import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentAuditLogReposito
 import de.bbajor.pvs.intravitreal.treatment.repository.TreatmentRepository;
 import de.bbajor.pvs.intravitreal.treatment.service.TreatmentPlanService;
 import de.bbajor.pvs.medication.repository.MedicationFavouriteRepository;
+import de.bbajor.pvs.security.AppUserPrincipal;
+import de.bbajor.pvs.security.domain.UserAccount;
 import de.bbajor.pvs.security.domain.UserAccountRepository;
+import de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter;
 import de.bbajor.pvs.surgicalcenter.model.SurgicalCenterTimeSlot;
 import de.bbajor.pvs.surgicalcenter.service.SurgicalCenterService;
 import de.bbajor.pvs.taskmanagement.domain.Task;
@@ -155,9 +161,9 @@ public class TaskService {
                 .orElseThrow(() -> new IllegalArgumentException("Treatment not found: " + treatmentId));
         
         // Get current user's authentication
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getAuthorities() == null) {
-            throw new org.springframework.security.access.AccessDeniedException("Keine Authentifizierung gefunden.");
+            throw new AccessDeniedException("Keine Authentifizierung gefunden.");
         }
         
         // Get current user's roles
@@ -166,9 +172,7 @@ public class TaskService {
                 .collect(java.util.stream.Collectors.toSet());
         
         // Get current user account to check if they are a treating doctor
-        de.bbajor.pvs.security.domain.UserAccount currentUser = userAccountRepository
-                .findByUsername(auth.getName())
-                .orElseThrow(() -> new IllegalStateException("Benutzer nicht gefunden: " + auth.getName()));
+        UserAccount currentUser = currentUserAccount(auth);
         
         if (!secondApproval) {
             // First approval: Can be done by OWNER, ADMIN, TECH_USER, USER, MEDICAL_STAFF, or treating doctor
@@ -183,7 +187,7 @@ public class TaskService {
             if (!isOwner && !isAdmin && !isTechUser && !isUser && !isMedicalStaff) {
                 // DOCTOR muss behandelnder Arzt sein
                 if (!isDoctor) {
-                    throw new org.springframework.security.access.AccessDeniedException(
+                    throw new AccessDeniedException(
                         "Sie haben keine Berechtigung zum Dokumentieren. " +
                         "Ihre Rolle: " + String.join(", ", userRoles));
                 }
@@ -198,7 +202,7 @@ public class TaskService {
                         .anyMatch(doctor -> doctor.getId().equals(currentUser.getId()));
                 
                 if (!isTreatingDoctor) {
-                    throw new org.springframework.security.access.AccessDeniedException(
+                    throw new AccessDeniedException(
                         "Die erste Genehmigung muss vom behandelnden Arzt durchgeführt werden. " +
                         "Sie sind nicht als behandelnder Arzt für diese Behandlung zugewiesen.");
                 }
@@ -217,7 +221,7 @@ public class TaskService {
             boolean isDoctor = userRoles.contains("DOCTOR");
             
             if (!isOwner && !isAdmin && !isDoctor) {
-                throw new org.springframework.security.access.AccessDeniedException(
+                throw new AccessDeniedException(
                     "Die Zweitprüfung kann nur von Inhaber, Administrator oder einem Arzt durchgeführt werden. " +
                     "Ihre Rolle: " + String.join(", ", userRoles));
             }
@@ -524,13 +528,25 @@ public class TaskService {
                 "Behandelnde Ärzte geändert: " + (oldDoctorsStr.isEmpty() ? "keine" : oldDoctorsStr) + 
                 " -> " + (newDoctorsStr.isEmpty() ? "keine" : newDoctorsStr));
     }
+
+    private UserAccount currentUserAccount(Authentication auth) {
+        if (auth.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
+            return adapter.getUserAccount();
+        }
+        if (auth.getPrincipal() instanceof AppUserPrincipal principal) {
+            return userAccountRepository.findByUsername(principal.getAppUser().getPreferredUsername())
+                    .orElseThrow(() -> new IllegalStateException("Benutzerkonto nicht gefunden."));
+        }
+        return userAccountRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new IllegalStateException("Benutzerkonto nicht gefunden."));
+    }
     
     private void createAuditLog(Treatment treatment, TreatmentAuditLog.ActionType actionType, String details) {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String actorUserId = auth != null ? auth.getName() : "SYSTEM";
         String actorUserName = auth != null ? auth.getName() : "SYSTEM";
         
-        if (auth != null && auth.getPrincipal() instanceof de.bbajor.pvs.security.domain.UserAccountUserDetailsAdapter adapter) {
+        if (auth != null && auth.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
             actorUserId = adapter.getUsername();
             actorUserName = adapter.getAppUser().getFullName() != null 
                     ? adapter.getAppUser().getFullName() 
