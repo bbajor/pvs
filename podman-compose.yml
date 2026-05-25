@@ -37,6 +37,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY:-https://your-idp.example/realms/pvs}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-pvs-frontend}
+        VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-http://localhost:8081/auth/callback}
+        VITE_OIDC_SCOPE: ${VITE_OIDC_SCOPE:-openid profile}
+        VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${VITE_OIDC_POST_LOGOUT_REDIRECT_URI:-http://localhost:8081/}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     image: pvs-frontend:latest
     container_name: pvs-frontend
     ports:
