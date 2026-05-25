@@ -55,15 +55,7 @@ public class CurrentInstitutionService {
             return Optional.empty();
         }
         if (authentication != null && authentication.getPrincipal() instanceof UserAccountUserDetailsAdapter adapter) {
-            try {
-                UserAccount userAccount = userAccountRepository.findByUsername(adapter.getUsername()).orElse(null);
-                if (userAccount != null && userAccount.getInstitution() != null) {
-                    return Optional.of(userAccount.getInstitution().getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not resolve institution from UserAccount: {}", e.getMessage());
-            }
-            return Optional.empty();
+            return adapter.getInstitutionId();
         }
         if (authentication != null && authentication.getPrincipal() instanceof InstitutionAwarePrincipal institutionAware) {
             return institutionAware.getInstitutionId();

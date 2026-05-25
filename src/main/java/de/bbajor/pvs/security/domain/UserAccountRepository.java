@@ -12,6 +12,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     Optional<UserAccount> findByUsernameAndInstitution_Id(String username, Long institutionId);
 
+    List<UserAccount> findAllByUserId(String userId);
+
     @Query("""
             SELECT ua FROM UserAccount ua
             WHERE ua.username = :username

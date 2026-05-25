@@ -2,6 +2,7 @@ package de.bbajor.pvs.security.domain;
 
 import de.bbajor.pvs.security.AppUserInfo;
 import de.bbajor.pvs.security.AppUserPrincipal;
+import de.bbajor.pvs.security.InstitutionAwarePrincipal;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +11,7 @@ import java.time.ZoneId;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,7 +22,7 @@ import java.util.stream.Collectors;
  * This adapter allows UserAccount entities stored in the database to be used for authentication
  * while maintaining compatibility with the application's user information model.
  */
-public class UserAccountUserDetailsAdapter implements AppUserPrincipal, UserDetails {
+public class UserAccountUserDetailsAdapter implements AppUserPrincipal, InstitutionAwarePrincipal, UserDetails {
 
     private final UserAccount userAccount;
     private final AppUserInfo appUserInfo;
@@ -30,6 +32,18 @@ public class UserAccountUserDetailsAdapter implements AppUserPrincipal, UserDeta
         this.userAccount = userAccount;
         this.appUserInfo = createAppUserInfo(userAccount);
         this.authorities = createAuthorities(userAccount.getRoles());
+    }
+
+    public UserAccount getUserAccount() {
+        return userAccount;
+    }
+
+    @Override
+    public Optional<Long> getInstitutionId() {
+        if (userAccount.getInstitution() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(userAccount.getInstitution().getId());
     }
 
     private AppUserInfo createAppUserInfo(UserAccount userAccount) {

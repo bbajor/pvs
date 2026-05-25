@@ -29,9 +29,14 @@ public class InstitutionAccessValidator {
         Long currentInstitutionId = InstitutionContext.getInstitutionId();
         
         if (currentInstitutionId == null) {
-            // No institution context - might be super admin or system operation
-            log.warn("No tenant context set for access to {} with ID {}", entityType, entityId);
-            return;
+            if (entityInstitutionId == null) {
+                log.debug("Accessing institution-less {} with ID {} without tenant context", entityType, entityId);
+                return;
+            }
+            log.error("SECURITY: Access to institution-bound {} {} without tenant context", entityType, entityId);
+            auditLogger.logNoInstitutionContext("access", entityType);
+            throw new InstitutionAccessViolationException(
+                    String.format("Access denied: missing institution context for %s %s", entityType, entityId));
         }
 
         if (entityInstitutionId == null) {
@@ -64,7 +69,7 @@ public class InstitutionAccessValidator {
      */
     public boolean isCurrentInstitution(Long institutionId) {
         Long currentInstitutionId = InstitutionContext.getInstitutionId();
-        return currentInstitutionId == null || currentInstitutionId.equals(institutionId);
+        return currentInstitutionId != null && currentInstitutionId.equals(institutionId);
     }
 
     /**
